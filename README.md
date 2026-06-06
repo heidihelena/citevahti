@@ -48,22 +48,60 @@ can report transparently in a methods section. Single-user, local, PubMed-only.
 > second rater only. AI values are advisory, never decisive, and never silently
 > propagated.**
 
-## The one path: install → start → rate
+## Getting started: install, then pick a path
 
 ```bash
-pip install "citevahti[mcp]"     # 1. install (the mcp extra adds the chat surface)
-citevahti init                   #    one-time: create the local .citevahti/ ledger
-citevahti start                  # 2. opens the panel + browser, serves MCP over stdio
+pip install "citevahti[mcp]"     # the [mcp] extra adds the chat surface — keep both quotes
+citevahti init                   # one-time: create the local .citevahti/ ledger
 ```
 
-3. **Bring a manuscript.** Point your chat client (Claude Desktop / Claude Code /
-   ChatGPT / Codex) at that same `citevahti start` command, run the
-   **`run_claim_tests`** prompt, and paste a paragraph — or attach the manuscript.
-4. **Rate each claim** in the side panel: *your* blind rating first; the AI's stays
-   hidden until you commit yours. To cite, the panel previews the Zotero write, you
-   confirm, and it's undoable.
+> `init` creates `.citevahti/` **in the current folder** — run it from your project
+> folder, not your home directory. (Quote the install: the `[mcp]` brackets are a
+> shell glob, so `pip install "citevahti[mcp]"` needs *both* quotes — a missing
+> closing quote drops you into a `dquote>` prompt.)
 
-That's the whole loop. Everything below is depth on top of these four steps.
+Now choose **one** of two ways to drive the blinded review. Both use the same
+ledger and the same loopback side panel; the human always rates first.
+
+### Path A — chat-driven (recommended)
+
+You don't run a server yourself — your **chat client launches it**. Add this one
+line to the client's MCP config, pointing `--root` at your project folder:
+
+```json
+{ "mcpServers": { "citevahti": { "command": "citevahti", "args": ["start", "--root", "/path/to/project"] } } }
+```
+
+Then open the client (Claude Desktop / Claude Code / ChatGPT / Codex), run the
+**`run_claim_tests`** prompt, and paste a paragraph — or attach the manuscript. The
+side panel opens itself; you rate there first, the AI's rating stays hidden until
+you do, and every Zotero write is previewed → confirmed → undoable.
+
+> **Do not also run `citevahti start` in a terminal for this path.** That command
+> is what the chat client spawns. Run by hand it takes over the terminal — it
+> serves the MCP protocol on stdin, so **no prompt comes back** — and the panel
+> stays **empty until a claim exists**. That looks broken but isn't: it's a server
+> waiting for a client. Press `Ctrl-C` to get your shell back.
+
+### Path B — hands-on (panel + CLI, no chat client)
+
+Open **two terminals**. In the first, bring up the side panel — it keeps running
+and occupies that terminal:
+
+```bash
+citevahti-panel --root /path/to/project    # http://127.0.0.1:8765, loopback only
+```
+
+In the **second** terminal, drive the loop on the CLI; the panel reflects each
+change when you reload it:
+
+```bash
+citevahti claim-add --text "…" --type effectiveness
+citevahti literature-search --query "…" --question-id q1
+# … then rate and decide — full sequence in docs/QUICKSTART.md §4–7
+```
+
+That's the whole loop, either way. Everything below is depth on top of it.
 
 **▶ New here? [`docs/QUICKSTART.md`](docs/QUICKSTART.md)** — the same path in full,
 zero to your first verified citation in ~10 minutes.

@@ -37,9 +37,14 @@ next-step prompts (to stderr), then serves the MCP tools over stdio:
 }
 ```
 
-You can also run it yourself in a terminal just to bring the panel up
-(`--port` to change the port, `--no-browser` to skip opening a window). If the
-`mcp` extra isn't installed it still leaves the panel running.
+You can also run it yourself in a terminal — but note it then **takes over that
+terminal**: it serves the MCP protocol on stdin (so no shell prompt comes back)
+with the panel running in the background, and the panel stays empty until a claim
+exists. To just bring the panel up for hands-on/CLI work, prefer `citevahti-panel`
+(§3) and use a second terminal for commands; `start` is primarily the line your
+chat client spawns. (`--port` changes the port, `--no-browser` skips opening a
+window. If the `mcp` extra isn't installed, `start` still leaves the panel
+running.)
 
 The manual, three-step path below is equivalent if you'd rather wire each surface
 yourself.
