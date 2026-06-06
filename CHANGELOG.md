@@ -543,7 +543,7 @@ ZotSynth's own integrity invariants).
 > The `0.1.0` line was released from the build below (internally versioned 0.7.0
 > during development, then aligned to 0.1.0). Tag: `v0.1.0-integrity-spine`.
 
-## 0.7.0 — full build (steps 1–9)
+### Build detail — steps 1–9 (the dev-internal "0.7.0" build)
 
 ### Step 1 — probe layer + state (`bbc0b37`, hardened in `319cd88`)
 - Startup probe (probe-not-proof): Zotero `/api/` (read-only/GET-only), Better
@@ -617,5 +617,6 @@ ZotSynth's own integrity invariants).
   clearly degraded (`write_layer_unavailable`); no network writes.
 
 ### Testing
-- 308 tests, fully offline (fake Zotero/BBT/PubMed/write/AI seams). No live
-  PubMed calls and no live Zotero writes occur during the suite.
+- 308 tests **at this first milestone** (the suite has grown to 544 by 0.12.0),
+  fully offline (fake Zotero/BBT/PubMed/write/AI seams). No live PubMed calls and
+  no live Zotero writes occur during the suite.
