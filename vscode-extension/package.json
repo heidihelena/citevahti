@@ -87,6 +87,6 @@
     "@types/vscode": "^1.85.0",
     "@types/node": "^20",
     "@vscode/vsce": "^3.9.2",
-    "typescript": "^5.4"
+    "typescript": "^6.0"
   }
 }
