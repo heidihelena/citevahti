@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Minimal citation bracket evidence eye logo">
+  <title>Citation bracket evidence eye logo</title>
+  <desc>Flat black geometric citation brackets with two abstract angular eye-mask forms. Transparent background.</desc>
+  <g fill="#000000">
+    <!-- left citation bracket -->
+    <rect x="150" y="182" width="72" height="660"/>
+    <rect x="150" y="182" width="190" height="72"/>
+    <rect x="150" y="770" width="190" height="72"/>
+    <!-- right citation bracket -->
+    <rect x="802" y="182" width="72" height="660"/>
+    <rect x="684" y="182" width="190" height="72"/>
+    <rect x="684" y="770" width="190" height="72"/>
+
+    <!-- left supported-claim eye mask: open, stable, forward-leaning -->
+    <path fill-rule="evenodd" d="M300 495 L360 365 L502 456 L540 612 L434 640 Z
+      M375 515 L456 552 L510 610 L416 584 Z"/>
+
+    <!-- right supported-claim eye mask: open, matching confidence -->
+    <path fill-rule="evenodd" d="M724 495 L664 365 L522 456 L484 612 L590 640 Z
+      M649 515 L568 552 L514 610 L608 584 Z"/>
+  </g>
+</svg>

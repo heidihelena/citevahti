@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CiteVahti UI Mockup</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary">
+        <a class="brand" href="#setup" data-tab-link="setup" aria-label="CiteVahti setup">
+          <span class="brand-mark" data-logo="neutral"></span>
+          <span class="citevahti-wordmark">CiteVahti</span>
+        </a>
+
+        <nav class="primary-nav">
+          <button class="nav-item active" type="button" data-tab-link="setup">
+            <span class="nav-icon" aria-hidden="true">01</span>
+            <span>Setup</span>
+          </button>
+          <button class="nav-item" type="button" data-tab-link="claims">
+            <span class="nav-icon" aria-hidden="true">02</span>
+            <span>Claims</span>
+          </button>
+          <button class="nav-item" type="button" data-tab-link="evidence">
+            <span class="nav-icon" aria-hidden="true">03</span>
+            <span>Evidence</span>
+          </button>
+          <button class="nav-item" type="button" data-tab-link="changes">
+            <span class="nav-icon" aria-hidden="true">04</span>
+            <span>Changes</span>
+          </button>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Claim -> Evidence -> Human rating -> Zotero write -> Audit trail -> Undo</p>
+            <h1 id="page-title">Connection & safety</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="ghost-button" type="button" data-tab-link="changes">Review changes</button>
+            <button class="primary-button" type="button" data-tab-link="claims">Verify claims</button>
+          </div>
+        </header>
+
+        <section class="tab-panel active" id="setup" aria-label="Setup">
+          <div class="setup-grid">
+            <section class="connection-panel">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Connection</p>
+                  <h2>Zotero-safe workspace</h2>
+                </div>
+                <span class="large-mark" data-logo="neutral"></span>
+              </div>
+
+              <div class="safety-facts" aria-label="Safety facts">
+                <div class="fact-row">
+                  <span>Zotero</span>
+                  <strong>Connected</strong>
+                </div>
+                <div class="fact-row">
+                  <span>NCBI</span>
+                  <strong>Ready</strong>
+                </div>
+                <div class="fact-row">
+                  <span>Active collection</span>
+                  <strong>Lung Cancer</strong>
+                </div>
+                <div class="fact-row">
+                  <span>Write mode</span>
+                  <strong>Stage first</strong>
+                </div>
+                <div class="fact-row">
+                  <span>Deletes</span>
+                  <strong>Disabled</strong>
+                </div>
+                <div class="fact-row">
+                  <span>Batch writes</span>
+                  <strong>Require approval</strong>
+                </div>
+                <div class="fact-row">
+                  <span>Undo</span>
+                  <strong>Available</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="workflow-panel">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Current queue</p>
+                  <h2>Manuscript background</h2>
+                </div>
+                <span class="badge neutral">Stage first</span>
+              </div>
+
+              <div class="workflow-steps" aria-label="Workflow">
+                <div class="workflow-step complete">
+                  <span class="step-dot" aria-hidden="true"></span>
+                  <span>Check claims</span>
+                </div>
+                <div class="workflow-step active">
+                  <span class="step-dot" aria-hidden="true"></span>
+                  <span>Find evidence</span>
+                </div>
+                <div class="workflow-step">
+                  <span class="step-dot" aria-hidden="true"></span>
+                  <span>Add to Zotero</span>
+                </div>
+                <div class="workflow-step">
+                  <span class="step-dot" aria-hidden="true"></span>
+                  <span>Undo</span>
+                </div>
+              </div>
+
+              <div class="status-strip">
+                <div>
+                  <span class="metric-value">7</span>
+                  <span class="metric-label">claims</span>
+                </div>
+                <div>
+                  <span class="metric-value">18</span>
+                  <span class="metric-label">candidates</span>
+                </div>
+                <div>
+                  <span class="metric-value">3</span>
+                  <span class="metric-label">staged writes</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="claims" aria-label="Claims">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Verify claims</p>
+              <h2>Manuscript claim queue</h2>
+            </div>
+            <button class="primary-button" type="button">Verify claims</button>
+          </div>
+
+          <div class="fit-legend" aria-label="Fit codes — type the code to act">
+            <span class="claim-status-badge zs-supported"><span class="zs-code">[oo]</span><span>Supported → Add to Zotero</span></span>
+            <span class="claim-status-badge zs-partial"><span class="zs-code">[o ]</span><span>Partly → cite with caution</span></span>
+            <span class="claim-status-badge zs-revise"><span class="zs-code">[r ]</span><span>Revise → human review</span></span>
+            <span class="claim-status-badge zs-delete"><span class="zs-code">[d ]</span><span>Unsupported → remove candidate</span></span>
+          </div>
+
+          <div class="claims-table" role="table" aria-label="Claims and support state">
+            <div class="claims-row claims-head" role="row">
+              <span role="columnheader">Claim</span>
+              <span role="columnheader">Current citation</span>
+              <span role="columnheader">Status</span>
+              <span role="columnheader">Suggested action</span>
+            </div>
+            <div id="claims-list"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="evidence" aria-label="Evidence">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Evidence</p>
+              <h2>Claim-paper validation</h2>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="human-rating-toggle" />
+              <span>Human rating submitted</span>
+            </label>
+          </div>
+
+          <div class="evidence-layout">
+            <div id="evidence-list" class="evidence-list"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="changes" aria-label="Changes">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Changes</p>
+              <h2>Audit trail</h2>
+            </div>
+            <button class="ghost-button" type="button">Review changes</button>
+          </div>
+
+          <div class="audit-table" role="table" aria-label="Audit changes">
+            <div class="audit-row audit-head" role="row">
+              <span role="columnheader">Action</span>
+              <span role="columnheader">Paper / collection</span>
+              <span role="columnheader">Claim</span>
+              <span role="columnheader">PMID / DOI</span>
+              <span role="columnheader">Session</span>
+              <span role="columnheader">Transaction</span>
+              <span role="columnheader">Undo</span>
+            </div>
+            <div id="audit-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

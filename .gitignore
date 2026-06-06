@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+# project state is per-user/local; do not commit a working .citevahti into the tool repo
+.citevahti/
+# secrets, logs, OS cruft
+.env
+*.log
+.DS_Store
+.Rhistory
+# editor + local-only helpers (never publish)
+.vscode/
+bin/
+# local manuscripts used for hand-testing (not part of the tool)
+manuscrip*.md
+manuscript*.md

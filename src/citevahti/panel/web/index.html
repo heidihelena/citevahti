@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" class="zs-dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CiteVahti — decision panel</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="panel">
+      <header class="bar">
+        <span class="title">CiteVahti</span>
+        <span class="meta">· each claim is a test · human review comes first</span>
+        <span class="meta" id="root"></span>
+        <div class="right">
+          <span class="dot" id="health" title="engine connection"></span>
+          <button id="reload" class="chip-btn" type="button">↻ Claims</button>
+          <button id="theme" class="chip-btn" type="button">◐ Light</button>
+        </div>
+      </header>
+
+      <!-- the blind human decision surface: rate here BEFORE the chat reveals the AI rating -->
+      <section class="claimlist" id="claimlist" aria-label="Claims"></section>
+      <aside class="card" id="card" aria-label="Evidence and rating">
+        <div class="empty">Pick a claim above to rate its evidence. You rate first — the
+          chat reveals the AI second rating only after your rating is recorded.</div>
+      </aside>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

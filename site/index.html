@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CiteVahti — verify the claim before you cite it</title>
+  <meta name="description" content="CiteVahti is citation-integrity infrastructure: a blinded human → AI → adjudication workflow with a decision-gated, undoable Zotero write and a hash-chained audit trail. Free and local-first for researchers; a product of Vahtian.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232D2440'/%3E%3Cg stroke='%238B6FC9' stroke-width='2.4' fill='none' stroke-linecap='round'%3E%3Cpath d='M11 9 H8 V23 H11'/%3E%3Cpath d='M21 9 H24 V23 H21'/%3E%3C/g%3E%3Ccircle cx='14' cy='16' r='1.9' fill='%23C5B8E8'/%3E%3Ccircle cx='18' cy='16' r='1.9' fill='%23C5B8E8'/%3E%3C/svg%3E">
+  <style>
+    :root{
+      --navy:#2D2440; --violet:#8B6FC9; --lilac:#C5B8E8;
+      --amber:#C98A00; --teal:#1E9E8A; --rose:#C24D7E;
+      --ink:#1c1830; --muted:#5b5570; --bg:#faf9fc; --card:#fff; --line:#e7e3f0;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+    a{color:var(--violet)}
+    .wrap{max-width:760px;margin:0 auto;padding:0 22px}
+    header{padding:30px 0 6px}
+    .brand{display:flex;align-items:center;gap:11px;font-weight:700;font-size:18px}
+    .mark{width:30px;height:30px;flex:0 0 30px}
+    .by{color:var(--muted);font-size:13px;font-weight:500}
+    .hero{padding:48px 0 12px}
+    h1{font-size:clamp(30px,6vw,46px);line-height:1.1;letter-spacing:-.02em;margin:0 0 16px}
+    .lede{font-size:clamp(17px,2.6vw,20px);color:#3a3450;margin:0 0 26px;max-width:60ch}
+    .cta{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0 4px}
+    .btn{display:inline-block;padding:11px 18px;border-radius:9px;font-weight:600;text-decoration:none;font-size:15px}
+    .btn.primary{background:var(--navy);color:#fff}
+    .btn.ghost{border:1px solid var(--line);color:var(--ink);background:var(--card)}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin:30px 0 6px}
+    .chip{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;padding:6px 10px;border-radius:7px;border:1px solid}
+    .chip.v{background:#FFF2D8;border-color:var(--amber);color:#5A4300}
+    .chip.n{background:#D8F4ED;border-color:var(--teal);color:#08544A}
+    .chip.r{background:#ECE3FF;border-color:var(--violet);color:#432C7A}
+    .chip.d{background:#FBE0EA;border-color:var(--rose);color:#7A1F45}
+    section{padding:34px 0;border-top:1px solid var(--line);margin-top:34px}
+    h2{font-size:20px;margin:0 0 14px}
+    ul.feat{list-style:none;padding:0;margin:0;display:grid;gap:14px}
+    ul.feat li{padding-left:26px;position:relative;color:#322c47}
+    ul.feat li::before{content:"";position:absolute;left:0;top:.55em;width:9px;height:9px;border-radius:50%;background:var(--violet)}
+    ul.feat b{color:var(--ink)}
+    .who{display:grid;gap:14px;grid-template-columns:1fr 1fr}
+    @media(max-width:560px){.who{grid-template-columns:1fr}}
+    .who .box{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:16px}
+    .who h3{margin:0 0 6px;font-size:15px}
+    .who p{margin:0;color:var(--muted);font-size:14px}
+    .note{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--violet);
+          border-radius:9px;padding:13px 15px;color:#3a3450;font-size:14.5px}
+    footer{padding:30px 0 50px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:34px}
+    footer a{color:var(--muted)}
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#2D2440"/>
+        <g stroke="#8B6FC9" stroke-width="2.4" fill="none" stroke-linecap="round">
+          <path d="M11 9 H8 V23 H11"/><path d="M21 9 H24 V23 H21"/>
+        </g>
+        <circle cx="14" cy="16" r="1.9" fill="#C5B8E8"/>
+        <circle cx="18" cy="16" r="1.9" fill="#C5B8E8"/>
+      </svg>
+      <span>CiteVahti <span class="by">· a product of Vahtian</span></span>
+    </div>
+  </header>
+
+  <div class="hero">
+    <h1>Verify the claim before you cite it.</h1>
+    <p class="lede">CiteVahti is citation-integrity infrastructure. Every manuscript
+      claim is tested against its candidate papers through a blinded
+      <b>human&nbsp;→&nbsp;AI&nbsp;→&nbsp;adjudication</b> workflow, and a reference enters
+      Zotero only as the audited, undoable last step of a human decision.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/heidihelena/citevahti">View on GitHub</a>
+      <a class="btn ghost" href="https://github.com/heidihelena/citevahti#readme">How it works</a>
+    </div>
+    <div class="chips" aria-label="The four claim states">
+      <span class="chip v">[oo] verified</span>
+      <span class="chip n">[o] needs support</span>
+      <span class="chip r">[r] review needed</span>
+      <span class="chip d">[d] decision recorded</span>
+    </div>
+  </div>
+
+  <section>
+    <h2>What it does</h2>
+    <ul class="feat">
+      <li><b>The claim is the spine.</b> Candidate papers hang off each manuscript claim — not the other way around.</li>
+      <li><b>Blinded second rating.</b> The AI rates support independently and stays hidden until you rate; disagreements route to you.</li>
+      <li><b>The human is always the decider.</b> AI values are advisory, never decisive, never silently propagated.</li>
+      <li><b>Decision-gated, undoable Zotero write.</b> Preview → confirm → write → undo, with fail-closed dedupe — never a silent or fabricated citation.</li>
+      <li><b>Hash-chained audit trail.</b> The reasoning is recorded, so the workflow can be reported transparently in a methods section.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Free for researchers, infrastructure for organizations</h2>
+    <div class="who">
+      <div class="box">
+        <h3>Researchers &amp; labs</h3>
+        <p>Free and local-first. Run the whole claim → decision → audit loop on your
+          laptop, inside VS Code, with no account.</p>
+      </div>
+      <div class="box">
+        <h3>Publishers · guidelines · MedComms</h3>
+        <p>Auditable citation integrity at publication scale: claim-level checks,
+          reviewer oversight, and manuscript audit trails. <em>(In development.)</em></p>
+      </div>
+    </div>
+    <p style="margin-top:18px;color:var(--muted);font-size:14px">
+      The open core is Apache-2.0 and never paywalls a researcher’s ability to verify
+      their own manuscript.</p>
+  </section>
+
+  <section>
+    <h2>Status</h2>
+    <p class="note"><b>Local-first beta.</b> The full evidence-decision ledger,
+      the VS Code review loop, the editor-mode report, and the constrained agent/MCP
+      surface are working today. Single-user, local, PubMed-only. The VS Code
+      extension is packaged and headed for the Marketplace.</p>
+  </section>
+
+  <footer>
+    <p>© 2026 Vahtian · CiteVahti · Apache-2.0 core ·
+      <a href="https://github.com/heidihelena/citevahti">github.com/heidihelena/citevahti</a></p>
+    <p>Records the blinded human → AI → adjudication workflow with provenance; it does not assert truth.</p>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,122 @@
+/* CiteVahti inline review layer — ADR-0002.
+ * The citation-integrity layer lives INSIDE the writing surface (editor / chat-
+ * and-code), not in a separate dashboard. Four distinct status hues so the codes
+ * are tellable apart: amber=oo, teal=o, violet=r, rose=d. Lilac/violet = brand +
+ * chrome. No green; delete is rose (remove), not fire-red. The bracketed code is
+ * always shown, so colour is never the only cue.
+ * Dark-first (coder world); .zs-dark on <html>, remove for light. */
+
+:root {
+  --zs-ink: #1A1726; --zs-paper: #FFFFFF; --zs-surface: #FBFAFE; --zs-surface-2: #F1ECFA;
+  --zs-line: #E5E0F2; --zs-muted: #6B647E;
+  --zs-brand: #6B4E9E; --zs-brand-strong: #4B1778; --zs-brand-bg: #ECE3FF; --zs-brand-contrast: #FFFFFF;
+  /* four distinct status hues: amber / teal / violet / rose */
+  --zs-supported-bg: #FFE9A8; --zs-supported-border: #C98A00; --zs-supported-text: #5A4300;
+  --zs-partial-bg: #C9F2EA; --zs-partial-border: #1E9E8A; --zs-partial-text: #08544A;
+  --zs-revise-bg: #E7DBFF; --zs-revise-border: #8B6FC9; --zs-revise-text: #432C7A;
+  --zs-delete-bg: #FBD7E4; --zs-delete-border: #C24D7E; --zs-delete-text: #7A1F45;
+}
+.zs-dark {
+  --zs-ink: #ECE7F6; --zs-paper: #14110A; --zs-surface: #121022; --zs-surface-2: #1B1730;
+  --zs-line: #2A2440; --zs-muted: #9A93B0;
+  --zs-brand: #B79AE6; --zs-brand-strong: #E7D8FF; --zs-brand-bg: #2A2140; --zs-brand-contrast: #1B1230;
+  --zs-supported-bg: #3E3210; --zs-supported-border: #C99A1E; --zs-supported-text: #FFE2A0;
+  --zs-partial-bg: #0F332E; --zs-partial-border: #3FB3A0; --zs-partial-text: #B7F0E5;
+  --zs-revise-bg: #2E2350; --zs-revise-border: #8A6FD0; --zs-revise-text: #E3D6FF;
+  --zs-delete-bg: #3E1B2C; --zs-delete-border: #C8537F; --zs-delete-text: #FCC9DC;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--zs-surface); color: var(--zs-ink);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surface-2);
+  border: 1px solid var(--zs-line); border-bottom-width: 2px; border-radius: 4px; padding: 2px 5px; }
+
+.ide { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
+
+/* ---- editor chrome ---- */
+.ide-bar { display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+  background: var(--zs-paper); border-bottom: 1px solid var(--zs-line);
+  font: 600 13px/1 ui-monospace, Menlo, monospace; }
+.mark { width: 22px; height: 22px; display: inline-flex; color: var(--zs-ink); }
+.file { color: var(--zs-ink); }
+.sep { color: var(--zs-muted); }
+.cmd { color: var(--zs-brand); }
+.ide-bar-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.hint { color: var(--zs-muted); font-weight: 500; }
+.chip-btn { font: inherit; cursor: pointer; border: 1px solid var(--zs-line);
+  background: var(--zs-surface-2); color: var(--zs-ink); border-radius: 7px; padding: 5px 9px; }
+
+/* ---- split: manuscript + card ---- */
+.split { display: grid; grid-template-columns: 1.7fr 1fr; min-height: 0; }
+.editor { overflow: auto; padding: 28px 34px; border-right: 1px solid var(--zs-line); }
+.doc { max-width: 720px; font-size: 17px; line-height: 1.85; }
+.doc h1 { font-size: 20px; margin: 0 0 18px; }
+.doc p { margin: 0 0 16px; }
+
+/* ---- claim spans: highlighted in place, reviewed without leaving the text ---- */
+.claim { border-radius: 4px; padding: 1px 3px; cursor: pointer; border-bottom: 2px solid transparent;
+  transition: background .12s, border-color .12s; }
+.claim .code { font: 700 11px/1 ui-monospace, Menlo, monospace; letter-spacing: .04em;
+  margin-left: 5px; padding: 1px 4px; border-radius: 4px; border: 1px solid; vertical-align: 1px; white-space: pre; }
+
+.claim.supported { background: var(--zs-supported-bg); border-bottom-color: var(--zs-supported-border); }
+.claim.supported .code { color: var(--zs-supported-text); border-color: var(--zs-supported-border); }
+.claim.partial { background: var(--zs-partial-bg); border-bottom-color: var(--zs-partial-border); }
+.claim.partial .code { color: var(--zs-partial-text); border-color: var(--zs-partial-border); }
+.claim.revise { background: var(--zs-revise-bg); border-bottom-color: var(--zs-revise-border); }
+.claim.revise .code { color: var(--zs-revise-text); border-color: var(--zs-revise-border); }
+.claim.delete { background: var(--zs-delete-bg); border-bottom-color: var(--zs-delete-border); }
+.claim.delete .code { color: var(--zs-delete-text); border-color: var(--zs-delete-border); }
+.claim.active { outline: 2px solid var(--zs-brand); outline-offset: 2px; }
+.claim .src { font-size: .8em; color: var(--zs-muted); vertical-align: super; margin-left: 2px; }
+.claim .src.removed { text-decoration: line-through; opacity: .6; }
+.claim.deleted-claim { text-decoration: line-through; text-decoration-thickness: 2px;
+  text-decoration-color: var(--zs-delete-border); opacity: .6; }
+
+/* ---- evidence card ---- */
+.card { overflow: auto; padding: 22px; background: var(--zs-paper); min-width: 0; }
+.card .card-code { display: inline-flex; align-items: center; gap: 8px; font-weight: 700;
+  padding: 5px 10px; border-radius: 7px; border: 1px solid; margin-bottom: 14px; }
+.card .card-code .code { font: 700 12px/1 ui-monospace, Menlo, monospace; padding: 2px 5px; border-radius: 4px; background: rgba(0,0,0,.06); white-space: pre; }
+.card.supported .card-code { background: var(--zs-supported-bg); border-color: var(--zs-supported-border); color: var(--zs-supported-text); }
+.card.partial .card-code { background: var(--zs-partial-bg); border-color: var(--zs-partial-border); color: var(--zs-partial-text); }
+.card.revise .card-code { background: var(--zs-revise-bg); border-color: var(--zs-revise-border); color: var(--zs-revise-text); }
+.card.delete .card-code { background: var(--zs-delete-bg); border-color: var(--zs-delete-border); color: var(--zs-delete-text); }
+
+.card .lbl { font: 600 11px/1.4 ui-monospace, Menlo, monospace; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--zs-muted); margin: 14px 0 4px; }
+.card .claimline { font-size: 15px; font-weight: 600; }
+.card .paper { font-size: 14px; }
+.card .excerpt { font-size: 13px; color: var(--zs-muted); border-left: 3px solid var(--zs-supported-border); padding-left: 10px; margin: 4px 0; }
+.card .checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.card .check { font: 600 11px/1 ui-monospace, Menlo, monospace; padding: 3px 7px; border-radius: 999px; border: 1px solid var(--zs-line); color: var(--zs-muted); }
+.card .check.ok { color: var(--zs-supported-text); border-color: var(--zs-supported-border); background: var(--zs-supported-bg); }
+.card .check.no { color: var(--zs-delete-text); border-color: var(--zs-delete-border); background: var(--zs-delete-bg); }
+.card .rate { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+.card .rate b { font-weight: 600; }
+
+/* inline diff (never silently rewrite claim text) */
+.diff { border: 1px solid var(--zs-line); border-radius: 9px; overflow: hidden; margin: 6px 0; font-size: 13px; }
+.diff .del { background: var(--zs-delete-bg); color: var(--zs-delete-text); padding: 7px 10px; text-decoration: line-through; }
+.diff .add { background: var(--zs-supported-bg); color: var(--zs-supported-text); padding: 7px 10px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.btn { font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px; padding: 8px 13px; border: 1px solid; }
+.btn.primary { background: var(--zs-brand); color: var(--zs-brand-contrast); border-color: var(--zs-brand); }
+.btn.primary:hover { background: var(--zs-brand-strong); border-color: var(--zs-brand-strong); }
+.btn.ghost { background: var(--zs-paper); color: var(--zs-brand); border-color: var(--zs-revise-border); }
+.btn.danger { background: var(--zs-delete-bg); color: var(--zs-delete-text); border-color: var(--zs-delete-border); }
+.btn.danger:hover { filter: brightness(.97); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ---- agent lane (chat-and-code) ---- */
+.agent { border-top: 1px solid var(--zs-line); background: var(--zs-paper);
+  padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+  font: 13px/1.4 ui-monospace, Menlo, monospace; color: var(--zs-muted); min-height: 46px; }
+.agent .who { color: var(--zs-brand); font-weight: 700; }
+.agent .pill { color: var(--zs-ink); }
+
+:focus-visible { outline: 2px solid var(--zs-brand); outline-offset: 2px; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } .card { border-top: 1px solid var(--zs-line); } }

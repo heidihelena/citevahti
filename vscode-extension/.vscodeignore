@@ -1,0 +1,10 @@
+src/**
+tsconfig.json
+node_modules/**
+*.vsix
+**/*.map
+.gitignore
+.vscodeignore
+.DS_Store
+**/.DS_Store
+PUBLISHING.md

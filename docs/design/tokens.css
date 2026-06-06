@@ -1,0 +1,78 @@
+/* CiteVahti design tokens — the [oo/o/r/d] review layer (ADR-0002).
+ *
+ * Four DISTINCT status hues so the codes are tellable apart at a glance
+ * (accessibility — two yellows / two lilacs were indistinguishable):
+ *   oo supported = amber/gold   o partly = teal
+ *   r  revise    = violet/lilac  d delete-candidate = rose
+ * Lilac/violet stays the brand + chrome colour (= the "human action" meaning of
+ * revise). NO green (avoid "approved/safe"); delete is rose, not fire-red, so it
+ * reads "remove" not "punitive error". The bracketed code is ALWAYS shown, so
+ * meaning never depends on colour alone. Each status has bg / border / text;
+ * editor highlights use the *-bg as a span tint.
+ */
+
+:root {
+  /* ink + structure (brand mark is flat black on transparent) */
+  --zs-ink: #000000;
+  --zs-paper: #FFFFFF;
+
+  /* oo — Supported (amber/gold) "complete fit, marked as usable evidence" */
+  --zs-supported-bg: #FFE9A8;
+  --zs-supported-border: #C98A00;
+  --zs-supported-text: #5A4300;
+
+  /* o — Partly supported (teal) "partial fit" */
+  --zs-partial-bg: #C9F2EA;
+  --zs-partial-border: #1E9E8A;
+  --zs-partial-text: #08544A;
+
+  /* r — Revise (violet/lilac) "work remains / human action" */
+  --zs-revise-bg: #E7DBFF;
+  --zs-revise-border: #8B6FC9;
+  --zs-revise-text: #432C7A;
+
+  /* d — Delete candidate (rose) "remove the source" — not a punitive red */
+  --zs-delete-bg: #FBD7E4;
+  --zs-delete-border: #C24D7E;
+  --zs-delete-text: #7A1F45;
+
+  /* editor span highlights derive from the status backgrounds */
+  --zs-hl-supported: var(--zs-supported-bg);
+  --zs-hl-partial: var(--zs-partial-bg);
+  --zs-hl-revise: var(--zs-revise-bg);
+  --zs-hl-delete: var(--zs-delete-bg);
+}
+
+/* Dark mode — muted so the hues read as annotations, not neon. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --zs-ink: #FFFFFF;
+    --zs-paper: #14110A;
+
+    --zs-supported-bg: #3E3210;  --zs-supported-border: #C99A1E;  --zs-supported-text: #FFE2A0;
+    --zs-partial-bg:   #0F332E;  --zs-partial-border:   #3FB3A0;  --zs-partial-text:   #B7F0E5;
+    --zs-revise-bg:    #2E2350;  --zs-revise-border:    #8A6FD0;  --zs-revise-text:    #E3D6FF;
+    --zs-delete-bg:    #3E1B2C;  --zs-delete-border:    #C8537F;  --zs-delete-text:    #FCC9DC;
+  }
+}
+
+/* explicit class for editors that set a theme class rather than the media query */
+.zs-dark {
+  --zs-ink: #FFFFFF;
+  --zs-paper: #14110A;
+  --zs-supported-bg: #3E3210;  --zs-supported-border: #C99A1E;  --zs-supported-text: #FFE2A0;
+  --zs-partial-bg:   #0F332E;  --zs-partial-border:   #3FB3A0;  --zs-partial-text:   #B7F0E5;
+  --zs-revise-bg:    #2E2350;  --zs-revise-border:    #8A6FD0;  --zs-revise-text:    #E3D6FF;
+  --zs-delete-bg:    #3E1B2C;  --zs-delete-border:    #C8537F;  --zs-delete-text:    #FCC9DC;
+}
+
+/* status chip: [oo] Supported / [o ] Partly / [r ] Revise / [d ] Delete */
+.zs-chip { display: inline-flex; gap: .4em; align-items: center;
+  font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: .25em .5em; border-radius: 4px; border: 1px solid; }
+.zs-chip .zs-code { letter-spacing: .05em; }   /* the bracketed code, always with its label */
+
+.zs-supported { background: var(--zs-supported-bg); border-color: var(--zs-supported-border); color: var(--zs-supported-text); }
+.zs-partial   { background: var(--zs-partial-bg);   border-color: var(--zs-partial-border);   color: var(--zs-partial-text); }
+.zs-revise    { background: var(--zs-revise-bg);    border-color: var(--zs-revise-border);    color: var(--zs-revise-text); }
+.zs-delete    { background: var(--zs-delete-bg);    border-color: var(--zs-delete-border);    color: var(--zs-delete-text); }

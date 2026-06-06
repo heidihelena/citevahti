@@ -1,0 +1,92 @@
+{
+  "name": "citevahti",
+  "displayName": "CiteVahti \u2014 citation integrity",
+  "description": "Run citation-integrity tests on your manuscript claims, inline. Verify the claim before you cite it. A product of Vahtian.",
+  "version": "0.12.0",
+  "publisher": "vahtian",
+  "license": "Apache-2.0",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#2D2440",
+    "theme": "dark"
+  },
+  "keywords": [
+    "zotero",
+    "citation",
+    "references",
+    "academic writing",
+    "research integrity",
+    "citevahti"
+  ],
+  "homepage": "https://github.com/heidihelena/citevahti#readme",
+  "bugs": {
+    "url": "https://github.com/heidihelena/citevahti/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heidihelena/citevahti.git",
+    "directory": "vscode-extension"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onCommand:citevahti.startReview",
+    "onCommand:citevahti.verifyClaims",
+    "onCommand:citevahti.connectZotero"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "citevahti.startReview",
+        "title": "CiteVahti: Start manuscript review"
+      },
+      {
+        "command": "citevahti.verifyClaims",
+        "title": "CiteVahti: Verify claims"
+      },
+      {
+        "command": "citevahti.connectZotero",
+        "title": "CiteVahti: Connect Zotero"
+      }
+    ],
+    "configuration": {
+      "title": "CiteVahti",
+      "properties": {
+        "citevahti.cliPath": {
+          "type": "string",
+          "default": "citevahti",
+          "description": "Path to the CiteVahti CLI (install CiteVahti in a venv and point here; the legacy `citevahti` command also works)."
+        },
+        "citevahti.root": {
+          "type": "string",
+          "default": "",
+          "description": "Project root containing .citevahti/ (defaults to the workspace folder)."
+        },
+        "citevahti.collectionKey": {
+          "type": "string",
+          "default": "",
+          "description": "Zotero collection key to write verified references into (optional)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --no-dependencies",
+    "publish": "vsce publish --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20",
+    "@vscode/vsce": "^2.24.0",
+    "typescript": "^5.4"
+  }
+}
