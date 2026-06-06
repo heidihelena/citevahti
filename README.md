@@ -1,8 +1,6 @@
 # CiteVahti
 
-> *A product of **Vahtian**. (Formerly developed as **ZotSynth**; fully renamed —
-> the distribution, the importable package, and the CLI are all `citevahti` now —
-> see [ADR-0006](docs/adr/0006-full-rename-retire-zotsynth-alias.md).)*
+> *A product of **Vahtian**.*
 
 > **Status: v0.12.0 — one-command start.** The ADR-0001 evidence-decision
 > ledger is complete end to end (claim → candidate → blinded support rating →
