@@ -107,7 +107,8 @@ That's the whole loop, either way. Everything below is depth on top of it.
 zero to your first verified citation in ~10 minutes.
 
 See [`docs/`](docs/) for the architecture, methods, safety invariants, CLI
-reference, and the reviewer checklist.
+reference, the reviewer checklist, and the [glossary](docs/GLOSSARY.md)
+(claim vs statement, and the rest of the vocabulary).
 
 ## Direction: the citation-integrity ledger (ADR-0001)
 
