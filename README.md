@@ -1,5 +1,7 @@
 # CiteVahti
 
+**Run unit tests on your manuscript. Check every claim before you cite it.**
+
 > *A product of **Vahtian**.*
 
 > **Status: v0.12.0 — one-command start.** The ADR-0001 evidence-decision
