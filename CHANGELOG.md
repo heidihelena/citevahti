@@ -40,7 +40,7 @@ safety-invariant changes; 544 offline tests.
 - **fix(version): align the VS Code extension to 0.11.0/0.11.1.** `package.json`
   and `package-lock.json` were still 0.10.0, so packaging produced a stale
   `0.10.0.vsix` and made the extension look un-updated.
-- **docs:** README/QUICKSTART test count (→541+) and `.vsix` name (→0.11.x)
+- **docs:** README/QUICKSTART test count (→544) and `.vsix` name (→0.11.x)
   refreshed; QUICKSTART now installs from PyPI (`pip install citevahti`), not
   "from source; PyPI coming"; chat docs lead with the canonical `run_claim_tests`
   prompt (`review_manuscript` noted as the deprecated alias).
