@@ -1,6 +1,6 @@
 # CiteVahti
 
-**Run unit tests on your manuscript. Check every claim before you cite it.**
+**Run unit tests on your manuscript. Check every statement before you cite it.**
 
 > *A product of **Vahtian**.*
 
@@ -30,7 +30,7 @@
 > institutions, and medical-communications teams.
 
 **CiteVahti runs unit tests on manuscript claims.** The manuscript is the code;
-each scientific claim is a test case. It checks whether each claim is actually
+each scientific claim is a test case. It checks whether each claim or statement is actually
 supported by its cited or candidate evidence — using PubMed and Zotero, a
 **blinded, human-first** rating workflow, and MCP-connected agents such as Codex or
 Claude Code. The human rates support first; the AI second opinion stays hidden
