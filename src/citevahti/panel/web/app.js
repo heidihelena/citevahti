@@ -388,6 +388,19 @@ function decideBlock(cand) {
     <div class="actions">${decBtns}</div>${adj}</div>`;
 }
 
+// A plain line stating where a Zotero write will land + under what permission,
+// shown before the user previews/commits. Library id is an identifier, not a secret.
+function writeTargetLine() {
+  const t = (state.health && state.health.write_target) || null;
+  if (!t || !t.available) return "";
+  const backend = { zotero_web_api: "Zotero Web API", better_bibtex: "Better BibTeX",
+    zotero_local: "Zotero local" }[t.backend] || t.backend || "Zotero";
+  const lib = t.zotero_library ? `library ${esc(String(t.zotero_library))}` : "your personal library";
+  const perm = (t.permissions && t.permissions.personal_library) || "item creation only";
+  return `<div class="target"><b>This write targets:</b> ${lib} via ${esc(backend)}.
+    <span class="dim">Permission: ${esc(perm)}.</span></div>`;
+}
+
 function writeBlock(claim, cand) {
   const code = (cand.evidence && cand.evidence.final_decision) || "";
   const canWrite = (state.health && state.health.can_write || []).length > 0;
@@ -405,10 +418,11 @@ function writeBlock(claim, cand) {
             <a class="btn ghost" href="https://www.zotero.org/settings/keys/new" target="_blank" rel="noopener">Get a key</a></div>
           <div class="note">Either way the key is stored in your OS keychain — it never returns to this page.</div></div></div>`;
     }
+    const target = writeTargetLine();
     let body, note = "";
     if (!state.pendingZtoken) {
       body = `<div class="actions"><button class="btn primary" data-act="zpreview">Preview write <span class="hk">↵</span></button></div>`;
-      note = `<div class="why">Nothing is written to Zotero yet. Preview the change first.</div>`;
+      note = `${target}<div class="why">Nothing is written to Zotero yet. Preview the change first.</div>`;
     } else {
       body = `<div class="actions"><button class="btn primary" data-act="zcommit">Confirm &amp; add to Zotero <span class="hk">↵</span></button>
         <button class="btn ghost" data-act="zcancel">Cancel</button></div>`;

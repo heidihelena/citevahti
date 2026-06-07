@@ -250,6 +250,21 @@ def test_live_server_serves_panel_and_health_offline(tmp_path):
         srv.server_close()
 
 
+def test_health_exposes_write_target_for_pre_write_disclosure(tmp_path):
+    """The UI states where a write lands before committing it; health must carry a
+    write_target summary (backend, availability, library id, permissions). The
+    library id is an identifier, never a secret value."""
+    _setup(tmp_path)
+    health = agent.tools.status(root=str(tmp_path))
+    assert "write_target" in health
+    wt = health["write_target"]
+    assert {"backend", "available", "zotero_library", "permissions"} <= set(wt)
+    assert isinstance(wt["available"], bool)
+    # no secret key material leaks through the disclosure
+    blob = repr(wt).lower()
+    assert "api_key" not in blob and "secret" not in blob
+
+
 # ---- inline manuscript surface (ADR-0002): claims mapped onto real prose ----
 def _setup_ms(tmp_path):
     """A ledger with one claim whose text appears in a bound manuscript file."""

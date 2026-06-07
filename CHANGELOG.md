@@ -20,6 +20,11 @@ Panel UX hardening (the "medium" findings from the external review):
   is an `aria-live="polite"` region; claim spans expose an accessible name with their
   state ("claim pending: …") and hide the cryptic `[··]` chip from screen readers; the
   legend is a labelled region with `aria-expanded` wiring.
+- **feat(panel): write-target disclosure.** Before a Zotero write the card now states
+  where it will land — *"This write targets: library &lt;id&gt; via Zotero Web API.
+  Permission: item creation only."* — sourced from the capability report. The library
+  id is an identifier, never a secret; `/api/health` carries a `write_target` summary
+  (backend, availability, library, permissions) and a test asserts no key material leaks.
 
 ## 0.14.0 — Integrity surfaces in the panel: audit chain, Zotero evidence, lexical check (2026-06-07)
 
