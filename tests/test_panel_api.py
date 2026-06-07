@@ -12,6 +12,7 @@ Safety contract:
 import json
 import threading
 import time
+from pathlib import Path
 
 import httpx
 import pytest
@@ -263,6 +264,41 @@ def test_health_exposes_write_target_for_pre_write_disclosure(tmp_path):
     # no secret key material leaks through the disclosure
     blob = repr(wt).lower()
     assert "api_key" not in blob and "secret" not in blob
+
+
+# ---- first-run paste-Markdown hand-off (claims still extracted in chat) ------
+def test_paste_manuscript_saves_binds_and_returns_chat_prompt(tmp_path):
+    _setup(tmp_path)
+    status, out = dispatch(str(tmp_path), "POST", "/api/manuscripts/paste",
+                           {"filename": "my draft", "content": "# Title\n\nA sentence.\n"})
+    assert status == 200 and out["ok"] is True
+    assert out["filename"] == "my draft.md"                 # spaces kept, .md forced
+    saved = Path(out["manuscripts_dir"]) / out["filename"]
+    assert saved.read_text(encoding="utf-8") == "# Title\n\nA sentence.\n"
+    # the folder is now bound, and the hand-off names the file (extraction is chat-side)
+    from citevahti.panel import prefs
+    assert prefs.get_manuscripts_dir(str(tmp_path)) == out["manuscripts_dir"]
+    assert "my draft.md" in out["next_prompt"]
+
+
+def test_paste_manuscript_rejects_path_traversal(tmp_path):
+    _setup(tmp_path)
+    status, out = dispatch(str(tmp_path), "POST", "/api/manuscripts/paste",
+                           {"filename": "../../etc/evil.md", "content": "x"})
+    assert status == 200 and out["ok"] is True
+    # the file lands inside the bound folder as a plain basename, never escapes it
+    saved = Path(out["manuscripts_dir"]) / out["filename"]
+    assert saved.resolve().parent == Path(out["manuscripts_dir"]).resolve()
+    assert ".." not in out["filename"] and "/" not in out["filename"]
+
+
+def test_paste_manuscript_refuses_to_clobber_existing(tmp_path):
+    _setup(tmp_path)
+    dispatch(str(tmp_path), "POST", "/api/manuscripts/paste",
+             {"filename": "draft.md", "content": "first"})
+    status, out = dispatch(str(tmp_path), "POST", "/api/manuscripts/paste",
+                           {"filename": "draft.md", "content": "second"})
+    assert status == 409 and out["code"] == "file_exists" and out["remediation"]
 
 
 # ---- inline manuscript surface (ADR-0002): claims mapped onto real prose ----

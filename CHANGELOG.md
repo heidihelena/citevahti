@@ -25,6 +25,11 @@ Panel UX hardening (the "medium" findings from the external review):
   Permission: item creation only."* — sourced from the capability report. The library
   id is an identifier, never a secret; `/api/health` carries a `write_target` summary
   (backend, availability, library, permissions) and a test asserts no key material leaks.
+- **feat(panel): first-run paste-a-manuscript hand-off.** The empty state gains a
+  paste-Markdown box: `POST /api/manuscripts/paste` saves the `.md` (basename-only,
+  path-traversal-safe, refuses to clobber), binds its folder, and returns the exact
+  MCP prompt to run next. Claim **extraction stays in the chat client** — the panel
+  never calls an AI — so the box explicitly hands off rather than pretending to extract.
 
 ## 0.14.0 — Integrity surfaces in the panel: audit chain, Zotero evidence, lexical check (2026-06-07)
 

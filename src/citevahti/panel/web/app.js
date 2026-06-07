@@ -702,7 +702,17 @@ async function renderFirstRun() {
     <p class="note">Active ledger: <b>${esc(state.ctx.root)}</b> — it has no claims. ${others.length ? "Another ledger does:" : ""}</p>
     <div class="panel-box">${rows || '<div class="note">No other ledgers found.</div>'}</div>
     <div class="panel-box">
-      <div class="lbl">Add claims</div>
+      <div class="lbl">Start from a manuscript</div>
+      <p class="note">Paste your manuscript Markdown — CiteVahti saves it and binds the
+      folder. Claim extraction runs in your chat client (the panel never calls an AI),
+      so you'll get the exact prompt to paste there next.</p>
+      <input id="pasteName" type="text" placeholder="filename, e.g. my-draft.md" />
+      <textarea id="pasteBody" class="revbox" placeholder="# Title&#10;&#10;Paste your Markdown here…"></textarea>
+      <div class="actions"><button class="btn primary" id="pasteSave">Save &amp; bind</button></div>
+      <div id="pasteResult"></div>
+    </div>
+    <div class="panel-box">
+      <div class="lbl">…or add claims directly</div>
       <p class="note">From your chat client run the <b>run_claim_tests</b> prompt, or use the CLI:
       <br><code>citevahti claim-add --text "…" --type interpretation</code></p>
       <div class="lbl">Connect sources</div>
@@ -713,12 +723,30 @@ async function renderFirstRun() {
     </div></div>`;
 }
 
+async function savePastedManuscript() {
+  const filename = (($("#pasteName") || {}).value || "").trim();
+  const content = ($("#pasteBody") || {}).value || "";
+  const out = $("#pasteResult");
+  if (!filename) { out.innerHTML = `<div class="note">Give the file a name first.</div>`; return; }
+  if (!content.trim()) { out.innerHTML = `<div class="note">Paste some Markdown first.</div>`; return; }
+  try {
+    const r = await api("POST", "/api/manuscripts/paste", { filename, content });
+    out.innerHTML = `<div class="note ok">Saved <b>${esc(r.filename)}</b> and bound
+      <code>${esc(r.manuscripts_dir)}</code>.</div>
+      <div class="lbl" style="margin-top:8px">Next: extract claims in your chat client</div>
+      <p class="note">Paste this prompt to CiteVahti over MCP — the panel will fill in
+      once claims are staged:</p>
+      <textarea class="revbox" readonly onclick="this.select()">${esc(r.next_prompt)}</textarea>`;
+  } catch (e) { out.innerHTML = `<div class="note">${esc(e.message)}</div>`; }
+}
+
 /* ---------- events ---------- */
 document.addEventListener("click", (e) => {
   const sw = e.target.closest("[data-switch]"); if (sw) return switchRoot(sw.dataset.switch);
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
   const ms = e.target.closest("[data-ms]"); if (ms) return void loadManuscript(ms.dataset.ms).then(renderMsBar);
   if (e.target.id === "bindBtn") return void bindFolder();
+  if (e.target.id === "pasteSave") return void savePastedManuscript();
   if (e.target.id === "addClaim") return void toggleAddClaim();
   const sp = e.target.closest("[data-claim]"); if (sp) return void selectClaim(sp.dataset.claim);
   const cp = e.target.closest("[data-cand]"); if (cp) { state.candIdx = +cp.dataset.cand; resetWrite(); return renderCard(); }

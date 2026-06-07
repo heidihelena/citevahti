@@ -402,6 +402,26 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             prefs.set_manuscripts_dir(root, mdir)
             return 200, {"ok": True, "manuscripts_dir": prefs.get_manuscripts_dir(root)}
 
+        # First-run hand-off: save a pasted Markdown manuscript, bind its folder, and
+        # tell the user the MCP prompt to extract claims. Extraction stays chat-driven
+        # (no AI in the panel) — this only writes the file and points at the next step.
+        if method == "POST" and path == "/api/manuscripts/paste":
+            name = _safe_md_name(_req(body, "filename"))
+            content = _req(body, "content")
+            mdir = prefs.get_manuscripts_dir(root) or str(Path(root) / "manuscripts")
+            dest_dir = Path(mdir).expanduser()
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest = dest_dir / name
+            if dest.exists():
+                raise HttpError(409, f"{name} already exists in the manuscripts folder",
+                                code="file_exists",
+                                remediation="Choose a different filename or remove the existing file.")
+            dest.write_text(content, encoding="utf-8")
+            prefs.set_manuscripts_dir(root, str(dest_dir))
+            return 200, {"ok": True, "manuscripts_dir": str(dest_dir), "filename": name,
+                         "next_prompt": f"Extract the verifiable claims from {name} and "
+                                        "stage them for review."}
+
         # ---- find evidence: search (PubMed or the Zotero library) then link ----
         if method == "POST" and path == "/api/search":
             return 200, _search(root, _req(body, "query"),
@@ -492,6 +512,21 @@ def _req(body: dict, key: str):
     if key not in body or body[key] in (None, ""):
         raise HttpError(400, f"missing required field: {key}")
     return body[key]
+
+
+def _safe_md_name(raw: str) -> str:
+    """A safe ``.md`` basename for a pasted manuscript — no path traversal.
+
+    Strips any directory parts, keeps a conservative character set, and forces a
+    ``.md`` suffix. Rejects names that reduce to nothing."""
+    base = Path(str(raw)).name  # drops dirs and .. components
+    base = re.sub(r"[^A-Za-z0-9._ -]", "_", base).strip(". ")
+    if base.lower().endswith(".md"):
+        base = base[:-3].rstrip(". ")
+    if not base:
+        raise HttpError(400, "invalid filename", code="bad_filename",
+                        remediation="Use a plain name like my-draft.md.")
+    return base + ".md"
 
 
 # ---- find evidence: stage candidates from PubMed or the Zotero library ------
