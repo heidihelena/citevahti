@@ -36,7 +36,10 @@ class DecisionService:
         adj = rating.adjudication
         status = rating.comparison.status
         hv = rating.human_rating.value if rating.human_rating else None
-        if adj.final_value is not None:
+        # An adjudicated final value resolves a decision ONLY when it rests on a real,
+        # locked human rating — defense in depth against a forged/malformed
+        # adjudication slipping an unrated pair into an accept.
+        if adj.final_value is not None and rating.human_rating and rating.human_rating.locked:
             return adj.final_value, status, True
         # no disagreement to resolve: the human value stands
         if status in ("concordant", "human_only", "ai_abstained") and hv is not None:

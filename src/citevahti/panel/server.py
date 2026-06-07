@@ -18,9 +18,11 @@ Safety properties (asserted by tests):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+import time
 import uuid
 from html import escape as esc_html
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -112,6 +114,31 @@ def _evidence_index(root: str, claim_id: str) -> dict:
                 "decision_id": ev.decision_id,
             }
     return out
+
+
+# ---- pending OAuth request-token secrets: in-process only, with a TTL --------
+# These temporary secrets MUST NOT touch disk (panel.json carries no secrets — see
+# prefs.py). They live in this process between /oauth/start and the loopback
+# callback, which are handled by the same panel process.
+_OAUTH_PENDING: dict = {}
+_OAUTH_TTL_SECONDS = 600
+
+
+def _oauth_pending_sweep() -> None:
+    now = time.time()
+    for k in [k for k, (_, exp) in list(_OAUTH_PENDING.items()) if exp < now]:
+        _OAUTH_PENDING.pop(k, None)
+
+
+def _oauth_pending_put(token: str, secret: str) -> None:
+    _oauth_pending_sweep()
+    _OAUTH_PENDING[token] = (secret, time.time() + _OAUTH_TTL_SECONDS)
+
+
+def _oauth_pending_take(token: str):
+    _oauth_pending_sweep()
+    entry = _OAUTH_PENDING.pop(token, None)
+    return entry[0] if entry else None
 
 
 # ---- per-claim audit trail (decisions + Zotero write transactions) ----------
@@ -400,9 +427,8 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             # back to this loopback /oauth/zotero/callback so the key stays local.
             callback = os.environ.get("CITEVAHTI_ZOTERO_OAUTH_CALLBACK") or (base + "/oauth/zotero/callback")
             res = engine.zotero_oauth_start(callback, root=root)
-            panel = prefs.load_panel(root)
-            panel.setdefault("oauth_pending", {})[res["oauth_token"]] = res["oauth_token_secret"]
-            prefs.save_panel(root, panel)
+            # hold the temp token secret in memory only (TTL) — never on disk
+            _oauth_pending_put(res["oauth_token"], res["oauth_token_secret"])
             return 200, {"authorize_url": res["authorize_url"], "oauth_token": res["oauth_token"]}
 
         # ---- document write-back (revise/strike → .md; preview→commit→undo)-
@@ -552,7 +578,10 @@ def _preview_edit(root: str, body: dict) -> dict:
     panel = prefs.load_panel(root)
     panel.setdefault("pending_edits", {})[token] = {
         "path": str(src_path), "new_text": ed["new_text"], "claim_id": claim_id,
-        "kind": kind, "replacement": replacement}
+        "kind": kind, "replacement": replacement,
+        # bind the token to the previewed contents: a commit must not overwrite a file
+        # that changed since the preview (the diff was computed against THIS text).
+        "src_sha": hashlib.sha256(source.encode("utf-8")).hexdigest()}
     prefs.save_panel(root, panel)
     return {"ok": True, "token": token, "kind": kind, "diff": ed["diff"],
             "path": str(src_path)}
@@ -565,6 +594,18 @@ def _commit_edit(root: str, token: str) -> dict:
     if pe is None:
         raise HttpError(400, "unknown or used edit token — preview again")
     src_path = Path(pe["path"])
+    # refuse to commit a stale preview: if the file changed since preview, the diff no
+    # longer applies and writing new_text would clobber the intervening edit.
+    if pe.get("src_sha"):
+        try:
+            current = src_path.read_text(encoding="utf-8")
+        except OSError:
+            prefs.save_panel(root, panel)
+            raise HttpError(409, "the manuscript file is no longer readable — preview again")
+        if hashlib.sha256(current.encode("utf-8")).hexdigest() != pe["src_sha"]:
+            prefs.save_panel(root, panel)   # the token was consumed; force a fresh preview
+            raise HttpError(409, "the manuscript changed since the preview — preview again "
+                            "so the edit applies to the current text")
     backups = Path(root).expanduser() / ".citevahti" / "manuscript_backups"
     backups.mkdir(parents=True, exist_ok=True)
     backup = backups / f"{src_path.name}.{token}.bak"
@@ -660,13 +701,11 @@ def _handler_factory(root: str):
             q = parse_qs(urlparse(self.path).query)
             token = (q.get("oauth_token") or [""])[0]
             verifier = (q.get("oauth_verifier") or [""])[0]
-            panel = prefs.load_panel(box["root"])
-            secret = (panel.get("oauth_pending") or {}).pop(token, None)
+            secret = _oauth_pending_take(token)   # in-memory only; single use; TTL-expired -> None
             try:
                 if not (token and verifier and secret):
                     raise HttpError(400, "this OAuth callback is stale or unknown — start again from the panel")
                 engine.zotero_oauth_finish(token, secret, verifier, root=box["root"])
-                prefs.save_panel(box["root"], panel)   # drop the used pending token
                 msg, ok = "Zotero connected. You can close this tab and return to the panel.", True
             except Exception as e:  # noqa: BLE001 — show the reason on the page
                 msg, ok = f"Could not connect Zotero: {e}", False

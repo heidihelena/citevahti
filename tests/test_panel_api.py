@@ -11,6 +11,7 @@ Safety contract:
 
 import json
 import threading
+import time
 
 import httpx
 import pytest
@@ -315,6 +316,22 @@ def test_document_revise_applies_authored_wording(tmp_path):
                   {"claim_id": claim_id, "kind": "revise",
                    "replacement": "Risk-stratified follow-up is recommended for incidental nodules."})[1]
     assert pv["ok"] and "Risk-stratified follow-up is recommended" in pv["diff"]
+
+
+def test_document_commit_refuses_a_stale_preview(tmp_path):
+    # if the .md changes between preview and commit, the old computed edit must NOT
+    # overwrite the newer file (external review, v0.14.0).
+    _setup_ms(tmp_path)
+    src = tmp_path / "manuscripts" / "draft.md"
+    claim_id = dispatch(str(tmp_path), "GET", "/api/claims", None)[1]["claims"][0]["claim_id"]
+    pv = dispatch(str(tmp_path), "POST", "/api/document/preview-edit",
+                  {"claim_id": claim_id, "kind": "strike"})[1]
+    # a manual edit lands after the preview
+    src.write_text(src.read_text() + "\nAn intervening manual edit.\n", encoding="utf-8")
+    after = src.read_text()
+    status, payload = dispatch(str(tmp_path), "POST", "/api/document/commit-edit", {"token": pv["token"]})
+    assert status == 409 and "changed since the preview" in payload["message"]
+    assert src.read_text() == after            # the manual edit was preserved, not clobbered
 
 
 def test_commit_edit_requires_a_real_token(tmp_path):
@@ -693,8 +710,10 @@ def test_maintenance_endpoints_forward(tmp_path, monkeypatch):
 
 
 # ---- Zotero OAuth connect (ADR-0005): the panel wiring ----------------------
-def test_oauth_start_stashes_token_serverside_and_returns_only_the_url(tmp_path, monkeypatch):
+def test_oauth_start_keeps_secret_in_memory_not_on_disk(tmp_path, monkeypatch):
     from citevahti.panel import prefs
+    from citevahti.panel import server as panel_server
+    panel_server._OAUTH_PENDING.clear()
     _setup(tmp_path)
     monkeypatch.setattr(engine, "zotero_oauth_start", lambda callback, **kw: {
         "oauth_token": "tmptok", "oauth_token_secret": "tmpsecret",
@@ -702,8 +721,20 @@ def test_oauth_start_stashes_token_serverside_and_returns_only_the_url(tmp_path,
     status, payload = dispatch(str(tmp_path), "POST", "/api/connect/zotero/oauth/start",
                                {"callback_base": "http://127.0.0.1:8765"})
     assert status == 200 and payload["authorize_url"].endswith("oauth_token=tmptok")
-    assert "tmpsecret" not in json.dumps(payload)                     # secret never goes to the browser
-    assert prefs.load_panel(str(tmp_path))["oauth_pending"]["tmptok"] == "tmpsecret"
+    assert "tmpsecret" not in json.dumps(payload)                  # secret never goes to the browser
+    assert panel_server._OAUTH_PENDING["tmptok"][0] == "tmpsecret"  # held in memory only...
+    assert "oauth_pending" not in prefs.load_panel(str(tmp_path))   # ...never written to panel.json
+    panel_server._OAUTH_PENDING.clear()
+
+
+def test_oauth_pending_secret_is_single_use_and_expires():
+    from citevahti.panel import server as panel_server
+    panel_server._OAUTH_PENDING.clear()
+    panel_server._oauth_pending_put("t1", "s1")
+    assert panel_server._oauth_pending_take("t1") == "s1"          # single use
+    assert panel_server._oauth_pending_take("t1") is None
+    panel_server._OAUTH_PENDING["t2"] = ("s2", time.time() - 1)    # already expired
+    assert panel_server._oauth_pending_take("t2") is None          # swept, not returned
 
 
 def test_oauth_start_unconfigured_is_a_clear_error(tmp_path, monkeypatch):
@@ -716,11 +747,10 @@ def test_oauth_start_unconfigured_is_a_clear_error(tmp_path, monkeypatch):
 
 
 def test_oauth_callback_finishes_handshake_and_clears_pending(tmp_path, monkeypatch):
-    from citevahti.panel import prefs
+    from citevahti.panel import server as panel_server
     _setup(tmp_path)
-    panel = prefs.load_panel(str(tmp_path))
-    panel["oauth_pending"] = {"tmptok": "tmpsecret"}
-    prefs.save_panel(str(tmp_path), panel)
+    panel_server._OAUTH_PENDING.clear()
+    panel_server._oauth_pending_put("tmptok", "tmpsecret")
     seen = {}
 
     def fake_finish(token, secret, verifier, **kw):
@@ -737,7 +767,7 @@ def test_oauth_callback_finishes_handshake_and_clears_pending(tmp_path, monkeypa
         assert r.status_code == 200 and "text/html" in r.headers["content-type"]
         assert "Connected" in r.text
         assert seen == {"token": "tmptok", "secret": "tmpsecret", "verifier": "verif"}
-        assert not (prefs.load_panel(str(tmp_path)).get("oauth_pending") or {})   # used token cleared
+        assert panel_server._oauth_pending_take("tmptok") is None   # single-use; consumed
     finally:
         srv.shutdown()
         srv.server_close()

@@ -36,8 +36,29 @@ the previewed/undoable write gates are unchanged. **Tagged for external review.*
 - **fix(panel): no-candidate claims no longer crash the card.** `renderAgent` built
   its phase strings eagerly and dereferenced `cand.rating` even when a claim had no
   linked candidate; it is now null-safe.
+
+  *Security / integrity fixes from the external review of this build:*
+- **fix(security): adjudication now requires a real discordance.** `support_adjudicate`
+  previously **fabricated** `comparison.status = "discordant"` and set an
+  `adjudication.final_value` with no human rating, no AI rating, and no computed
+  disagreement — which a decision could then accept. It now refuses unless a **locked
+  human rating** and an **AI second rating** exist and the comparison was **computed
+  discordant**; `decide()` additionally only treats an adjudicated value as resolved
+  when it rests on a locked human rating (defense in depth). Regression tests cover
+  the bare-rating and concordant/human-only cases.
+- **fix(security): OAuth request-token secrets never touch disk.** The temporary
+  `oauth_token_secret` was written to `.citevahti/panel.json`; it is now held in the
+  panel process only, single-use, with a 10-minute TTL — restoring the "panel JSON
+  has no secrets" boundary.
+- **fix(panel): document-edit commits are bound to the previewed contents.** A
+  preview now records the source hash; `commit-edit` refuses (HTTP 409) if the `.md`
+  changed since the preview, so a stale preview can't overwrite an intervening edit.
+- **fix(ext): VS Code manuscript revisions get a durable backup + revert.** Accepting
+  a revision now snapshots the file to `.citevahti/manuscript_backups` before the edit
+  and adds a **"CiteVahti: Revert manuscript edit"** command — the extension's own
+  safety, independent of the panel (not every user runs it).
 - **chore(version/dist): 0.14.0 across the CLI and the VS Code extension**, `.vsix`
-  rebuilt (the extension is version-aligned; no extension code changes this release).
+  rebuilt (the extension is version-aligned).
 
 ## 0.13.0 — The inline reviewer becomes the (self-sufficient) default panel (2026-06-07)
 

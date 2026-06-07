@@ -18,6 +18,7 @@ from citevahti.intake import IntakeService, StaticLibraryIndex
 from citevahti.pubmed import ProviderHit, ProviderSearchResult
 from citevahti.state import CiteVahtiStore
 from citevahti.state.store import StateError
+from citevahti.validators.claim_support import ClaimSupportError
 from citevahti.validators.decision import DecisionError
 
 
@@ -180,3 +181,55 @@ def test_decision_does_not_mutate_evidence_map(tmp_path):
     before = store.load_evidence_map().model_dump()
     DecisionService(store).decide(claim_id, cand_id, "accept", "ok", rating_id=rid)
     assert store.load_evidence_map().model_dump() == before
+
+
+# ---- regression: the adjudication-precondition hole (external review, v0.14.0) -
+def test_adjudication_refused_without_human_ai_discordance(tmp_path):
+    """support_adjudicate must NOT fabricate a resolved final value: it requires a
+    locked human rating, an AI second rating, and a COMPUTED discordance."""
+    store, claim_id, cand_id = _setup(tmp_path)
+
+    # (a) no human rating at all -> refuse, and fabricate nothing
+    eng = ClaimSupportEngine(store, rater=FakeClaimSupportRater(value="contradicts"))
+    bare = eng.support_start(claim_id, cand_id)
+    with pytest.raises(ClaimSupportError):
+        eng.support_adjudicate(bare.rating_id, "directly_supports", rationale="override")
+    r = store.load_support_rating(bare.rating_id)
+    assert r.adjudication.final_value is None and r.comparison.status is None
+
+    # (b) human only (no AI) -> refuse
+    ho = ClaimSupportEngine(store).support_start(claim_id, cand_id)
+    eng_ho = ClaimSupportEngine(store)
+    eng_ho.support_commit_human(ho.rating_id, "directly_supports")
+    eng_ho.support_compare(ho.rating_id)            # status = human_only
+    with pytest.raises(ClaimSupportError):
+        eng_ho.support_adjudicate(ho.rating_id, "contradicts", rationale="override")
+
+    # (c) concordant (human == AI) -> refuse (no disagreement to resolve)
+    engc = ClaimSupportEngine(store, rater=FakeClaimSupportRater(value="directly_supports"))
+    con = engc.support_start(claim_id, cand_id)
+    engc.support_commit_human(con.rating_id, "directly_supports")
+    engc.support_run_ai(con.rating_id)
+    engc.support_compare(con.rating_id)             # concordant
+    with pytest.raises(ClaimSupportError):
+        engc.support_adjudicate(con.rating_id, "contradicts", rationale="override")
+
+    # (d) a genuine discordance -> adjudication is allowed
+    engd = ClaimSupportEngine(store, rater=FakeClaimSupportRater(value="contradicts"))
+    dis = engd.support_start(claim_id, cand_id)
+    engd.support_commit_human(dis.rating_id, "directly_supports")
+    engd.support_run_ai(dis.rating_id)
+    engd.support_compare(dis.rating_id)             # discordant
+    out = engd.support_adjudicate(dis.rating_id, "directly_supports", rationale="reviewed")
+    assert out.adjudication.final_value == "directly_supports"
+
+
+def test_decision_cannot_accept_an_unrated_pair(tmp_path):
+    """End-to-end: with no human rating there is no path to an accept decision."""
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store, rater=FakeClaimSupportRater(value="contradicts"))
+    rec = eng.support_start(claim_id, cand_id)
+    with pytest.raises(ClaimSupportError):          # the old hole: fake-adjudicate then accept
+        eng.support_adjudicate(rec.rating_id, "directly_supports", rationale="override")
+    with pytest.raises(DecisionError):              # and the unresolved pair cannot be accepted
+        DecisionService(store).decide(claim_id, cand_id, "accept", "reason", rating_id=rec.rating_id)

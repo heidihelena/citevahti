@@ -545,6 +545,49 @@ async function editorForRevision(oldText: string, location?: string | null): Pro
   return vscode.window.showTextDocument(doc, { preview: false });
 }
 
+// Durable manuscript backups — the extension's OWN safety, independent of the panel
+// (not every user runs the panel). VS Code's native undo is session-only, so before
+// any revision edit we snapshot the file to .citevahti/manuscript_backups, mirroring
+// the panel's .md backup, and expose a revert command for a cross-session undo.
+function backupDir(uri: vscode.Uri): vscode.Uri | undefined {
+  const root = vscode.workspace.getWorkspaceFolder(uri)?.uri
+    ?? vscode.workspace.workspaceFolders?.[0]?.uri;
+  return root ? vscode.Uri.joinPath(root, ".citevahti", "manuscript_backups") : undefined;
+}
+async function backupManuscript(doc: vscode.TextDocument): Promise<vscode.Uri | undefined> {
+  try {
+    const dir = backupDir(doc.uri);
+    if (!dir) return undefined;
+    await vscode.workspace.fs.createDirectory(dir);
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const name = doc.uri.path.split("/").pop() || "manuscript.md";
+    const dest = vscode.Uri.joinPath(dir, `${name}.${stamp}.bak`);
+    await vscode.workspace.fs.writeFile(dest, Buffer.from(doc.getText(), "utf8"));
+    return dest;
+  } catch { return undefined; }
+}
+async function revertManuscriptEdit() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) { vscode.window.showWarningMessage("CiteVahti: open the manuscript to revert."); return; }
+  const doc = editor.document;
+  const dir = backupDir(doc.uri);
+  const name = doc.uri.path.split("/").pop() || "";
+  let entries: [string, vscode.FileType][] = [];
+  try { if (dir) entries = await vscode.workspace.fs.readDirectory(dir); } catch { /* none */ }
+  const mine = entries.map(([n]) => n).filter((n) => n.startsWith(name + ".") && n.endsWith(".bak")).sort();
+  const latest = mine[mine.length - 1];
+  if (!dir || !latest) { vscode.window.showWarningMessage("CiteVahti: no manuscript backup found for this file."); return; }
+  const pick = await vscode.window.showWarningMessage(
+    `Restore "${name}" from backup ${latest}? Current contents will be replaced.`, "Restore");
+  if (pick !== "Restore") return;
+  const bytes = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(dir, latest));
+  const whole = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
+  const edit = new vscode.WorkspaceEdit();
+  edit.replace(doc.uri, whole, Buffer.from(bytes).toString("utf8"));
+  await vscode.workspace.applyEdit(edit);
+  vscode.window.showInformationMessage(`CiteVahti: restored ${name} from ${latest}.`);
+}
+
 async function acceptRevision(claim: string, oldText: string, newText: string, location?: string | null) {
   const editor = await editorForRevision(oldText, location);
   if (!editor) {
@@ -579,6 +622,7 @@ async function acceptRevision(claim: string, oldText: string, newText: string, l
     range = new vscode.Range(doc.positionAt(first), doc.positionAt(first + oldText.length));
   }
 
+  const backup = await backupManuscript(doc);   // durable snapshot before we mutate the .md
   const edit = new vscode.WorkspaceEdit();
   edit.replace(doc.uri, range, newText);
   const applied = await vscode.workspace.applyEdit(edit);
@@ -601,7 +645,10 @@ async function acceptRevision(claim: string, oldText: string, newText: string, l
       vscode.window.showWarningMessage("CiteVahti: rollback failed; review the manuscript and claim state before continuing.");
     }
   } else {
-    vscode.window.showInformationMessage("Revision applied to the manuscript and the claim.");
+    const note = backup
+      ? ` Backup saved (${backup.path.split("/").pop()}); revert via “CiteVahti: Revert manuscript edit”.`
+      : "";
+    vscode.window.showInformationMessage("Revision applied to the manuscript and the claim." + note);
   }
   await refresh();
 }
@@ -837,6 +884,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand("citevahti.startReview", startReview));
   context.subscriptions.push(vscode.commands.registerCommand("citevahti.verifyClaims", verifyClaims));
   context.subscriptions.push(vscode.commands.registerCommand("citevahti.connectZotero", connectZotero));
+  context.subscriptions.push(vscode.commands.registerCommand("citevahti.revertManuscriptEdit", revertManuscriptEdit));
 }
 
 export function deactivate() {}
