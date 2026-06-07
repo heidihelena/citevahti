@@ -7,7 +7,7 @@
 > **Status: v0.14.0 — the inline reviewer is the default, self-sufficient panel.**
 > The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 > blinded support rating → final decision → decision-gated, undoable Zotero write →
-> de-identified warehouse), hash-chain audited, with 588 offline tests. The loopback
+> de-identified warehouse), hash-chain audited, with 592 offline tests. The loopback
 > panel is now the **inline manuscript reviewer**: claims highlighted in place, an
 > action-first **Rate → Reveal → Decide → Write** card, and enough built in to run
 > the whole loop without the chat — find evidence (PubMed / OpenAlex / Semantic

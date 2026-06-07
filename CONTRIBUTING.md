@@ -54,10 +54,31 @@ be declined regardless of how nice the diff is:
 
 ## Development
 
+The test suite is **fully offline** (no live Zotero/PubMed/network, no API keys)
+and runs in a few seconds. From a clean checkout, install into a virtualenv and run
+pytest **through the venv's own interpreter**:
+
 ```bash
-uv venv && uv pip install -e ".[dev]"
-pytest                         # the suite runs fully offline (no live Zotero/PubMed/network)
+# with uv:
+uv venv && source .venv/bin/activate && uv pip install -e ".[dev]"
+# …or with stock pip (Python 3.10+):
+python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"
+
+python -m pytest               # ~592 tests, a few seconds (httpx is a core dep; pytest is from [dev])
 bash scripts/final_smoke.sh    # pytest + probe + verify-audit, no writes
+```
+
+> **Use the venv's `python -m pytest`, not a globally-PATHed `python3`.** A
+> system/conda `python3` usually has no `pytest`, which reports `No module named
+> pytest` — that is the wrong interpreter, not a test failure. `which python`
+> should point inside `.venv` after activation.
+
+To verify a specific tagged release exactly as a reviewer would:
+
+```bash
+git checkout v0.14.0
+python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"
+python -m pytest -q            # expect: all passing, fully offline
 ```
 
 - The Python package is imported as `citevahti` (a stable alias across the brand
