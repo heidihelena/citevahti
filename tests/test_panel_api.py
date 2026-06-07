@@ -531,6 +531,15 @@ def test_claim_check_endpoint_uses_candidate_abstract(tmp_path, monkeypatch):
     assert status == 200 and payload["available"] is True and "coverage" in payload
 
 
+def test_error_responses_have_stable_code_and_remediation(tmp_path):
+    # uninitialised ledger -> ValueError -> stable {error, code, message, remediation}
+    status, payload = dispatch(str(tmp_path), "GET", "/api/claims", None)
+    assert status == 400
+    assert payload["code"] == "not_initialized"
+    assert "citevahti init" in payload["remediation"]
+    assert set(["error", "code", "message", "remediation"]).issubset(payload)
+
+
 def test_audit_verify_reports_intact_chain(tmp_path):
     _setup(tmp_path)                                       # init + claim + intake -> audit entries
     status, payload = dispatch(str(tmp_path), "GET", "/api/audit/verify", None)

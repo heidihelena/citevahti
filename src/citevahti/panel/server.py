@@ -190,12 +190,53 @@ def _claim_state(r) -> dict:
             "candidate_count": r.candidate_count, "accepted_count": r.accepted_count}
 
 
+# ---- stable error codes + plain remediation (for users AND agents) ----------
+# Every error response has the shape {error, code, message, remediation}. The code
+# is stable for automation; the remediation is one plain sentence for humans.
+_REMEDIATION = {
+    "not_initialized": "Run `citevahti init` in the project folder, or switch to a ledger that has one.",
+    "invalid_key": "Create a write-enabled Zotero key and connect again (paste it or use OAuth).",
+    "api_unreachable": "Check your connection; for Zotero, make sure the desktop app is running.",
+    "not_configured": "Set CITEVAHTI_ZOTERO_OAUTH_CLIENT_KEY/SECRET, or paste an API key instead.",
+    "missing_field": "A required field was not provided — check the request and try again.",
+    "parse_error": "The references could not be parsed — check the format (CSV / RIS / BibTeX).",
+    "stale_preview": "The file changed since the preview — preview again so the edit applies to the current text.",
+    "support_rule": "Follow the rate → reveal → decide order; adjudicate a disagreement before deciding.",
+    "decision_rule": "Resolve the support rating first (rate, then adjudicate a discordance), then decide.",
+}
+_CODE_BY_TYPE = {
+    "ValidationError": "invalid_input", "ManualParseError": "parse_error",
+    "ClaimSupportError": "support_rule", "DecisionError": "decision_rule",
+    "ProbeTransportError": "api_unreachable",
+}
+
+
+def _error_payload(e) -> tuple:
+    """Map an exception to (status, {error, code, message, remediation})."""
+    if isinstance(e, HttpError):
+        code = e.code or "bad_request"
+        return e.status, {"error": "bad_request", "code": code, "message": e.message,
+                          "remediation": e.remediation or _REMEDIATION.get(code, "")}
+    if isinstance(e, KeyError):
+        return 400, {"error": "missing_field", "code": "missing_field",
+                     "message": str(e), "remediation": _REMEDIATION["missing_field"]}
+    msg = str(e)
+    code = getattr(e, "code", None)
+    if not code:
+        code = ("not_initialized" if (isinstance(e, ValueError) and "init" in msg.lower())
+                else _CODE_BY_TYPE.get(type(e).__name__, "error"))
+    return 400, {"error": type(e).__name__, "code": code, "message": msg,
+                 "remediation": _REMEDIATION.get(code, "")}
+
+
 # ---- routing (pure; unit-testable without sockets) --------------------------
 class HttpError(Exception):
-    def __init__(self, status: int, message: str) -> None:
+    def __init__(self, status: int, message: str, *, code: str = "", remediation: str = "") -> None:
         super().__init__(message)
         self.status = status
         self.message = message
+        self.code = code
+        self.remediation = remediation
 
 
 def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[int, dict]:
@@ -441,13 +482,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "POST" and path == "/api/document/undo-edit":
             return 200, _undo_edit(root, _req(body, "transaction_id"))
 
-        return 404, {"error": "not_found", "message": f"no route for {method} {path}"}
-    except HttpError as e:
-        return e.status, {"error": "bad_request", "message": e.message}
-    except KeyError as e:
-        return 400, {"error": "missing_field", "message": str(e)}
-    except Exception as e:  # noqa: BLE001 — degrade honestly, never 500-crash the panel
-        return 400, {"error": type(e).__name__, "message": str(e)}
+        return 404, {"error": "not_found", "code": "not_found",
+                     "message": f"no route for {method} {path}", "remediation": ""}
+    except Exception as e:  # noqa: BLE001 — degrade honestly with a stable shape, never 500-crash
+        return _error_payload(e)
 
 
 def _req(body: dict, key: str):
@@ -604,8 +642,7 @@ def _commit_edit(root: str, token: str) -> dict:
             raise HttpError(409, "the manuscript file is no longer readable — preview again")
         if hashlib.sha256(current.encode("utf-8")).hexdigest() != pe["src_sha"]:
             prefs.save_panel(root, panel)   # the token was consumed; force a fresh preview
-            raise HttpError(409, "the manuscript changed since the preview — preview again "
-                            "so the edit applies to the current text")
+            raise HttpError(409, "the manuscript changed since the preview", code="stale_preview")
     backups = Path(root).expanduser() / ".citevahti" / "manuscript_backups"
     backups.mkdir(parents=True, exist_ok=True)
     backup = backups / f"{src_path.name}.{token}.bak"

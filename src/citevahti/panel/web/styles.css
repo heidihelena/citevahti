@@ -221,6 +221,17 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .connect input { font: 12px/1 ui-monospace, Menlo, monospace; padding: 7px 8px; border-radius: 7px;
   border: 1px solid var(--zs-line); background: var(--zs-paper); color: var(--zs-ink); width: 100%; margin-bottom: 6px; }
 
+/* legend: what the marks/statuses mean (uncertainty, plainly) */
+.legend { border: 1px solid var(--zs-line); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; background: var(--zs-panel); }
+.legend[hidden] { display: none; }
+.legrow { display: flex; gap: 8px; align-items: baseline; font-size: 13px; padding: 3px 0; }
+.legchip { font: 700 11px/1 ui-monospace, Menlo, monospace; padding: 2px 6px; border-radius: 4px; border: 1px solid; white-space: pre; }
+.legchip.oo { color: var(--zs-supported-text); border-color: var(--zs-supported-border); background: var(--zs-supported-bg); }
+.legchip.o  { color: var(--zs-partial-text); border-color: var(--zs-partial-border); background: var(--zs-partial-bg); }
+.legchip.r  { color: var(--zs-revise-text); border-color: var(--zs-revise-border); background: var(--zs-revise-bg); }
+.legchip.d  { color: var(--zs-delete-text); border-color: var(--zs-delete-border); background: var(--zs-delete-bg); }
+.legchip.pend { color: var(--zs-brand); border-color: var(--zs-brand); background: var(--zs-mark); }
+
 /* add-claim form (above the manuscript) */
 .addclaim { border: 1px solid var(--zs-brand); border-radius: 12px; padding: 12px; margin-bottom: 14px; background: var(--zs-brand-bg); }
 .addclaim .row { display: flex; gap: 8px; align-items: center; }

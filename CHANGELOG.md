@@ -6,7 +6,20 @@ previous one.
 
 ## Unreleased
 
-_Nothing yet._
+Panel UX hardening (the "medium" findings from the external review):
+
+- **feat(panel): stable error codes + plain remediation.** Every panel API error now
+  returns `{error, code, message, remediation}` — a stable `code` for automation and
+  one plain remediation sentence for humans (e.g. an uninitialised ledger → code
+  `not_initialized`, "Run `citevahti init` …"). The UI appends the remediation to the
+  message it shows. Replaces raw `type(e).__name__` + bare exception text.
+- **feat(panel): uncertainty legend.** A header **“?”** opens a plain-language legend:
+  what `[oo]/[o]/[r]/[d]/[··]` mean, what *unsupported / unverified / contradicts*
+  mean, and that CiteVahti checks **citation support, not clinical truth**.
+- **feat(panel): accessibility.** Header controls have `aria-label`s; the agent lane
+  is an `aria-live="polite"` region; claim spans expose an accessible name with their
+  state ("claim pending: …") and hide the cryptic `[··]` chip from screen readers; the
+  legend is a labelled region with `aria-expanded` wiring.
 
 ## 0.14.0 — Integrity surfaces in the panel: audit chain, Zotero evidence, lexical check (2026-06-07)
 

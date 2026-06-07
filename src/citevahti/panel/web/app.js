@@ -42,7 +42,10 @@ async function api(method, path, body) {
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const base = data.message || data.error || `HTTP ${res.status}`;
+    throw new Error(data.remediation ? `${base} — ${data.remediation}` : base);
+  }
   return data;
 }
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
@@ -162,7 +165,8 @@ function renderDoc() {
     const cls = decided ? (STATE_CLASS[st.code] || "pending") : "pending";
     const code = decided && st.code ? `[${st.code.padEnd(2)}]` : "[··]";
     const active = seg.claim_id === state.activeClaim ? " active" : "";
-    return `<span class="claim ${cls}${active}" data-claim="${esc(seg.claim_id)}" tabindex="0" role="button">${esc(seg.text)}<span class="code">${esc(code)}</span></span>`;
+    const aria = decided ? ({ oo: "accepted", o: "accept with caution", r: "needs review", d: "rejected" }[st.code] || "decided") : "pending";
+    return `<span class="claim ${cls}${active}" data-claim="${esc(seg.claim_id)}" tabindex="0" role="button" aria-label="${esc("claim " + aria + ": " + seg.text)}">${esc(seg.text)}<span class="code" aria-hidden="true">${esc(code)}</span></span>`;
   }).join("");
   doc.innerHTML = html;
   if (v.mode === "reconstructed") {
@@ -717,6 +721,11 @@ document.addEventListener("click", (e) => {
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
 $("#auditBadge").addEventListener("click", () => loadAudit());
+$("#legendBtn").addEventListener("click", () => {
+  const el = $("#legend"), opening = el.hasAttribute("hidden");
+  el.toggleAttribute("hidden");
+  $("#legendBtn").setAttribute("aria-expanded", String(opening));
+});
 async function maintenance(path, label, fmt) {
   try {
     const r = await api("POST", path, {});
