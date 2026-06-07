@@ -4,11 +4,18 @@
 
 > *A product of **Vahtian**.*
 
-> **Status: v0.12.0 — one-command start.** The ADR-0001 evidence-decision
-> ledger is complete end to end (claim → candidate → blinded support rating →
-> final decision → decision-gated, undoable Zotero write → de-identified
-> warehouse), hash-chain audited, with 544 offline tests. **`citevahti start`**
-> now launches the whole workspace at once — panel + browser + MCP server — and
+> **Status: v0.14.0 — the inline reviewer is the default, self-sufficient panel.**
+> The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
+> blinded support rating → final decision → decision-gated, undoable Zotero write →
+> de-identified warehouse), hash-chain audited, with 588 offline tests. The loopback
+> panel is now the **inline manuscript reviewer**: claims highlighted in place, an
+> action-first **Rate → Reveal → Decide → Write** card, and enough built in to run
+> the whole loop without the chat — find evidence (PubMed / OpenAlex / Semantic
+> Scholar / your Zotero library), add claims, connect Zotero (paste or OAuth),
+> backfill DOIs, scan for retractions, open a reference's PDF in Zotero, revise the
+> `.md`, and read a per-claim audit trail. The AI second rating still comes only from
+> your chat client over MCP. **`citevahti start`**
+> launches the whole workspace at once — panel + browser + MCP server — and
 > doubles as the one line in your chat client's MCP config. You drive the
 > blinded review from **two co-primary surfaces (ADR-0007)**: a **chat client**
 > (Claude Desktop / ChatGPT / Claude Code / Codex) via the MCP server and its

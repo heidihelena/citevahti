@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" class="zs-dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CiteVahti — inline review (v2)</title>
+    <link rel="stylesheet" href="styles.css?v=2" />
+  </head>
+  <body>
+    <div class="ide">
+      <!-- chrome: this lives INSIDE the editor, not a separate app -->
+      <header class="ide-bar">
+        <span class="mark" data-logo="neutral" aria-hidden="true"></span>
+        <span class="file">manuscript.md</span>
+        <span class="sep">›</span>
+        <span class="cmd">CiteVahti: Verify claims</span>
+
+        <!-- progress rail: how far through the manuscript, what's left -->
+        <div class="progress" id="progress" aria-label="Review progress"></div>
+
+        <div class="ide-bar-right">
+          <span class="hint"><kbd>j</kbd>/<kbd>k</kbd> move · <kbd>1</kbd>–<kbd>6</kbd> rate · <kbd>↵</kbd> next step</span>
+          <button id="theme" class="chip-btn" type="button">◐ Light</button>
+        </div>
+      </header>
+
+      <main class="split">
+        <!-- the manuscript: claims are highlighted spans, reviewed in place -->
+        <section class="editor" aria-label="Manuscript">
+          <div id="doc" class="doc"></div>
+        </section>
+
+        <!-- the evidence card: ACTION-FIRST. The next step is at the top. -->
+        <aside class="card" id="card" aria-label="Evidence and decision"></aside>
+      </main>
+
+      <!-- the agent lane: chat-and-code, where revisions are proposed as diffs -->
+      <footer class="agent" id="agent"></footer>
+    </div>
+    <script src="app.js?v=2"></script>
+  </body>
+</html>

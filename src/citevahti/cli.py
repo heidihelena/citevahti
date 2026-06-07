@@ -113,7 +113,17 @@ def _cmd_preflight(args) -> int:
 
 def _cmd_start(args) -> int:
     from .start import start
-    return start(args.root, port=args.port, open_browser=not args.no_browser)
+    from .panel import prefs
+    root = args.root
+    # avoid the empty-ledger trap: if this folder has no ledger, fall back to the
+    # last-used root rather than serving a blank panel.
+    if not prefs.has_ledger(root):
+        fallback = prefs.recall_root()
+        if fallback:
+            print(f"note: {root} has no .citevahti ledger — using last-used root {fallback}",
+                  file=sys.stderr)
+            root = fallback
+    return start(root, port=args.port, open_browser=not args.no_browser)
 
 
 def _cmd_agent_tools(args) -> int:

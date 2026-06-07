@@ -3,28 +3,46 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CiteVahti — decision panel</title>
+    <title>CiteVahti — inline review</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="panel">
-      <header class="bar">
-        <span class="title">CiteVahti</span>
-        <span class="meta">· each claim is a test · human review comes first</span>
-        <span class="meta" id="root"></span>
-        <div class="right">
-          <span class="dot" id="health" title="engine connection"></span>
-          <button id="reload" class="chip-btn" type="button">↻ Claims</button>
+    <div class="ide">
+      <header class="ide-bar">
+        <span class="mark" data-logo="neutral" aria-hidden="true"></span>
+        <span class="file" id="msName">manuscript</span>
+        <span class="sep">›</span>
+        <span class="cmd">CiteVahti: Verify claims</span>
+
+        <div class="progress" id="progress" aria-label="Review progress"></div>
+
+        <div class="ide-bar-right">
+          <span class="conns" id="conns" aria-label="Connections"></span>
+          <span class="auditbadge" id="auditBadge" title="audit-log integrity — click to re-verify"></span>
+          <span class="ledger" id="ledger" title="active ledger"></span>
+          <button id="resolveDois" class="chip-btn" type="button" title="Resolve missing DOIs from PMIDs (NCBI)">⟳ DOIs</button>
+          <button id="recheckLib" class="chip-btn" type="button" title="Re-check which candidates are already in your Zotero library">⟳ Library</button>
+          <button id="scanRetractions" class="chip-btn" type="button" title="Scan candidates for retracted papers (OpenAlex)">⚠ Retractions</button>
+          <button id="reload" class="chip-btn" type="button" title="reload claims">↻</button>
           <button id="theme" class="chip-btn" type="button">◐ Light</button>
         </div>
       </header>
 
-      <!-- the blind human decision surface: rate here BEFORE the chat reveals the AI rating -->
-      <section class="claimlist" id="claimlist" aria-label="Claims"></section>
-      <aside class="card" id="card" aria-label="Evidence and rating">
-        <div class="empty">Pick a claim above to rate its evidence. You rate first — the
-          chat reveals the AI second rating only after your rating is recorded.</div>
-      </aside>
+      <main class="split" id="split">
+        <section class="editor" aria-label="Manuscript">
+          <div class="msbar" id="msbar"></div>
+          <div id="addClaimBox"></div>
+          <div id="doc" class="doc"></div>
+          <div id="unmatched" class="unmatched"></div>
+        </section>
+
+        <aside class="card" id="card" aria-label="Evidence and decision">
+          <div class="empty">Pick a claim in the manuscript to review its evidence. You rate
+            first — the AI second rating stays hidden until your rating is recorded.</div>
+        </aside>
+      </main>
+
+      <footer class="agent" id="agent"></footer>
     </div>
     <script src="app.js"></script>
   </body>

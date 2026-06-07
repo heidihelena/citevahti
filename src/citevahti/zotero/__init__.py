@@ -7,6 +7,7 @@ to a ``ToolResult`` failure with remediation -- it never fabricates data.
 
 from .connect import ZoteroConnectError, ZoteroConnectService, new_key_url
 from .library import LibrarySelectorError, bases_for, coerce_library, base_path
+from .oauth import ZoteroOAuth, ZoteroOAuthError, load_client_credentials
 from .read import ZoteroService
 
 __all__ = [
@@ -18,4 +19,7 @@ __all__ = [
     "ZoteroConnectService",
     "ZoteroConnectError",
     "new_key_url",
+    "ZoteroOAuth",
+    "ZoteroOAuthError",
+    "load_client_credentials",
 ]

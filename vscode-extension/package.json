@@ -2,7 +2,7 @@
   "name": "citevahti",
   "displayName": "CiteVahti \u2014 citation integrity",
   "description": "Run citation-integrity tests on your manuscript claims, inline. Verify the claim before you cite it. A product of Vahtian.",
-  "version": "0.12.0",
+  "version": "0.14.0",
   "publisher": "vahtian",
   "license": "Apache-2.0",
   "icon": "icon.png",

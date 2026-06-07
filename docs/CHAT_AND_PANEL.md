@@ -77,14 +77,63 @@ The server exposes the constrained tools **and** a user-invokable prompt,
 you rate first and to gate every write). (`review_manuscript` is kept as a
 deprecated alias for clients that connected via 0.9.0.)
 
-## 3. Start the side panel
+## 3. Start the side panel (the inline reviewer)
 
 ```bash
 citevahti-panel --root /path/to/project        # http://127.0.0.1:8765, loopback only
 ```
 
-Open `http://127.0.0.1:8765` in a browser window next to your chat. (Use `--port`
-to change the port. It binds to `127.0.0.1`; do not expose it externally.)
+The panel is the **inline reviewer**: it shows your manuscript with each claim
+highlighted in place, and an action-first card that walks one step at a time —
+**Rate → Reveal → Decide → Write**. Open `http://127.0.0.1:8765` next to your chat.
+(`--port` changes the port; it binds to `127.0.0.1` and must not be exposed.)
+
+- **Never lands blank.** If you omit `--root`, the panel uses `$CITEVAHTI_ROOT`,
+  the current folder's ledger, or the **last-used root** — instead of an empty
+  `~/.citevahti`. If the active ledger has no claims, it shows a first-run screen
+  that lists other ledgers it found (with claim counts) and a one-click switch.
+- **Bind your manuscripts folder** (top of the editor) so claims render inside the
+  real prose. Until you do, the document is reconstructed from the claim text, so
+  it is never empty.
+- **Find evidence in the panel.** Each claim's card has a search box — search
+  **PubMed** or your **Zotero library**, then click **Link** on a result to attach it
+  as a candidate. You no longer have to switch to the chat to add evidence. (Staging
+  only; you still rate each candidate.)
+- **Revise the manuscript in the panel.** A *Needs review* verdict gives you an
+  editable wording box; *Reject* strikes the claim. Either writes to your `.md`
+  behind preview → confirm → undo (the file is backed up first).
+- **Connect inline.** The header shows Zotero / PubMed chips; click to connect when
+  a step needs them. Keys are validated and stored in your OS keychain by the
+  engine — they never round-trip back to the browser.
+- **Connect Zotero by OAuth or by key.** At the write step you can **Connect with
+  Zotero (OAuth)** — a one-click handshake that opens Zotero, you authorize, and the
+  key is stored for you (no copy/paste) — or paste a write-enabled API key. Both end
+  in the same validated, keychain-stored, write-enabled state.
+
+### One-time OAuth app setup (optional)
+
+The OAuth button needs a registered CiteVahti OAuth *application* (this is set up
+once, not per user). Register at <https://www.zotero.org/oauth/apps> (callback URL
+`http://127.0.0.1:8765/oauth/zotero/callback`), then export the client credentials
+before launching the panel:
+
+```bash
+export CITEVAHTI_ZOTERO_OAUTH_CLIENT_KEY=...        # the app's Client Key
+export CITEVAHTI_ZOTERO_OAUTH_CLIENT_SECRET=...     # the app's Client Secret (never committed)
+```
+
+Until those are set, the OAuth button explains the setup and you can still paste a
+key. Zotero's passkey login (2026) only changes how you sign in to authorize — the
+API-key mechanism CiteVahti uses is unchanged.
+
+**Callback URL.** By default the handshake uses the **loopback** callback
+`http://127.0.0.1:8765/oauth/zotero/callback` — most private, nothing leaves your
+machine. If your Zotero app must register an HTTPS domain instead, set
+`CITEVAHTI_ZOTERO_OAUTH_CALLBACK=https://vahtian.com/citevahti/auth/zotero/callback`
+and host that path as a **thin client-side bounce** that redirects the incoming
+`oauth_token` and `oauth_verifier` to the loopback callback above. The token
+exchange and key storage still happen locally — the hosted page never sees the API
+key, keeping the connect flow local-first.
 
 ## 4. Walk the manuscript
 
@@ -99,6 +148,10 @@ to change the port. It binds to `127.0.0.1`; do not expose it externally.)
 5. On a disagreement, you adjudicate (in the panel or the chat).
 6. To cite: in the panel, record the decision, **Preview write**, then **Confirm &
    add to Zotero**. The write is previewed first and is **undoable**.
+7. To fix wording instead: a *Needs review* or *Reject* verdict offers a document
+   edit — apply the revision (or strike the claim) directly in your `.md`. The panel
+   shows the diff, **backs up the file before writing**, and the edit is **undoable**
+   byte-for-byte. Nothing is written to a manuscript without your confirm.
 
 ## What stays true
 
@@ -106,6 +159,9 @@ to change the port. It binds to `127.0.0.1`; do not expose it externally.)
   every panel read endpoint, not by the LLM's good behaviour.
 - No Zotero write happens without a preview and your explicit confirmation; every
   write is undoable.
+- No manuscript `.md` edit happens without a preview and your confirmation; the file
+  is backed up first and every edit is undoable. Connecting Zotero/PubMed stores keys
+  in your OS keychain via the engine — secret values are never returned to the panel.
 - The panel is loopback-only and sends no telemetry. The chat LLM is your own
   client; CiteVahti adds no new data path.
 

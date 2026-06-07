@@ -8,7 +8,9 @@ loop is Apache-2.0 and never requires an account.
 
 The near-term focus is reducing friction for ordinary academics and strengthening
 the local review experience — see [`docs/RECAP.md`](docs/RECAP.md) for the current
-working status.
+working status. Zotero connect now supports an **OAuth 1.0a** handshake (no key
+copy/paste) alongside the paste-a-key flow; when Zotero ships **OAuth 2.0** we will
+add a 2.0 connect path (the API-key auth our writes use stays the same).
 
 Future work may include **team workflows, institutional deployments, and optional
 de-identified aggregate reporting, governed by consent and privacy review.** Any
