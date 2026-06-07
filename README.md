@@ -266,15 +266,24 @@ pipx install .
 pytest                 # 544 tests, fully offline
 bash scripts/final_smoke.sh   # pytest + probe + verify-audit (no writes)
 
-# build + install the VS Code inline review extension
-cd vscode-extension && npm install && npm run package
-code --install-extension citevahti-0.15.0.vsix
+# install the VS Code inline review extension from the Marketplace
+code --install-extension heidihelena.citevahti-vscode
 ```
 
-Prefer not to build it yourself? Download the prebuilt `.vsix` from the
-[latest release](https://github.com/heidihelena/citevahti/releases/latest)
-and run `code --install-extension citevahti-0.15.0.vsix` (or, in VS Code,
-Extensions → `…` → **Install from VSIX…**). No Marketplace account required.
+In VS Code you can also search the Extensions view for **CiteVahti (Vahtian)**
+and click Install.
+
+Prefer not to use the Marketplace? Build it yourself or grab the prebuilt `.vsix`:
+
+```bash
+cd vscode-extension && npm install && npm run package
+code --install-extension citevahti-vscode-0.15.0.vsix
+```
+
+The prebuilt `.vsix` is attached to the
+[latest release](https://github.com/heidihelena/citevahti/releases/latest);
+run `code --install-extension citevahti-vscode-0.15.0.vsix` (or, in VS Code,
+Extensions → `…` → **Install from VSIX…**).
 
 Config via environment (`NCBI_EMAIL`, `NCBI_API_KEY`) + `.citevahti/config.json`.
 CLI reference: [`docs/CLI.md`](docs/CLI.md). Full walk-through (zero → first
