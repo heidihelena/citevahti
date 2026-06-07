@@ -55,6 +55,35 @@ can report transparently in a methods section. Single-user, local, PubMed-only.
 > second rater only. AI values are advisory, never decisive, and never silently
 > propagated.**
 
+## Beta
+
+**CiteVahti is currently in beta and free to use for testing, research feedback, and
+early development. Pricing for hosted and advanced features may be introduced later.
+A free local/community version is intended to remain available.**
+
+## See it
+
+The inline reviewer — your manuscript with claims highlighted in place, each reviewed
+in an action-first **Rate → Reveal → Decide → Write** card. You rate first; the AI's
+second rating stays hidden until yours is recorded (enforced by the engine, not the UI).
+
+![The inline reviewer: a manuscript with colour-coded claim spans and the blind support-rating card.](docs/screenshots/01-review-surface.png)
+
+The legend (the header **?**) explains every mark and states plainly that CiteVahti
+checks **citation support, not clinical truth**:
+
+![The verdict legend, open over the manuscript.](docs/screenshots/02-legend.png)
+
+First run, on an empty ledger — paste a manuscript to get started, or connect your
+sources. Claim extraction runs in your chat client, so the panel hands you the exact
+prompt to use next:
+
+![First-run empty state with the paste-a-manuscript box and connect actions.](docs/screenshots/03-first-run.png)
+
+> The screenshots use a small synthetic demo ledger. Regenerate it any time with
+> `PYTHONPATH=src python3 docs/demo/build_demo_ledger.py .demo-ledger`, then preview it
+> with the `cv-demo` launch config (`--root .demo-ledger`).
+
 ## Getting started: install, then pick a path
 
 ```bash

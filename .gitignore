@@ -18,3 +18,6 @@ bin/
 # local manuscripts used for hand-testing (not part of the tool)
 manuscrip*.md
 manuscript*.md
+
+# local demo ledger for screenshots (regenerate with docs/demo/build_demo_ledger.py)
+.demo-ledger/

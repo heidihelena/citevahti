@@ -35,6 +35,18 @@ Panel UX hardening (the "medium" findings from the external review):
   recent backups per manuscript**; older ones are deleted automatically once the new
   backup is safely written, and the newest valid backup is never removed. Configurable
   via `CITEVAHTI_BACKUP_RETENTION_COUNT` (default `10`; non-positive/invalid → `10`).
+- **feat(panel): beta / pricing notice.** A `BETA` badge in the header, a note in the
+  legend, and a banner on the first-run screen state that CiteVahti is in beta and free
+  to use, that pricing for hosted/advanced features may come later, and that a free
+  local/community version is intended to remain available. A test asserts the notice
+  ships in the served page.
+- **feat(panel): claim deep-links.** `?focus=<claim_id>` opens that claim's card on
+  load and `?legend=1` opens the legend — handy for sharing a specific review and for
+  reproducible screenshots.
+- **docs: onboarding screenshots + a synthetic demo ledger.** `docs/demo/build_demo_ledger.py`
+  builds a small, fully invented ledger (no real manuscript or citations) that drives the
+  real engine, so `docs/screenshots/*` show genuine claim states. README now opens with a
+  "See it" gallery and the beta notice.
 
 ## 0.14.0 — Integrity surfaces in the panel: audit chain, Zotero evidence, lexical check (2026-06-07)
 

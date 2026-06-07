@@ -244,6 +244,8 @@ def test_live_server_serves_panel_and_health_offline(tmp_path):
         assert health.status_code == 200 and "connections" in health.json()
         page = httpx.get(base + "/", timeout=5)
         assert page.status_code == 200 and "CiteVahti" in page.text
+        # the beta/pricing notice ships in the panel so onboarding users always see it
+        assert "beta" in page.text.lower() and "free to use" in page.text.lower()
         claims = httpx.get(base + "/api/claims", timeout=5)
         assert claims.status_code == 200
     finally:

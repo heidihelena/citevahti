@@ -62,6 +62,19 @@ async function boot() {
   loadAudit();
   if (!state.ctx.claim_total) return renderFirstRun();
   await loadManuscripts();
+  applyDeepLink();
+}
+
+// Optional URL hooks so a specific review state can be linked or screenshotted:
+//   ?focus=<claim_id>   open that claim's card   ?legend=1   open the legend
+function applyDeepLink() {
+  const q = new URLSearchParams(location.search);
+  const focus = q.get("focus");
+  if (focus && claimOrder().includes(focus)) selectClaim(focus);
+  if (q.get("legend") === "1") {
+    $("#legend").removeAttribute("hidden");
+    $("#legendBtn").setAttribute("aria-expanded", "true");
+  }
 }
 
 async function loadHealth() {
@@ -698,6 +711,9 @@ async function renderFirstRun() {
     `<div class="ledrow"><span class="path">${esc(l.root)}</span><span class="n">${l.claims} claims</span>
       ${l.root !== state.ctx.root && l.claims > 0 ? `<button class="btn ghost" data-switch="${esc(l.root)}">Switch here</button>` : (l.root === state.ctx.root ? `<span class="note">active</span>` : "")}</div>`).join("");
   $("#split").innerHTML = `<div class="firstrun">
+    <div class="beta-banner"><b>CiteVahti is in beta — free to use.</b> Free for testing, research
+      feedback, and early development. Pricing for hosted and advanced features may be introduced
+      later; a free local/community version is intended to remain available.</div>
     <h2>No claims in this ledger yet</h2>
     <p class="note">Active ledger: <b>${esc(state.ctx.root)}</b> — it has no claims. ${others.length ? "Another ledger does:" : ""}</p>
     <div class="panel-box">${rows || '<div class="note">No other ledgers found.</div>'}</div>
