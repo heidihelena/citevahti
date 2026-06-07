@@ -30,6 +30,11 @@ Panel UX hardening (the "medium" findings from the external review):
   path-traversal-safe, refuses to clobber), binds its folder, and returns the exact
   MCP prompt to run next. Claim **extraction stays in the chat client** — the panel
   never calls an AI — so the box explicitly hands off rather than pretending to extract.
+- **feat(panel): bounded manuscript-backup retention.** After each `.md` edit the
+  backup folder `<root>/.citevahti/manuscript_backups` is pruned to the **10 most
+  recent backups per manuscript**; older ones are deleted automatically once the new
+  backup is safely written, and the newest valid backup is never removed. Configurable
+  via `CITEVAHTI_BACKUP_RETENTION_COUNT` (default `10`; non-positive/invalid → `10`).
 
 ## 0.14.0 — Integrity surfaces in the panel: audit chain, Zotero evidence, lexical check (2026-06-07)
 

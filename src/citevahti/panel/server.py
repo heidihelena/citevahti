@@ -660,6 +660,54 @@ def _preview_edit(root: str, body: dict) -> dict:
             "path": str(src_path)}
 
 
+_DEFAULT_BACKUP_RETENTION = 10
+
+
+def _backup_retention_count() -> int:
+    """How many backups to keep per manuscript (``CITEVAHTI_BACKUP_RETENTION_COUNT``).
+
+    Defaults to 10. A non-integer or non-positive value falls back to the default,
+    and the result is never below 1 — the newest valid backup is always kept."""
+    raw = os.environ.get("CITEVAHTI_BACKUP_RETENTION_COUNT")
+    if raw is None:
+        return _DEFAULT_BACKUP_RETENTION
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return _DEFAULT_BACKUP_RETENTION
+    return n if n >= 1 else _DEFAULT_BACKUP_RETENTION
+
+
+def _prune_backups(backups_dir: Path, manuscript_name: str, keep_path: Path) -> None:
+    """Keep only the N most recent backups for one manuscript; delete older ones.
+
+    Called AFTER a new backup is successfully written. ``keep_path`` is that just-written
+    backup — it is always retained regardless of clock resolution (the rule "never delete
+    the newest valid backup"). Backups for a manuscript are named ``<name>.<token>.bak``;
+    other manuscripts in the same folder are untouched. Best effort — a failed unlink
+    never breaks the commit that triggered it."""
+    keep = _backup_retention_count()
+    prefix = manuscript_name + "."
+    mine = [p for p in backups_dir.glob("*.bak")
+            if p.name.startswith(prefix) and p.is_file()]
+    if len(mine) <= keep:
+        return
+    # newest first; ties broken by name so the order is deterministic
+    mine.sort(key=lambda p: (p.stat().st_mtime, p.name), reverse=True)
+    survivors = {keep_path.resolve()}                  # the just-written backup, always
+    for p in mine:
+        if len(survivors) >= keep:
+            break
+        survivors.add(p.resolve())
+    for stale in mine:
+        if stale.resolve() in survivors:
+            continue
+        try:
+            stale.unlink()
+        except OSError:
+            pass
+
+
 def _commit_edit(root: str, token: str) -> dict:
     panel = prefs.load_panel(root)
     pending = panel.get("pending_edits", {})
@@ -682,6 +730,7 @@ def _commit_edit(root: str, token: str) -> dict:
     backups.mkdir(parents=True, exist_ok=True)
     backup = backups / f"{src_path.name}.{token}.bak"
     backup.write_bytes(src_path.read_bytes())          # back up BEFORE writing
+    _prune_backups(backups, src_path.name, backup)     # keep the N most recent for this file
     src_path.write_text(pe["new_text"], encoding="utf-8")
     txn_id = "doc-" + token[:12]
     panel.setdefault("edit_txns", {})[txn_id] = {

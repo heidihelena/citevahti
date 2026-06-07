@@ -391,6 +391,71 @@ def test_commit_edit_requires_a_real_token(tmp_path):
     assert status == 400 and "token" in payload["message"]
 
 
+def _commit_one_edit(tmp_path, claim_id):
+    """Strike→commit→undo: writes one backup and restores the file for the next round."""
+    pv = dispatch(str(tmp_path), "POST", "/api/document/preview-edit",
+                  {"claim_id": claim_id, "kind": "strike"})[1]
+    cm = dispatch(str(tmp_path), "POST", "/api/document/commit-edit", {"token": pv["token"]})[1]
+    dispatch(str(tmp_path), "POST", "/api/document/undo-edit",
+             {"transaction_id": cm["transaction_id"]})
+    return cm["transaction_id"]
+
+
+def _backups_for(tmp_path, name="draft.md"):
+    bdir = tmp_path / ".citevahti" / "manuscript_backups"
+    return sorted(p for p in bdir.glob("*.bak") if p.name.startswith(name + "."))
+
+
+def test_backups_are_capped_at_the_retention_count(tmp_path, monkeypatch):
+    """Keep the N most recent backups per manuscript; older ones are pruned after a new
+    backup is written. Default is 10; CITEVAHTI_BACKUP_RETENTION_COUNT overrides it."""
+    monkeypatch.setenv("CITEVAHTI_BACKUP_RETENTION_COUNT", "3")
+    _setup_ms(tmp_path)
+    claim_id = dispatch(str(tmp_path), "GET", "/api/claims", None)[1]["claims"][0]["claim_id"]
+    for _ in range(6):
+        _commit_one_edit(tmp_path, claim_id)
+    assert len(_backups_for(tmp_path)) == 3            # capped, older ones deleted
+
+
+def test_pruning_never_deletes_the_newest_backup(tmp_path, monkeypatch):
+    monkeypatch.setenv("CITEVAHTI_BACKUP_RETENTION_COUNT", "2")
+    store = _setup_ms(tmp_path)
+    claim_id = dispatch(str(tmp_path), "GET", "/api/claims", None)[1]["claims"][0]["claim_id"]
+    for _ in range(4):
+        _commit_one_edit(tmp_path, claim_id)
+    # the most recent write's backup must still be the one undo would restore from
+    pv = dispatch(str(tmp_path), "POST", "/api/document/preview-edit",
+                  {"claim_id": claim_id, "kind": "strike"})[1]
+    cm = dispatch(str(tmp_path), "POST", "/api/document/commit-edit", {"token": pv["token"]})[1]
+    from citevahti.panel import prefs
+    backup = Path(prefs.load_panel(str(tmp_path))["edit_txns"][cm["transaction_id"]]["backup"])
+    assert backup.exists()                             # newest valid backup survived pruning
+    # and undo still works off it
+    ud = dispatch(str(tmp_path), "POST", "/api/document/undo-edit",
+                  {"transaction_id": cm["transaction_id"]})[1]
+    assert ud["status"] == "undone"
+
+
+def test_retention_count_parses_env_with_safe_fallback():
+    import os as _os
+
+    from citevahti.panel import server as S
+    saved = _os.environ.get("CITEVAHTI_BACKUP_RETENTION_COUNT")
+    try:
+        _os.environ.pop("CITEVAHTI_BACKUP_RETENTION_COUNT", None)
+        assert S._backup_retention_count() == 10       # default
+        _os.environ["CITEVAHTI_BACKUP_RETENTION_COUNT"] = "5"
+        assert S._backup_retention_count() == 5
+        for bad in ("0", "-3", "abc", ""):
+            _os.environ["CITEVAHTI_BACKUP_RETENTION_COUNT"] = bad
+            assert S._backup_retention_count() == 10   # non-positive / non-int → default
+    finally:
+        if saved is None:
+            _os.environ.pop("CITEVAHTI_BACKUP_RETENTION_COUNT", None)
+        else:
+            _os.environ["CITEVAHTI_BACKUP_RETENTION_COUNT"] = saved
+
+
 def test_connect_never_echoes_the_secret(tmp_path, monkeypatch):
     _setup(tmp_path)
     seen = {}

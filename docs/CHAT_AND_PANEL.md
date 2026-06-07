@@ -160,8 +160,13 @@ key, keeping the connect flow local-first.
 - No Zotero write happens without a preview and your explicit confirmation; every
   write is undoable.
 - No manuscript `.md` edit happens without a preview and your confirmation; the file
-  is backed up first and every edit is undoable. Connecting Zotero/PubMed stores keys
-  in your OS keychain via the engine — secret values are never returned to the panel.
+  is backed up first and every edit is undoable. Backups live in
+  `<root>/.citevahti/manuscript_backups`; CiteVahti keeps the **10 most recent per
+  manuscript** and prunes older ones after each new backup is written — the newest
+  valid backup is never deleted. Set `CITEVAHTI_BACKUP_RETENTION_COUNT` to change the
+  cap (default `10`; a non-positive or invalid value falls back to `10`).
+  Connecting Zotero/PubMed stores keys in your OS keychain via the engine — secret
+  values are never returned to the panel.
 - The panel is loopback-only and sends no telemetry. The chat LLM is your own
   client; CiteVahti adds no new data path.
 
