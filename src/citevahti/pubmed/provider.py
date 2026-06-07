@@ -148,6 +148,11 @@ class PubMedProvider:
         return hits
 
     # ---- public ----------------------------------------------------------
+    def fetch_records(self, pmids: list[str], include_abstracts: bool = False) -> list[ProviderHit]:
+        """Fetch + parse PubMed records for explicit PMIDs (used to resolve DOIs)."""
+        ids = [str(p) for p in (pmids or []) if p]
+        return self._efetch(ids, include_abstracts) if ids else []
+
     def search(self, query: str, max_results: int = 20, date_range: Optional[dict] = None,
                include_abstracts: bool = False) -> ProviderSearchResult:
         base = ProviderSearchResult(query=query, rate_tier=self.rate_tier,

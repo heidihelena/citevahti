@@ -4,11 +4,18 @@
 
 > *A product of **Vahtian**.*
 
-> **Status: v0.12.0 — one-command start.** The ADR-0001 evidence-decision
-> ledger is complete end to end (claim → candidate → blinded support rating →
-> final decision → decision-gated, undoable Zotero write → de-identified
-> warehouse), hash-chain audited, with 544 offline tests. **`citevahti start`**
-> now launches the whole workspace at once — panel + browser + MCP server — and
+> **Status: v0.14.0 — the inline reviewer is the default, self-sufficient panel.**
+> The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
+> blinded support rating → final decision → decision-gated, undoable Zotero write →
+> de-identified warehouse), hash-chain audited, with 592 offline tests. The loopback
+> panel is now the **inline manuscript reviewer**: claims highlighted in place, an
+> action-first **Rate → Reveal → Decide → Write** card, and enough built in to run
+> the whole loop without the chat — find evidence (PubMed / OpenAlex / Semantic
+> Scholar / your Zotero library), add claims, connect Zotero (paste or OAuth),
+> backfill DOIs, scan for retractions, open a reference's PDF in Zotero, revise the
+> `.md`, and read a per-claim audit trail. The AI second rating still comes only from
+> your chat client over MCP. **`citevahti start`**
+> launches the whole workspace at once — panel + browser + MCP server — and
 > doubles as the one line in your chat client's MCP config. You drive the
 > blinded review from **two co-primary surfaces (ADR-0007)**: a **chat client**
 > (Claude Desktop / ChatGPT / Claude Code / Codex) via the MCP server and its
@@ -47,6 +54,35 @@ can report transparently in a methods section. Single-user, local, PubMed-only.
 > **The human or panel is always the decider. The AI is a blinded, advisory
 > second rater only. AI values are advisory, never decisive, and never silently
 > propagated.**
+
+## Beta
+
+**CiteVahti is currently in beta and free to use for testing, research feedback, and
+early development. Pricing for hosted and advanced features may be introduced later.
+A free local/community version is intended to remain available.**
+
+## See it
+
+The inline reviewer — your manuscript with claims highlighted in place, each reviewed
+in an action-first **Rate → Reveal → Decide → Write** card. You rate first; the AI's
+second rating stays hidden until yours is recorded (enforced by the engine, not the UI).
+
+![The inline reviewer: a manuscript with colour-coded claim spans and the blind support-rating card.](docs/screenshots/01-review-surface.png)
+
+The legend (the header **?**) explains every mark and states plainly that CiteVahti
+checks **citation support, not clinical truth**:
+
+![The verdict legend, open over the manuscript.](docs/screenshots/02-legend.png)
+
+First run, on an empty ledger — paste a manuscript to get started, or connect your
+sources. Claim extraction runs in your chat client, so the panel hands you the exact
+prompt to use next:
+
+![First-run empty state with the paste-a-manuscript box and connect actions.](docs/screenshots/03-first-run.png)
+
+> The screenshots use a small synthetic demo ledger. Regenerate it any time with
+> `PYTHONPATH=src python3 docs/demo/build_demo_ledger.py .demo-ledger`, then preview it
+> with the `cv-demo` launch config (`--root .demo-ledger`).
 
 ## Getting started: install, then pick a path
 

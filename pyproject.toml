@@ -3,7 +3,7 @@
 # (product brand, a product of Vahtian). The earlier `zotsynth` package
 # alias and CLI shims were retired in the full rename.
 name = "citevahti"
-version = "0.12.0"
+version = "0.15.0"
 description = "CiteVahti — citation-integrity and provenance for research synthesis: a blinded human->AI->adjudication dual-rating workflow with decision-gated, undoable Zotero write-back (single-user, local, PubMed-only)."
 readme = "README.md"
 requires-python = ">=3.10"

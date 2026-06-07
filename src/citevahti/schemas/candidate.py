@@ -33,6 +33,7 @@ class ClaimPaperCandidate(BaseModel):
     why_found: Optional[str] = None           # e.g. dedupe status / note
     already_in_zotero: Optional[bool] = None
     dedupe_status: Optional[str] = None
+    retracted: Optional[bool] = None          # set by the retraction scan (OpenAlex is_retracted)
     # paper metadata snapshot (canonical papers table comes later)
     pmid: Optional[str] = None
     doi: Optional[str] = None

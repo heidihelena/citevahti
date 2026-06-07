@@ -8,6 +8,175 @@ previous one.
 
 _Nothing yet._
 
+## 0.15.0 — Panel UX hardening + beta notice: error codes, legend, accessibility, write-target disclosure, paste hand-off, bounded backups (2026-06-07)
+
+Panel UX hardening (the "medium" findings from the external review):
+
+- **feat(panel): stable error codes + plain remediation.** Every panel API error now
+  returns `{error, code, message, remediation}` — a stable `code` for automation and
+  one plain remediation sentence for humans (e.g. an uninitialised ledger → code
+  `not_initialized`, "Run `citevahti init` …"). The UI appends the remediation to the
+  message it shows. Replaces raw `type(e).__name__` + bare exception text.
+- **feat(panel): uncertainty legend.** A header **“?”** opens a plain-language legend:
+  what `[oo]/[o]/[r]/[d]/[··]` mean, what *unsupported / unverified / contradicts*
+  mean, and that CiteVahti checks **citation support, not clinical truth**.
+- **feat(panel): accessibility.** Header controls have `aria-label`s; the agent lane
+  is an `aria-live="polite"` region; claim spans expose an accessible name with their
+  state ("claim pending: …") and hide the cryptic `[··]` chip from screen readers; the
+  legend is a labelled region with `aria-expanded` wiring.
+- **feat(panel): write-target disclosure.** Before a Zotero write the card now states
+  where it will land — *"This write targets: library &lt;id&gt; via Zotero Web API.
+  Permission: item creation only."* — sourced from the capability report. The library
+  id is an identifier, never a secret; `/api/health` carries a `write_target` summary
+  (backend, availability, library, permissions) and a test asserts no key material leaks.
+- **feat(panel): first-run paste-a-manuscript hand-off.** The empty state gains a
+  paste-Markdown box: `POST /api/manuscripts/paste` saves the `.md` (basename-only,
+  path-traversal-safe, refuses to clobber), binds its folder, and returns the exact
+  MCP prompt to run next. Claim **extraction stays in the chat client** — the panel
+  never calls an AI — so the box explicitly hands off rather than pretending to extract.
+- **feat(panel): bounded manuscript-backup retention.** After each `.md` edit the
+  backup folder `<root>/.citevahti/manuscript_backups` is pruned to the **10 most
+  recent backups per manuscript**; older ones are deleted automatically once the new
+  backup is safely written, and the newest valid backup is never removed. Configurable
+  via `CITEVAHTI_BACKUP_RETENTION_COUNT` (default `10`; non-positive/invalid → `10`).
+- **feat(panel): beta / pricing notice.** A `BETA` badge in the header, a note in the
+  legend, and a banner on the first-run screen state that CiteVahti is in beta and free
+  to use, that pricing for hosted/advanced features may come later, and that a free
+  local/community version is intended to remain available. A test asserts the notice
+  ships in the served page.
+- **feat(panel): claim deep-links.** `?focus=<claim_id>` opens that claim's card on
+  load and `?legend=1` opens the legend — handy for sharing a specific review and for
+  reproducible screenshots.
+- **docs: onboarding screenshots + a synthetic demo ledger.** `docs/demo/build_demo_ledger.py`
+  builds a small, fully invented ledger (no real manuscript or citations) that drives the
+  real engine, so `docs/screenshots/*` show genuine claim states. README now opens with a
+  "See it" gallery and the beta notice.
+
+## 0.14.0 — Integrity surfaces in the panel: audit chain, Zotero evidence, lexical check (2026-06-07)
+
+Follows 0.13.0 with three integrity-facing additions to the inline reviewer, plus a
+crash fix. No engine safety-invariant changes; the blinded human-first protocol and
+the previewed/undoable write gates are unchanged. **Tagged for external review.**
+588 offline tests.
+
+- **feat(panel): audit-chain "verified ✓" indicator.** `GET /api/audit/verify`
+  recomputes the hash chain (`store.audit.verify()`) and reports `{intact, entries}`.
+  A header badge shows **⛓ audit ✓ N** (intact) or **⛓ audit ⚠ tampered** (broken,
+  clickable to re-verify), and the per-claim audit trail summary gains
+  *"· chain verified ✓"*. Refreshes on boot/reload and after each decision/write. A
+  test retroactively edits an audit entry and confirms the endpoint reports the chain
+  broken — the indicator genuinely catches tampering.
+- **feat(panel): the paper's Zotero highlights + full text, in the card.**
+  `tools.zotero_evidence` locates the candidate's library item and returns its PDF
+  **annotations** (`zot_annotations`) and an indexed **full-text** snippet
+  (`zot_fulltext`); an on-demand "Show Zotero highlights & full text"
+  (`POST /api/zotero/evidence`) renders them. Paper content, not an AI assessment, so
+  it is blinding-safe to read while rating.
+- **feat(panel): deterministic lexical check.** `tools.claim_lexical_check` reuses the
+  engine's content-token overlap (`retrieval/text.py`, the same logic as `claim_check`)
+  to report whether the claim's key terms appear in the candidate's abstract
+  (coverage + present/missing terms). Surfaced **only after the human rates**
+  (`POST /api/claim-check`), so it never biases the blind rating; never asserts truth.
+- **fix(panel): no-candidate claims no longer crash the card.** `renderAgent` built
+  its phase strings eagerly and dereferenced `cand.rating` even when a claim had no
+  linked candidate; it is now null-safe.
+
+  *Security / integrity fixes from the external review of this build:*
+- **fix(security): adjudication now requires a real discordance.** `support_adjudicate`
+  previously **fabricated** `comparison.status = "discordant"` and set an
+  `adjudication.final_value` with no human rating, no AI rating, and no computed
+  disagreement — which a decision could then accept. It now refuses unless a **locked
+  human rating** and an **AI second rating** exist and the comparison was **computed
+  discordant**; `decide()` additionally only treats an adjudicated value as resolved
+  when it rests on a locked human rating (defense in depth). Regression tests cover
+  the bare-rating and concordant/human-only cases.
+- **fix(security): OAuth request-token secrets never touch disk.** The temporary
+  `oauth_token_secret` was written to `.citevahti/panel.json`; it is now held in the
+  panel process only, single-use, with a 10-minute TTL — restoring the "panel JSON
+  has no secrets" boundary.
+- **fix(panel): document-edit commits are bound to the previewed contents.** A
+  preview now records the source hash; `commit-edit` refuses (HTTP 409) if the `.md`
+  changed since the preview, so a stale preview can't overwrite an intervening edit.
+- **fix(ext): VS Code manuscript revisions get a durable backup + revert.** Accepting
+  a revision now snapshots the file to `.citevahti/manuscript_backups` before the edit
+  and adds a **"CiteVahti: Revert manuscript edit"** command — the extension's own
+  safety, independent of the panel (not every user runs it).
+- **chore(version/dist): 0.14.0 across the CLI and the VS Code extension**, `.vsix`
+  rebuilt (the extension is version-aligned).
+
+## 0.13.0 — The inline reviewer becomes the (self-sufficient) default panel (2026-06-07)
+
+The loopback panel is rebuilt as the **inline manuscript reviewer** and promoted to
+the default surface: your claims are highlighted in place in the manuscript, and an
+action-first card walks one obvious next step at a time (**Rate → Reveal → Decide →
+Write**). It is now **self-sufficient** — you can find evidence, rate, decide, write
+to Zotero, and revise the manuscript without leaving for the chat. The blinded
+human-first protocol is unchanged (the AI second rating still comes from your chat
+client over MCP; the panel never produces it). All writes — Zotero **and** the
+manuscript `.md` — stay previewed, confirmed, and undoable; connect secrets go to the
+OS keychain and never return to the browser; `agent.TOOLS` is untouched (no new agent
+capability). 582 offline tests.
+
+- **feat(panel): the inline reviewer is the default surface.** New
+  `panel/manuscript.py` binds a manuscripts folder, resolves each claim onto the real
+  prose (whitespace-tolerant span mapping), and falls back to a reconstructed
+  claim-text document so it is never blank. New endpoints `GET /api/manuscripts`,
+  `GET /api/manuscript/{id}`, `POST /api/manuscripts/bind`. Document order drives the
+  `j`/`k` navigation, the progress rail, and auto-advance.
+- **feat(panel): first-run onboarding ends the empty-ledger trap.** `citevahti-panel`
+  / `start` now default to `$CITEVAHTI_ROOT`, the cwd ledger, or the **last-used
+  root** (`panel/prefs.py`) instead of an empty `~/.citevahti`. An empty ledger shows
+  a first-run screen that discovers other ledgers (with claim counts) and offers a
+  one-click switch (`GET /api/ledgers`, `POST /api/root`, `GET /api/context`).
+- **feat(panel): connect Zotero & PubMed in-panel.** Header chips + inline forms;
+  Zotero via paste-a-key **or** a one-click **OAuth 1.0a** handshake (new
+  `zotero/oauth.py`, `POST /api/connect/zotero/oauth/start` + loopback
+  `/oauth/zotero/callback`; client key/secret from the env, configurable callback).
+  Both converge on the same validated, keychain-stored, write-enabled state.
+- **feat(panel): find evidence from four sources, then link.** `POST /api/search`
+  over **PubMed**, **OpenAlex** (`openalex.py`), **Semantic Scholar** (`semscholar.py`)
+  and your **Zotero library**; `POST /api/link` attaches a result as a candidate —
+  no chat required. OpenAlex/Semantic Scholar are the API-backed answer to Google
+  Scholar (which has no usable API).
+- **feat(panel): automatic DOI backfill.** Missing DOIs are resolved from PMIDs via
+  NCBI **at link time**; a **Resolve DOIs** action backfills existing candidates
+  (NCBI PMID→DOI, plus strict CrossRef title→DOI in `crossref.py` for identifier-less
+  ones). PMID→DOI and exact-title matching only — a wrong DOI is worse than none.
+- **feat(panel): retraction scan.** A **⚠ Retractions** action flags candidates whose
+  DOI/PMID is retracted (OpenAlex `is_retracted`) with a **RETRACTED** card tag —
+  CiteVahti's integrity flagship, now real. New `retracted` field on candidates.
+- **feat(panel): open the reference PDF in Zotero.** An **Open in Zotero** action
+  locates the library item by DOI (`POST /api/zotero/locate`) and deep-links its PDF
+  (`zotero://open-pdf/...`).
+- **feat(panel): add claims & author revisions without the chat.** A **＋ Claim**
+  form (prefilled from a manuscript selection) creates claims (`POST /api/claims`); a
+  *Needs review* verdict gives an editable wording box that writes the revision to
+  your `.md` (and *Reject* strikes the claim) behind a preview → confirm → undo gate
+  with a file backup.
+- **feat(panel): library maintenance & at-a-glance tags.** **Re-check library**
+  re-runs Zotero dedupe; candidate cards show **✓ in Zotero / DOI ✓ / no DOI /
+  ⚠ RETRACTED** tags.
+- **feat(panel): per-claim audit trail.** `GET /api/claims/{id}/history` assembles a
+  timeline of the claim's decisions and Zotero write transactions (timestamp · verdict
+  · who · agreement · reason; writes show undone status) — the auditable
+  claim-evidence trail, in the card.
+- **fix(panel): the decision loop now visibly changes.** A claim is "decided" for any
+  non-pending state (`verified`/`review_needed`/`decision_recorded`), not only
+  `decision_recorded`; an Accept/Revise verdict now colours the manuscript span,
+  advances the progress rail, and auto-advances. Also fixed: `j`/`k` and auto-advance
+  follow **document** order (not ledger order), and the candidate stays selected across
+  a same-claim refresh.
+- **fix(panel): connect feedback, request handling, caching.** The Zotero connect
+  control prompts for a key (it no longer silently no-ops); a required-reason error
+  flags the field in place instead of off-screen; the server forces `Connection:
+  close` (fixing a keep-alive wedge) and sends `no-cache` for static assets so a
+  refresh always loads the latest UI.
+- **design(panel): calmer, document-first colours.** Near black-and-white reading
+  area, lilac decision panels, and a clear soft-lilac claim highlight (`--zs-mark`) so
+  claims stand out in the prose without colouring the whole page.
+- **chore(version): 0.13.0 across the CLI and the VS Code extension** (the extension
+  is version-aligned; no extension code changes this release).
+
 ## 0.12.0 — Rate-first in the VS Code card (2026-06-06)
 
 The VS Code inline card adopts the same **rate-first** rule the side panel already

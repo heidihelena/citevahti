@@ -21,7 +21,13 @@ def status(*, root: Optional[str] = None) -> dict:
     rep = CapabilityStatusService(CiteVahtiStore(root or "."), HttpxClient()).report()
     return {"connections": {c.name: c.status for c in rep.connections},
             "write_backend": rep.write_backend_kind, "can_write": rep.supported_write_ops,
-            "cannot_write": rep.unsupported_write_ops}
+            "cannot_write": rep.unsupported_write_ops,
+            # honest write-target summary so the UI can say what a write will touch
+            # before the user commits it (library id is an identifier, not a secret)
+            "write_target": {"backend": rep.write_backend_kind,
+                             "available": rep.write_backend_available,
+                             "zotero_library": rep.zotero_user_id,
+                             "permissions": rep.permissions}}
 
 
 def verify_claims(*, root: Optional[str] = None) -> dict:

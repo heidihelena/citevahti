@@ -205,11 +205,25 @@ class ClaimSupportEngine:
             raise ClaimSupportError("decider must be 'human' or 'panel'")
         self._check_value(final_value)
         record = self.store.load_support_rating(rating_id)
+        # Adjudication is the ONLY path to a final value on a DISCORDANCE, and only
+        # after a locked human rating AND an AI second rating exist and were COMPUTED
+        # to disagree. NEVER fabricate the comparison: a missing / non-discordant
+        # status means there is nothing to adjudicate. This is the human-first trust
+        # boundary — without it, a manual override on an unrated pair could become an
+        # accepted citation.
+        if record.human_rating is None or not record.human_rating.locked:
+            raise ClaimSupportError(
+                "cannot adjudicate before a locked human support rating exists")
+        if record.ai_rating is None:
+            raise ClaimSupportError(
+                "cannot adjudicate before an AI second rating exists")
+        if record.comparison.status != "discordant":
+            raise ClaimSupportError(
+                "adjudication requires a computed discordance (comparison is "
+                f"{record.comparison.status or 'uncomputed'}); run compare first")
         record.adjudication = Adjudication(
             final_value=final_value, event="adjudicated", decided_by=decider,
             decided_at=utc_now_iso(), rationale=rationale)
-        if record.comparison.status is None:
-            record.comparison.status = "discordant"
         return self.store.save_support_rating(record)
 
     def provenance(self) -> Provenance:

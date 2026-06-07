@@ -173,6 +173,278 @@ def literature_search(query: str, question_id: Optional[str] = None, max_results
                                  library=library)
 
 
+def _pubmed_provider(root: Optional[str], http=None):
+    """Build a PubMedProvider with the onboarded NCBI email/key (same resolution the
+    intake path uses) — used for DOI resolution outside a full literature_search."""
+    import os
+
+    from .credentials import NCBI_API_KEY, get_credential_store, resolve_secret
+    from .pubmed import PubMedProvider
+
+    cfg = _open_store(root).load_config()
+    email = os.environ.get(cfg.pubmed.email_env) or cfg.pubmed.contact_email
+    try:
+        cred_store = get_credential_store(getattr(cfg, "secrets_backend", "system_keyring"))
+    except Exception:  # noqa: BLE001
+        cred_store = None
+    api_key = resolve_secret(NCBI_API_KEY, cred_store) or os.environ.get(cfg.pubmed.api_key_env)
+    return PubMedProvider(http or HttpxClient(), email, api_key)
+
+
+def resolve_dois(pmids: list, *, root: Optional[str] = None, http=None, provider=None) -> dict:
+    """Resolve missing DOIs from PMIDs via NCBI — authoritative, never a guess.
+
+    Returns ``{pmid: doi}`` only for records that actually have a DOI. Offline or on
+    any NCBI error it returns ``{}`` (resolution is best-effort and never blocks the
+    rest of the workflow). No fuzzy/title matching: a wrong DOI is worse than none."""
+    ids = [str(p) for p in (pmids or []) if p]
+    if not ids:
+        return {}
+    if provider is None:
+        provider = _pubmed_provider(root, http)
+    try:
+        hits = provider.fetch_records(ids)
+    except Exception:  # noqa: BLE001 — NCBI down / offline -> resolve nothing
+        return {}
+    return {h.pmid: h.doi for h in hits if h.pmid and h.doi}
+
+
+def _iter_candidate_collections(store, root):
+    """Yield each claim's candidate collection (skipping claims with none)."""
+    for row in claim_report(root=root).rows:
+        try:
+            yield store.load_candidates(row.claim_id)
+        except Exception:  # noqa: BLE001 — a claim with no linked candidates
+            continue
+
+
+def resolve_dois_by_title(titles: list, *, root: Optional[str] = None, http=None, client=None) -> dict:
+    """CrossRef title → DOI for candidates lacking any identifier. Strict matching
+    (a wrong DOI is worse than none); returns ``{title: doi}`` only for strong
+    matches. Best-effort: offline/ambiguous titles are simply omitted."""
+    wanted = {t for t in (titles or []) if t}
+    if not wanted:
+        return {}
+    if client is None:
+        from .crossref import CrossrefClient
+        try:
+            mailto = _open_store(root).load_config().pubmed.contact_email
+        except Exception:  # noqa: BLE001
+            mailto = None
+        client = CrossrefClient(http=http, mailto=mailto)
+    out = {}
+    for t in sorted(wanted):
+        try:
+            doi = client.doi_for_title(t)
+        except Exception:  # noqa: BLE001
+            doi = None
+        if doi:
+            out[t] = doi
+    return out
+
+
+def backfill_candidate_dois(*, root: Optional[str] = None, http=None, include_title: bool = True) -> dict:
+    """Resolve DOIs for EXISTING candidates missing one. PMID→DOI (NCBI,
+    authoritative) for candidates with a PMID; CrossRef title→DOI (strict) for those
+    with no identifier at all. The link-time resolver only fires on new links — this
+    cleans up ones linked earlier."""
+    store = _open_store(root)
+    cols = list(_iter_candidate_collections(store, root))
+    pmids = {c.pmid for cc in cols for c in cc.candidates if c.pmid and not c.doi}
+    titles = {c.title for cc in cols for c in cc.candidates
+              if not c.pmid and not c.doi and c.title} if include_title else set()
+    by_pmid = resolve_dois(sorted(pmids), root=root, http=http) if pmids else {}
+    by_title = resolve_dois_by_title(sorted(titles), root=root, http=http) if titles else {}
+    if not by_pmid and not by_title:
+        return {"resolved": 0, "by_pmid": 0, "by_title": 0}
+    n_pmid = n_title = 0
+    for cc in cols:
+        changed = False
+        new = []
+        for c in cc.candidates:
+            if not c.doi and c.pmid in by_pmid:
+                new.append(c.model_copy(update={"doi": by_pmid[c.pmid]}))
+                changed, n_pmid = True, n_pmid + 1
+            elif not c.doi and not c.pmid and c.title in by_title:
+                new.append(c.model_copy(update={"doi": by_title[c.title]}))
+                changed, n_title = True, n_title + 1
+            else:
+                new.append(c)
+        if changed:
+            cc.candidates = new
+            store.save_candidates(cc)
+    return {"resolved": n_pmid + n_title, "by_pmid": n_pmid, "by_title": n_title}
+
+
+def recheck_library(library="personal", *, root: Optional[str] = None,
+                    endpoints: Optional[Endpoints] = None, index=None, zotero=None) -> dict:
+    """Re-run library dedupe for existing candidates and flag those now in Zotero.
+
+    ``already_in_zotero`` is set at link time; if the library wasn't connected then,
+    candidates stay unflagged. This re-checks each against the live library."""
+    store = _open_store(root)
+    if index is None:
+        from .intake.dedupe import ZoteroLibraryIndex
+        from .zotero import ZoteroService
+        index = ZoteroLibraryIndex(zotero or ZoteroService(HttpxClient(), endpoints), library)
+    flagged = checked = 0
+    for cc in _iter_candidate_collections(store, root):
+        changed = False
+        new = []
+        for c in cc.candidates:
+            checked += 1
+            present = index.contains(c.pmid, c.doi)
+            if present is True and not c.already_in_zotero:
+                new.append(c.model_copy(update={"already_in_zotero": True,
+                                                "dedupe_status": "already_in_library"}))
+                changed = True
+                flagged += 1
+            else:
+                new.append(c)
+        if changed:
+            cc.candidates = new
+            store.save_candidates(cc)
+    return {"flagged": flagged, "checked": checked}
+
+
+def openalex_search(query: str, max_results: int = 15, *, root: Optional[str] = None,
+                    http=None, client=None) -> list:
+    """OpenAlex search → normalized hits (the API-backed alternative to Scholar)."""
+    if client is None:
+        from .openalex import OpenAlexClient
+        try:
+            mailto = _open_store(root).load_config().pubmed.contact_email
+        except Exception:  # noqa: BLE001
+            mailto = None
+        client = OpenAlexClient(http=http, mailto=mailto)
+    try:
+        return client.search(query, max_results)
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def semanticscholar_search(query: str, max_results: int = 15, *, root: Optional[str] = None,
+                           http=None, client=None) -> list:
+    """Semantic Scholar search → normalized hits (another broad, API-backed source)."""
+    if client is None:
+        from .semscholar import SemanticScholarClient
+        client = SemanticScholarClient(http=http)
+    try:
+        return client.search(query, max_results)
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def scan_retractions(*, root: Optional[str] = None, http=None, client=None) -> dict:
+    """Flag candidates whose DOI/PMID is retracted (OpenAlex ``is_retracted``).
+
+    Citation-integrity flagship: a student citing a retracted paper is exactly what
+    this catches. Only flags on a definite True; unknown/offline leaves it unset."""
+    store = _open_store(root)
+    if client is None:
+        from .openalex import OpenAlexClient
+        try:
+            mailto = store.load_config().pubmed.contact_email
+        except Exception:  # noqa: BLE001
+            mailto = None
+        client = OpenAlexClient(http=http, mailto=mailto)
+    flagged = checked = 0
+    for cc in _iter_candidate_collections(store, root):
+        changed = False
+        new = []
+        for c in cc.candidates:
+            if c.doi or c.pmid:
+                checked += 1
+                if client.is_retracted(doi=c.doi, pmid=c.pmid) is True and not c.retracted:
+                    new.append(c.model_copy(update={"retracted": True}))
+                    changed, flagged = True, flagged + 1
+                    continue
+            new.append(c)
+        if changed:
+            cc.candidates = new
+            store.save_candidates(cc)
+    return {"flagged": flagged, "checked": checked}
+
+
+def zotero_locate(*, doi: Optional[str] = None, title: Optional[str] = None,
+                  pmid: Optional[str] = None, root: Optional[str] = None,
+                  endpoints: Optional[Endpoints] = None, zotero=None) -> dict:
+    """Find a library item matching a candidate, so the panel can deep-link to its
+    PDF in Zotero (``zotero://open-pdf/...``). Matches by DOI when available."""
+    from .zotero import ZoteroService
+    z = zotero or ZoteroService(HttpxClient(), endpoints)
+    query = doi or title or pmid
+    if not query:
+        return {"found": False}
+    res = z.zot_search(str(query), limit=8)
+    if not getattr(res, "ok", False):
+        return {"found": False, "error": getattr(res, "error_code", None)}
+    items = res.data or []
+    match = None
+    if doi:
+        match = next((it for it in items if (it.get("DOI") or "").lower() == str(doi).lower()), None)
+    if match is None and items:
+        match = items[0]
+    if match is None:
+        return {"found": False}
+    return {"found": True, "key": match.get("key"), "library": "personal"}
+
+
+def claim_lexical_check(claim_text: str, text: str) -> dict:
+    """Deterministic lexical overlap between a claim and a passage (the candidate's
+    abstract/full text). Reuses the same content-token logic as ``claim_check``.
+
+    NEVER asserts truth — only whether the claim's key terms appear in the text. The
+    panel shows it AFTER the human's blind rating so it can't bias it."""
+    from .retrieval.text import content_tokens, coverage_score
+    claim_terms = content_tokens(claim_text or "")
+    if not claim_terms or not (text or "").strip():
+        return {"available": False}
+    text_terms = content_tokens(text)
+    cov = coverage_score(claim_text, text)
+    return {
+        "available": True,
+        "coverage": round(cov, 2),
+        "status": "terms_present" if cov >= 0.5 else "terms_missing",
+        "present": sorted(t for t in claim_terms if t in text_terms),
+        "missing": sorted(t for t in claim_terms if t not in text_terms),
+    }
+
+
+def zotero_evidence(*, doi: Optional[str] = None, title: Optional[str] = None,
+                    pmid: Optional[str] = None, max_chars: int = 1500,
+                    root: Optional[str] = None, endpoints: Optional[Endpoints] = None,
+                    zotero=None) -> dict:
+    """The paper's own highlights (PDF annotations) + an indexed full-text snippet
+    from Zotero — content to read while rating. This is the paper's text, not an AI
+    assessment, so it is blinding-safe (like the stored abstract)."""
+    from .schemas.common import ItemRef
+    from .zotero import ZoteroService
+    z = zotero or ZoteroService(HttpxClient(), endpoints)
+    query = doi or title or pmid
+    if not query:
+        return {"found": False}
+    res = z.zot_search(str(query), limit=8)
+    if not getattr(res, "ok", False):
+        return {"found": False, "error": getattr(res, "error_code", None)}
+    items = res.data or []
+    match = None
+    if doi:
+        match = next((it for it in items if (it.get("DOI") or "").lower() == str(doi).lower()), None)
+    if match is None and items:
+        match = items[0]
+    if match is None:
+        return {"found": False}
+    ref = ItemRef(zotero_key=match.get("key"), library="personal")
+    ann = z.zot_annotations(ref)
+    annotations = ([{"text": a.get("text"), "comment": a.get("comment"), "page": a.get("page_label")}
+                    for a in (ann.data or [])] if getattr(ann, "ok", False) else [])
+    ft = z.zot_fulltext(ref)
+    fulltext = ((ft.data or {}).get("content", "")[:max_chars]) if getattr(ft, "ok", False) else ""
+    return {"found": True, "item_key": match.get("key"),
+            "annotations": annotations, "fulltext": fulltext}
+
+
 def import_results(source: dict, format: str, question_id: Optional[str] = None,
                    source_label: Optional[str] = None, library: LibrarySelector = "personal", *,
                    root: Optional[str] = None, endpoints: Optional[Endpoints] = None,
@@ -487,6 +759,40 @@ def connect_zotero(api_key: str, *, require_write: bool = True, root: Optional[s
     return ZoteroConnectService(_open_store(root), http=http,
                                 credential_store=credential_store).connect(
         api_key, require_write=require_write)
+
+
+def zotero_oauth_start(callback: str, *, root: Optional[str] = None, http=None) -> dict:
+    """Begin the Zotero OAuth 1.0a handshake; return the URL the user authorizes.
+
+    Needs a registered CiteVahti OAuth app (client key/secret in the env). The
+    returned ``oauth_token_secret`` is held by the caller (the loopback panel) only
+    until the callback completes — never sent to the browser."""
+    from .zotero import ZoteroOAuth, ZoteroOAuthError, load_client_credentials
+    ck, cs = load_client_credentials()
+    if not (ck and cs):
+        raise ZoteroOAuthError(
+            "not_configured",
+            "Zotero OAuth app is not configured. Register CiteVahti at "
+            "https://www.zotero.org/oauth/apps and set CITEVAHTI_ZOTERO_OAUTH_CLIENT_KEY "
+            "and CITEVAHTI_ZOTERO_OAUTH_CLIENT_SECRET — or paste an API key instead.")
+    oa = ZoteroOAuth(ck, cs, http=http)
+    token, token_secret = oa.request_token(callback)
+    return {"oauth_token": token, "oauth_token_secret": token_secret,
+            "authorize_url": oa.authorize_url(token)}
+
+
+def zotero_oauth_finish(oauth_token: str, token_secret: str, verifier: str, *,
+                        root: Optional[str] = None, http=None) -> dict:
+    """Exchange the verified token for the API key and store it (write enabled).
+
+    Reuses ``connect_zotero``'s storage path, so an OAuth connect and a pasted key
+    converge on the same validated, keyring-stored, write-enabled state."""
+    from .zotero import ZoteroOAuth, load_client_credentials
+    ck, cs = load_client_credentials()
+    oa = ZoteroOAuth(ck, cs, http=http)
+    result = oa.access_token(oauth_token, token_secret, verifier)
+    connect_zotero(result["api_key"], root=root)      # validate + keyring-store + enable write
+    return {"connected": True, "user_id": result["user_id"]}
 
 
 def propose_revision(claim_id: str, new_text: str, *, extracted_by: str = "human",

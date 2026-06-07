@@ -9,6 +9,7 @@ AI rating is never returned by a read endpoint until a human rating exists.
 
 from __future__ import annotations
 
+from . import manuscript, prefs
 from .server import blinded_rating_view, dispatch, make_server, serve
 
-__all__ = ["dispatch", "make_server", "serve", "blinded_rating_view"]
+__all__ = ["dispatch", "make_server", "serve", "blinded_rating_view", "manuscript", "prefs"]
