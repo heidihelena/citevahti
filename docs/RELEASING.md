@@ -25,6 +25,10 @@ pip install --upgrade build hatchling twine    # the build toolchain (not runtim
 python -m build                                 # → dist/citevahti-X.Y.Z{.tar.gz,-py3-none-any.whl}
 twine check dist/*                              # metadata + README render must PASS
 
+# the panel ships its UI as package data — confirm the assets are inside the wheel
+python -c "import zipfile,glob; z=zipfile.ZipFile(glob.glob('dist/*.whl')[0]); print('\n'.join(n for n in z.namelist() if 'panel/web' in n))"
+# expect: citevahti/panel/web/{index.html,app.js,styles.css}
+
 # verify a clean install in a throwaway venv before publishing
 python -m venv /tmp/cvcheck
 /tmp/cvcheck/bin/pip install dist/citevahti-*.whl

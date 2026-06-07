@@ -6,6 +6,10 @@ previous one.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.15.0 — Panel UX hardening + beta notice: error codes, legend, accessibility, write-target disclosure, paste hand-off, bounded backups (2026-06-07)
+
 Panel UX hardening (the "medium" findings from the external review):
 
 - **feat(panel): stable error codes + plain remediation.** Every panel API error now
