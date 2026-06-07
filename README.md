@@ -268,8 +268,13 @@ bash scripts/final_smoke.sh   # pytest + probe + verify-audit (no writes)
 
 # build + install the VS Code inline review extension
 cd vscode-extension && npm install && npm run package
-code --install-extension citevahti-0.12.0.vsix
+code --install-extension citevahti-0.15.0.vsix
 ```
+
+Prefer not to build it yourself? Download the prebuilt `.vsix` from the
+[latest release](https://github.com/heidihelena/citevahti/releases/latest)
+and run `code --install-extension citevahti-0.15.0.vsix` (or, in VS Code,
+Extensions → `…` → **Install from VSIX…**). No Marketplace account required.
 
 Config via environment (`NCBI_EMAIL`, `NCBI_API_KEY`) + `.citevahti/config.json`.
 CLI reference: [`docs/CLI.md`](docs/CLI.md). Full walk-through (zero → first
