@@ -280,10 +280,8 @@ cd vscode-extension && npm install && npm run package
 code --install-extension citevahti-vscode-0.15.0.vsix
 ```
 
-The prebuilt `.vsix` is attached to the
-[latest release](https://github.com/heidihelena/citevahti/releases/latest);
-run `code --install-extension citevahti-vscode-0.15.0.vsix` (or, in VS Code,
-Extensions → `…` → **Install from VSIX…**).
+That produces `citevahti-vscode-0.15.0.vsix` locally; install it with the command
+above, or in VS Code via Extensions → `…` → **Install from VSIX…**.
 
 Config via environment (`NCBI_EMAIL`, `NCBI_API_KEY`) + `.citevahti/config.json`.
 CLI reference: [`docs/CLI.md`](docs/CLI.md). Full walk-through (zero → first
