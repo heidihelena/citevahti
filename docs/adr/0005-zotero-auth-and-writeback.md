@@ -56,7 +56,8 @@ hosted callback.
    genuine paid differentiator for the cases the local key can't serve well:
    **group libraries**, and using CiteVahti **without the desktop app running**.
 5. **The guarded-write invariants are unchanged** regardless of auth method:
-   decision-gated, preview→confirm-token→commit, undoable, dedupe fails closed.
+   decision-gated, preview→confirm-token→commit, undoable, dedupe fails closed by
+   default (an explicit `allow_unverified_dedupe` override is warned and audited).
 
 ## 4. The progression (free → paid is the auth ladder)
 

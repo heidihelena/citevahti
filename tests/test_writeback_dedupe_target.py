@@ -109,6 +109,8 @@ def test_uncheckable_target_proceeds_with_explicit_override(tmp_path):
     store, decision_id = _accepted(tmp_path)
     txn = _commit(TransactionService(store, _NoCheck()), decision_id, allow_unverified_dedupe=True)
     assert txn.status == "committed"
+    # the override is not silent: the committed transaction records that dedupe was skipped
+    assert (txn.result or {}).get("dedupe_unverified") is True
 
 
 def test_dry_run_warns_when_dedupe_unverified(tmp_path):

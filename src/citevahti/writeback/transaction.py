@@ -149,12 +149,18 @@ class TransactionService:
 
         res = self.layer.apply(op, confirm_token)
         created = (res.result or {}).get("created_keys") or []
+        # Audit the dedupe override: if we proceeded without being able to verify the
+        # write target was duplicate-free, stamp it on the committed transaction so the
+        # audit trail records that this write skipped dedupe verification — never silent.
+        applied_result = dict(res.result or {})
+        if res.applied and existing is None and allow_unverified_dedupe:
+            applied_result["dedupe_unverified"] = True
         txn = ZoteroTransaction(
             transaction_id=f"txn-{uuid.uuid4().hex[:10]}", kind=op.kind, validated=True,
             status="committed" if res.applied else "failed", library=str(library),
             collection_key=collection_key, claim_id=decision.claim_id,
             candidate_id=decision.candidate_id, decision_id=decision_id,
-            proposed_changes=op.proposed_changes, result=res.result,
+            proposed_changes=op.proposed_changes, result=applied_result,
             undo_snapshot=({"delete_keys": created, "library": str(library),
                             "collection_key": collection_key} if res.applied else {}),
             error_code=res.error_code, remediation=res.remediation, provenance=self._prov(op.kind),

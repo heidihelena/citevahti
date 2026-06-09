@@ -177,7 +177,7 @@ time: `citevahti verify-audit`.
 
 ## Safety, by design
 - **You decide.** AI is a blinded, advisory second rater — never decisive, never silent.
-- **No silent writes.** Every Zotero write is preview → confirm → commit, and undoable; duplicates fail closed.
+- **No silent writes.** Every Zotero write is preview → confirm → commit, and undoable; duplicates fail closed by default. If a duplicate check can't be run, the write is refused unless you pass an explicit override — which is warned at preview and recorded on the committed transaction (`dedupe_unverified`).
 - **Your key is yours.** Stored only in the OS keychain — never in config, logs, or settings. Reads need no key at all.
 
 ## Troubleshooting
