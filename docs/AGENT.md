@@ -43,7 +43,7 @@ pubmed_search → link_candidates → start_support_rating → submit_ai_support
    → get_provenance
 ```
 The human owns the two pivots the agent can't touch: **the blinded human rating**
-and **the final accept/reject decision**. A validated Zotero write only happens for
+and **the final accept/reject decision**. An audited Zotero write only happens for
 an `accept` decision, through a token from a preview the human saw.
 
 ## Running it

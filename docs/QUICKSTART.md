@@ -1,4 +1,4 @@
-# CiteVahti Quickstart — from zero to your first verified citation
+# CiteVahti Quickstart — from zero to your first claim-tested citation
 
 *A product of [Vahtian](https://vahtian.com).* In ~10 minutes you'll take one
 manuscript claim, find a supporting paper on PubMed, rate it, decide, and write an

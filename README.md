@@ -4,7 +4,7 @@
 
 > *A product of **Vahtian**.*
 
-> **Status: v0.14.0 — the inline reviewer is the default, self-sufficient panel.**
+> **Status: v0.15.0 — the inline reviewer is the default, self-sufficient panel.**
 > The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 > blinded support rating → final decision → decision-gated, undoable Zotero write →
 > de-identified warehouse), hash-chain audited, with 592 offline tests. The loopback
@@ -140,7 +140,7 @@ citevahti literature-search --query "…" --question-id q1
 That's the whole loop, either way. Everything below is depth on top of it.
 
 **▶ New here? [`docs/QUICKSTART.md`](docs/QUICKSTART.md)** — the same path in full,
-zero to your first verified citation in ~10 minutes.
+zero to your first claim-tested citation in ~10 minutes.
 
 See [`docs/`](docs/) for the architecture, methods, safety invariants, CLI
 reference, the reviewer checklist, and the [glossary](docs/GLOSSARY.md)
@@ -156,7 +156,7 @@ manuscript claim → candidate papers → blinded claim-support rating
   → human-owned final decision → decision-gated, undoable Zotero write → audit
 ```
 
-A **validated** Zotero write happens only as the terminal step of that chain
+An **audited** Zotero write happens only as the terminal step of that chain
 (one claim · one paper · one final `accept` decision · provenance · transaction ·
 audit · undo) — never silently, never for a paper that doesn't support the claim.
 See [`docs/adr/0001-citation-integrity-architecture.md`](docs/adr/0001-citation-integrity-architecture.md)
@@ -287,7 +287,7 @@ Extensions → `…` → **Install from VSIX…**).
 
 Config via environment (`NCBI_EMAIL`, `NCBI_API_KEY`) + `.citevahti/config.json`.
 CLI reference: [`docs/CLI.md`](docs/CLI.md). Full walk-through (zero → first
-verified citation): [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
+claim-tested citation): [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
 
 ## Try it (what to do)
 
