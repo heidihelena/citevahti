@@ -1,0 +1,4 @@
+server/lib/
+build/
+dist/
+*.mcpb
