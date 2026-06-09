@@ -42,7 +42,14 @@ set the CiteVahti folder when prompted.
 ./build-binary.sh        # PyInstaller freeze → server/citevahti-mcp, packs dist/citevahti.mcpb
 ```
 Uses `manifest.binary.json` (staged, so the tracked `manifest.json` stays the python variant).
-Verified: the binary runs under `env -i` (no PATH, no Python) — self-contained.
+The build *produces* `server/citevahti-mcp`; on the build machine that binary was confirmed to
+run under `env -i` (no PATH, no Python) — self-contained.
+
+> **Not in the checkout.** The binary and `dist/*.mcpb` are **gitignored build artifacts**, so a
+> fresh clone has neither until you run `./build-binary.sh` (or download a release asset).
+> `manifest.binary.json` points at the path the build creates. To let others install-test the
+> no-Python claim without building, attach `dist/citevahti.mcpb` to a GitHub Release (mark it
+> arm64 + un-notarized).
 
 ## TODO before distribution
 - [x] Route B binary built for **mac arm64** (`server.type: binary`, no Python required). ⚠️ arm64
