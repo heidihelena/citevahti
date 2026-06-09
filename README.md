@@ -27,7 +27,12 @@
 > fit-checks, a citation-fit score, and the supporting
 > excerpt**, a **"Change reference"** PubMed search-and-link flow, an editor-mode
 > Citation-Integrity Report, and an agent-proposes / human-accepts revision diff.
-> Local-first, single-user, PubMed-only.
+> Local-first and single-user. Your manuscript text and ratings stay on your machine
+> and there is no telemetry; the only outbound calls are to the literature services it
+> searches or checks — **PubMed (NCBI), OpenAlex, Semantic Scholar, and Crossref/doi.org**
+> — and, if you connect it, **your Zotero**. Search queries and the titles/DOIs/PMIDs of
+> references you look up are sent to those services. (PubMed is the primary search source;
+> "PubMed-only" was an earlier, narrower scope.)
 
 > **Positioning.** *CiteVahti is free and local-first for researchers, and Vahtian
 > sells paid infrastructure to organizations that need auditable citation integrity
@@ -49,7 +54,8 @@ technical researchers) · *check every claim before you cite it* (researchers) �
 is **not a paper and not a reference — it is a claim test.** VS Code is one adapter
 and PyPI one install path; neither defines the product. CiteVahti's value is **not**
 autonomous reviewing; it is a documented **human → AI → adjudication** workflow you
-can report transparently in a methods section. Single-user, local, PubMed-only.
+can report transparently in a methods section. Single-user and local; literature
+lookups use PubMed, OpenAlex, Semantic Scholar and Crossref (no telemetry).
 
 > **The human or panel is always the decider. The AI is a blinded, advisory
 > second rater only. AI values are advisory, never decisive, and never silently

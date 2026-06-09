@@ -7,8 +7,9 @@ manuscript claim, find a supporting paper on PubMed, rate it, decide, and write 
 > **What CiteVahti is (and isn't).** It records a documented **human → AI →
 > adjudication** workflow. *You* are always the decider. It never writes silently,
 > never invents citations, and never claims a paper supports a claim — it records
-> *your* judgment, with provenance. Beta scope: **local-first, single-user,
-> PubMed-only.**
+> *your* judgment, with provenance. Beta scope: **local-first and single-user**;
+> literature lookups go to PubMed, OpenAlex, Semantic Scholar and Crossref, and writes
+> (if connected) to your Zotero — no telemetry; your manuscript and ratings stay local.
 
 ---
 
