@@ -88,7 +88,11 @@ writes or hosted-model calls by default.
 ## Audit log
 
 `audit_log.jsonl` is append-only and hash-chained: each entry hashes the
-previous entry's hash, so any retroactive edit or deletion breaks the chain and
-is detected by `verify-audit`. Reporting exports and write-back use distinct
+previous entry's hash, so a *partial* retroactive edit or deletion breaks the chain
+and is caught by `verify-audit`. The chain is **tamper-evident, not cryptographically
+signed** — it surfaces accidental corruption and naive edits, but a deliberate re-hash
+of the whole log would still validate. A signed / research-grade audit trail is out of
+beta scope (and not required by e.g. PRISMA); the threat model is honest-researcher
+provenance, not defending against the researcher. Reporting exports and write-back use distinct
 event types (`export.evidence`, `export.agreement`, `zotero.write.applied`) so
 that export creation is never confused with evidence mutation.

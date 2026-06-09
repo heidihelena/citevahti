@@ -34,7 +34,10 @@ guarantees of the system; a reviewer should treat any violation as a defect.
   distinct and never confused; the BBT version is read live, never hardcoded
   (`probe/probe.py`, `validators/probe.py`).
 - **Tamper-evident audit**: every state mutation appends to a hash-chained log;
-  `verify-audit` detects any retroactive edit (`state/audit.py`).
+  `verify-audit` detects a *partial* retroactive edit/deletion (`state/audit.py`). The
+  chain is tamper-evident, **not cryptographically signed** — a deliberate full-log
+  re-hash would still validate. A signed, research-grade audit trail is out of beta scope
+  (not required by e.g. PRISMA); the threat model is honest-researcher provenance.
 - **Tag-mirror discipline**: mirrors only human/final values, refuses AI-only and
   unadjudicated discordant values, and replaces the prior same-scheme tag rather
   than accumulating (`writeback/service.py`).
