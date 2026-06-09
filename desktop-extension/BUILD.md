@@ -55,13 +55,12 @@ run under `env -i` (no PATH, no Python) — self-contained.
 - [x] Route B binary built for **mac arm64** (`server.type: binary`, no Python required). ⚠️ arm64
       only — Intel Macs + Windows/Linux each need their own `build-binary.sh` run on that platform.
 - [ ] Add `icon.png` (from the CiteVahti Sentinel mark).
-- [ ] Code-sign / notarize the binary so macOS Gatekeeper doesn't block it. **Scripted &
-      ready** — `./sign-notarize.sh` (+ `entitlements.plist` for the onefile/hardened-runtime
-      workaround). **Blocked only on the Apple Developer Program enrollment ($99/yr) →
-      Developer ID Application cert** (separate from the git SSH signing key); `notarytool` +
-      `codesign` are already installed. After enrolling: save creds with
-      `xcrun notarytool store-credentials citevahti-notary …`, then
-      `SIGN_IDENTITY="Developer ID Application: … (TEAMID)" ./sign-notarize.sh`.
+- [x] **Code-sign + notarize — DONE (mac arm64, 2026-06-09).** Binary signed with
+      `Developer ID Application: Heidi Andersen (FZQ347J9NX)` (hardened runtime + entitlements
+      + secure timestamp), `.mcpb` re-packed with the signed binary, submitted via
+      `xcrun notarytool submit … --keychain-profile citevahti-notary --wait` → **status:
+      Accepted** (submission `1b56ad58-0946-4afd-be6d-a5ef53b8f254`). Re-run any time with
+      `SIGN_IDENTITY="Developer ID Application: Heidi Andersen (FZQ347J9NX)" ./sign-notarize.sh`.
       Caveat: a `.mcpb` (zip) can't be stapled → Gatekeeper checks notarization online on first
       launch; for offline-proof, ship a signed+notarized `.pkg` instead. Onefile + hardened
       runtime is fragile — if the signed binary won't launch, rebuild `--onedir` and sign nested libs.
