@@ -127,7 +127,7 @@ on the CLI.)*
 1. Open your manuscript (`.md`), run **CiteVahti: Verify claims** (Command Palette).
 2. Each claim is highlighted by its state. Expand the claim, focus a candidate.
 3. Rate support, then press the verdict: **`o o` accept → `[oo]`**, `o` caution, `r` review, `d` reject.
-   *(The AI's opinion stays hidden until you rate — blinding is real.)*
+   *(The panel hides the AI's opinion until you rate; the ledger logs the order, so blinding is auditable.)*
 4. On an accepted candidate, click **✓ Add to Zotero** → preview → confirm → done, with **Undo**.
 
 ### Option B — full CLI

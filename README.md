@@ -70,8 +70,11 @@ A free local/community version is intended to remain available.**
 ## See it
 
 The inline reviewer — your manuscript with claims highlighted in place, each reviewed
-in an action-first **Rate → Reveal → Decide → Write** card. You rate first; the AI's
-second rating stays hidden until yours is recorded (enforced by the engine, not the UI).
+in an action-first **Rate → Reveal → Decide → Write** card. You rate first; the panel
+withholds the AI's second rating until yours is recorded. Blinding is a panel-enforced
+workflow, not a hard engine lock — but the ledger logs each rating's timestamp and the
+rating **mode** (e.g. `human_first_ai_blind`) plus the comparison status (human-only /
+AI-abstained / concordant / discordant), so the actual order is **auditable**, not assumed.
 
 ![The inline reviewer: a manuscript with colour-coded claim spans and the blind support-rating card.](docs/screenshots/01-review-surface.png)
 
@@ -323,7 +326,7 @@ commands: [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
      (Population / Intervention / Outcome / Claim), and the **citation-fit score**
      (`n/8`, Strong / Moderate / Weak);
    - press the verdict — **`o o` accept**, `o` caution, `r` review, `d` reject.
-     *(The AI's rating stays hidden until you rate — blinding is real.)*
+     *(The panel hides the AI's rating until you rate; the ledger logs the order, so blinding is auditable.)*
    - on a weak claim, click **“⇄ Change reference…”** to search PubMed and add a
      better-fitting paper as a new candidate;
    - on an accepted candidate, click **“✓ Add to Zotero”** → preview → confirm →
