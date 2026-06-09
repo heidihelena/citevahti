@@ -165,6 +165,27 @@ citevahti claim-report                       # 4-state summary (exit ≠ 0 if an
 citevahti claim-report --format md --output integrity.md   # the editor/supervisor report
 ```
 
+## 8. Getting the references into your article or thesis
+
+**CiteVahti's job ends with a vetted reference in your Zotero library** — checked against
+the claim, deduped, audited. It does **not** insert live citations into your prose. So how
+a citation reaches your final document depends on your writing tool:
+
+- **Word / Google Docs (typical for a thesis):** your manuscript prose is plain text, so
+  copy-pasting it carries no citations — CiteVahti never put any *in the prose*. But the
+  **reference is already in your Zotero library**, vetted and deduped, so you cite it the
+  normal way with the **Zotero Word/Docs plugin** ("Add/Edit Citation"). Nothing is lost —
+  you *cite in Word*, you don't paste citations. (A plain text paste never carries live
+  citations into Word; that's true of any tool.)
+- **Markdown → Pandoc:** if you write citations as Better BibTeX keys in Pandoc form
+  `[@citekey]`, those travel as plain text and **Pandoc `--citeproc`** (with a Better
+  BibTeX `.bib`/CSL exported from Zotero) formats them into in-text citations + a
+  bibliography automatically.
+
+> **In short:** the Zotero references always persist; the *in-text citing* happens in your
+> writing tool (Word + Zotero plugin, or Markdown + Pandoc) — not via copy-pasting prose.
+> If you use `[@citekey]` markers, **pin your Better BibTeX citekeys** so they keep resolving.
+
 ---
 
 ## What just happened (the ledger)
