@@ -1,4 +1,4 @@
-# CiteVahti Quickstart — from zero to your first verified citation
+# CiteVahti Quickstart — from zero to your first claim-tested citation
 
 *A product of [Vahtian](https://vahtian.com).* In ~10 minutes you'll take one
 manuscript claim, find a supporting paper on PubMed, rate it, decide, and write an
@@ -7,8 +7,9 @@ manuscript claim, find a supporting paper on PubMed, rate it, decide, and write 
 > **What CiteVahti is (and isn't).** It records a documented **human → AI →
 > adjudication** workflow. *You* are always the decider. It never writes silently,
 > never invents citations, and never claims a paper supports a claim — it records
-> *your* judgment, with provenance. Beta scope: **local-first, single-user,
-> PubMed-only.**
+> *your* judgment, with provenance. Beta scope: **local-first and single-user**;
+> literature lookups go to PubMed, OpenAlex, Semantic Scholar and Crossref, and writes
+> (if connected) to your Zotero — no telemetry; your manuscript and ratings stay local.
 
 ---
 
@@ -126,7 +127,7 @@ on the CLI.)*
 1. Open your manuscript (`.md`), run **CiteVahti: Verify claims** (Command Palette).
 2. Each claim is highlighted by its state. Expand the claim, focus a candidate.
 3. Rate support, then press the verdict: **`o o` accept → `[oo]`**, `o` caution, `r` review, `d` reject.
-   *(The AI's opinion stays hidden until you rate — blinding is real.)*
+   *(The panel hides the AI's opinion until you rate; the ledger logs the order, so blinding is auditable.)*
 4. On an accepted candidate, click **✓ Add to Zotero** → preview → confirm → done, with **Undo**.
 
 ### Option B — full CLI
@@ -176,7 +177,7 @@ time: `citevahti verify-audit`.
 
 ## Safety, by design
 - **You decide.** AI is a blinded, advisory second rater — never decisive, never silent.
-- **No silent writes.** Every Zotero write is preview → confirm → commit, and undoable; duplicates fail closed.
+- **No silent writes.** Every Zotero write is preview → confirm → commit, and undoable; duplicates fail closed by default. If a duplicate check can't be run, the write is refused unless you pass an explicit override — which is warned at preview and recorded on the committed transaction (`dedupe_unverified`).
 - **Your key is yours.** Stored only in the OS keychain — never in config, logs, or settings. Reads need no key at all.
 
 ## Troubleshooting

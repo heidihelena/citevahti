@@ -838,7 +838,49 @@ def _handler_factory(root: str):
                             f"{'✓ Connected' if ok else '⚠ Not connected'}</h2><p>{esc_html(msg)}</p>"
                             "<p style='color:#9A93B0'>This window is safe to close.</p></body>")
 
+        @staticmethod
+        def _is_loopback(value: str) -> bool:
+            """True if a Host/Origin header value names the loopback interface."""
+            if not value:
+                return False
+            host = value.strip()
+            if "://" in host:              # Origin: strip the scheme
+                host = host.split("://", 1)[1]
+            host = host.split("/", 1)[0]   # drop any path
+            if host.startswith("["):       # ipv6 literal: [::1] or [::1]:port
+                host = host[1:].split("]", 1)[0]
+            elif host.count(":") == 1:     # host:port
+                host = host.rsplit(":", 1)[0]
+            return host.strip().lower() in ("localhost", "127.0.0.1", "::1")
+
+        def _reject_bad_host(self) -> bool:
+            """Reject a non-loopback Host header (defeats DNS-rebinding). 403 if rejected."""
+            host = self.headers.get("Host", "")
+            if host and not self._is_loopback(host):
+                self._send(403, {"error": "forbidden",
+                                 "message": "rejected: the panel serves the loopback interface only"})
+                return True
+            return False
+
+        def _reject_unsafe_mutation(self) -> bool:
+            """State-changing requests: reject a cross-origin Origin (CSRF) and require
+            application/json. The JSON requirement blocks the cross-origin "simple request"
+            a browser sends without a CORS preflight (text/plain / form-encoded). 403/415."""
+            origin = self.headers.get("Origin")
+            if origin and not self._is_loopback(origin):
+                self._send(403, {"error": "forbidden",
+                                 "message": "cross-origin request rejected"})
+                return True
+            ctype = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+            if ctype != "application/json":
+                self._send(415, {"error": "unsupported_media_type",
+                                 "message": "POST requires Content-Type: application/json"})
+                return True
+            return False
+
         def do_GET(self):
+            if self._reject_bad_host():
+                return
             if self.path.startswith("/oauth/zotero/callback"):
                 self._oauth_callback()
             elif self.path.startswith("/api/"):
@@ -848,6 +890,8 @@ def _handler_factory(root: str):
                 self._send(404, {"error": "not_found", "message": self.path})
 
         def do_POST(self):
+            if self._reject_bad_host() or self._reject_unsafe_mutation():
+                return
             length = int(self.headers.get("Content-Length") or 0)
             raw = self.rfile.read(length) if length else b""
             try:

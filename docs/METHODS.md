@@ -5,6 +5,12 @@ is actually implemented, so it can be reported transparently in a methods
 section. It reports **what the system does**; it does **not** claim compliance
 with, or endorsement by, any reporting guideline.
 
+The **AI second rating is an optional, blinded second opinion — not mandatory.**
+The human always decides (Invariant 1). A decision resolves and may be written when
+it is *concordant*, *adjudicated*, *ai_abstained*, **or** *human_only* (a human rating
+with no AI rating). "human → AI → adjudication" names the full dual-rating path; the
+AI leg can be skipped, and a human-only accept is by design, not a gap.
+
 ## Dual-rating workflow
 
 For each judgment (one subject × one scheme):

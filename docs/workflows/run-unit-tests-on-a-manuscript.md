@@ -82,8 +82,10 @@ vocabulary is stable — see `src/citevahti/findings.py`.
 
 ## What stays true
 
-- You rate **before** the AI rating is visible — enforced by the engine and every
-  panel/report read path, not by the LLM's good behaviour.
+- You rate **before** the AI rating is visible **in the panel** — the panel/report read
+  paths withhold it until your rating exists (not the LLM's good behaviour). It's a
+  panel-enforced workflow, not a hard engine lock (the CLI/raw ledger can surface it
+  earlier); the ledger records the rating order/mode so blind-first is auditable.
 - No Zotero write happens without a preview and your explicit confirmation; every
   write is undoable; raw Zotero writes are never exposed.
 - MCP is the **spine**, not the product: it lets agents run the workflow. VS Code is

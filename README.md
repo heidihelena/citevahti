@@ -4,7 +4,7 @@
 
 > *A product of **Vahtian**.*
 
-> **Status: v0.14.0 — the inline reviewer is the default, self-sufficient panel.**
+> **Status: v0.15.0 — the inline reviewer is the default, self-sufficient panel.**
 > The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 > blinded support rating → final decision → decision-gated, undoable Zotero write →
 > de-identified warehouse), hash-chain audited, with 592 offline tests. The loopback
@@ -27,7 +27,12 @@
 > fit-checks, a citation-fit score, and the supporting
 > excerpt**, a **"Change reference"** PubMed search-and-link flow, an editor-mode
 > Citation-Integrity Report, and an agent-proposes / human-accepts revision diff.
-> Local-first, single-user, PubMed-only.
+> Local-first and single-user. Your manuscript text and ratings stay on your machine
+> and there is no telemetry; the only outbound calls are to the literature services it
+> searches or checks — **PubMed (NCBI), OpenAlex, Semantic Scholar, and Crossref/doi.org**
+> — and, if you connect it, **your Zotero**. Search queries and the titles/DOIs/PMIDs of
+> references you look up are sent to those services. (PubMed is the primary search source;
+> "PubMed-only" was an earlier, narrower scope.)
 
 > **Positioning.** *CiteVahti is free and local-first for researchers, and Vahtian
 > sells paid infrastructure to organizations that need auditable citation integrity
@@ -49,7 +54,8 @@ technical researchers) · *check every claim before you cite it* (researchers) �
 is **not a paper and not a reference — it is a claim test.** VS Code is one adapter
 and PyPI one install path; neither defines the product. CiteVahti's value is **not**
 autonomous reviewing; it is a documented **human → AI → adjudication** workflow you
-can report transparently in a methods section. Single-user, local, PubMed-only.
+can report transparently in a methods section. Single-user and local; literature
+lookups use PubMed, OpenAlex, Semantic Scholar and Crossref (no telemetry).
 
 > **The human or panel is always the decider. The AI is a blinded, advisory
 > second rater only. AI values are advisory, never decisive, and never silently
@@ -64,8 +70,11 @@ A free local/community version is intended to remain available.**
 ## See it
 
 The inline reviewer — your manuscript with claims highlighted in place, each reviewed
-in an action-first **Rate → Reveal → Decide → Write** card. You rate first; the AI's
-second rating stays hidden until yours is recorded (enforced by the engine, not the UI).
+in an action-first **Rate → Reveal → Decide → Write** card. You rate first; the panel
+withholds the AI's second rating until yours is recorded. Blinding is a panel-enforced
+workflow, not a hard engine lock — but the ledger logs each rating's timestamp and the
+rating **mode** (e.g. `human_first_ai_blind`) plus the comparison status (human-only /
+AI-abstained / concordant / discordant), so the actual order is **auditable**, not assumed.
 
 ![The inline reviewer: a manuscript with colour-coded claim spans and the blind support-rating card.](docs/screenshots/01-review-surface.png)
 
@@ -140,7 +149,7 @@ citevahti literature-search --query "…" --question-id q1
 That's the whole loop, either way. Everything below is depth on top of it.
 
 **▶ New here? [`docs/QUICKSTART.md`](docs/QUICKSTART.md)** — the same path in full,
-zero to your first verified citation in ~10 minutes.
+zero to your first claim-tested citation in ~10 minutes.
 
 See [`docs/`](docs/) for the architecture, methods, safety invariants, CLI
 reference, the reviewer checklist, and the [glossary](docs/GLOSSARY.md)
@@ -156,7 +165,7 @@ manuscript claim → candidate papers → blinded claim-support rating
   → human-owned final decision → decision-gated, undoable Zotero write → audit
 ```
 
-A **validated** Zotero write happens only as the terminal step of that chain
+An **audited** Zotero write happens only as the terminal step of that chain
 (one claim · one paper · one final `accept` decision · provenance · transaction ·
 audit · undo) — never silently, never for a paper that doesn't support the claim.
 See [`docs/adr/0001-citation-integrity-architecture.md`](docs/adr/0001-citation-integrity-architecture.md)
@@ -287,7 +296,7 @@ Extensions → `…` → **Install from VSIX…**).
 
 Config via environment (`NCBI_EMAIL`, `NCBI_API_KEY`) + `.citevahti/config.json`.
 CLI reference: [`docs/CLI.md`](docs/CLI.md). Full walk-through (zero → first
-verified citation): [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
+claim-tested citation): [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
 
 ## Try it (what to do)
 
@@ -317,7 +326,7 @@ commands: [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
      (Population / Intervention / Outcome / Claim), and the **citation-fit score**
      (`n/8`, Strong / Moderate / Weak);
    - press the verdict — **`o o` accept**, `o` caution, `r` review, `d` reject.
-     *(The AI's rating stays hidden until you rate — blinding is real.)*
+     *(The panel hides the AI's rating until you rate; the ledger logs the order, so blinding is auditable.)*
    - on a weak claim, click **“⇄ Change reference…”** to search PubMed and add a
      better-fitting paper as a new candidate;
    - on an accepted candidate, click **“✓ Add to Zotero”** → preview → confirm →

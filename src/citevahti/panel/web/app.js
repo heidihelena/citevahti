@@ -513,7 +513,7 @@ async function openZotEvidence() {
 function renderAgent(ph, claim, cand) {
   const code = cand && cand.evidence && cand.evidence.final_decision;
   const lines = {
-    rate: `Read the evidence, then record your blind rating. I will not show my rating until yours is in — that gate is enforced by the engine, not by me.`,
+    rate: `Read the evidence, then record your blind rating. The panel won't show my rating until yours is in, and the ledger logs the order — so your blind-first rating is on the record.`,
     decide: (cand && cand.rating && cand.rating.comparison_status === "discordant")
       ? `We disagree. You decide; I am advisory only. Your reason is audited.`
       : `Record the verdict to continue — every Zotero write and document edit is previewed and undoable.`,

@@ -155,8 +155,12 @@ key, keeping the connect flow local-first.
 
 ## What stays true
 
-- You rate **before** the AI rating is visible — enforced by the engine and by
-  every panel read endpoint, not by the LLM's good behaviour.
+- You rate **before** the AI rating is visible **in the panel** — the panel's read
+  endpoints withhold it until your rating exists (not the LLM's good behaviour). This is
+  a panel-enforced workflow, not a hard engine lock: the CLI/raw ledger can surface the
+  AI rating earlier. What the engine *guarantees* is the **record** — each rating's
+  timestamp, the rating mode (`human_first_ai_blind`), and the comparison status — so
+  whether you rated blind-first is **auditable** afterwards.
 - No Zotero write happens without a preview and your explicit confirmation; every
   write is undoable.
 - No manuscript `.md` edit happens without a preview and your confirmation; the file
