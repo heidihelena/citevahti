@@ -1,0 +1,45 @@
+{
+  "manifest_version": "0.2",
+  "name": "citevahti",
+  "display_name": "CiteVahti",
+  "version": "0.15.0",
+  "description": "Run unit tests on your manuscript — check every claim before you cite it.",
+  "long_description": "CiteVahti is a local-first citation-integrity tool. It runs a blinded human → AI → adjudication review of the claims in your manuscript: you rate the evidence before the AI rating is revealed, decisions are gated and undoable, and every step is recorded in a hash-chained audit trail. This extension adds CiteVahti's MCP tools and the `run_claim_tests` prompt to Claude Desktop so you can run the whole review in chat — no terminal, and no Python required (the runtime is bundled). Local-first, single-user, PubMed-only.",
+  "author": {
+    "name": "Heidi Andersén",
+    "email": "heidihelena@hotmail.com",
+    "url": "https://vahtian.com/citevahti"
+  },
+  "homepage": "https://vahtian.com/citevahti",
+  "documentation": "https://github.com/heidihelena/citevahti",
+  "support": "https://github.com/heidihelena/citevahti/issues",
+  "license": "Apache-2.0",
+  "keywords": ["citation", "research", "evidence", "zotero", "pubmed", "manuscript", "mcp"],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/citevahti-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/server/citevahti-mcp",
+      "args": ["--root", "${user_config.ledger_root}"]
+    }
+  },
+  "user_config": {
+    "ledger_root": {
+      "type": "directory",
+      "title": "CiteVahti folder",
+      "description": "Where CiteVahti keeps your evidence-decision ledger (a .citevahti folder is created inside). Pick or create a folder, e.g. Documents/CiteVahti.",
+      "required": true,
+      "default": "${HOME}/Documents/CiteVahti"
+    }
+  },
+  "prompts": [
+    {
+      "name": "run_claim_tests",
+      "description": "Run the blinded claim-by-claim citation review over your manuscript.",
+      "text": "Run claim tests on my manuscript using CiteVahti."
+    }
+  ],
+  "compatibility": {
+    "platforms": ["darwin"]
+  }
+}

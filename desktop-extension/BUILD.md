@@ -37,8 +37,16 @@ Claude Desktop, then ship Route B (start with mac arm64, the founder's machine).
 Then in Claude Desktop: Settings → Extensions → install from file → pick `dist/citevahti.mcpb`,
 set the CiteVahti folder when prompted.
 
+## Build (Route B, production)
+```
+./build-binary.sh        # PyInstaller freeze → server/citevahti-mcp, packs dist/citevahti.mcpb
+```
+Uses `manifest.binary.json` (staged, so the tracked `manifest.json` stays the python variant).
+Verified: the binary runs under `env -i` (no PATH, no Python) — self-contained.
+
 ## TODO before distribution
-- [ ] Route B binary (mac arm64) + flip manifest `server.type` to `binary`.
+- [x] Route B binary built for **mac arm64** (`server.type: binary`, no Python required). ⚠️ arm64
+      only — Intel Macs + Windows/Linux each need their own `build-binary.sh` run on that platform.
 - [ ] Add `icon.png` (from the CiteVahti Sentinel mark).
 - [ ] Code-sign / notarize the binary so macOS Gatekeeper doesn't block it (Apple Developer
       cert — separate from the git SSH signing key).
