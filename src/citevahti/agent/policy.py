@@ -14,6 +14,7 @@ from __future__ import annotations
 # is unreachable by an agent.
 ALLOWED_AGENT_TOOLS = (
     "status",                    # read-only capability report
+    "open_review_panel",         # bring up the human's loopback rating surface (no rating power)
     "verify_claims",             # read-only 4-state citation-integrity report
     "pubmed_search",             # staged, exact-query-preserving PubMed search
     "propose_claim",             # AI-extracted claim (flagged; human confirms)

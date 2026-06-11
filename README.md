@@ -97,6 +97,16 @@ prompt to use next:
 
 ## Getting started: install, then pick a path
 
+> **Using Claude Desktop and never open a terminal? You don't need one.**
+> Download the **CiteVahti desktop extension (`citevahti.mcpb`)** from the
+> [latest release](https://github.com/heidihelena/citevahti/releases/latest) and
+> double-click it — Claude Desktop installs it, asks once for your CiteVahti
+> folder, and the runtime is bundled (no Python, no pip). Then run the
+> **`run_claim_tests`** prompt in chat; when it's time to rate, the assistant
+> opens the rating panel in your browser for you. The `pip` route below is for
+> terminal users and other chat clients. (Build it yourself:
+> [desktop-extension/BUILD.md](desktop-extension/BUILD.md).)
+
 ```bash
 pip install "citevahti[mcp]"     # the [mcp] extra adds the chat surface — keep both quotes
 citevahti init                   # one-time: create the local .citevahti/ ledger

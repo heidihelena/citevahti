@@ -66,3 +66,10 @@ run under `env -i` (no PATH, no Python) — self-contained.
       runtime is fragile — if the signed binary won't launch, rebuild `--onedir` and sign nested libs.
 - [ ] Confirm Zotero connection works inside the sandboxed extension (API key / OAuth path).
 - [ ] Decide the default ledger folder + first-run behaviour.
+- [ ] **Rebuild to pick up `open_review_panel`** (added 2026-06-12). The bare stdio
+      server used to dead-end the no-terminal path at the rate-first step — the
+      prompt sent the human to a localhost panel nothing had launched. The agent
+      surface now has an `open_review_panel` tool (idempotent, loopback-only,
+      opens the browser), and the `run_claim_tests` prompt step 7 tells the model
+      to call it. Any binary built before that date still has the dead-end:
+      rebuild with `./build-binary.sh`, then re-run sign-notarize.

@@ -13,6 +13,14 @@ manuscript claim, find a supporting paper on PubMed, rate it, decide, and write 
 
 ---
 
+> **No terminal needed if you use Claude Desktop:** download
+> **`citevahti.mcpb`** from the
+> [latest release](https://github.com/heidihelena/citevahti/releases/latest),
+> double-click it, pick your CiteVahti folder once, and run the
+> `run_claim_tests` prompt in chat — the runtime is bundled (no Python, no
+> pip), and the assistant opens the rating panel for you when it's time to
+> rate. Everything below is the terminal route.
+
 ## 0. Prerequisites
 - **Zotero desktop** installed and **running** (CiteVahti reads your library locally, keyless).
 - **Python 3.10+**.
