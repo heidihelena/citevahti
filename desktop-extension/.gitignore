@@ -1,0 +1,5 @@
+server/lib/
+server/citevahti-mcp
+build/
+dist/
+*.mcpb
