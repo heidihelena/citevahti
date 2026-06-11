@@ -27,6 +27,15 @@ previous one.
 - Panel Zotero search now includes group libraries (`library="all"`).
 - New `docs/REPORTING.md`: fill-in-the-blanks methods paragraph wired to
   `agreement-report`.
+- **New agent tool `open_review_panel`** (+ `start.launch_panel()`): the agent
+  can bring up the human's loopback rating panel at the rate-first step, which
+  closes the desktop-extension (.mcpb) no-terminal dead-end. The
+  `run_claim_tests` prompt now points at it. Desktop-extension scaffold
+  (manifests, build + sign/notarize scripts) merged; README/QUICKSTART now
+  surface the no-terminal install above the pip route.
+- `--json` across the claim spine (claim-add/list/untestable, candidate-list,
+  claim-support-*, claim-decide, decision-list) + `docs/CI.md` pre-commit and
+  GitHub Action recipes.
 
 ## 0.15.0 — Panel UX hardening + beta notice: error codes, legend, accessibility, write-target disclosure, paste hand-off, bounded backups (2026-06-07)
 
