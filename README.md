@@ -54,7 +54,9 @@ technical researchers) · *check every claim before you cite it* (researchers) �
 is **not a paper and not a reference — it is a claim test.** VS Code is one adapter
 and PyPI one install path; neither defines the product. CiteVahti's value is **not**
 autonomous reviewing; it is a documented **human → AI → adjudication** workflow you
-can report transparently in a methods section. Single-user and local; literature
+can report transparently in a methods section —
+[docs/REPORTING.md](docs/REPORTING.md) has the fill-in-the-blanks methods
+paragraph and the commands that produce its numbers. Single-user and local; literature
 lookups use PubMed, OpenAlex, Semantic Scholar and Crossref (no telemetry).
 
 > **The human or panel is always the decider. The AI is a blinded, advisory

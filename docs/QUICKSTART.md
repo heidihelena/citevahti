@@ -165,6 +165,11 @@ citevahti claim-report                       # 4-state summary (exit ≠ 0 if an
 citevahti claim-report --format md --output integrity.md   # the editor/supervisor report
 ```
 
+Writing this up for a paper? `citevahti agreement-report --format markdown`
+produces the method-transparency section (blinding mode, model provenance,
+agreement metrics), and **[REPORTING.md](REPORTING.md)** has a fill-in-the-blanks
+methods paragraph wired to those numbers.
+
 ## 8. Getting the references into your article or thesis
 
 **CiteVahti's job ends with a vetted reference in your Zotero library** — checked against
