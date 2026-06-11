@@ -363,6 +363,12 @@ def scan_retractions(*, root: Optional[str] = None, http=None, client=None) -> d
         if changed:
             cc.candidates = new
             store.save_candidates(cc)
+    # Logged even when nothing was flagged: the report cites this timestamp as
+    # "retractions last checked", so a clean scan must be distinguishable from
+    # never having scanned.
+    store.audit.append("retraction.scan",
+                       {"checked": checked, "flagged": flagged,
+                        "source": "openalex.is_retracted"})
     return {"flagged": flagged, "checked": checked}
 
 

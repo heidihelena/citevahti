@@ -48,6 +48,8 @@ class ClaimEvidence(BaseModel):
     fit: Optional[FitScores] = None           # human PICO + claim fit subscores
     fit_total: Optional[int] = None           # sum of fit subscores, 0..8
     excerpt: Optional[str] = None             # verbatim quote from the human's source passage
+    retracted: Optional[bool] = None          # True = flagged by the retraction scan;
+                                              # None = not flagged (which includes "not checked")
 
 
 class ClaimReportRow(BaseModel):
@@ -65,9 +67,27 @@ class ClaimReportRow(BaseModel):
     proposed_revision_by: Optional[str] = None      # "ai" | "human" | "imported"
 
 
+class ReportProvenance(BaseModel):
+    """What this report can and cannot vouch for, embedded in the artifact itself.
+
+    The audit chain is tamper-evident (hash-chained), NOT cryptographically
+    signed: it shows the recorded order of work against an honest ledger, but a
+    wholesale regenerated ledger would also validate. Report readers must see
+    that limitation in the report, not in a developer doc.
+    """
+    model_config = ConfigDict(extra="forbid")
+    audit_head_hash: Optional[str] = None       # hash of the last audit entry at generation
+    audit_entries: Optional[int] = None         # chain length at generation
+    audit_chain_intact: Optional[bool] = None   # AuditLog.verify() at generation
+    ledger_claims_total: Optional[int] = None   # all claims in the ledger (report may cover a subset)
+    last_retraction_scan_at: Optional[str] = None  # audit ts of the most recent scan, if any
+    retraction_source: Optional[str] = None     # how retractions are checked + the blind spot
+
+
 class ClaimReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
     generated_at: str
     total: int = 0
     counts: dict = Field(default_factory=dict)   # state -> count
     rows: list[ClaimReportRow] = Field(default_factory=list)
+    provenance: Optional[ReportProvenance] = None

@@ -10,9 +10,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..schemas.report import STATE_CODE, ClaimEvidence, ClaimReport, ClaimReportRow
+from ..schemas.report import (STATE_CODE, ClaimEvidence, ClaimReport,
+                              ClaimReportRow, ReportProvenance)
 from ..state.store import StateError
 from ..util import utc_now_iso
+
+RETRACTION_SOURCE = ("OpenAlex is_retracted, matched by DOI/PMID only — "
+                     "items without a DOI or PMID are not checked")
 
 _ACCEPTING = ("accept", "accepted_with_caution")
 _FIT_FIELDS = ("population_fit", "intervention_fit", "outcome_fit", "claim_fit")
@@ -87,7 +91,8 @@ class ClaimReportService:
                 human_support=human_v, ai_support=ai_blinded,
                 final_decision=(dec.final_decision if dec else None),
                 agreement=(dec.agreement_status if dec else None),
-                fit=fit, fit_total=_fit_total(fit) if fit else None, excerpt=quote))
+                fit=fit, fit_total=_fit_total(fit) if fit else None, excerpt=quote,
+                retracted=c.retracted))
 
         if has_accept:
             state = "verified"
@@ -106,6 +111,24 @@ class ClaimReportService:
             proposed_revision=claim.proposed_revision,
             proposed_revision_by=claim.proposed_revision_by)
 
+    def _provenance(self) -> ReportProvenance:
+        """Bind the report to the ledger state it was generated from: audit head,
+        chain length/intactness, the full-ledger claim count (the completeness
+        denominator), and when retractions were last scanned. Read-only."""
+        audit = getattr(self.store, "audit", None)
+        head = entries_n = intact = last_scan = None
+        if audit is not None:
+            entries = audit.entries()
+            entries_n = len(entries)
+            head = entries[-1].hash if entries else None
+            intact = audit.verify()
+            last_scan = next((e.ts for e in reversed(entries)
+                              if e.event == "retraction.scan"), None)
+        return ReportProvenance(
+            audit_head_hash=head, audit_entries=entries_n, audit_chain_intact=intact,
+            ledger_claims_total=len(self.store.list_claims()),
+            last_retraction_scan_at=last_scan, retraction_source=RETRACTION_SOURCE)
+
     def report(self, claim_ids: Optional[list[str]] = None) -> ClaimReport:
         ratings_idx = self._ratings_index()
         ids = claim_ids if claim_ids is not None else self.store.list_claims()
@@ -113,4 +136,5 @@ class ClaimReportService:
         counts = {s: 0 for s in ("verified", "needs_support", "review_needed", "decision_recorded")}
         for r in rows:
             counts[r.state] += 1
-        return ClaimReport(generated_at=utc_now_iso(), total=len(rows), counts=counts, rows=rows)
+        return ClaimReport(generated_at=utc_now_iso(), total=len(rows), counts=counts,
+                           rows=rows, provenance=self._provenance())

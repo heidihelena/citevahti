@@ -25,12 +25,48 @@ def _evidence_lines(row: ClaimReportRow) -> list[str]:
         human = e.human_support or "—"
         ai = "hidden (blinded)" if e.ai_support == "hidden" else (e.ai_support or "—")
         dec = f" · decision: **{e.final_decision}**" if e.final_decision else ""
-        out.append(f"  - **{e.title or '(untitled)'}**"
+        flag = " — **⚠ RETRACTED**" if e.retracted else ""
+        out.append(f"  - **{e.title or '(untitled)'}**{flag}"
                    + (f" — {ids}" if ids else "")
                    + f"  \n    human: {human} · AI: {ai}{dec}")
     if not out:
         out.append("  - _no candidate evidence linked yet_")
     return out
+
+
+def _retracted_count(report: ClaimReport) -> int:
+    return sum(1 for r in report.rows for e in r.evidence if e.retracted)
+
+
+def _limitations_lines(report: ClaimReport) -> list[str]:
+    """The scope-and-limitations footer every report carries (COPE-style: say
+    what the artifact can and cannot vouch for, in the artifact itself)."""
+    p = report.provenance
+    lines = ["", "---", "", "**Scope & limitations** — read before relying on this report.", ""]
+    if p is not None and p.ledger_claims_total is not None:
+        lines.append(f"- **Coverage:** this report covers {report.total} of the "
+                     f"{p.ledger_claims_total} claim(s) recorded in the ledger. Claims "
+                     "enter the ledger only when the author adds them; the report cannot "
+                     "certify that every claim in the manuscript was entered.")
+    else:
+        lines.append(f"- **Coverage:** {report.total} claim(s), as entered by the author. "
+                     "The report cannot certify that every claim in the manuscript was entered.")
+    if p is not None and p.audit_entries is not None:
+        intact = "intact" if p.audit_chain_intact else "**BROKEN**"
+        head = (p.audit_head_hash or "")[:16]
+        lines.append(f"- **Integrity:** audit chain of {p.audit_entries} entries, "
+                     f"head `{head}…`, {intact} at generation. The chain is "
+                     "tamper-evident, not cryptographically signed: it shows the recorded "
+                     "order of work, but a regenerated ledger would also validate. Treat it "
+                     "as honest-researcher provenance, not forgery-proof certification.")
+    if p is not None:
+        scanned = p.last_retraction_scan_at or "never"
+        lines.append(f"- **Retractions:** checked via {p.retraction_source or 'OpenAlex'}; "
+                     f"last scan: {scanned}. Absence of a flag is not proof a work is "
+                     "unretracted.")
+    lines.append("- **Meaning of verdicts:** states record citation support as rated in the "
+                 "blinded human → AI → adjudication workflow — not clinical or scientific truth.")
+    return lines
 
 
 def _claim_section(row: ClaimReportRow) -> str:
@@ -62,6 +98,11 @@ def render_markdown(report: ClaimReport, *, title: str = "Citation-Integrity Rep
         lines.append(f"**{needs} claim(s) need attention** (no accepted evidence, or an "
                      "unresolved human/AI disagreement).")
         lines.append("")
+    retracted = _retracted_count(report)
+    if retracted:
+        lines.append(f"**⚠ {retracted} linked candidate(s) are flagged as retracted** — "
+                     "re-check any claim that cites them, whatever its state.")
+        lines.append("")
 
     def block(heading: str, states: tuple) -> None:
         rows = [r for r in report.rows if r.state in states]
@@ -76,7 +117,8 @@ def render_markdown(report: ClaimReport, *, title: str = "Citation-Integrity Rep
     block("Verified claims", ("verified",))
     block("Decisions recorded", ("decision_recorded",))
 
-    lines.append("---")
+    lines.extend(_limitations_lines(report))
+    lines.append("")
     lines.append("_Produced by CiteVahti. Records the blinded human → AI → adjudication "
                  "workflow with provenance; it does not assert truth._")
     return "\n".join(lines) + "\n"
@@ -115,7 +157,8 @@ def render_test_report(report: ClaimReport, *, title: str = "Claim Test Report")
                                          f"DOI {e.doi}" if e.doi else "") if p)
             finding = support_to_finding(e.support_status) or "candidate_found"
             ai = "hidden (blinded until human rates)" if e.ai_support == "hidden" else (e.ai_support or "—")
-            lines.append(f"- Evidence candidate: {e.title or '(untitled)'}"
+            flag = " — **⚠ RETRACTED**" if e.retracted else ""
+            lines.append(f"- Evidence candidate: {e.title or '(untitled)'}{flag}"
                          + (f" — {ids}" if ids else ""))
             lines.append(f"  - Finding: `{finding}`")
             lines.append(f"  - Human rating: {e.human_support or '—'}")
@@ -125,7 +168,11 @@ def render_test_report(report: ClaimReport, *, title: str = "Claim Test Report")
             if e.final_decision:
                 lines.append(f"  - Final decision: **{e.final_decision}**")
         lines.append("")
-    lines.append("---")
+    retracted = _retracted_count(report)
+    if retracted:
+        lines.append(f"**⚠ {retracted} linked candidate(s) are flagged as retracted.**")
+    lines.extend(_limitations_lines(report))
+    lines.append("")
     lines.append("_The human rates first; the AI second opinion stays blinded until then. "
                  "Zotero writes are previewed, confirmed, and undoable._")
     return "\n".join(lines) + "\n"
