@@ -5,7 +5,7 @@ import { randomBytes } from "crypto";
 // The claim states (ADR-0002 + untestable), mapped to the CiteVahti palette.
 // Editor highlights: yellow = usable evidence, lilac = human action, no green/red.
 const STATE = {
-  verified:          { code: "oo", label: "Verified",                bg: "rgba(201,138,0,0.18)",  ruler: "#C98A00" },
+  accepted:          { code: "oo", label: "Accepted",                bg: "rgba(201,138,0,0.18)",  ruler: "#C98A00" },
   needs_support:     { code: "o",  label: "No accepted reference yet", bg: "rgba(30,158,138,0.18)", ruler: "#1E9E8A" },
   review_needed:     { code: "r",  label: "Needs a second look",      bg: "rgba(139,111,201,0.22)", ruler: "#8B6FC9" },
   decision_recorded: { code: "d",  label: "Reviewed — not cited",     bg: "rgba(194,77,126,0.18)", ruler: "#C24D7E" },
@@ -16,7 +16,7 @@ type StateKey = keyof typeof STATE;
 // The human's keystroke actions on a candidate -> a final decision (the human is
 // the decider; the extension drives the CLI, never the agent surface).
 const ACTIONS = {
-  oo: { decision: "accept",               label: "Accept",  cls: "verified" },
+  oo: { decision: "accept",               label: "Accept",  cls: "accepted" },
   o:  { decision: "accepted_with_caution", label: "Caution", cls: "needs_support" },
   r:  { decision: "needs_second_review",   label: "Review",  cls: "review_needed" },
   d:  { decision: "reject",                label: "Reject",  cls: "decision_recorded" },
@@ -133,7 +133,7 @@ function decorate(report: Report) {
   if (!editor) return;
   const text = editor.document.getText();
   const ranges: Record<StateKey, vscode.DecorationOptions[]> =
-    { verified: [], needs_support: [], review_needed: [], decision_recorded: [], untestable: [] };
+    { accepted: [], needs_support: [], review_needed: [], decision_recorded: [], untestable: [] };
   for (const row of report.rows) {
     const needle = row.claim_text.trim();
     if (!needle) continue;
@@ -258,12 +258,12 @@ function webviewHtml(report: Report): string {
     h2{margin:0 0 10px;font-size:15px;} .summary{margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px;}
     .muted{color:var(--vscode-descriptionForeground);}
     .chip{font:600 11px/1 ui-monospace,monospace;padding:4px 8px;border-radius:6px;border:1px solid;}
-    .verified{background:#FFF2D8;border-color:var(--amber);color:#5A4300;}
+    .accepted{background:#FFF2D8;border-color:var(--amber);color:#5A4300;}
     .needs_support{background:#D8F4ED;border-color:var(--teal);color:#08544A;}
     .review_needed{background:#ECE3FF;border-color:var(--violet);color:#432C7A;}
     .decision_recorded{background:#FBE0EA;border-color:var(--rose);color:#7A1F45;}
     .row{padding:9px 11px;border:1px solid var(--vscode-panel-border);border-left-width:4px;border-radius:8px;margin-bottom:8px;}
-    .row.verified{border-left-color:var(--amber);} .row.needs_support{border-left-color:var(--teal);}
+    .row.accepted{border-left-color:var(--amber);} .row.needs_support{border-left-color:var(--teal);}
     .row.review_needed{border-left-color:var(--violet);} .row.decision_recorded{border-left-color:var(--rose);}
     summary{cursor:pointer;} .meta{color:var(--vscode-descriptionForeground);margin-left:8px;font-size:11px;}
     .reveal{margin-left:8px;font-size:11px;cursor:pointer;text-decoration:underline;}
@@ -287,7 +287,7 @@ function webviewHtml(report: Report): string {
     .ratebtn .kbd{display:inline-block;min-width:1em;text-align:center;font:600 10px/1 ui-monospace,monospace;opacity:.55;margin-right:2px;}
     .gatehint{font-size:11px;margin-top:4px;font-style:italic;}
     .act{font:600 11px/1 ui-monospace,monospace;padding:4px 8px;border-radius:6px;border:1px solid;cursor:pointer;background:transparent;}
-    .act.verified{border-color:var(--amber);color:var(--amber);}
+    .act.accepted{border-color:var(--amber);color:var(--amber);}
     .act.needs_support{border-color:var(--teal);color:var(--teal);}
     .act.review_needed{border-color:var(--violet);color:var(--violet);}
     .act.decision_recorded{border-color:var(--rose);color:var(--rose);}
@@ -745,7 +745,7 @@ interface Preflight {
   zotero: { reachable: boolean; version: string | null };
   better_bibtex: { reachable: boolean; version: string | null };
   zotero_write_ready: boolean;
-  claims: { total: number; verified: number; needs_support: number;
+  claims: { total: number; accepted: number; needs_support: number;
             review_needed: number; decision_recorded: number; with_candidates: number } | null;
 }
 

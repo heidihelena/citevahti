@@ -65,7 +65,7 @@ def preflight_snapshot(root: str, client=None) -> dict:
             rep = ClaimReportService(store).report()
             out["claims"] = {
                 "total": rep.total,
-                "verified": rep.counts.get("verified", 0),
+                "accepted": rep.counts.get("accepted", 0),
                 "needs_support": rep.counts.get("needs_support", 0),
                 "review_needed": rep.counts.get("review_needed", 0),
                 "decision_recorded": rep.counts.get("decision_recorded", 0),

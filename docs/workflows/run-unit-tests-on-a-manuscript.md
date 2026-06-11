@@ -52,8 +52,8 @@ citevahti-panel --root /path/to/project        # http://127.0.0.1:8765, loopback
    reveals agreement or disagreement (the panel workflow withholds it until
    you've rated, and the ledger logs the order so it is auditable).
 5. Adjudicate any disagreement; **you** own the final decision.
-6. Each claim lands in a state: **`[oo]` verified · `[o]` needs support · `[r]`
-   review needed · `[d]` decided.**
+6. Each claim lands in a state: **`[oo]` accepted · `[o]` needs support · `[r]`
+   review needed · `[d]` decided · `[u]` untestable (out of indexed scope).**
 7. To cite: **preview** the Zotero write, **confirm** it, and **undo** if needed —
    nothing is written silently.
 
@@ -69,7 +69,7 @@ The report is a **test summary** plus per-claim detail:
 
 ```
 ## Summary
-- [oo] verified: 8
+- [oo] accepted: 8
 - [o] needs support: 3
 - [r] review needed: 2
 - [d] decided: 6

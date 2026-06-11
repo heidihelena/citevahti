@@ -4,7 +4,9 @@ The manuscript is treated like code: each claim is a test case whose state is
 DERIVED from its candidates, blinded ratings, and final decisions. The four
 states (ADR-0002, reconciled): three evidence-fit states + one terminal.
 
-  [oo] verified          — has accepted, supporting evidence
+  [oo] accepted          — has accepted, supporting evidence (was "verified"
+                           before v0.16; renamed because the tool checks
+                           citation support, not truth — finding #7-B)
   [o ] needs_support     — no citation / no accepted supporting evidence yet
   [r ] review_needed     — unresolved discordance or a 2nd-review decision
   [d ] decision_recorded — every candidate settled, none accepted (terminal)
@@ -23,14 +25,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .claim_support import FitScores
 
-CLAIM_STATES = ("verified", "needs_support", "review_needed", "decision_recorded",
+CLAIM_STATES = ("accepted", "needs_support", "review_needed", "decision_recorded",
                 "untestable")
-STATE_CODE = {"verified": "oo", "needs_support": "o ",
+STATE_CODE = {"accepted": "oo", "needs_support": "o ",
               "review_needed": "r ", "decision_recorded": "d ",
               "untestable": "u "}
 # Plain-language pairing for the [oo]/[o]/[r]/[d]/[u] codes — the manuscript's test
 # results, in words. Stable (asserted by tests); used in reports, docs, and UI copy.
-STATE_LABEL = {"verified": "verified", "needs_support": "needs support",
+STATE_LABEL = {"accepted": "accepted", "needs_support": "needs support",
                "review_needed": "review needed", "decision_recorded": "decided",
                "untestable": "untestable"}
 

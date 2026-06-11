@@ -12,7 +12,7 @@ from ..findings import support_to_finding
 from ..schemas.report import STATE_CODE, STATE_LABEL, ClaimReport, ClaimReportRow
 
 _STATE_TITLE = {
-    "verified": "Verified", "needs_support": "Needs support",
+    "accepted": "Accepted", "needs_support": "Needs support",
     "review_needed": "Review needed", "decision_recorded": "Decision recorded",
     "untestable": "Untestable (out of indexed scope)",
 }
@@ -95,7 +95,7 @@ def render_markdown(report: ClaimReport, *, title: str = "Citation-Integrity Rep
         f"# {title}", "",
         f"_Generated {report.generated_at} · {report.total} claim(s) tested._", "",
         "| State | Count |", "|---|---:|",
-        f"| ✓ Verified | {c.get('verified', 0)} |",
+        f"| ✓ Accepted (supported citation) | {c.get('accepted', 0)} |",
         f"| Needs support | {c.get('needs_support', 0)} |",
         f"| Review needed | {c.get('review_needed', 0)} |",
         f"| Decision recorded | {c.get('decision_recorded', 0)} |",
@@ -121,7 +121,7 @@ def render_markdown(report: ClaimReport, *, title: str = "Citation-Integrity Rep
             lines.append(_claim_section(r))
 
     block("Claims needing attention", ("needs_support", "review_needed"))
-    block("Verified claims", ("verified",))
+    block("Accepted claims", ("accepted",))
     block("Decisions recorded", ("decision_recorded",))
     block("Untestable claims (out of indexed scope — verify against the source directly)",
           ("untestable",))
@@ -146,7 +146,7 @@ def render_test_report(report: ClaimReport, *, title: str = "Claim Test Report")
         f"# {title}", "",
         f"_Generated {report.generated_at} · {report.total} claim(s) tested._", "",
         "## Summary", "",
-        f"- `[oo]` {STATE_LABEL['verified']}: {c.get('verified', 0)}",
+        f"- `[oo]` {STATE_LABEL['accepted']}: {c.get('accepted', 0)}",
         f"- `[o]` {STATE_LABEL['needs_support']}: {c.get('needs_support', 0)}",
         f"- `[r]` {STATE_LABEL['review_needed']}: {c.get('review_needed', 0)}",
         f"- `[d]` {STATE_LABEL['decision_recorded']}: {c.get('decision_recorded', 0)}",

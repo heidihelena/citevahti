@@ -452,7 +452,7 @@ def _cmd_claim_report(args) -> int:
 def _claim_report_text(rep, show_text: bool) -> str:
     c = rep.counts
     lines = [f"Citation-integrity report — {rep.total} claim(s) tested",
-             f"  [oo] verified          {c.get('verified', 0)}",
+             f"  [oo] accepted          {c.get('accepted', 0)}",
              f"  [o ] needs support     {c.get('needs_support', 0)}",
              f"  [r ] review needed     {c.get('review_needed', 0)}",
              f"  [d ] decision recorded {c.get('decision_recorded', 0)}",

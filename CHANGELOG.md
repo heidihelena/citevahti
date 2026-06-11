@@ -6,7 +6,27 @@ previous one.
 
 ## Unreleased
 
-_Nothing yet._
+- **BREAKING: the `[oo]` claim state is renamed `verified` → `accepted`**
+  (external-audit finding #7-B). "Verified" implied clinical/scientific truth;
+  the state means "has an accepted, supporting citation". The short codes
+  (`oo/o/r/d`) are unchanged, so keyboard flows and the panel are unaffected.
+  Consumers of `claim-report --json` / `start --json` must read
+  `counts.accepted` and `state: "accepted"` instead of `"verified"`. Nothing
+  in the ledger itself stored the old name (states are derived at report
+  time), so no data migration is needed — only JSON consumers change.
+- **New `[u] untestable` claim state** for sources outside the indexed
+  literature (books, chapters, grey literature): mark with
+  `citevahti claim-untestable <id> --reason "…"`. Reported as its own block,
+  never counted as "needs attention".
+- **Citation-Integrity Report now carries its own provenance**: audit-chain
+  head hash + entry count + intactness, the full-ledger claim denominator
+  (subset reports are visibly subsets), per-candidate retraction flags, and a
+  Scope & limitations footer (tamper-evident-not-signed caveat included).
+- `retraction_scan` (panel) now logs a `retraction.scan` audit event; the
+  report cites the last scan timestamp.
+- Panel Zotero search now includes group libraries (`library="all"`).
+- New `docs/REPORTING.md`: fill-in-the-blanks methods paragraph wired to
+  `agreement-report`.
 
 ## 0.15.0 — Panel UX hardening + beta notice: error codes, legend, accessibility, write-target disclosure, paste hand-off, bounded backups (2026-06-07)
 

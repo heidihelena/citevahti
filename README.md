@@ -365,7 +365,7 @@ cd vscode-extension && npm install && npm run compile && npm run package   # ext
 
 Then a manual acceptance pass in VS Code (after **CiteVahti: Verify claims**):
 
-- [ ] **Highlighting** — each claim is decorated by its state (`oo / o / r / d`),
+- [ ] **Highlighting** — each claim is decorated by its state (`oo / o / r / d / u`),
       and the overview ruler shows the same colors.
 - [ ] **Blinding** — before you rate, the card shows the AI support as
       *hidden*; it appears only after you commit your own rating.

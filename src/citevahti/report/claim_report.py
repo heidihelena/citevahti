@@ -96,7 +96,7 @@ class ClaimReportService:
 
         untestable = getattr(claim, "untestable_reason", None)
         if has_accept:
-            state = "verified"
+            state = "accepted"
         elif has_review:
             state = "review_needed"
         elif untestable:
@@ -140,7 +140,7 @@ class ClaimReportService:
         ratings_idx = self._ratings_index()
         ids = claim_ids if claim_ids is not None else self.store.list_claims()
         rows = [self._row(self.store.load_claim(cid), ratings_idx) for cid in ids]
-        counts = {s: 0 for s in ("verified", "needs_support", "review_needed",
+        counts = {s: 0 for s in ("accepted", "needs_support", "review_needed",
                                  "decision_recorded", "untestable")}
         for r in rows:
             counts[r.state] += 1

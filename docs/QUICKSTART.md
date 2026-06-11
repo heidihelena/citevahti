@@ -2,7 +2,7 @@
 
 *A product of [Vahtian](https://vahtian.com).* In ~10 minutes you'll take one
 manuscript claim, find a supporting paper on PubMed, rate it, decide, and write an
-**audited, undoable** reference into Zotero — `[oo] verified`.
+**audited, undoable** reference into Zotero — `[oo] accepted`.
 
 > **What CiteVahti is (and isn't).** It records a documented **human → AI →
 > adjudication** workflow. *You* are always the decider. It never writes silently,

@@ -77,7 +77,7 @@ def test_accepted_evidence_beats_the_untestable_marker(tmp_path):
     eng.support_compare(rec.rating_id)
     DecisionService(store).decide(claim.claim_id, cand_id, "accept", "ok", rating_id=rec.rating_id)
     _rep, row = _report_row(store, claim.claim_id)
-    assert row.state == "verified"            # real accepted evidence always wins
+    assert row.state == "accepted"            # real accepted evidence always wins
 
 
 def test_untestable_is_not_counted_as_needing_attention(tmp_path):
