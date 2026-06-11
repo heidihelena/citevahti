@@ -10,6 +10,12 @@ commands default to **dry-run**.
 citevahti --root . <command> [options]
 ```
 
+The whole claim spine is scriptable: `--json` on `claim-add`, `claim-list`,
+`claim-untestable`, `candidate-list`, every `claim-support-*` command,
+`claim-decide`, `decision-list`, `claim-report`, `literature-search`,
+`claim-commit`, and `txn-undo` emits the full record(s) as JSON, so ids flow
+end-to-end without scraping stdout. CI/pre-commit recipes: **[CI.md](CI.md)**.
+
 ## State & probe
 
 | Command | Purpose |

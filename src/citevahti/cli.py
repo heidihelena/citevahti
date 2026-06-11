@@ -227,6 +227,9 @@ def _cmd_claim_add(args) -> int:
         args.text, args.type, manuscript_location=args.location,
         manuscript_id=args.manuscript_id, extracted_by=args.extracted_by,
         extraction_model=args.extraction_model, root=args.root)
+    if getattr(args, "json", False):
+        _emit_json(claim)
+        return 0
     print(f"claim recorded: {claim.claim_id}")
     print(f"  type        : {claim.claim_type}")
     print(f"  extracted_by: {claim.extracted_by}"
@@ -241,6 +244,9 @@ def _cmd_claim_untestable(args) -> int:
     from . import tools
     reason = None if getattr(args, "clear", False) else args.reason
     claim = tools.claim_mark_untestable(args.claim_id, reason, root=args.root)
+    if getattr(args, "json", False):
+        _emit_json(claim)
+        return 0
     if claim.untestable_reason:
         print(f"claim {claim.claim_id}: marked untestable (out of indexed scope)")
         print(f"  reason: {claim.untestable_reason}")
@@ -284,6 +290,9 @@ def _cmd_claim_reject_revision(args) -> int:
 def _cmd_claim_list(args) -> int:
     from . import tools
     claims = tools.list_claims(root=args.root)
+    if getattr(args, "json", False):
+        _emit_json(claims)
+        return 0
     print(f"claims: {len(claims)}")
     for c in claims:
         loc = f"  [{c.manuscript_location}]" if c.manuscript_location else ""
@@ -315,6 +324,9 @@ def _cmd_claim_link_candidates(args) -> int:
 def _cmd_candidate_list(args) -> int:
     from . import tools
     cc = tools.list_candidates(args.claim_id, root=args.root)
+    if getattr(args, "json", False):
+        _emit_json(cc)
+        return 0
     print(f"claim {cc.claim_id}: {len(cc.candidates)} candidate(s)")
     for c in cc.candidates:
         ids = " ".join(p for p in (f"pmid:{c.pmid}" if c.pmid else "",
@@ -338,6 +350,20 @@ def _fit_from_args(args):
                      outcome_fit=args.outcome_fit, claim_fit=args.claim_fit)
 
 
+def _emit_json(obj) -> None:
+    """Machine-readable output for any pydantic model / list of models (the
+    scripting/CI surface — ids flow end-to-end without scraping stdout)."""
+    import json as _json
+
+    def conv(o):
+        if hasattr(o, "model_dump"):
+            return o.model_dump(mode="json")
+        if isinstance(o, list):
+            return [conv(x) for x in o]
+        return o
+    print(_json.dumps(conv(obj), indent=2, ensure_ascii=False))
+
+
 def _print_support(rec) -> None:
     h = rec.human_rating.value if rec.human_rating else None
     a = ("abstained" if (rec.ai_rating and rec.ai_rating.abstained)
@@ -356,7 +382,10 @@ def _cmd_support_start(args) -> int:
     from . import tools
     rec, rc = _safe(lambda: tools.support_start(args.claim_id, args.candidate_id, root=args.root))
     if rec:
-        print(f"claim-support rating started: {rec.rating_id}")
+        if getattr(args, "json", False):
+            _emit_json(rec)
+        else:
+            print(f"claim-support rating started: {rec.rating_id}")
     return rc
 
 
@@ -366,7 +395,7 @@ def _cmd_support_commit_human(args) -> int:
         args.rating_id, args.value, fit=_fit_from_args(args), rationale=args.rationale,
         committed_by=args.committed_by, root=args.root))
     if rec:
-        _print_support(rec)
+        _emit_json(rec) if getattr(args, "json", False) else _print_support(rec)
     return rc
 
 
@@ -374,7 +403,7 @@ def _cmd_support_run_ai(args) -> int:
     from . import tools
     rec, rc = _safe(lambda: tools.support_run_ai(args.rating_id, args.task_type, root=args.root))
     if rec:
-        _print_support(rec)
+        _emit_json(rec) if getattr(args, "json", False) else _print_support(rec)
     return rc
 
 
@@ -382,7 +411,7 @@ def _cmd_support_compare(args) -> int:
     from . import tools
     rec, rc = _safe(lambda: tools.support_compare(args.rating_id, root=args.root))
     if rec:
-        _print_support(rec)
+        _emit_json(rec) if getattr(args, "json", False) else _print_support(rec)
     return rc
 
 
@@ -391,7 +420,7 @@ def _cmd_support_adjudicate(args) -> int:
     rec, rc = _safe(lambda: tools.support_adjudicate(
         args.rating_id, args.final_value, args.rationale, args.decider, root=args.root))
     if rec:
-        _print_support(rec)
+        _emit_json(rec) if getattr(args, "json", False) else _print_support(rec)
     return rc
 
 
@@ -399,7 +428,7 @@ def _cmd_support_show(args) -> int:
     from . import tools
     rec, rc = _safe(lambda: tools.get_support_rating(args.rating_id, root=args.root))
     if rec:
-        _print_support(rec)
+        _emit_json(rec) if getattr(args, "json", False) else _print_support(rec)
     return rc
 
 
@@ -408,6 +437,9 @@ def _cmd_claim_decide(args) -> int:
     rec, rc = _safe(lambda: tools.decide(
         args.claim_id, args.candidate_id, args.decision, args.reason,
         rating_id=args.rating_id, decided_by=args.decided_by, root=args.root))
+    if rec and getattr(args, "json", False):
+        _emit_json(rec)
+        return rc
     if rec:
         print(f"final decision : {rec.final_decision}")
         print(f"  decision_id  : {rec.decision_id}")
@@ -468,6 +500,9 @@ def _claim_report_text(rep, show_text: bool) -> str:
 def _cmd_decision_list(args) -> int:
     from . import tools
     decisions = tools.list_decisions(args.claim_id, root=args.root)
+    if getattr(args, "json", False):
+        _emit_json(decisions)
+        return 0
     print(f"claim {args.claim_id}: {len(decisions)} decision(s)")
     for d in decisions:
         print(f"  {d.final_decision:<22} support={d.final_support_status} "
@@ -1185,10 +1220,12 @@ def main(argv: list[str] | None = None) -> int:
     cla.add_argument("--extracted-by", default="human", choices=list(EXTRACTED_BY))
     cla.add_argument("--extraction-model", default=None,
                      help="required when --extracted-by ai")
+    cla.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     cla.set_defaults(func=_cmd_claim_add)
 
     cll = sub.add_parser("claim-list", help="list recorded claims (read-only)")
     cll.add_argument("--show-text", action="store_true", help="print full claim text")
+    cll.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     cll.set_defaults(func=_cmd_claim_list)
 
     clu = sub.add_parser("claim-untestable",
@@ -1199,6 +1236,7 @@ def main(argv: list[str] | None = None) -> int:
     grp.add_argument("--reason", help="why the source can't be auto-checked, "
                                       "e.g. '1992 monograph, not indexed'")
     grp.add_argument("--clear", action="store_true", help="remove the marker")
+    clu.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     clu.set_defaults(func=_cmd_claim_untestable)
 
     cpr = sub.add_parser("claim-propose-revision",
@@ -1233,6 +1271,7 @@ def main(argv: list[str] | None = None) -> int:
     cdl = sub.add_parser("candidate-list", help="list a claim's candidate papers (read-only)")
     cdl.add_argument("--claim-id", required=True)
     cdl.add_argument("--show-text", action="store_true", help="print full titles")
+    cdl.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     cdl.set_defaults(func=_cmd_candidate_list)
 
     from .schemas.claim_support import SUPPORT_VALUES
@@ -1240,6 +1279,7 @@ def main(argv: list[str] | None = None) -> int:
                          help="start a blinded claim-support rating for a (claim, candidate)")
     css.add_argument("--claim-id", required=True)
     css.add_argument("--candidate-id", required=True)
+    css.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     css.set_defaults(func=_cmd_support_start)
 
     csh = sub.add_parser("claim-support-commit-human",
@@ -1250,16 +1290,19 @@ def main(argv: list[str] | None = None) -> int:
         csh.add_argument(f"--{f}-fit", type=int, choices=[0, 1, 2], default=None)
     csh.add_argument("--rationale", default=None)
     csh.add_argument("--committed-by", default="human")
+    csh.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     csh.set_defaults(func=_cmd_support_commit_human)
 
     csa = sub.add_parser("claim-support-run-ai",
                          help="blind advisory AI claim-support rating (needs a pinned model)")
     csa.add_argument("--rating-id", required=True)
     csa.add_argument("--task-type", default="assess")
+    csa.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     csa.set_defaults(func=_cmd_support_run_ai)
 
     csc = sub.add_parser("claim-support-compare", help="compare human vs AI claim support")
     csc.add_argument("--rating-id", required=True)
+    csc.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     csc.set_defaults(func=_cmd_support_compare)
 
     csj = sub.add_parser("claim-support-adjudicate",
@@ -1268,10 +1311,12 @@ def main(argv: list[str] | None = None) -> int:
     csj.add_argument("--final-value", required=True, choices=list(SUPPORT_VALUES))
     csj.add_argument("--rationale", required=True)
     csj.add_argument("--decider", default="human", choices=["human", "panel"])
+    csj.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     csj.set_defaults(func=_cmd_support_adjudicate)
 
     csw = sub.add_parser("claim-support-show", help="show a claim-support rating (read-only)")
     csw.add_argument("--rating-id", required=True)
+    csw.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     csw.set_defaults(func=_cmd_support_show)
 
     from .schemas.decision import FINAL_DECISIONS
@@ -1284,10 +1329,12 @@ def main(argv: list[str] | None = None) -> int:
     cdc.add_argument("--rating-id", default=None,
                      help="the claim-support rating this decision rests on")
     cdc.add_argument("--decided-by", default="human")
+    cdc.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     cdc.set_defaults(func=_cmd_claim_decide)
 
     dcl = sub.add_parser("decision-list", help="list a claim's final decisions (read-only)")
     dcl.add_argument("--claim-id", required=True)
+    dcl.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     dcl.set_defaults(func=_cmd_decision_list)
 
     crp = sub.add_parser("claim-report",
