@@ -37,7 +37,7 @@ pip install -e ".[keyring,mcp]"
 **VS Code extension** (the inline review surface — optional):
 ```bash
 cd vscode-extension && npm install && npm run package
-code --install-extension citevahti-0.12.0.vsix
+code --install-extension citevahti-vscode-0.15.0.vsix
 ```
 Then set `citevahti.cliPath` to your `citevahti` binary (e.g. `.venv/bin/citevahti`).
 

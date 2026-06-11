@@ -7,7 +7,7 @@
 > **Status: v0.15.0 — the inline reviewer is the default, self-sufficient panel.**
 > The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 > blinded support rating → final decision → decision-gated, undoable Zotero write →
-> de-identified warehouse), hash-chain audited, with 592 offline tests. The loopback
+> de-identified warehouse), hash-chain audited, with 600+ offline tests. The loopback
 > panel is now the **inline manuscript reviewer**: claims highlighted in place, an
 > action-first **Rate → Reveal → Decide → Write** card, and enough built in to run
 > the whole loop without the chat — find evidence (PubMed / OpenAlex / Semantic
@@ -182,8 +182,9 @@ for the inline `[oo/o/r/d]` review-layer UI direction.
 - **`.citevahti/` is the durable state layer.** Config, frames, the evidence map,
   ratings, intake, snapshots, PRISMA ledgers, exports, and a hash-chained audit
   log all live there — independent of Zotero.
-- **PubMed (NCBI E-utilities) is the only literature-search provider**, behind a
-  pluggable interface; it is search-only and never decides inclusion.
+- **Literature lookups are search-only and never decide inclusion.** PubMed
+  (NCBI E-utilities) is the primary search provider, with OpenAlex, Semantic
+  Scholar, and Crossref alongside it — all behind a pluggable interface.
 - **The AI is a blinded, advisory second rater only.** It never sees the human
   value, never decides, and never sets the recorded value.
 - **The human/panel is always the decider.**
@@ -272,7 +273,7 @@ meta-analysis, generate recommendations, or author the review.
 uv venv && uv pip install -e ".[dev]"
 # or pipx for the CLI
 pipx install .
-pytest                 # 544 tests, fully offline
+pytest                 # the full suite (600+ tests), fully offline
 bash scripts/final_smoke.sh   # pytest + probe + verify-audit (no writes)
 
 # install the VS Code inline review extension from the Marketplace
@@ -340,7 +341,7 @@ commands: [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
 To verify a checkout behaves as documented:
 
 ```bash
-pytest                          # 544 offline tests — no Zotero/BBT/PubMed/network needed
+pytest                          # full suite (600+ tests), offline — no Zotero/BBT/PubMed/network needed
 bash scripts/final_smoke.sh     # pytest + probe + verify-audit, no writes
 cd vscode-extension && npm install && npm run compile && npm run package   # extension builds → .vsix
 ```

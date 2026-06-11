@@ -160,7 +160,9 @@ ADR-0002's design is unchanged and is the panel's reference.
   pursued. **Paid hosted tier (ADR-0003), not this product:** the full web
   app/editor and Streamable-HTTP / remote transport.
 - **Carried forward:** read-only Zotero local API; decision-gated, undoable writes;
-  no silent edits; engine-enforced blinding; keychain secrets (ADR-0005); the
+  no silent edits; workflow-enforced, audit-verified blinding (the AI seam is
+  structurally blind to the human value; the human-first order is enforced by the
+  panel workflow and logged); keychain secrets (ADR-0005); the
   open-core boundary (ADR-0003) — MCP server, prompt, HTTP API, and panel are all
   Apache-2.0 core.
 
