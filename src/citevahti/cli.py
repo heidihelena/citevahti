@@ -237,6 +237,20 @@ def _cmd_claim_add(args) -> int:
     return 0
 
 
+def _cmd_claim_untestable(args) -> int:
+    from . import tools
+    reason = None if getattr(args, "clear", False) else args.reason
+    claim = tools.claim_mark_untestable(args.claim_id, reason, root=args.root)
+    if claim.untestable_reason:
+        print(f"claim {claim.claim_id}: marked untestable (out of indexed scope)")
+        print(f"  reason: {claim.untestable_reason}")
+        print("  the report will show [u ] untestable — verify the claim against "
+              "the source text directly")
+    else:
+        print(f"claim {claim.claim_id}: untestable marker cleared")
+    return 0
+
+
 def _cmd_claim_propose_revision(args) -> int:
     from . import tools
     claim = tools.propose_revision(
@@ -441,7 +455,8 @@ def _claim_report_text(rep, show_text: bool) -> str:
              f"  [oo] verified          {c.get('verified', 0)}",
              f"  [o ] needs support     {c.get('needs_support', 0)}",
              f"  [r ] review needed     {c.get('review_needed', 0)}",
-             f"  [d ] decision recorded {c.get('decision_recorded', 0)}", ""]
+             f"  [d ] decision recorded {c.get('decision_recorded', 0)}",
+             f"  [u ] untestable        {c.get('untestable', 0)}", ""]
     for row in rep.rows:
         loc = f"  [{row.manuscript_location}]" if row.manuscript_location else ""
         text = row.claim_text if show_text else (row.claim_text[:64] + ("…" if len(row.claim_text) > 64 else ""))
@@ -1175,6 +1190,16 @@ def main(argv: list[str] | None = None) -> int:
     cll = sub.add_parser("claim-list", help="list recorded claims (read-only)")
     cll.add_argument("--show-text", action="store_true", help="print full claim text")
     cll.set_defaults(func=_cmd_claim_list)
+
+    clu = sub.add_parser("claim-untestable",
+                         help="mark a claim's source as out of indexed scope "
+                              "(book/chapter/grey lit) — reported [u], not 'needs support'")
+    clu.add_argument("claim_id")
+    grp = clu.add_mutually_exclusive_group(required=True)
+    grp.add_argument("--reason", help="why the source can't be auto-checked, "
+                                      "e.g. '1992 monograph, not indexed'")
+    grp.add_argument("--clear", action="store_true", help="remove the marker")
+    clu.set_defaults(func=_cmd_claim_untestable)
 
     cpr = sub.add_parser("claim-propose-revision",
                          help="attach a pending rewrite to review as a diff (applies nothing)")

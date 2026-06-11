@@ -8,6 +8,9 @@ states (ADR-0002, reconciled): three evidence-fit states + one terminal.
   [o ] needs_support     — no citation / no accepted supporting evidence yet
   [r ] review_needed     — unresolved discordance or a 2nd-review decision
   [d ] decision_recorded — every candidate settled, none accepted (terminal)
+  [u ] untestable        — the cited source is outside the indexed-literature
+                           scope (book/chapter/grey lit); marked by the human,
+                           NOT a failure state and never "needs attention"
 
 Read-only: it computes no new judgments and mutates nothing.
 """
@@ -20,13 +23,16 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .claim_support import FitScores
 
-CLAIM_STATES = ("verified", "needs_support", "review_needed", "decision_recorded")
+CLAIM_STATES = ("verified", "needs_support", "review_needed", "decision_recorded",
+                "untestable")
 STATE_CODE = {"verified": "oo", "needs_support": "o ",
-              "review_needed": "r ", "decision_recorded": "d "}
-# Plain-language pairing for the [oo]/[o]/[r]/[d] codes — the manuscript's test
+              "review_needed": "r ", "decision_recorded": "d ",
+              "untestable": "u "}
+# Plain-language pairing for the [oo]/[o]/[r]/[d]/[u] codes — the manuscript's test
 # results, in words. Stable (asserted by tests); used in reports, docs, and UI copy.
 STATE_LABEL = {"verified": "verified", "needs_support": "needs support",
-               "review_needed": "review needed", "decision_recorded": "decided"}
+               "review_needed": "review needed", "decision_recorded": "decided",
+               "untestable": "untestable"}
 
 
 class ClaimEvidence(BaseModel):
@@ -65,6 +71,7 @@ class ClaimReportRow(BaseModel):
     evidence: list[ClaimEvidence] = Field(default_factory=list)
     proposed_revision: Optional[str] = None        # pending rewrite, shown as a diff
     proposed_revision_by: Optional[str] = None      # "ai" | "human" | "imported"
+    untestable_reason: Optional[str] = None         # why the source is out of indexed scope
 
 
 class ReportProvenance(BaseModel):

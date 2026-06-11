@@ -199,6 +199,21 @@ for the inline `[oo/o/r/d]` review-layer UI direction.
 - **Unit tests use fake seams and pass fully offline** — no live Zotero, BBT,
   PubMed, or network writes are required to run the suite.
 
+## Scope: what CiteVahti can and cannot auto-check
+
+CiteVahti today is built for claims checked against **indexed literature**
+(PubMed, OpenAlex, Semantic Scholar, Crossref) — its sweet spot is biomedical
+and quantitative writing. Books, book chapters, grey literature, policy
+reports, and non-indexed or non-English sources are often **not
+auto-searchable**: a claim citing them is not wrong, it is out of the tool's
+indexed scope. Mark such claims with
+`citevahti claim-untestable <claim-id> --reason "1992 monograph, not indexed"`
+and the report shows them as **`[u]` untestable (out of indexed scope)** —
+verify them against the source text directly — instead of letting a correct
+citation look like a failing one. The PICO fit-checks are likewise optional:
+they help where a claim has a population/intervention/outcome shape and can be
+skipped where it doesn't.
+
 ## Probe, not proof
 
 The expected runtime (Zotero 9.x local API on macOS, Better BibTeX) is **not**

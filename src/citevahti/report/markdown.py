@@ -14,6 +14,7 @@ from ..schemas.report import STATE_CODE, STATE_LABEL, ClaimReport, ClaimReportRo
 _STATE_TITLE = {
     "verified": "Verified", "needs_support": "Needs support",
     "review_needed": "Review needed", "decision_recorded": "Decision recorded",
+    "untestable": "Untestable (out of indexed scope)",
 }
 
 
@@ -73,6 +74,11 @@ def _claim_section(row: ClaimReportRow) -> str:
     code = STATE_CODE[row.state].strip()
     head = f"### [{code}] {_STATE_TITLE[row.state]} — {row.claim_text}"
     loc = f"- Location: {row.manuscript_location}\n" if row.manuscript_location else ""
+    if row.state == "untestable":
+        why = f": {row.untestable_reason}" if row.untestable_reason else ""
+        loc += (f"- Out of indexed scope{why} — the cited source is not "
+                "auto-checkable against PubMed/OpenAlex/Semantic Scholar; "
+                "verify it against the source text directly.\n")
     rev = ""
     if row.proposed_revision:
         by = row.proposed_revision_by or "human"
@@ -92,7 +98,8 @@ def render_markdown(report: ClaimReport, *, title: str = "Citation-Integrity Rep
         f"| ✓ Verified | {c.get('verified', 0)} |",
         f"| Needs support | {c.get('needs_support', 0)} |",
         f"| Review needed | {c.get('review_needed', 0)} |",
-        f"| Decision recorded | {c.get('decision_recorded', 0)} |", "",
+        f"| Decision recorded | {c.get('decision_recorded', 0)} |",
+        f"| Untestable (out of indexed scope) | {c.get('untestable', 0)} |", "",
     ]
     if needs:
         lines.append(f"**{needs} claim(s) need attention** (no accepted evidence, or an "
@@ -116,6 +123,8 @@ def render_markdown(report: ClaimReport, *, title: str = "Citation-Integrity Rep
     block("Claims needing attention", ("needs_support", "review_needed"))
     block("Verified claims", ("verified",))
     block("Decisions recorded", ("decision_recorded",))
+    block("Untestable claims (out of indexed scope — verify against the source directly)",
+          ("untestable",))
 
     lines.extend(_limitations_lines(report))
     lines.append("")
@@ -140,7 +149,8 @@ def render_test_report(report: ClaimReport, *, title: str = "Claim Test Report")
         f"- `[oo]` {STATE_LABEL['verified']}: {c.get('verified', 0)}",
         f"- `[o]` {STATE_LABEL['needs_support']}: {c.get('needs_support', 0)}",
         f"- `[r]` {STATE_LABEL['review_needed']}: {c.get('review_needed', 0)}",
-        f"- `[d]` {STATE_LABEL['decision_recorded']}: {c.get('decision_recorded', 0)}", "",
+        f"- `[d]` {STATE_LABEL['decision_recorded']}: {c.get('decision_recorded', 0)}",
+        f"- `[u]` {STATE_LABEL['untestable']}: {c.get('untestable', 0)}", "",
         "## Per claim", "",
     ]
     for row in report.rows:
@@ -149,9 +159,14 @@ def render_test_report(report: ClaimReport, *, title: str = "Claim Test Report")
         lines.append(f"- Claim: {row.claim_text}")
         if row.manuscript_location:
             lines.append(f"- Location: {row.manuscript_location}")
+        if row.state == "untestable":
+            why = f" — {row.untestable_reason}" if row.untestable_reason else ""
+            lines.append(f"- Out of indexed scope{why}: not auto-checkable against "
+                         "the indexed literature; verify against the source directly.")
         if not row.evidence:
-            lines.append("- Evidence candidate: _none linked yet_")
-            lines.append(f"- Finding: `missing_support`")
+            if row.state != "untestable":
+                lines.append("- Evidence candidate: _none linked yet_")
+                lines.append(f"- Finding: `missing_support`")
         for e in row.evidence:
             ids = " · ".join(p for p in (f"PMID {e.pmid}" if e.pmid else "",
                                          f"DOI {e.doi}" if e.doi else "") if p)

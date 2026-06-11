@@ -32,6 +32,7 @@ citevahti --root . <command> [options]
 |---|---|
 | `claim-add` | `--text`, `--type <claim_type>`, `--location`, `--manuscript-id`, `--extracted-by human\|ai\|imported`, `--extraction-model` (required when `--extracted-by ai`) |
 | `claim-list` | `--show-text` |
+| `claim-untestable` | `<claim-id>` + `--reason "…"` or `--clear` — mark the cited source as out of indexed scope (book/chapter/grey lit); reported `[u] untestable`, never "needs attention" |
 | `claim-propose-revision` | `--claim-id`, `--text`, `--extracted-by`, `--extraction-model` — attach a pending rewrite (applies nothing; reviewed as a diff) |
 | `claim-accept-revision` | `--claim-id` — apply the pending rewrite to the claim text (human action; audited before/after) |
 | `claim-reject-revision` | `--claim-id` — discard the pending rewrite; the claim text is unchanged |

@@ -746,6 +746,15 @@ def list_claims(*, root: Optional[str] = None):
     return ClaimService(_open_store(root)).list_claims()
 
 
+def claim_mark_untestable(claim_id: str, reason: Optional[str], *,
+                          root: Optional[str] = None):
+    """Mark a claim's cited source as outside the indexed-literature scope
+    (book/chapter/grey literature), or clear the marker with ``reason=None``.
+    The report then shows ``[u] untestable`` instead of ``needs_support``."""
+    from .claims import ClaimService
+    return ClaimService(_open_store(root)).mark_untestable(claim_id, reason)
+
+
 def zotero_new_key_url(name: str = "CiteVahti", *, groups: str = "none") -> str:
     """The pre-filled Zotero new-key page (one click → Save → copy).
 

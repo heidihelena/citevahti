@@ -53,3 +53,8 @@ class Claim(BaseModel):
     proposed_revision: Optional[str] = None
     proposed_revision_by: Optional[Literal[EXTRACTED_BY]] = None  # type: ignore[valid-type]
     proposed_revision_model: Optional[str] = None
+    # Out-of-indexed-scope marker: the cited source cannot be auto-checked against
+    # the indexed literature (book, chapter, grey literature, non-indexed source).
+    # Set by the human with a reason; the report then shows the claim as
+    # "untestable" instead of letting it look like a failure ("needs support").
+    untestable_reason: Optional[str] = None

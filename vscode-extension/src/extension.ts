@@ -2,13 +2,14 @@ import * as vscode from "vscode";
 import { execFile } from "child_process";
 import { randomBytes } from "crypto";
 
-// The four claim states (ADR-0002), mapped to the CiteVahti palette.
+// The claim states (ADR-0002 + untestable), mapped to the CiteVahti palette.
 // Editor highlights: yellow = usable evidence, lilac = human action, no green/red.
 const STATE = {
   verified:          { code: "oo", label: "Verified",                bg: "rgba(201,138,0,0.18)",  ruler: "#C98A00" },
   needs_support:     { code: "o",  label: "No accepted reference yet", bg: "rgba(30,158,138,0.18)", ruler: "#1E9E8A" },
   review_needed:     { code: "r",  label: "Needs a second look",      bg: "rgba(139,111,201,0.22)", ruler: "#8B6FC9" },
   decision_recorded: { code: "d",  label: "Reviewed — not cited",     bg: "rgba(194,77,126,0.18)", ruler: "#C24D7E" },
+  untestable:        { code: "u",  label: "Out of indexed scope",     bg: "rgba(91,85,112,0.16)",  ruler: "#5B5570" },
 } as const;
 type StateKey = keyof typeof STATE;
 
@@ -132,7 +133,7 @@ function decorate(report: Report) {
   if (!editor) return;
   const text = editor.document.getText();
   const ranges: Record<StateKey, vscode.DecorationOptions[]> =
-    { verified: [], needs_support: [], review_needed: [], decision_recorded: [] };
+    { verified: [], needs_support: [], review_needed: [], decision_recorded: [], untestable: [] };
   for (const row of report.rows) {
     const needle = row.claim_text.trim();
     if (!needle) continue;

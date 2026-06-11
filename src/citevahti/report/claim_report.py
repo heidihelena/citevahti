@@ -94,10 +94,16 @@ class ClaimReportService:
                 fit=fit, fit_total=_fit_total(fit) if fit else None, excerpt=quote,
                 retracted=c.retracted))
 
+        untestable = getattr(claim, "untestable_reason", None)
         if has_accept:
             state = "verified"
         elif has_review:
             state = "review_needed"
+        elif untestable:
+            # The human declared the cited source out of indexed scope; absence
+            # of indexed evidence must not masquerade as a failing claim. Real
+            # work (accepted evidence / unresolved review) still wins above.
+            state = "untestable"
         elif cands and decided == len(cands):
             state = "decision_recorded"            # all settled, none accepted
         else:
@@ -109,7 +115,8 @@ class ClaimReportService:
             accepted_count=sum(1 for e in evidence if e.final_decision in _ACCEPTING),
             evidence=evidence,
             proposed_revision=claim.proposed_revision,
-            proposed_revision_by=claim.proposed_revision_by)
+            proposed_revision_by=claim.proposed_revision_by,
+            untestable_reason=untestable)
 
     def _provenance(self) -> ReportProvenance:
         """Bind the report to the ledger state it was generated from: audit head,
@@ -133,7 +140,8 @@ class ClaimReportService:
         ratings_idx = self._ratings_index()
         ids = claim_ids if claim_ids is not None else self.store.list_claims()
         rows = [self._row(self.store.load_claim(cid), ratings_idx) for cid in ids]
-        counts = {s: 0 for s in ("verified", "needs_support", "review_needed", "decision_recorded")}
+        counts = {s: 0 for s in ("verified", "needs_support", "review_needed",
+                                 "decision_recorded", "untestable")}
         for r in rows:
             counts[r.state] += 1
         return ClaimReport(generated_at=utc_now_iso(), total=len(rows), counts=counts,

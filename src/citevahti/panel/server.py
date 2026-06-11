@@ -586,7 +586,9 @@ def _openalex_hits_to_csv(items: list) -> str:
 
 def _search(root: str, query: str, source: str, max_results: int) -> dict:
     if source == "zotero":
-        res = engine.zot_search(query, limit=max_results)
+        # "all" = personal + group libraries: a thesis writer's sources often
+        # live in a group library, and personal-only search would miss them.
+        res = engine.zot_search(query, library="all", limit=max_results)
         if not getattr(res, "ok", False):
             raise HttpError(400, f"Zotero library search unavailable ({getattr(res, 'error_code', '?')}) "
                             "— is Zotero running with the local API + Better BibTeX?")

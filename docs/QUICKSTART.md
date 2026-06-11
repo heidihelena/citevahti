@@ -105,6 +105,12 @@ citevahti claim-add \
 # → claim recorded: claim-2026...-abcd1234   (copy this id)
 ```
 
+> **Citing a book, chapter, or report?** Sources outside the indexed
+> literature (PubMed/OpenAlex/Semantic Scholar) can't be auto-checked — that is
+> a scope limit, not a failing claim. Mark it:
+> `citevahti claim-untestable <claim-id> --reason "monograph, not indexed"`
+> and the report shows `[u] untestable` instead of "needs support".
+
 ## 5. Find candidate evidence (PubMed) and link it
 ```bash
 citevahti literature-search --query "low-dose CT lung cancer screening mortality randomized" --question-id q1
