@@ -5,15 +5,22 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="${1:-0.15.0}"
+# Arg: a PyPI version (e.g. 0.15.0) or "local" to build from THIS checkout —
+# use "local" for changes not yet released to PyPI (else you freeze old code).
+VERSION="${1:-local}"
 BUILD="build/pyi"
 rm -rf "$BUILD" && mkdir -p "$BUILD"
 
 echo "==> Creating isolated build venv ..."
 python3 -m venv "$BUILD/venv"
 "$BUILD/venv/bin/pip" install --quiet --upgrade pip
-echo "==> Installing citevahti[mcp]==${VERSION} + pyinstaller ..."
-"$BUILD/venv/bin/pip" install --quiet "citevahti[mcp]==${VERSION}" pyinstaller
+if [ "$VERSION" = "local" ]; then
+  echo "==> Installing citevahti[mcp] from the local checkout (..) + pyinstaller ..."
+  "$BUILD/venv/bin/pip" install --quiet "..[mcp]" pyinstaller
+else
+  echo "==> Installing citevahti[mcp]==${VERSION} + pyinstaller ..."
+  "$BUILD/venv/bin/pip" install --quiet "citevahti[mcp]==${VERSION}" pyinstaller
+fi
 
 echo "==> Freezing standalone binary ..."
 "$BUILD/venv/bin/pyinstaller" --onefile --name citevahti-mcp \

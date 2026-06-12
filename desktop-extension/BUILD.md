@@ -66,7 +66,12 @@ run under `env -i` (no PATH, no Python) — self-contained.
       runtime is fragile — if the signed binary won't launch, rebuild `--onedir` and sign nested libs.
 - [ ] Confirm Zotero connection works inside the sandboxed extension (API key / OAuth path).
 - [ ] Decide the default ledger folder + first-run behaviour.
-- [ ] **Rebuild to pick up `open_review_panel`** (added 2026-06-12). The bare stdio
+- [x] **Rebuilt with `open_review_panel` — signed + notarized (2026-06-12).** Built from
+      the local checkout (`./build-binary.sh local`, manifest `0.16.0-beta.1`), MCP smoke
+      test confirms all 13 tools incl. `open_review_panel`, signed with the FZQ347J9NX
+      Developer ID, notarized **Accepted** (submission `28db1e09-6929-42b3-8dcb-cf6ccf13de37`;
+      ticket covers `server/citevahti-mcp`, arm64). Artifact: `dist/citevahti.mcpb` — attach
+      to the GitHub release the README install box points at. Background (added 2026-06-12): The bare stdio
       server used to dead-end the no-terminal path at the rate-first step — the
       prompt sent the human to a localhost panel nothing had launched. The agent
       surface now has an `open_review_panel` tool (idempotent, loopback-only,
