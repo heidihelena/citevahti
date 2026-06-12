@@ -5,11 +5,20 @@ name: Build desktop extension (.mcpb)
 # notarized locally (needs the Developer ID cert), so it's intentionally NOT here.
 # Windows/Linux binaries are UNSIGNED (beta): Windows may show a SmartScreen warning;
 # Linux has no notarization concept.
+#
+# Triggers: publishing a GitHub release builds and attaches the assets to that
+# release; manual dispatch takes a tag name to attach to (leave empty to only
+# upload build artifacts). CiteVahti is installed from the repo checkout, not
+# PyPI, so the release can ship before (or without) the PyPI upload.
 on:
-  workflow_dispatch: {}
-  push:
-    branches: [feat/desktop-extension-mcpb]
-    paths: ['.github/workflows/desktop-extension-build.yml']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to attach assets to (empty = artifacts only)'
+        required: false
+        default: ''
+  release:
+    types: [published]
 
 permissions:
   contents: write   # to attach assets to the release
@@ -23,11 +32,11 @@ jobs:
           - os: windows-latest
             platform: win32
             binname: citevahti-mcp.exe
-            asset: citevahti-0.15.0-windows-x64.mcpb
+            suffix: windows-x64
           - os: ubuntu-latest
             platform: linux
             binname: citevahti-mcp
-            asset: citevahti-0.15.0-linux-x64.mcpb
+            suffix: linux-x64
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -38,10 +47,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install deps
+      - name: Read extension version
+        id: ver
+        run: |
+          VERSION=$(python -c "import json; print(json.load(open('manifest.binary.json'))['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "asset=citevahti-$VERSION-${{ matrix.suffix }}.mcpb" >> "$GITHUB_OUTPUT"
+      - name: Install deps (from this checkout, not PyPI)
         run: |
           python -m pip install --upgrade pip
-          pip install "citevahti[mcp]==0.15.0" pyinstaller
+          pip install "..[mcp]" pyinstaller
       - name: Freeze standalone binary
         run: |
           pyinstaller --onefile --name citevahti-mcp \
@@ -75,14 +90,15 @@ jobs:
       - name: Pack .mcpb
         run: |
           mkdir -p out
-          npx --yes @anthropic-ai/mcpb pack build/ci-stage "out/${{ matrix.asset }}"
+          npx --yes @anthropic-ai/mcpb pack build/ci-stage "out/${{ steps.ver.outputs.asset }}"
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset }}
-          path: desktop-extension/out/${{ matrix.asset }}
-      - name: Attach to release v0.15.0-desktop
+          name: ${{ steps.ver.outputs.asset }}
+          path: desktop-extension/out/${{ steps.ver.outputs.asset }}
+      - name: Attach to release
+        if: ${{ github.event_name == 'release' || inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.15.0-desktop
-          files: desktop-extension/out/${{ matrix.asset }}
+          tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
+          files: desktop-extension/out/${{ steps.ver.outputs.asset }}
