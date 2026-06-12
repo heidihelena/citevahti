@@ -58,6 +58,9 @@ can report transparently in a methods section —
 [docs/REPORTING.md](docs/REPORTING.md) has the fill-in-the-blanks methods
 paragraph and the commands that produce its numbers. Single-user and local; literature
 lookups use PubMed, OpenAlex, Semantic Scholar and Crossref (no telemetry).
+The de-identified validation warehouse is local too; contributing any of it to
+the shared evidence corpus is a separate, active opt-in with its own
+[contributor privacy notice](docs/CONTRIBUTOR_PRIVACY.md) — never automatic.
 
 > **The human or panel is always the decider. The AI is a blinded, advisory
 > second rater only. AI values are advisory, never decisive, and never silently
