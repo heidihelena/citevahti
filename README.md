@@ -4,7 +4,7 @@
 
 > *A product of **Vahtian**.*
 
-> **Status: v0.15.0 — the inline reviewer is the default, self-sufficient panel.**
+> **Status: v0.16.0 — the inline reviewer is the default, self-sufficient panel.**
 > The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 > blinded support rating → final decision → decision-gated, undoable Zotero write →
 > de-identified warehouse), hash-chain audited, with 600+ offline tests. The loopback
@@ -317,12 +317,12 @@ Prefer not to use the Marketplace? Build it yourself or grab the prebuilt `.vsix
 
 ```bash
 cd vscode-extension && npm install && npm run package
-code --install-extension citevahti-vscode-0.15.0.vsix
+code --install-extension citevahti-vscode-0.16.0.vsix
 ```
 
 The prebuilt `.vsix` is attached to the
 [latest release](https://github.com/heidihelena/citevahti/releases/latest);
-run `code --install-extension citevahti-vscode-0.15.0.vsix` (or, in VS Code,
+run `code --install-extension citevahti-vscode-0.16.0.vsix` (or, in VS Code,
 Extensions → `…` → **Install from VSIX…**).
 
 Config via environment (`NCBI_EMAIL`, `NCBI_API_KEY`) + `.citevahti/config.json`.

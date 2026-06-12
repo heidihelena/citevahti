@@ -4,7 +4,7 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
-## Unreleased
+## 0.16.0 — verified→accepted (BREAKING), [u] untestable, report provenance, --json, desktop extension (2026-06-12)
 
 - **BREAKING: the `[oo]` claim state is renamed `verified` → `accepted`**
   (external-audit finding #7-B). "Verified" implied clinical/scientific truth;
