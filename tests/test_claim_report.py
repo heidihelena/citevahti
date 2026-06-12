@@ -67,7 +67,7 @@ def test_linked_but_unrated_candidate_is_needs_support(tmp_path):
     assert row.state == "needs_support" and row.candidate_count == 1
 
 
-def test_accepted_supporting_candidate_is_verified(tmp_path):
+def test_accepted_supporting_candidate_is_accepted(tmp_path):
     store = _store(tmp_path)
     claim_id, cand_id = _claim_with_candidate(store)
     eng = ClaimSupportEngine(store)
@@ -76,7 +76,7 @@ def test_accepted_supporting_candidate_is_verified(tmp_path):
     eng.support_compare(rec.rating_id)
     DecisionService(store).decide(claim_id, cand_id, "accept", "ok", rating_id=rec.rating_id)
     row = _row(store, claim_id)
-    assert row.state == "verified" and row.code == "oo" and row.accepted_count == 1
+    assert row.state == "accepted" and row.code == "oo" and row.accepted_count == 1
     assert row.evidence[0].pmid == "1" and row.evidence[0].final_decision == "accept"
 
 
@@ -131,7 +131,7 @@ def test_report_counts_and_is_read_only(tmp_path):
     before = store.load_evidence_map().model_dump()
     rep = ClaimReportService(store).report()
     assert rep.total == 2
-    assert rep.counts["verified"] == 1 and rep.counts["needs_support"] == 1
+    assert rep.counts["accepted"] == 1 and rep.counts["needs_support"] == 1
     assert store.load_evidence_map().model_dump() == before            # no mutation
 
 
@@ -197,7 +197,7 @@ def test_markdown_report_has_sections_and_evidence(tmp_path):
 
     md = render_markdown(ClaimReportService(store).report())
     assert md.startswith("# Citation-Integrity Report")
-    assert "## Claims needing attention" in md and "## Verified claims" in md
+    assert "## Claims needing attention" in md and "## Accepted claims" in md
     assert "need attention" in md and "PMID 21714641" in md
     assert "does not assert truth" in md          # the non-overclaim footer
 

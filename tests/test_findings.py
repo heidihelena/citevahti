@@ -23,8 +23,9 @@ def test_finding_labels_are_exactly_this_set():
 
 def test_state_labels_are_stable():
     assert STATE_LABEL == {
-        "verified": "verified", "needs_support": "needs support",
+        "accepted": "accepted", "needs_support": "needs support",
         "review_needed": "review needed", "decision_recorded": "decided",
+        "untestable": "untestable",
     }
 
 

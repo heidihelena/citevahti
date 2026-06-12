@@ -2,7 +2,7 @@
 
 *A product of [Vahtian](https://vahtian.com).* In ~10 minutes you'll take one
 manuscript claim, find a supporting paper on PubMed, rate it, decide, and write an
-**audited, undoable** reference into Zotero — `[oo] verified`.
+**audited, undoable** reference into Zotero — `[oo] accepted`.
 
 > **What CiteVahti is (and isn't).** It records a documented **human → AI →
 > adjudication** workflow. *You* are always the decider. It never writes silently,
@@ -12,6 +12,14 @@ manuscript claim, find a supporting paper on PubMed, rate it, decide, and write 
 > (if connected) to your Zotero — no telemetry; your manuscript and ratings stay local.
 
 ---
+
+> **No terminal needed if you use Claude Desktop:** download
+> **`citevahti.mcpb`** from the
+> [latest release](https://github.com/heidihelena/citevahti/releases/latest),
+> double-click it, pick your CiteVahti folder once, and run the
+> `run_claim_tests` prompt in chat — the runtime is bundled (no Python, no
+> pip), and the assistant opens the rating panel for you when it's time to
+> rate. Everything below is the terminal route.
 
 ## 0. Prerequisites
 - **Zotero desktop** installed and **running** (CiteVahti reads your library locally, keyless).
@@ -37,7 +45,7 @@ pip install -e ".[keyring,mcp]"
 **VS Code extension** (the inline review surface — optional):
 ```bash
 cd vscode-extension && npm install && npm run package
-code --install-extension citevahti-0.12.0.vsix
+code --install-extension citevahti-vscode-0.15.0.vsix
 ```
 Then set `citevahti.cliPath` to your `citevahti` binary (e.g. `.venv/bin/citevahti`).
 
@@ -105,6 +113,12 @@ citevahti claim-add \
 # → claim recorded: claim-2026...-abcd1234   (copy this id)
 ```
 
+> **Citing a book, chapter, or report?** Sources outside the indexed
+> literature (PubMed/OpenAlex/Semantic Scholar) can't be auto-checked — that is
+> a scope limit, not a failing claim. Mark it:
+> `citevahti claim-untestable <claim-id> --reason "monograph, not indexed"`
+> and the report shows `[u] untestable` instead of "needs support".
+
 ## 5. Find candidate evidence (PubMed) and link it
 ```bash
 citevahti literature-search --query "low-dose CT lung cancer screening mortality randomized" --question-id q1
@@ -164,6 +178,11 @@ A `--commit` without a token in a non-interactive shell refuses (`missing_confir
 citevahti claim-report                       # 4-state summary (exit ≠ 0 if any need attention)
 citevahti claim-report --format md --output integrity.md   # the editor/supervisor report
 ```
+
+Writing this up for a paper? `citevahti agreement-report --format markdown`
+produces the method-transparency section (blinding mode, model provenance,
+agreement metrics), and **[REPORTING.md](REPORTING.md)** has a fill-in-the-blanks
+methods paragraph wired to those numbers.
 
 ## 8. Getting the references into your article or thesis
 

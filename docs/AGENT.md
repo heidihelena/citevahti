@@ -17,6 +17,7 @@ the Zotero write, and gives you an undoable transaction."*
 | Tool | What it does | Constraint |
 |---|---|---|
 | `status` | read-only capability report | — |
+| `open_review_panel` | bring up the human's loopback rating panel (idempotent; opens their browser) | no rating power — the panel is where the *human* rates, blind |
 | `verify_claims` | the 4-state citation-integrity report | read-only |
 | `pubmed_search` | staged PubMed search | exact query preserved; results are candidates, not citations |
 | `propose_claim` | record an AI-extracted claim | flagged `ai`; needs a pinned model; the human confirms |

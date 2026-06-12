@@ -30,6 +30,26 @@ def status(*, root: Optional[str] = None) -> dict:
                              "permissions": rep.permissions}}
 
 
+def open_review_panel(port: int = 8765, open_browser: bool = True, *,
+                      root: Optional[str] = None) -> dict:
+    """Open the human's loopback rating panel (idempotent; loopback-only).
+
+    Closes the no-terminal dead-end: on the desktop-extension install only the
+    bare stdio server runs, so when the claim-test prompt reaches the rate-first
+    step the agent must be able to bring the rating surface up for the human.
+    Adds no rating power — the panel is where the HUMAN rates, blind."""
+    from ..start import launch_panel
+    res = launch_panel(root or ".", port=port, open_browser=open_browser)
+    res.pop("_httpd", None)        # process-local handle, not MCP-serializable
+    if res["status"] == "port_conflict":
+        res["remediation"] = (f"Port {port} is busy with a non-CiteVahti service; "
+                              "retry with another port (e.g. 8766).")
+    if res["status"] in ("started", "reused"):
+        res["message"] = (f"Rating panel ready at {res['url']} — ask the human to "
+                          "record their blind support rating there.")
+    return res
+
+
 def verify_claims(*, root: Optional[str] = None) -> dict:
     """Run citation-integrity tests over the manuscript's claims (read-only 4-state report)."""
     rep = _t.claim_report(root=root)

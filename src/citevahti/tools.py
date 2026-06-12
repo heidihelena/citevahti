@@ -363,6 +363,12 @@ def scan_retractions(*, root: Optional[str] = None, http=None, client=None) -> d
         if changed:
             cc.candidates = new
             store.save_candidates(cc)
+    # Logged even when nothing was flagged: the report cites this timestamp as
+    # "retractions last checked", so a clean scan must be distinguishable from
+    # never having scanned.
+    store.audit.append("retraction.scan",
+                       {"checked": checked, "flagged": flagged,
+                        "source": "openalex.is_retracted"})
     return {"flagged": flagged, "checked": checked}
 
 
@@ -738,6 +744,15 @@ def list_claims(*, root: Optional[str] = None):
     """List recorded claims (read-only)."""
     from .claims import ClaimService
     return ClaimService(_open_store(root)).list_claims()
+
+
+def claim_mark_untestable(claim_id: str, reason: Optional[str], *,
+                          root: Optional[str] = None):
+    """Mark a claim's cited source as outside the indexed-literature scope
+    (book/chapter/grey literature), or clear the marker with ``reason=None``.
+    The report then shows ``[u] untestable`` instead of ``needs_support``."""
+    from .claims import ClaimService
+    return ClaimService(_open_store(root)).mark_untestable(claim_id, reason)
 
 
 def zotero_new_key_url(name: str = "CiteVahti", *, groups: str = "none") -> str:

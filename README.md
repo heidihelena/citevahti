@@ -7,7 +7,7 @@
 > **Status: v0.15.0 — the inline reviewer is the default, self-sufficient panel.**
 > The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 > blinded support rating → final decision → decision-gated, undoable Zotero write →
-> de-identified warehouse), hash-chain audited, with 592 offline tests. The loopback
+> de-identified warehouse), hash-chain audited, with 600+ offline tests. The loopback
 > panel is now the **inline manuscript reviewer**: claims highlighted in place, an
 > action-first **Rate → Reveal → Decide → Write** card, and enough built in to run
 > the whole loop without the chat — find evidence (PubMed / OpenAlex / Semantic
@@ -54,8 +54,13 @@ technical researchers) · *check every claim before you cite it* (researchers) �
 is **not a paper and not a reference — it is a claim test.** VS Code is one adapter
 and PyPI one install path; neither defines the product. CiteVahti's value is **not**
 autonomous reviewing; it is a documented **human → AI → adjudication** workflow you
-can report transparently in a methods section. Single-user and local; literature
+can report transparently in a methods section —
+[docs/REPORTING.md](docs/REPORTING.md) has the fill-in-the-blanks methods
+paragraph and the commands that produce its numbers. Single-user and local; literature
 lookups use PubMed, OpenAlex, Semantic Scholar and Crossref (no telemetry).
+The de-identified validation warehouse is local too; contributing any of it to
+the shared evidence corpus is a separate, active opt-in with its own
+[contributor privacy notice](docs/CONTRIBUTOR_PRIVACY.md) — never automatic.
 
 > **The human or panel is always the decider. The AI is a blinded, advisory
 > second rater only. AI values are advisory, never decisive, and never silently
@@ -94,6 +99,16 @@ prompt to use next:
 > with the `cv-demo` launch config (`--root .demo-ledger`).
 
 ## Getting started: install, then pick a path
+
+> **Using Claude Desktop and never open a terminal? You don't need one.**
+> Download the **CiteVahti desktop extension (`citevahti.mcpb`)** from the
+> [latest release](https://github.com/heidihelena/citevahti/releases/latest) and
+> double-click it — Claude Desktop installs it, asks once for your CiteVahti
+> folder, and the runtime is bundled (no Python, no pip). Then run the
+> **`run_claim_tests`** prompt in chat; when it's time to rate, the assistant
+> opens the rating panel in your browser for you. The `pip` route below is for
+> terminal users and other chat clients. (Build it yourself:
+> [desktop-extension/BUILD.md](desktop-extension/BUILD.md).)
 
 ```bash
 pip install "citevahti[mcp]"     # the [mcp] extra adds the chat surface — keep both quotes
@@ -182,8 +197,9 @@ for the inline `[oo/o/r/d]` review-layer UI direction.
 - **`.citevahti/` is the durable state layer.** Config, frames, the evidence map,
   ratings, intake, snapshots, PRISMA ledgers, exports, and a hash-chained audit
   log all live there — independent of Zotero.
-- **PubMed (NCBI E-utilities) is the only literature-search provider**, behind a
-  pluggable interface; it is search-only and never decides inclusion.
+- **Literature lookups are search-only and never decide inclusion.** PubMed
+  (NCBI E-utilities) is the primary search provider, with OpenAlex, Semantic
+  Scholar, and Crossref alongside it — all behind a pluggable interface.
 - **The AI is a blinded, advisory second rater only.** It never sees the human
   value, never decides, and never sets the recorded value.
 - **The human/panel is always the decider.**
@@ -195,6 +211,21 @@ for the inline `[oo/o/r/d]` review-layer UI direction.
   `audit_log.jsonl`.
 - **Unit tests use fake seams and pass fully offline** — no live Zotero, BBT,
   PubMed, or network writes are required to run the suite.
+
+## Scope: what CiteVahti can and cannot auto-check
+
+CiteVahti today is built for claims checked against **indexed literature**
+(PubMed, OpenAlex, Semantic Scholar, Crossref) — its sweet spot is biomedical
+and quantitative writing. Books, book chapters, grey literature, policy
+reports, and non-indexed or non-English sources are often **not
+auto-searchable**: a claim citing them is not wrong, it is out of the tool's
+indexed scope. Mark such claims with
+`citevahti claim-untestable <claim-id> --reason "1992 monograph, not indexed"`
+and the report shows them as **`[u]` untestable (out of indexed scope)** —
+verify them against the source text directly — instead of letting a correct
+citation look like a failing one. The PICO fit-checks are likewise optional:
+they help where a claim has a population/intervention/outcome shape and can be
+skipped where it doesn't.
 
 ## Probe, not proof
 
@@ -272,7 +303,7 @@ meta-analysis, generate recommendations, or author the review.
 uv venv && uv pip install -e ".[dev]"
 # or pipx for the CLI
 pipx install .
-pytest                 # 544 tests, fully offline
+pytest                 # the full suite (600+ tests), fully offline
 bash scripts/final_smoke.sh   # pytest + probe + verify-audit (no writes)
 
 # install the VS Code inline review extension from the Marketplace
@@ -340,14 +371,14 @@ commands: [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
 To verify a checkout behaves as documented:
 
 ```bash
-pytest                          # 544 offline tests — no Zotero/BBT/PubMed/network needed
+pytest                          # full suite (600+ tests), offline — no Zotero/BBT/PubMed/network needed
 bash scripts/final_smoke.sh     # pytest + probe + verify-audit, no writes
 cd vscode-extension && npm install && npm run compile && npm run package   # extension builds → .vsix
 ```
 
 Then a manual acceptance pass in VS Code (after **CiteVahti: Verify claims**):
 
-- [ ] **Highlighting** — each claim is decorated by its state (`oo / o / r / d`),
+- [ ] **Highlighting** — each claim is decorated by its state (`oo / o / r / d / u`),
       and the overview ruler shows the same colors.
 - [ ] **Blinding** — before you rate, the card shows the AI support as
       *hidden*; it appears only after you commit your own rating.

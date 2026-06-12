@@ -4,10 +4,15 @@ The manuscript is treated like code: each claim is a test case whose state is
 DERIVED from its candidates, blinded ratings, and final decisions. The four
 states (ADR-0002, reconciled): three evidence-fit states + one terminal.
 
-  [oo] verified          — has accepted, supporting evidence
+  [oo] accepted          — has accepted, supporting evidence (was "verified"
+                           before v0.16; renamed because the tool checks
+                           citation support, not truth — finding #7-B)
   [o ] needs_support     — no citation / no accepted supporting evidence yet
   [r ] review_needed     — unresolved discordance or a 2nd-review decision
   [d ] decision_recorded — every candidate settled, none accepted (terminal)
+  [u ] untestable        — the cited source is outside the indexed-literature
+                           scope (book/chapter/grey lit); marked by the human,
+                           NOT a failure state and never "needs attention"
 
 Read-only: it computes no new judgments and mutates nothing.
 """
@@ -20,13 +25,16 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .claim_support import FitScores
 
-CLAIM_STATES = ("verified", "needs_support", "review_needed", "decision_recorded")
-STATE_CODE = {"verified": "oo", "needs_support": "o ",
-              "review_needed": "r ", "decision_recorded": "d "}
-# Plain-language pairing for the [oo]/[o]/[r]/[d] codes — the manuscript's test
+CLAIM_STATES = ("accepted", "needs_support", "review_needed", "decision_recorded",
+                "untestable")
+STATE_CODE = {"accepted": "oo", "needs_support": "o ",
+              "review_needed": "r ", "decision_recorded": "d ",
+              "untestable": "u "}
+# Plain-language pairing for the [oo]/[o]/[r]/[d]/[u] codes — the manuscript's test
 # results, in words. Stable (asserted by tests); used in reports, docs, and UI copy.
-STATE_LABEL = {"verified": "verified", "needs_support": "needs support",
-               "review_needed": "review needed", "decision_recorded": "decided"}
+STATE_LABEL = {"accepted": "accepted", "needs_support": "needs support",
+               "review_needed": "review needed", "decision_recorded": "decided",
+               "untestable": "untestable"}
 
 
 class ClaimEvidence(BaseModel):
@@ -48,6 +56,8 @@ class ClaimEvidence(BaseModel):
     fit: Optional[FitScores] = None           # human PICO + claim fit subscores
     fit_total: Optional[int] = None           # sum of fit subscores, 0..8
     excerpt: Optional[str] = None             # verbatim quote from the human's source passage
+    retracted: Optional[bool] = None          # True = flagged by the retraction scan;
+                                              # None = not flagged (which includes "not checked")
 
 
 class ClaimReportRow(BaseModel):
@@ -63,6 +73,24 @@ class ClaimReportRow(BaseModel):
     evidence: list[ClaimEvidence] = Field(default_factory=list)
     proposed_revision: Optional[str] = None        # pending rewrite, shown as a diff
     proposed_revision_by: Optional[str] = None      # "ai" | "human" | "imported"
+    untestable_reason: Optional[str] = None         # why the source is out of indexed scope
+
+
+class ReportProvenance(BaseModel):
+    """What this report can and cannot vouch for, embedded in the artifact itself.
+
+    The audit chain is tamper-evident (hash-chained), NOT cryptographically
+    signed: it shows the recorded order of work against an honest ledger, but a
+    wholesale regenerated ledger would also validate. Report readers must see
+    that limitation in the report, not in a developer doc.
+    """
+    model_config = ConfigDict(extra="forbid")
+    audit_head_hash: Optional[str] = None       # hash of the last audit entry at generation
+    audit_entries: Optional[int] = None         # chain length at generation
+    audit_chain_intact: Optional[bool] = None   # AuditLog.verify() at generation
+    ledger_claims_total: Optional[int] = None   # all claims in the ledger (report may cover a subset)
+    last_retraction_scan_at: Optional[str] = None  # audit ts of the most recent scan, if any
+    retraction_source: Optional[str] = None     # how retractions are checked + the blind spot
 
 
 class ClaimReport(BaseModel):
@@ -71,3 +99,4 @@ class ClaimReport(BaseModel):
     total: int = 0
     counts: dict = Field(default_factory=dict)   # state -> count
     rows: list[ClaimReportRow] = Field(default_factory=list)
+    provenance: Optional[ReportProvenance] = None

@@ -65,7 +65,7 @@ def preflight_snapshot(root: str, client=None) -> dict:
             rep = ClaimReportService(store).report()
             out["claims"] = {
                 "total": rep.total,
-                "verified": rep.counts.get("verified", 0),
+                "accepted": rep.counts.get("accepted", 0),
                 "needs_support": rep.counts.get("needs_support", 0),
                 "review_needed": rep.counts.get("review_needed", 0),
                 "decision_recorded": rep.counts.get("decision_recorded", 0),
@@ -137,6 +137,65 @@ def is_citevahti_panel(url: str, *, timeout: float = 1.0) -> bool:
     return isinstance(body, dict) and "write_backend" in body and "connections" in body
 
 
+def launch_panel(
+    root: str = ".",
+    *,
+    port: int = 8765,
+    host: str = "127.0.0.1",
+    open_browser: bool = True,
+    browser_opener: Optional[Callable[[str], object]] = None,
+    panel_probe: Optional[Callable[[str], bool]] = None,
+) -> dict:
+    """Bring the loopback rating panel up (idempotent) and optionally open a browser.
+
+    The one panel-launch path shared by ``citevahti start`` and the agent's
+    ``open_review_panel`` tool — the no-terminal install (the .mcpb desktop
+    extension) runs only the bare stdio server, so the agent must be able to
+    open the human's rating surface at step 7 of the claim-test prompt.
+
+    Returns a dict (MCP-serializable except the private ``_httpd`` handle,
+    which ``start`` uses for shutdown and tool wrappers strip):
+      * ``status`` — ``started`` | ``reused`` (a CiteVahti panel already owns the
+        port) | ``port_conflict`` (a foreign service owns it — no rating surface)
+        | ``refused_non_loopback``
+      * ``url``, ``browser_opened``
+    """
+    from .panel.server import is_loopback, make_server
+
+    browser_opener = browser_opener or webbrowser.open
+    panel_probe = panel_probe or is_citevahti_panel
+    if not is_loopback(host):
+        # Safety invariant, not a default: the panel has no auth and renders
+        # manuscript claims/evidence.
+        return {"status": "refused_non_loopback", "url": None,
+                "browser_opened": False, "_httpd": None}
+    url = f"http://{host}:{port}"
+    httpd = None
+    try:
+        httpd = make_server(root, host, port)
+        url = f"http://{host}:{httpd.server_address[1]}"   # real port (port=0 = ephemeral)
+        status = "started"
+    except OSError:
+        # Port busy: only reuse it if it is *actually* a CiteVahti panel. A foreign
+        # occupant must fail loudly — never leave the human thinking they have a
+        # rating surface when they don't.
+        if not panel_probe(url):
+            return {"status": "port_conflict", "url": url,
+                    "browser_opened": False, "_httpd": None}
+        status = "reused"
+    if httpd is not None:
+        threading.Thread(target=httpd.serve_forever, name="citevahti-panel",
+                         daemon=True).start()
+    opened = False
+    if open_browser:
+        try:
+            browser_opener(url)
+            opened = True
+        except Exception:
+            opened = False
+    return {"status": status, "url": url, "browser_opened": opened, "_httpd": httpd}
+
+
 def _default_mcp_runner(root: str) -> int:
     """Build and serve the constrained MCP tools over stdio (blocks).
 
@@ -170,20 +229,18 @@ def start(
       * ``out`` — where guidance is written; defaults to ``sys.stderr`` because
         stdout belongs to the MCP protocol.
     """
-    from .panel.server import is_loopback, make_server
-
     out = out if out is not None else sys.stderr
-    browser_opener = browser_opener or webbrowser.open
     mcp_runner = mcp_runner or _default_mcp_runner
-    panel_probe = panel_probe or is_citevahti_panel
 
     def _say(msg: str = "") -> None:
         print(msg, file=out, flush=True)
 
-    # Loopback is a safety invariant, not just a default: the panel has no auth and
-    # renders manuscript claims/evidence. Enforce it here too, not only in
-    # ``citevahti-panel`` (defense in depth — the CLI never offers ``--host``).
-    if not is_loopback(host):
+    res = launch_panel(root, port=port, host=host, open_browser=False,
+                       browser_opener=browser_opener, panel_probe=panel_probe)
+    if res["status"] == "refused_non_loopback":
+        # Loopback is a safety invariant, not just a default: the panel has no auth
+        # and renders manuscript claims/evidence. Enforced here too, not only in
+        # ``citevahti-panel`` (defense in depth — the CLI never offers ``--host``).
         _say(f"refusing to bind {host!r}: 'citevahti start' is loopback-only "
              "(the panel has no auth). Use 127.0.0.1.")
         return 2
@@ -192,36 +249,20 @@ def start(
     for line in readiness_lines(preflight_snapshot(root, client)):
         _say(f"  • {line}")
 
-    # The loopback panel (the blind human decision surface) in a daemon thread.
-    url = f"http://{host}:{port}"
-    httpd = None
-    try:
-        httpd = make_server(root, host, port)
-    except OSError:
-        # Port busy: only reuse it if it is *actually* a CiteVahti panel. A foreign
-        # occupant must fail loudly — never leave the human thinking they have a
-        # rating surface when they don't.
-        if panel_probe(url):
-            _say(f"\nPanel: a CiteVahti panel is already open at {url} — reusing it.")
-            if open_browser:
-                try:
-                    browser_opener(url)
-                except Exception:
-                    _say(f"  (couldn't open a browser automatically — visit {url}.)")
-        else:
-            _say(f"\nPort {port} is busy and is not a CiteVahti panel. Free it, or "
-                 f"pick another port with --port. Not starting (no rating surface).")
-            return 2
-    if httpd is not None:
-        thread = threading.Thread(target=httpd.serve_forever, name="citevahti-panel",
-                                  daemon=True)
-        thread.start()
+    url, httpd = res["url"], res["_httpd"]
+    if res["status"] == "port_conflict":
+        _say(f"\nPort {port} is busy and is not a CiteVahti panel. Free it, or "
+             f"pick another port with --port. Not starting (no rating surface).")
+        return 2
+    if res["status"] == "reused":
+        _say(f"\nPanel: a CiteVahti panel is already open at {url} — reusing it.")
+    else:
         _say(f"\nPanel ready → {url}  (loopback only; rate here before the AI shows).")
-        if open_browser:
-            try:
-                browser_opener(url)
-            except Exception:
-                _say(f"  (couldn't open a browser automatically — visit {url}.)")
+    if open_browser:
+        try:
+            (browser_opener or webbrowser.open)(url)
+        except Exception:
+            _say(f"  (couldn't open a browser automatically — visit {url}.)")
 
     try:
         return _serve_foreground(root, httpd, url, mcp_runner, _say)

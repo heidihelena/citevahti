@@ -15,6 +15,7 @@ from .policy import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, assert_sa
 # servers build directly from this; nothing outside it is reachable by an agent.
 TOOLS = {
     "status": tools.status,
+    "open_review_panel": tools.open_review_panel,
     "verify_claims": tools.verify_claims,
     "pubmed_search": tools.pubmed_search,
     "propose_claim": tools.propose_claim,

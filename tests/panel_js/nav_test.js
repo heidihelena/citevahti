@@ -65,7 +65,7 @@ cv.state.view = {
   claim_states: {
     // d1 is "verified" (an Accept) — decided is ANY non-pending state, not just
     // "decision_recorded" (the bug: Accept/Revise verdicts weren't treated as decided).
-    d3: { state: "needs_support" }, d1: { state: "verified" },
+    d3: { state: "needs_support" }, d1: { state: "accepted" },
     d4: { state: "needs_support" }, d2: { state: "needs_support" },
     u1: { state: "needs_support" }, o1: { state: "needs_support" },
   },

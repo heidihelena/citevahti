@@ -48,6 +48,18 @@ class ClaimService:
     def list_claims(self) -> list[Claim]:
         return [self.store.load_claim(cid) for cid in self.store.list_claims()]
 
+    def mark_untestable(self, claim_id: str, reason: Optional[str]) -> Claim:
+        """Mark a claim's cited source as outside the indexed-literature scope
+        (book, chapter, grey literature, non-indexed) — or clear the marker with
+        ``reason=None``. Human action; audited. The report then shows the claim
+        as ``untestable`` instead of the failure-looking ``needs_support``."""
+        reason = (reason or "").strip() or None
+        claim = self.store.load_claim(claim_id)
+        self.store.audit.append("claim.untestable_set" if reason else "claim.untestable_cleared",
+                                {"claim_id": claim_id, "reason": reason})
+        claim.untestable_reason = reason
+        return self.store.save_claim(claim)
+
     # ---- revision-diff: propose -> human reviews diff -> accept/reject -------
     def propose_revision(self, claim_id: str, new_text: str, *,
                          extracted_by: str = "human",

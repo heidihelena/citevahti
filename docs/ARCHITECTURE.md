@@ -11,8 +11,9 @@ none is required for the stateful features to work.
    collections, indexed full text, and annotations. CiteVahti never writes here.
 2. **Better BibTeX** — `…/better-bibtex/json-rpc` and `…/better-bibtex/cayw`.
    The citation engine: stable citekeys, exact-match resolution, export.
-3. **PubMed via NCBI E-utilities** — the only online literature-search provider,
-   behind a pluggable interface. Search-only; stages results with provenance.
+3. **Literature search providers** — PubMed via NCBI E-utilities (primary), plus
+   OpenAlex, Semantic Scholar, and Crossref (DOI backfill), behind a pluggable
+   interface. Search-only; stages results with provenance.
 4. **`.citevahti/` state layer** — the durable provenance store.
 
 `localhost` is used uniformly (the `/api/` path checks `Host: localhost:23119`).
