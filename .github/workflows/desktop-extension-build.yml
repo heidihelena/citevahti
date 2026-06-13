@@ -98,7 +98,7 @@ jobs:
           path: desktop-extension/out/${{ steps.ver.outputs.asset }}
       - name: Attach to release
         if: ${{ github.event_name == 'release' || inputs.release_tag != '' }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
           files: desktop-extension/out/${{ steps.ver.outputs.asset }}
