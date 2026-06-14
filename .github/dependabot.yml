@@ -1,5 +1,9 @@
-# Dependabot — keep dependencies current with low PR noise.
+# Dependabot — keep dependencies current with the fewest possible PRs/branches.
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates
+#
+# Each ecosystem rolls ALL updates (major + minor + patch) into a single
+# grouped PR per week, so dependency maintenance is one short-lived branch per
+# ecosystem that auto-merges (see dependabot-auto-merge.yml) and auto-deletes.
 version: 2
 updates:
   # Python package (pyproject.toml: pydantic, httpx, optional keyring/mcp)
@@ -13,9 +17,9 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      # roll all minor + patch bumps into one PR per week
-      python-minor-patch:
-        update-types: ["minor", "patch"]
+      python:
+        patterns: ["*"]
+        update-types: ["major", "minor", "patch"]
 
   # VS Code extension (vscode-extension/package.json + package-lock.json)
   - package-ecosystem: "npm"
@@ -28,10 +32,11 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      npm-minor-patch:
-        update-types: ["minor", "patch"]
+      npm:
+        patterns: ["*"]
+        update-types: ["major", "minor", "patch"]
 
-  # GitHub Actions — activates once you add workflows under .github/workflows/
+  # GitHub Actions (.github/workflows/*)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -39,3 +44,7 @@ updates:
     labels: ["dependencies"]
     commit-message:
       prefix: "ci"
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: ["major", "minor", "patch"]
