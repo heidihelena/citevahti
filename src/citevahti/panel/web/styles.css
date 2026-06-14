@@ -38,10 +38,10 @@ body { background: var(--zs-surface); color: var(--zs-ink);
 kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surface-2);
   border: 1px solid var(--zs-line); border-bottom-width: 2px; border-radius: 4px; padding: 2px 5px; }
 
-.ide { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
+.ide { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; height: 100dvh; }
 
 /* ---- chrome ---- */
-.ide-bar { display: flex; align-items: center; gap: 12px; padding: 9px 16px;
+.ide-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 9px 16px;
   background: var(--zs-paper); border-bottom: 1px solid var(--zs-line);
   font: 600 13px/1 ui-monospace, Menlo, monospace; }
 .mark { width: 22px; height: 22px; display: inline-flex; color: var(--zs-ink); }
@@ -83,8 +83,12 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .progress .tally b { color: var(--zs-ink); }
 
 /* ---- split ---- */
-.split { display: grid; grid-template-columns: 1.6fr 1fr; min-height: 0; }
-.editor { overflow: auto; padding: 18px 30px 28px; border-right: 1px solid var(--zs-line); }
+.split { display: grid; grid-template-columns: 1.6fr 1fr; min-height: 0; min-width: 0; }
+/* min-width:0 lets the 1fr tracks shrink below their content's intrinsic width;
+ * without it a long token/URL (or the chip row) forces the track wider and the
+ * whole panel scrolls sideways — stricter in Chromium than in Safari. */
+.editor { overflow: auto; overflow-x: hidden; min-width: 0; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; padding: 18px 30px 28px; border-right: 1px solid var(--zs-line); }
 .msbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
 .msbar .mspick { font: 600 11px/1 ui-monospace, Menlo, monospace; padding: 5px 9px; border-radius: 7px;
   border: 1px solid var(--zs-line); background: var(--zs-surface); cursor: pointer; color: var(--zs-ink); }
@@ -92,7 +96,7 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .msbar .bind { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 .msbar .bind input { font: 12px/1 ui-monospace, Menlo, monospace; padding: 5px 7px; border-radius: 7px;
   border: 1px solid var(--zs-line); background: var(--zs-surface); color: var(--zs-ink); width: 200px; }
-.doc { max-width: 740px; font-size: 17px; line-height: 1.95; white-space: pre-wrap; }
+.doc { max-width: 740px; font-size: 17px; line-height: 1.95; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; }
 .doc h1, .doc h2 { font-size: 19px; }
 .recon-note { font: 600 11px/1.4 ui-monospace, Menlo, monospace; color: var(--zs-muted);
   border: 1px dashed var(--zs-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px; }
@@ -126,7 +130,8 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .unmatched .urow:hover { background: var(--zs-surface-2); }
 
 /* ---- card (action-first) ---- */
-.card { overflow: auto; padding: 16px 18px 24px; background: var(--zs-panel);
+.card { overflow: auto; min-width: 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  padding: 16px 18px 24px; background: var(--zs-panel);
   display: flex; flex-direction: column; gap: 12px; }
 .stepper { display: flex; align-items: center; font: 600 11px/1 ui-monospace, Menlo, monospace; }
 .stepper .step { display: flex; align-items: center; gap: 6px; color: var(--zs-muted); }
@@ -300,5 +305,26 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .agent .pill { color: var(--zs-ink); }
 
 :focus-visible { outline: 2px solid var(--zs-brand); outline-offset: 2px; }
-@media (max-width: 900px) { .split { grid-template-columns: 1fr; } .card { border-top: 1px solid var(--zs-line); }
-  .progress .bar { display: none; } }
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; }
+  .card { border-top: 1px solid var(--zs-line); }
+  .progress .bar { display: none; }
+}
+
+/* phones / narrow webviews: collapse the chrome into one readable column with
+ * comfortable tap targets, and keep everything inside the viewport so there is
+ * never a sideways scroll. */
+@media (max-width: 560px) {
+  .ide-bar { padding: 8px 10px; gap: 6px 10px; }
+  .file { max-width: 45vw; }
+  .ledger { max-width: 40vw; }
+  .ide-bar-right { gap: 8px; }
+  .chip-btn, .auditbadge, .conn { padding: 7px 10px; }   /* ~44px-friendly touch targets */
+  .editor { padding: 14px 16px 20px; }
+  .card { padding: 14px 14px 20px; }
+  .doc { font-size: 16px; line-height: 1.8; }
+  .rates { grid-template-columns: 1fr; }                 /* stack the rate buttons */
+  .compare { flex-direction: column; }
+  .msbar .bind { margin-left: 0; width: 100%; }
+  .msbar .bind input { width: 100%; flex: 1; }
+}
