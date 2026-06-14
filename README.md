@@ -2,6 +2,11 @@
 
 **Run unit tests on your manuscript. Check every claim before you cite it.**
 
+CiteVahti is a citation-integrity tool for researchers. It tests every claim in your
+manuscript against the papers cited for it through a blinded **human → AI → adjudication**
+workflow, then writes verified references to Zotero in a decision-gated, undoable step with
+a hash-chained audit trail. It is free, local-first, and single-user.
+
 > *A product of **Vahtian**.*
 
 > **Status: v0.16.0 — the inline reviewer is the default, self-sufficient panel.**
