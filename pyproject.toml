@@ -23,7 +23,7 @@ Issues = "https://github.com/heidihelena/citevahti/issues"
 [project.optional-dependencies]
 mcp = ["mcp>=1.27.2"]
 dev = ["pytest>=9.1.0"]
-keyring = ["keyring>=24"]   # OS-native secret store for onboarding (system_keyring backend)
+keyring = ["keyring>=25.7.0"]   # OS-native secret store for onboarding (system_keyring backend)
 
 [project.scripts]
 citevahti = "citevahti.cli:main"
