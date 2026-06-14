@@ -1,0 +1,22 @@
+name: Dependabot auto-merge
+
+# Auto-merges dependabot PRs once they're mergeable, so dependency updates
+# never need manual branch management. The PR branch auto-deletes on merge
+# (repo setting "Automatically delete head branches"). Only acts on PRs
+# opened by dependabot[bot]; runs in base context for the GITHUB_TOKEN.
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge
+        run: gh pr merge --auto --merge "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
