@@ -177,6 +177,20 @@ def test_claims_listing_offline(tmp_path):
     assert any(c["claim_id"] == claim_id for c in data["claims"])
 
 
+def test_unlink_candidate_route_removes_the_paper(tmp_path):
+    store, claim_id, cand_id = _setup(tmp_path)
+    status, data = dispatch(str(tmp_path), "POST", "/api/candidates/unlink",
+                            {"claim_id": claim_id, "candidate_id": cand_id})
+    assert status == 200 and data["remaining_candidates"] == 0
+    assert store.load_candidates(claim_id).candidates == []
+
+
+def test_unlink_candidate_requires_both_fields(tmp_path):
+    _setup(tmp_path)
+    status, body = dispatch(str(tmp_path), "POST", "/api/candidates/unlink", {"claim_id": "c1"})
+    assert status == 400
+
+
 def test_unknown_route_is_404(tmp_path):
     status, body = dispatch(str(tmp_path), "GET", "/api/nope", None)
     assert status == 404 and body["error"] == "not_found"

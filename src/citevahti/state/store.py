@@ -270,6 +270,27 @@ class CiteVahtiStore:
     def candidates_exist(self, claim_id: str) -> bool:
         return (self.candidates_dir() / f"{claim_id}.json").exists()
 
+    def unlink_candidate(self, claim_id: str, candidate_id: str):
+        """Drop one candidate from a claim's set, recording the removal in the
+        audit chain. Non-destructive: the hash chain only grows, and any rating
+        or decision already recorded for the candidate stays in its own audited
+        record — this only unlinks the paper from active consideration."""
+        from ..validators.candidate import validate_claim_candidates
+
+        cc = self.load_candidates(claim_id)
+        before = len(cc.candidates)
+        cc.candidates = [c for c in cc.candidates if c.candidate_id != candidate_id]
+        if len(cc.candidates) == before:
+            raise StateError(f"candidate {candidate_id!r} is not linked to claim {claim_id!r}")
+        validate_claim_candidates(cc)
+        entry = self.audit.append("candidate.unlink",
+                                  {"claim_id": claim_id, "candidate_id": candidate_id,
+                                   "remaining": len(cc.candidates)})
+        cc.audit_event_id = entry.hash
+        _atomic_write(self.candidates_dir() / f"{claim_id}.json", _dump(cc))
+        validate_claim_candidates(cc, require_audit=True)
+        return cc
+
     # ---- claim-support ratings (ADR-0001, step 3) ------------------------
     def claim_support_dir(self) -> Path:
         return self.dir / "claim_support"

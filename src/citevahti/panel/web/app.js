@@ -279,9 +279,11 @@ function renderCard() {
   else if (ph === "decide") block = decideBlock(cand);
   else if (ph === "write") block = writeBlock(claim, cand);
   else block = doneBlock(cand);
+  const removeRow = `<div class="removerow"><button class="btn ghost" data-act="unlink"
+    title="Unlink this paper from the claim (keeps the claim and audit trail)">✕ Remove paper <span class="hk">⇧D</span></button></div>`;
   card.innerHTML = stepper(ph) +
     `<div class="lbl">Claim · ${esc(claim.claim_type || "")}</div><div class="claimline">“${esc(claim.claim_text)}”</div>` +
-    picker + candidateTags(cand) + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr"></div>`;
+    picker + candidateTags(cand) + removeRow + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr"></div>`;
   renderAgent(ph, claim, cand);
 }
 
@@ -564,6 +566,20 @@ async function recordDecision(v) {
     loadAudit();                            // a decision appended an audit entry
   } catch (e) { showErr(e.message); }
 }
+// guarded remove (⇧D): unlink the wrong paper from the claim. Audited and
+// non-destructive — the claim and audit trail stay; only this paper leaves.
+async function unlinkCandidate() {
+  const cand = activeCand(); if (!cand) return;
+  const label = cand.title || cand.pmid || cand.doi || cand.candidate_id;
+  if (!confirm(`Remove this paper from the claim?\n\n${label}\n\nThe claim and the audit trail are kept — this only unlinks the paper from review.`)) return;
+  try {
+    await api("POST", "/api/candidates/unlink", { claim_id: state.activeClaim, candidate_id: cand.candidate_id });
+    state.candIdx = 0; resetWrite();
+    await loadManuscript(state.activeMs);   // refresh span colour
+    await selectClaim(state.activeClaim);
+    loadAudit();                            // the unlink appended an audit entry
+  } catch (e) { showErr(e.message); }
+}
 async function zpreview() {
   const cand = activeCand(); const decId = cand && cand.evidence && cand.evidence.decision_id;
   if (!decId) return showErr("no decision to write");
@@ -775,7 +791,8 @@ document.addEventListener("click", (e) => {
      "save-claim": saveClaim, "cancel-claim": () => { $("#addClaimBox").innerHTML = ""; },
      zpreview, zcommit, zcancel: () => { resetWrite(); renderCard(); },
      zundo, docpreview: () => docPreview(act.dataset.kind), doccommit: docCommit, doccancel: () => { resetWrite(); renderCard(); },
-     docundo: docUndo, next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
+     docundo: docUndo, unlink: unlinkCandidate,
+     next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
 $("#auditBadge").addEventListener("click", () => loadAudit());
@@ -818,6 +835,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); return e.preventDefault(); }
   if (e.key === "k" || e.key === "ArrowUp") { selectClaim(ids[Math.max(i - 1, 0)]); return e.preventDefault(); }
   const cand = activeCand(); if (!cand) return;
+  if (e.shiftKey && (e.key === "D" || e.key === "d")) { unlinkCandidate(); return e.preventDefault(); }   // ⇧D guarded remove
   const ph = phaseOf(cand);
   if (ph === "rate" && /^[1-6]$/.test(e.key)) { rate(SUPPORT[+e.key - 1][0]); return e.preventDefault(); }   // 1–6 support rating
   if (ph === "decide") {                                                                // verdict keys: oo / o / r / d

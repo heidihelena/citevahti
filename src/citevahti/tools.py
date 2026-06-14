@@ -846,6 +846,15 @@ def list_candidates(claim_id: str, *, root: Optional[str] = None):
     return CandidateService(_open_store(root)).list_for_claim(claim_id)
 
 
+def unlink_candidate(claim_id: str, candidate_id: str, *, root: Optional[str] = None):
+    """Unlink one candidate paper from a claim (the 'wrong paper' case). The
+    removal is audited and non-destructive — the claim and the audit trail are
+    kept; only the paper leaves active consideration."""
+    cc = _open_store(root).unlink_candidate(claim_id, candidate_id)
+    return {"claim_id": claim_id, "candidate_id": candidate_id,
+            "remaining_candidates": len(cc.candidates)}
+
+
 # ---- ADR-0001 step 3: claim-support dual rating --------------------------
 def _support_engine(root, rater=None):
     from .claims import ClaimSupportEngine
