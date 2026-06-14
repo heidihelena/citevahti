@@ -33,6 +33,13 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+/* visually hidden but available to screen readers (gives the panel a real heading) */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important; scroll-behavior: auto !important; }
+}
 body { background: var(--zs-surface); color: var(--zs-ink);
   font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surface-2);
