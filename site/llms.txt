@@ -1,0 +1,28 @@
+# CiteVahti
+
+> CiteVahti tests every claim in a manuscript against its candidate papers through a blinded human → AI → adjudication workflow, then writes verified references to Zotero in a decision-gated, undoable step with a hash-chained audit trail. It is free, local-first, and single-user for researchers; Vahtian sells paid infrastructure to organizations that need auditable citation integrity at publication scale. A product of Vahtian.
+
+## What it is
+
+- **Citation-integrity tool**, not a reference manager. The manuscript is the code; each scientific claim is a test case checked against the paper cited for it.
+- **Blinded second rating.** The human rates support first; the AI rates independently and stays hidden until the human has rated. Disagreements route to the human.
+- **The human is always the decider.** AI values are advisory, never decisive, never silently propagated.
+- **Decision-gated, undoable Zotero write.** Preview → confirm → write → undo, with fail-closed dedupe — never a silent or fabricated citation.
+- **Hash-chained audit trail**, so the workflow can be reported transparently in a methods section.
+
+## How it runs
+
+- Local-first, single-user, no telemetry. Manuscript text and ratings stay on the user's machine.
+- `citevahti start` launches the workspace: an inline review side panel, a browser, and an MCP server.
+- Two co-primary surfaces: a chat client (Claude Desktop / ChatGPT / Claude Code / Codex) over MCP, and a loopback side panel that is the blind human-rating surface.
+- Outbound calls are limited to literature services — PubMed (NCBI), OpenAlex, Semantic Scholar, Crossref/doi.org — and the user's Zotero if connected.
+
+## Licensing
+
+- Open core is Apache-2.0 and never paywalls a researcher's ability to verify their own manuscript.
+
+## Links
+
+- Site: https://vahtian.com/citevahti
+- Source (GitHub): https://github.com/heidihelena/citevahti
+- README / how it works: https://github.com/heidihelena/citevahti#readme
