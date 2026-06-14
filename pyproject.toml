@@ -11,7 +11,7 @@ license = { text = "Apache-2.0" }
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 authors = [{ name = "Vahtian" }]
 dependencies = [
-    "pydantic>=2.6",
+    "pydantic>=2.13.4",
     "httpx>=0.28.1",
 ]
 
