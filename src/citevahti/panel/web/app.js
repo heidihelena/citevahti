@@ -805,15 +805,41 @@ $("#theme").addEventListener("click", () => {
   document.documentElement.classList.toggle("zs-dark");
   $("#theme").textContent = document.documentElement.classList.contains("zs-dark") ? "◐ Light" : "◑ Dark";
 });
+let oTimer = null;   // double-tap "o": single = caution [o], double = accept [oo]
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea, select")) return;
+  if (e.key === "?") { $("#legendBtn").click(); return e.preventDefault(); }            // ? help
+  if (e.key === "u") {                                                                  // u undo last write/edit
+    if (state.lastTxn) { zundo(); return e.preventDefault(); }
+    if (state.docTxn) { docUndo(); return e.preventDefault(); }
+  }
   const ids = claimOrder(); if (!ids.length) return;   // document order, matching the eye
   const i = ids.indexOf(state.activeClaim);
   if (e.key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); return e.preventDefault(); }
   if (e.key === "k" || e.key === "ArrowUp") { selectClaim(ids[Math.max(i - 1, 0)]); return e.preventDefault(); }
-  const cand = activeCand();
-  if (cand && phaseOf(cand) === "rate" && /^[1-6]$/.test(e.key)) { rate(SUPPORT[+e.key - 1][0]); return e.preventDefault(); }
-  if (e.key === "Enter") { const p = primary(); if (p) { p(); e.preventDefault(); } }
+  const cand = activeCand(); if (!cand) return;
+  const ph = phaseOf(cand);
+  if (ph === "rate" && /^[1-6]$/.test(e.key)) { rate(SUPPORT[+e.key - 1][0]); return e.preventDefault(); }   // 1–6 support rating
+  if (ph === "decide") {                                                                // verdict keys: oo / o / r / d
+    if (e.key === "r") { recordDecision("needs_second_review"); return e.preventDefault(); }
+    if (e.key === "d" && !e.shiftKey) { recordDecision("reject"); return e.preventDefault(); }
+    if (e.key === "o") {
+      if (oTimer) { clearTimeout(oTimer); oTimer = null; recordDecision("accept"); }                         // "oo" → [oo]
+      else { oTimer = setTimeout(() => { oTimer = null; recordDecision("accepted_with_caution"); }, 300); }   // "o"  → [o]
+      return e.preventDefault();
+    }
+  }
+  if (ph === "write") {
+    if (e.key === "s") {                                                                // s stage = preview the write/edit
+      const code = cand.evidence && cand.evidence.final_decision;
+      if (code === "needs_second_review") docPreview("revise");
+      else if (code === "reject") docPreview("strike");
+      else zpreview();
+      return e.preventDefault();
+    }
+    if (e.key === "a") { const p = primary(); if (p) p(); return e.preventDefault(); }   // a apply / add to Zotero
+  }
+  if (e.key === "Enter") { const p = primary(); if (p) { p(); e.preventDefault(); } }    // ↵ primary action
 });
 function primary() {
   const cand = activeCand(); if (!cand) return null;
