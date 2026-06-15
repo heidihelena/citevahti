@@ -116,3 +116,37 @@ def test_already_in_zotero_flag_carried(tmp_path):
     CandidateService(store).link_from_intake(claim.claim_id, batch.batch_id)
     cc = store.load_candidates(claim.claim_id)
     assert cc.candidates[0].already_in_zotero is True
+
+
+def test_unlink_candidate_removes_one_and_is_audited(tmp_path):
+    store, claim_id, batch_id = _setup(tmp_path)
+    CandidateService(store).link_from_intake(claim_id, batch_id)
+    cc = store.load_candidates(claim_id)
+    assert len(cc.candidates) == 2
+    target, prev_audit = cc.candidates[0], cc.audit_event_id
+
+    out = store.unlink_candidate(claim_id, target.candidate_id)
+    assert len(out.candidates) == 1
+    assert all(c.candidate_id != target.candidate_id for c in out.candidates)
+    # non-destructive: the hash chain only grows (new audit event, not a rewrite)
+    assert out.audit_event_id and out.audit_event_id != prev_audit
+    # the change is persisted
+    assert [c.candidate_id for c in store.load_candidates(claim_id).candidates] \
+        == [c.candidate_id for c in out.candidates]
+
+
+def test_unlink_unknown_candidate_raises(tmp_path):
+    store, claim_id, batch_id = _setup(tmp_path)
+    CandidateService(store).link_from_intake(claim_id, batch_id)
+    with pytest.raises(StateError):
+        store.unlink_candidate(claim_id, "no-such-candidate")
+
+
+def test_tools_unlink_candidate_reports_remaining(tmp_path):
+    import citevahti.tools as tools
+    store, claim_id, batch_id = _setup(tmp_path)
+    CandidateService(store).link_from_intake(claim_id, batch_id)
+    target = store.load_candidates(claim_id).candidates[0]
+    res = tools.unlink_candidate(claim_id, target.candidate_id, root=str(tmp_path))
+    assert res == {"claim_id": claim_id, "candidate_id": target.candidate_id,
+                   "remaining_candidates": 1}

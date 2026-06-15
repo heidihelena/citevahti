@@ -438,6 +438,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                          "total_candidates": getattr(rep, "total_candidates", None),
                          "doi_resolved": resolved}
 
+        # guarded remove: unlink the wrong paper from a claim (audited, non-destructive)
+        if method == "POST" and path == "/api/candidates/unlink":
+            return 200, engine.unlink_candidate(_req(body, "claim_id"), _req(body, "candidate_id"), root=root)
+
         # ---- library maintenance: backfill DOIs / re-check Zotero membership ----
         if method == "POST" and path == "/api/candidates/resolve-dois":
             return 200, engine.backfill_candidate_dois(root=root)
