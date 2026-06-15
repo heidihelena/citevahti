@@ -229,8 +229,9 @@ function claimOrder() {
 async function selectClaim(id) {
   const sameClaim = id === state.activeClaim;
   state.activeClaim = id;
-  // moving to a different claim: drop per-claim write/undo/timer state so a global
+  // moving to a different claim: drop the in-session write/undo/timer state so a global
   // key (u undo, the o double-tap) can't act on the claim you just navigated away from.
+  // (Undo is still recoverable per-claim from the audit trail via recoverableTxn().)
   if (!sameClaim) { state.candIdx = 0; resetWrite(); state.lastTxn = null; state.docTxn = null; clearTimeout(oTimer); oTimer = null; }   // keep the candidate in view on a same-claim refresh
   renderDoc(); renderProgress();
   try { state.claim = await api("GET", `/api/claims/${encodeURIComponent(id)}`); }
@@ -240,12 +241,31 @@ async function selectClaim(id) {
   renderCard();
 }
 function activeCand() { return (state.claim && state.claim.candidates || [])[state.candIdx] || null; }
+/* The committed, not-yet-undone Zotero write recorded for this candidate in the
+ * claim's audit trail (per-claim, durable). Unlike state.lastTxn it survives
+ * navigating away and back, so the write step — and its undo — can be recognised
+ * on return. (Document edits aren't in the per-claim trail, only Zotero writes.) */
+function committedZoteroTxn(cand) {
+  if (!cand || !state.history) return null;
+  return (state.history.transactions || []).find(
+    (t) => t.candidate_id === cand.candidate_id && t.status === "committed" && !t.undone_at) || null;
+}
+/* The transaction the Undo button/`u` key should act on: the in-session write if
+ * we just made one, else the recovered committed write for the active candidate. */
+function recoverableTxn() {
+  if (state.lastTxn) return state.lastTxn;
+  const t = committedZoteroTxn(activeCand());
+  return t ? t.transaction_id : null;
+}
 function phaseOf(cand) {
   const r = cand && cand.rating, ev = cand && cand.evidence;
   const key = state.activeClaim + ":" + (cand && cand.candidate_id);
   if (state.done.has(key)) return "done";
   if (!r || !r.human) return "rate";
   if (!ev || !ev.decision_id) return "decide";
+  // a committed (not-undone) Zotero write means the write step is already done —
+  // recognise it after navigating away and back, not just in the session that made it.
+  if (committedZoteroTxn(cand)) return "done";
   return "write";
 }
 
@@ -476,7 +496,7 @@ function doneBlock(cand) {
   const code = (cand.evidence && cand.evidence.final_decision) || "";
   const what = { accept: "Added to Zotero", accepted_with_caution: "Added with caution",
     needs_second_review: "Manuscript revised", reject: "Claim struck in document" }[code] || "Recorded";
-  const undo = state.lastTxn ? `<button class="btn ghost" data-act="zundo">Undo Zotero write</button>`
+  const undo = recoverableTxn() ? `<button class="btn ghost" data-act="zundo">Undo Zotero write</button>`
     : state.docTxn ? `<button class="btn ghost" data-act="docundo">Undo document edit</button>` : "";
   return `<div class="next"><div class="done-banner">✓ ${what} — recorded with an undo path.</div>
     <div class="actions">${undo}<button class="btn primary" data-act="next">Next claim <span class="hk">↵</span></button></div></div>`;
@@ -607,9 +627,16 @@ async function zcommit() {
   } catch (e) { showErr(e.message); }
 }
 async function zundo() {
-  if (!state.lastTxn) return;
-  try { await api("POST", "/api/writes/undo", { transaction_id: state.lastTxn }); state.lastTxn = null; unmarkDone(); }
-  catch (e) { showErr(e.message); }
+  const txn = recoverableTxn();
+  if (!txn) return;
+  const cand = activeCand();
+  try {
+    await api("POST", "/api/writes/undo", { transaction_id: txn });
+    state.lastTxn = null;
+    state.done.delete(state.activeClaim + ":" + (cand && cand.candidate_id));
+    await selectClaim(state.activeClaim);   // reload the trail: the txn now reads 'undone' and the step falls back to write
+    loadAudit();
+  } catch (e) { showErr(e.message); }
 }
 async function docPreview(kind) {
   // for a revise, send the wording the human typed; strike needs no replacement
@@ -835,7 +862,7 @@ document.addEventListener("keydown", (e) => {
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;   // letter keys are CapsLock-proof
   if (key === "?") { $("#legendBtn").click(); return e.preventDefault(); }              // ? help
   if (key === "u") {                                                                    // u undo last write/edit
-    if (state.lastTxn) { zundo(); return e.preventDefault(); }
+    if (recoverableTxn()) { zundo(); return e.preventDefault(); }
     if (state.docTxn) { docUndo(); return e.preventDefault(); }
   }
   const ids = claimOrder(); if (!ids.length) return;   // document order, matching the eye
