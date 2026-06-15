@@ -138,8 +138,9 @@ def test_unlink_candidate_removes_one_and_is_audited(tmp_path):
 def test_unlink_unknown_candidate_raises(tmp_path):
     store, claim_id, batch_id = _setup(tmp_path)
     CandidateService(store).link_from_intake(claim_id, batch_id)
-    with pytest.raises(StateError):
+    with pytest.raises(StateError) as ei:
         store.unlink_candidate(claim_id, "no-such-candidate")
+    assert getattr(ei.value, "code", None) == "candidate_not_linked"
 
 
 def test_tools_unlink_candidate_reports_remaining(tmp_path):

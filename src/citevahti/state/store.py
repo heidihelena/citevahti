@@ -272,16 +272,25 @@ class CiteVahtiStore:
 
     def unlink_candidate(self, claim_id: str, candidate_id: str):
         """Drop one candidate from a claim's set, recording the removal in the
-        audit chain. Non-destructive: the hash chain only grows, and any rating
-        or decision already recorded for the candidate stays in its own audited
-        record — this only unlinks the paper from active consideration."""
+        audit chain. Non-destructive: the hash chain only grows. Only allowed
+        BEFORE a verdict is recorded — a candidate with a final decision (and so
+        possibly a Zotero write) must have that decision undone first, otherwise
+        the decision/write would be left orphaned and the claim would still
+        render its decided colour from the now-missing candidate."""
         from ..validators.candidate import validate_claim_candidates
 
         cc = self.load_candidates(claim_id)
-        before = len(cc.candidates)
+        if not any(c.candidate_id == candidate_id for c in cc.candidates):
+            err = StateError(f"candidate {candidate_id!r} is not linked to claim {claim_id!r}")
+            err.code = "candidate_not_linked"
+            raise err
+        if (self.decisions_dir() / f"dec-{candidate_id}.json").exists():
+            err = StateError(
+                f"candidate {candidate_id!r} has a recorded decision — undo the decision "
+                "(and any Zotero write) before unlinking the paper")
+            err.code = "candidate_decided"
+            raise err
         cc.candidates = [c for c in cc.candidates if c.candidate_id != candidate_id]
-        if len(cc.candidates) == before:
-            raise StateError(f"candidate {candidate_id!r} is not linked to claim {claim_id!r}")
         validate_claim_candidates(cc)
         entry = self.audit.append("candidate.unlink",
                                   {"claim_id": claim_id, "candidate_id": candidate_id,
