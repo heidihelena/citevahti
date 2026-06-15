@@ -112,7 +112,8 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 /* ---- claim spans ---- */
 .claim { border-radius: 4px; padding: 1px 3px; cursor: pointer; border-bottom: 2px solid transparent; }
 .claim .code { font: 700 11px/1 ui-monospace, Menlo, monospace; margin-left: 5px; padding: 1px 4px;
-  border-radius: 4px; border: 1px solid; vertical-align: 1px; white-space: pre; }
+  border-radius: 4px; border: 1px solid; vertical-align: 1px; white-space: pre;
+  -webkit-user-select: none; user-select: none; }   /* decorative marker — keep it out of copied text */
 /* undecided claims still need to POP as the review targets — a neutral brand wash
  * (lilac = the app's interactive colour, not one of the four verdict hues) so they
  * are obviously highlighted before any verdict colour is earned. */

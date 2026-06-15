@@ -53,6 +53,20 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const $ = (sel) => document.querySelector(sel);
 
+/* A one-line reference from whatever identifiers a candidate carries — honest with
+ * partial metadata. Used both to tag cited passages (data-citation) and, on copy, to
+ * append the source to the clipboard. */
+function citeOf(c) {
+  if (!c) return "";
+  const bits = [];
+  if (c.title) bits.push(String(c.title).trim().replace(/\.+$/, ""));
+  const meta = [c.journal, c.year].filter(Boolean).join(" ");
+  if (meta) bits.push(meta);
+  if (c.doi) bits.push("https://doi.org/" + c.doi);
+  else if (c.pmid) bits.push("PMID " + c.pmid);
+  return bits.join(". ");
+}
+
 /* ---------- boot ---------- */
 async function boot() {
   applyTheme();
@@ -200,7 +214,10 @@ function renderDoc() {
     const code = decided && st.code ? `[${st.code.padEnd(2)}]` : "[··]";
     const active = seg.claim_id === state.activeClaim ? " active" : "";
     const aria = decided ? ({ oo: "accepted", o: "accept with caution", r: "needs review", d: "rejected" }[st.code] || "decided") : "pending";
-    return `<span class="claim ${cls}${active}" data-claim="${esc(seg.claim_id)}" tabindex="0" role="button" aria-label="${esc("claim " + aria + ": " + seg.text)}">${esc(seg.text)}<span class="code" aria-hidden="true">${esc(code)}</span></span>`;
+    // an accepted claim is a cited passage: tag it so copying carries the citation
+    const ref = st.cite ? citeOf(st.cite) : "";
+    const cite = ref ? ` data-citation="${esc(ref)}"` : "";
+    return `<span class="claim ${cls}${active}" data-claim="${esc(seg.claim_id)}"${cite} tabindex="0" role="button" aria-label="${esc("claim " + aria + ": " + seg.text)}">${esc(seg.text)}<span class="code" aria-hidden="true">${esc(code)}</span></span>`;
   }).join("");
   doc.innerHTML = html;
   if (v.mode === "reconstructed") {
@@ -530,11 +547,14 @@ function contextBlock(cand) {
     return `<span class="check ${cls}">${lab} ${val == null ? "–" : val}</span>`;
   }).join("") : "";
   const cit = ev.fit_total == null ? "" : `<span class="fittag">Citation fit ${fitWord(ev.fit_total)} (${ev.fit_total}/8)</span>`;
+  // the abstract and supporting excerpt are verbatim source text — tag them so a copy
+  // carries this candidate's citation (same data-citation hook as the claim spans)
+  const dc = citeOf(cand) ? ` data-citation="${esc(citeOf(cand))}"` : "";
   return `<details class="context" open><summary>Evidence &amp; fit checks</summary><div class="body">
     <div class="lbl">Candidate source</div><div class="paper">${esc(cand.title || "(untitled)")}</div>
     <div class="note">${esc(cand.journal || "")} ${ident ? "· " + esc(ident) : ""}</div>
-    ${cand.abstract ? `<div class="lbl">Abstract</div><div class="excerpt">${esc(cand.abstract)}</div>` : ""}
-    ${ev.excerpt ? `<div class="lbl">Supporting excerpt</div><div class="excerpt">${esc(ev.excerpt)}</div>` : ""}
+    ${cand.abstract ? `<div class="lbl">Abstract</div><div class="excerpt"${dc}>${esc(cand.abstract)}</div>` : ""}
+    ${ev.excerpt ? `<div class="lbl">Supporting excerpt</div><div class="excerpt"${dc}>${esc(ev.excerpt)}</div>` : ""}
     ${picks || cit ? `<div class="lbl">Fit checks</div><div class="checks">${picks}${cit}</div>` : ""}
     <div class="actions" style="margin-top:10px"><button class="btn ghost" data-act="zot-evidence">Show Zotero highlights &amp; full text</button></div>
     <div id="zotEvidence"></div>
@@ -828,6 +848,26 @@ async function savePastedManuscript() {
 }
 
 /* ---------- events ---------- */
+/* Citation-on-copy: copying text from a cited passage carries its source, like the
+ * "read more at…" pattern. When the whole selection sits inside an element tagged with
+ * data-citation (an accepted claim, or a quoted source excerpt/abstract), append the
+ * reference to both clipboard formats. Self-contained — no network, no external deps. */
+document.addEventListener("copy", (e) => {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+  const start = sel.anchorNode, end = sel.focusNode;
+  const host = start && (start.nodeType === 1 ? start : start.parentElement);
+  const cite = host && host.closest("[data-citation]");
+  if (!cite || !end || !cite.contains(end)) return;   // both ends must be inside the passage
+  const ref = cite.getAttribute("data-citation");
+  if (!ref || !e.clipboardData) return;
+  const text = sel.toString().trim();
+  if (!text) return;
+  e.clipboardData.setData("text/plain", `${text}\n\n— ${ref}`);
+  e.clipboardData.setData("text/html", `${esc(text)} <cite>(${esc(ref)})</cite>`);
+  e.preventDefault();
+});
+
 document.addEventListener("click", (e) => {
   const sw = e.target.closest("[data-switch]"); if (sw) return switchRoot(sw.dataset.switch);
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);

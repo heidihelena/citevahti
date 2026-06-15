@@ -186,8 +186,24 @@ def _row_claim(r) -> dict:
 
 
 def _claim_state(r) -> dict:
-    return {"state": r.state, "code": r.code.strip(),
-            "candidate_count": r.candidate_count, "accepted_count": r.accepted_count}
+    out = {"state": r.state, "code": r.code.strip(),
+           "candidate_count": r.candidate_count, "accepted_count": r.accepted_count}
+    cite = _accepted_cite(r)
+    if cite:
+        out["cite"] = cite          # accepted candidate's identifiers → citation-on-copy
+    return out
+
+
+# A claim is a "cited passage" once it has an accepted, supporting candidate; expose
+# that candidate's identifiers so copying the claim text can carry its citation.
+_ACCEPTED_DECISIONS = {"accept", "accepted_with_caution"}
+
+
+def _accepted_cite(r) -> Optional[dict]:
+    for ev in r.evidence:
+        if ev.final_decision in _ACCEPTED_DECISIONS and (ev.title or ev.doi or ev.pmid):
+            return {"title": ev.title, "doi": ev.doi, "pmid": ev.pmid}
+    return None
 
 
 # ---- stable error codes + plain remediation (for users AND agents) ----------

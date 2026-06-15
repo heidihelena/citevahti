@@ -44,7 +44,7 @@ const sandbox = {
 sandbox.window = sandbox;
 
 // expose the otherwise-closure-scoped helpers + state for assertions
-const exposed = src + "\n;globalThis.__cv = { claimOrder, nextPending, phaseOf, recoverableTxn, committedZoteroTxn, get state(){ return state; } };";
+const exposed = src + "\n;globalThis.__cv = { claimOrder, nextPending, phaseOf, recoverableTxn, committedZoteroTxn, citeOf, get state(){ return state; } };";
 vm.createContext(sandbox);
 vm.runInContext(exposed, sandbox, { filename: "app.js" });
 const cv = sandbox.__cv;
@@ -124,6 +124,16 @@ eq("recoverableTxn is null once the write is undone", cv.recoverableTxn(), null)
 cv.state.lastTxn = "txn-session";
 eq("recoverableTxn prefers the in-session lastTxn", cv.recoverableTxn(), "txn-session");
 cv.state.lastTxn = null;
+
+// 6. citation-on-copy: citeOf() formats a one-line reference from whatever a candidate
+// carries, preferring DOI over PMID and degrading honestly with partial metadata.
+eq("citeOf prefers DOI and trims trailing period",
+   cv.citeOf({ title: "Telephone follow-up after surgery.", journal: "BMJ", year: 2021, doi: "10.1/x" }),
+   "Telephone follow-up after surgery. BMJ 2021. https://doi.org/10.1/x");
+eq("citeOf falls back to PMID when no DOI",
+   cv.citeOf({ title: "A trial", pmid: "30000004" }), "A trial. PMID 30000004");
+eq("citeOf with only a title", cv.citeOf({ title: "Bare claim" }), "Bare claim");
+eq("citeOf with nothing is empty", cv.citeOf(null), "");
 
 console.log(failures ? `\n${failures} test(s) failed` : "\nall navigation tests passed");
 process.exit(failures ? 1 : 0);
