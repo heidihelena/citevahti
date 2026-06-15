@@ -55,6 +55,7 @@ const $ = (sel) => document.querySelector(sel);
 
 /* ---------- boot ---------- */
 async function boot() {
+  applyTheme();
   drawLogos();
   try { state.ctx = await api("GET", "/api/context"); }
   catch (e) { $("#card").innerHTML = `<div class="err">panel API unreachable: ${esc(e.message)}</div>`; return; }
@@ -66,8 +67,27 @@ async function boot() {
   applyDeepLink();
 }
 
+/* Theme: dark by default (matches index.html's initial class). A ?theme=light|dark
+ * override wins (deterministic for screenshots and deep links); otherwise a
+ * previously toggled theme is restored from localStorage, so the choice survives a
+ * reload instead of snapping back to dark. */
+function applyTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem("cv-theme"); } catch { /* private mode */ }
+  const q = new URLSearchParams(location.search).get("theme");
+  const pref = (q === "light" || q === "dark") ? q : saved;
+  if (pref === "light") document.documentElement.classList.remove("zs-dark");
+  else if (pref === "dark") document.documentElement.classList.add("zs-dark");
+  syncThemeLabel();
+}
+function syncThemeLabel() {
+  const btn = $("#theme"); if (!btn) return;
+  btn.textContent = document.documentElement.classList.contains("zs-dark") ? "◐ Light" : "◑ Dark";
+}
+
 // Optional URL hooks so a specific review state can be linked or screenshotted:
 //   ?focus=<claim_id>   open that claim's card   ?legend=1   open the legend
+//   ?theme=light|dark   force the theme (see applyTheme)
 function applyDeepLink() {
   const q = new URLSearchParams(location.search);
   const focus = q.get("focus");
@@ -854,8 +874,9 @@ $("#scanRetractions").addEventListener("click", () =>
   maintenance("/api/candidates/scan-retractions", "Scan retractions",
               (r) => `Checked ${r.checked || 0} candidate(s); ${r.flagged || 0} flagged as RETRACTED.`));
 $("#theme").addEventListener("click", () => {
-  document.documentElement.classList.toggle("zs-dark");
-  $("#theme").textContent = document.documentElement.classList.contains("zs-dark") ? "◐ Light" : "◑ Dark";
+  const dark = document.documentElement.classList.toggle("zs-dark");
+  try { localStorage.setItem("cv-theme", dark ? "dark" : "light"); } catch { /* private mode */ }
+  syncThemeLabel();
 });
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea, select")) return;
