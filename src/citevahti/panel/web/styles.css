@@ -5,7 +5,8 @@
  * Rate → Reveal → Decide → Write state machine. Four status hues (amber=oo supported,
  * teal=o partly, violet=r revise, rose=d unsupported); lilac = brand. No green; the
  * bracketed code is always shown so colour is never the only cue. The AI rating is
- * never shown before the human's (enforced server-side). Dark-first. */
+ * never shown before the human's (enforced server-side). Light by default; the
+ * .zs-dark class is the dark override (toggle in the header, remembered per browser). */
 
 /* Reading area is near black-and-white (neutral grayscale, high contrast) so the
  * manuscript reads like a document; lilac is reserved for the decision panel and
