@@ -36,6 +36,7 @@ const state = {
   activeClaim: null, claim: null, candIdx: 0, done: new Set(),
   lastTxn: null, docTxn: null, pendingDocToken: null,
 };
+let oTimer = null;   // double-tap "o" (decide phase): single = caution [o], double = accept [oo]
 
 async function api(method, path, body) {
   const opts = { method, headers: { "Content-Type": "application/json" } };
@@ -228,7 +229,9 @@ function claimOrder() {
 async function selectClaim(id) {
   const sameClaim = id === state.activeClaim;
   state.activeClaim = id;
-  if (!sameClaim) { state.candIdx = 0; resetWrite(); }   // keep the candidate in view on a same-claim refresh
+  // moving to a different claim: drop per-claim write/undo/timer state so a global
+  // key (u undo, the o double-tap) can't act on the claim you just navigated away from.
+  if (!sameClaim) { state.candIdx = 0; resetWrite(); state.lastTxn = null; state.docTxn = null; clearTimeout(oTimer); oTimer = null; }   // keep the candidate in view on a same-claim refresh
   renderDoc(); renderProgress();
   try { state.claim = await api("GET", `/api/claims/${encodeURIComponent(id)}`); }
   catch (e) { $("#card").innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
@@ -279,8 +282,12 @@ function renderCard() {
   else if (ph === "decide") block = decideBlock(cand);
   else if (ph === "write") block = writeBlock(claim, cand);
   else block = doneBlock(cand);
-  const removeRow = `<div class="removerow"><button class="btn ghost" data-act="unlink"
-    title="Unlink this paper from the claim (keeps the claim and audit trail)">✕ Remove paper <span class="hk">⇧D</span></button></div>`;
+  // remove is for the "wrong paper" case before a verdict is recorded; once a
+  // decision exists (write/done) the engine refuses unlink, so hide it there.
+  const removeRow = (ph === "rate" || ph === "decide")
+    ? `<div class="removerow"><button class="btn ghost" data-act="unlink"
+        title="Unlink this paper from the claim (keeps the claim and audit trail)">✕ Remove paper <span class="hk">⇧D</span></button></div>`
+    : "";
   card.innerHTML = stepper(ph) +
     `<div class="lbl">Claim · ${esc(claim.claim_type || "")}</div><div class="claimline">“${esc(claim.claim_text)}”</div>` +
     picker + candidateTags(cand) + removeRow + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr"></div>`;
@@ -574,7 +581,8 @@ async function unlinkCandidate() {
   if (!confirm(`Remove this paper from the claim?\n\n${label}\n\nThe claim and the audit trail are kept — this only unlinks the paper from review.`)) return;
   try {
     await api("POST", "/api/candidates/unlink", { claim_id: state.activeClaim, candidate_id: cand.candidate_id });
-    state.candIdx = 0; resetWrite();
+    state.done.delete(state.activeClaim + ":" + cand.candidate_id);   // drop stale done-state for the removed paper
+    state.candIdx = 0; resetWrite(); state.lastTxn = null; state.docTxn = null;
     await loadManuscript(state.activeMs);   // refresh span colour
     await selectClaim(state.activeClaim);
     loadAudit();                            // the unlink appended an audit entry
@@ -822,40 +830,43 @@ $("#theme").addEventListener("click", () => {
   document.documentElement.classList.toggle("zs-dark");
   $("#theme").textContent = document.documentElement.classList.contains("zs-dark") ? "◐ Light" : "◑ Dark";
 });
-let oTimer = null;   // double-tap "o": single = caution [o], double = accept [oo]
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea, select")) return;
-  if (e.key === "?") { $("#legendBtn").click(); return e.preventDefault(); }            // ? help
-  if (e.key === "u") {                                                                  // u undo last write/edit
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;   // letter keys are CapsLock-proof
+  if (key === "?") { $("#legendBtn").click(); return e.preventDefault(); }              // ? help
+  if (key === "u") {                                                                    // u undo last write/edit
     if (state.lastTxn) { zundo(); return e.preventDefault(); }
     if (state.docTxn) { docUndo(); return e.preventDefault(); }
   }
   const ids = claimOrder(); if (!ids.length) return;   // document order, matching the eye
   const i = ids.indexOf(state.activeClaim);
-  if (e.key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); return e.preventDefault(); }
-  if (e.key === "k" || e.key === "ArrowUp") { selectClaim(ids[Math.max(i - 1, 0)]); return e.preventDefault(); }
+  if (key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); return e.preventDefault(); }
+  if (key === "k" || e.key === "ArrowUp") { selectClaim(ids[Math.max(i - 1, 0)]); return e.preventDefault(); }
   const cand = activeCand(); if (!cand) return;
-  if (e.shiftKey && (e.key === "D" || e.key === "d")) { unlinkCandidate(); return e.preventDefault(); }   // ⇧D guarded remove
+  if (e.shiftKey && key === "d") { unlinkCandidate(); return e.preventDefault(); }       // ⇧D guarded remove
   const ph = phaseOf(cand);
   if (ph === "rate" && /^[1-6]$/.test(e.key)) { rate(SUPPORT[+e.key - 1][0]); return e.preventDefault(); }   // 1–6 support rating
   if (ph === "decide") {                                                                // verdict keys: oo / o / r / d
-    if (e.key === "r") { recordDecision("needs_second_review"); return e.preventDefault(); }
-    if (e.key === "d" && !e.shiftKey) { recordDecision("reject"); return e.preventDefault(); }
-    if (e.key === "o") {
+    if (key === "r") { recordDecision("needs_second_review"); return e.preventDefault(); }
+    if (key === "d") { recordDecision("reject"); return e.preventDefault(); }            // (⇧D handled above)
+    if (key === "o") {
+      if (e.repeat) return e.preventDefault();   // ignore auto-repeat so a held "o" isn't read as "oo"
       if (oTimer) { clearTimeout(oTimer); oTimer = null; recordDecision("accept"); }                         // "oo" → [oo]
       else { oTimer = setTimeout(() => { oTimer = null; recordDecision("accepted_with_caution"); }, 300); }   // "o"  → [o]
       return e.preventDefault();
     }
   }
   if (ph === "write") {
-    if (e.key === "s") {                                                                // s stage = preview the write/edit
-      const code = cand.evidence && cand.evidence.final_decision;
-      if (code === "needs_second_review") docPreview("revise");
-      else if (code === "reject") docPreview("strike");
-      else zpreview();
+    if (key === "s") {                                                                  // s stage = preview (no-op if already staged)
+      if (!state.pendingZtoken && !state.pendingDocToken) {
+        const code = cand.evidence && cand.evidence.final_decision;
+        if (code === "needs_second_review") docPreview("revise");
+        else if (code === "reject") docPreview("strike");
+        else zpreview();
+      }
       return e.preventDefault();
     }
-    if (e.key === "a") { const p = primary(); if (p) p(); return e.preventDefault(); }   // a apply / add to Zotero
+    if (key === "a") { const p = primary(); if (p) p(); return e.preventDefault(); }     // a apply / add to Zotero
   }
   if (e.key === "Enter") { const p = primary(); if (p) { p(); e.preventDefault(); } }    // ↵ primary action
 });

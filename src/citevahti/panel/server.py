@@ -203,6 +203,8 @@ _REMEDIATION = {
     "stale_preview": "The file changed since the preview — preview again so the edit applies to the current text.",
     "support_rule": "Follow the rate → reveal → decide order; adjudicate a disagreement before deciding.",
     "decision_rule": "Resolve the support rating first (rate, then adjudicate a discordance), then decide.",
+    "candidate_decided": "Undo the decision (and any Zotero write) before unlinking this paper.",
+    "candidate_not_linked": "Reload the claim — this paper is no longer one of its candidates.",
 }
 _CODE_BY_TYPE = {
     "ValidationError": "invalid_input", "ManualParseError": "parse_error",

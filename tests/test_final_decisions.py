@@ -233,3 +233,27 @@ def test_decision_cannot_accept_an_unrated_pair(tmp_path):
         eng.support_adjudicate(rec.rating_id, "directly_supports", rationale="override")
     with pytest.raises(DecisionError):              # and the unresolved pair cannot be accepted
         DecisionService(store).decide(claim_id, cand_id, "accept", "reason", rating_id=rec.rating_id)
+
+
+# ---- guarded remove may not orphan a recorded decision ----------------------
+def test_unlink_refused_after_a_decision_is_recorded(tmp_path):
+    """A candidate with a final decision (and so possibly a Zotero write) cannot
+    be unlinked — that would orphan the decision and leave the claim showing a
+    verdict for a paper no longer in its candidate set. Undo the decision first."""
+    store, claim_id, cand_id = _setup(tmp_path)
+    rid = _rate(store, claim_id, cand_id, "directly_supports", ai="directly_supports")
+    DecisionService(store).decide(claim_id, cand_id, "accept",
+                                  "primary endpoint supports the claim", rating_id=rid)
+    with pytest.raises(StateError) as ei:
+        store.unlink_candidate(claim_id, cand_id)
+    assert getattr(ei.value, "code", None) == "candidate_decided"
+    # refused atomically: the candidate is still linked
+    assert any(c.candidate_id == cand_id for c in store.load_candidates(claim_id).candidates)
+
+
+def test_unlink_allowed_before_a_decision(tmp_path):
+    """Before any verdict, unlinking the wrong paper is fine (the common case)."""
+    store, claim_id, cand_id = _setup(tmp_path)
+    _rate(store, claim_id, cand_id, "directly_supports", ai="directly_supports")  # rated, not decided
+    out = store.unlink_candidate(claim_id, cand_id)
+    assert all(c.candidate_id != cand_id for c in out.candidates)
