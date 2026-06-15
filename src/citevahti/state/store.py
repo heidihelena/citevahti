@@ -247,17 +247,22 @@ class CiteVahtiStore:
     def candidates_dir(self) -> Path:
         return self.dir / "candidates"
 
-    def save_candidates(self, cc):
-        """Validate, audit, and atomically write a claim's candidate set."""
+    def _commit_candidates(self, cc, event: str, payload: dict):
+        """The one write path for a claim's candidate set: validate, audit, write
+        atomically, then re-validate that the audit stamp landed. Both link and
+        unlink go through here so the audit invariants can never drift apart."""
         from ..validators.candidate import validate_claim_candidates
 
         validate_claim_candidates(cc)
-        entry = self.audit.append("candidate.link",
-                                  {"claim_id": cc.claim_id, "candidates": len(cc.candidates)})
-        cc.audit_event_id = entry.hash
+        cc.audit_event_id = self.audit.append(event, payload).hash
         _atomic_write(self.candidates_dir() / f"{cc.claim_id}.json", _dump(cc))
         validate_claim_candidates(cc, require_audit=True)
         return cc
+
+    def save_candidates(self, cc):
+        """Validate, audit, and atomically write a claim's candidate set."""
+        return self._commit_candidates(cc, "candidate.link",
+                                       {"claim_id": cc.claim_id, "candidates": len(cc.candidates)})
 
     def load_candidates(self, claim_id: str):
         from ..schemas.candidate import ClaimCandidates
@@ -277,8 +282,6 @@ class CiteVahtiStore:
         possibly a Zotero write) must have that decision undone first, otherwise
         the decision/write would be left orphaned and the claim would still
         render its decided colour from the now-missing candidate."""
-        from ..validators.candidate import validate_claim_candidates
-
         cc = self.load_candidates(claim_id)
         if not any(c.candidate_id == candidate_id for c in cc.candidates):
             err = StateError(f"candidate {candidate_id!r} is not linked to claim {claim_id!r}")
@@ -291,14 +294,9 @@ class CiteVahtiStore:
             err.code = "candidate_decided"
             raise err
         cc.candidates = [c for c in cc.candidates if c.candidate_id != candidate_id]
-        validate_claim_candidates(cc)
-        entry = self.audit.append("candidate.unlink",
-                                  {"claim_id": claim_id, "candidate_id": candidate_id,
-                                   "remaining": len(cc.candidates)})
-        cc.audit_event_id = entry.hash
-        _atomic_write(self.candidates_dir() / f"{claim_id}.json", _dump(cc))
-        validate_claim_candidates(cc, require_audit=True)
-        return cc
+        return self._commit_candidates(cc, "candidate.unlink",
+                                       {"claim_id": claim_id, "candidate_id": candidate_id,
+                                        "remaining": len(cc.candidates)})
 
     # ---- claim-support ratings (ADR-0001, step 3) ------------------------
     def claim_support_dir(self) -> Path:
