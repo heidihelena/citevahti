@@ -67,10 +67,10 @@ async function boot() {
   applyDeepLink();
 }
 
-/* Theme: dark by default (matches index.html's initial class). A ?theme=light|dark
- * override wins (deterministic for screenshots and deep links); otherwise a
- * previously toggled theme is restored from localStorage, so the choice survives a
- * reload instead of snapping back to dark. */
+/* Theme: light by default (the base stylesheet; .zs-dark is the override, and
+ * index.html ships no default class). A ?theme=light|dark override wins
+ * (deterministic for screenshots and deep links); otherwise a previously toggled
+ * theme is restored from localStorage, so the choice survives a reload. */
 function applyTheme() {
   let saved = null;
   try { saved = localStorage.getItem("cv-theme"); } catch { /* private mode */ }

@@ -68,8 +68,8 @@ status, so the order is **auditable**, not assumed.)
 > with the `cv-demo` launch config (`--root .demo-ledger`). To regenerate the screenshots
 > themselves in light mode, run `PYTHONPATH=src python3 docs/demo/capture_screenshots.py`
 > (needs `pip install playwright && playwright install chromium`); it forces light via the
-> panel's `?theme=light` hook. The panel itself defaults to dark — the **◑/◐** toggle in the
-> header switches and now remembers your choice.
+> panel's `?theme=light` hook. The panel defaults to light — the **◑/◐** toggle in the
+> header switches to dark and now remembers your choice.
 
 ## Getting started: install, then pick a path
 
