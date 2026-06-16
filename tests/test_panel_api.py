@@ -1039,3 +1039,36 @@ def test_oauth_callback_finishes_handshake_and_clears_pending(tmp_path, monkeypa
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def test_warehouse_status_and_configure(tmp_path):
+    _setup(tmp_path)
+    status, st = dispatch(str(tmp_path), "GET", "/api/warehouse", None)
+    assert status == 200 and st["enabled"] is False and st["record_count"] == 0
+    status, st = dispatch(str(tmp_path), "POST", "/api/warehouse/configure", {"enabled": True})
+    assert status == 200 and st["enabled"] is True
+
+
+def test_atlas_contribution_preview_is_download_only(tmp_path):
+    from citevahti.schemas.validation_record import ValidationRecord
+    from citevahti.util import sha256_hex
+
+    store, _claim, _cand = _setup(tmp_path)
+    store.append_validation_record(ValidationRecord(
+        record_id="vr-1", created_at="2026-06-16T00:00:00+00:00",
+        claim_text_hash=sha256_hex("ldct reduces mortality"), pmid="123",
+        claim_text="LDCT reduces mortality", final_decision="accept"))
+    status, bundle = dispatch(str(tmp_path), "POST", "/api/atlas/contribution-preview",
+                              {"allow_claim_text": False})
+    assert status == 200 and bundle["count"] == 1
+    assert bundle["records"][0]["claim_text"] is None         # stripped — no leak by default
+    assert bundle["contribution_id"].startswith("contrib_")
+    # the receipt makes the no-transmission promise explicit
+    assert "transmit" in bundle["consent_receipt"]["egress"].lower()
+
+
+def test_atlas_revoke_builds_request(tmp_path):
+    _setup(tmp_path)
+    status, req = dispatch(str(tmp_path), "POST", "/api/atlas/revoke",
+                           {"contribution_id": "contrib_abc"})
+    assert status == 200 and req["kind"] == "revocation" and req["contribution_id"] == "contrib_abc"

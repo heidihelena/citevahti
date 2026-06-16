@@ -484,6 +484,39 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, {"intact": bool(store.audit.verify()),
                          "entries": len(store.audit.entries())}
 
+        # ---- de-identified warehouse (local, opt-in, default-off) -----------
+        if method == "GET" and path == "/api/warehouse":
+            s = engine.warehouse_status(root=root)
+            return 200, {"enabled": s.enabled, "include_claim_text": s.include_claim_text,
+                         "record_count": s.record_count}
+
+        if method == "POST" and path == "/api/warehouse/configure":
+            s = engine.warehouse_configure(enabled=body.get("enabled"),
+                                           include_claim_text=body.get("include_claim_text"),
+                                           auto_emit=body.get("auto_emit"),
+                                           domain=body.get("domain"), root=root)
+            return 200, {"enabled": s.enabled, "include_claim_text": s.include_claim_text,
+                         "record_count": s.record_count}
+
+        if method == "POST" and path == "/api/warehouse/export":
+            s = engine.warehouse_export(root=root)
+            return 200, {"output_file": s.output_file, "record_count": s.record_count}
+
+        if method == "POST" and path == "/api/warehouse/purge":
+            s = engine.warehouse_purge(root=root)
+            return 200, {"record_count": s.record_count, "skipped_reason": s.skipped_reason}
+
+        # ---- Atlas contribution: build a bundle / revocation (NO transmission) --
+        # The panel offers the returned bundle as a local download; nothing is sent
+        # anywhere from here (download-only egress — there is no upload endpoint).
+        if method == "POST" and path == "/api/atlas/contribution-preview":
+            return 200, engine.atlas_contribution_preview(
+                allow_claim_text=bool(body.get("allow_claim_text", False)), root=root)
+
+        if method == "POST" and path == "/api/atlas/revoke":
+            return 200, engine.atlas_revoke(_req(body, "contribution_id"),
+                                            reason=body.get("reason"), root=root)
+
         # ---- manuscripts (inline review surface) ---------------------------
         if method == "GET" and path == "/api/manuscripts":
             mdir = prefs.get_manuscripts_dir(root)
