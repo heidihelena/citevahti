@@ -4,7 +4,32 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
-## 0.16.0 — verified→accepted (BREAKING), [u] untestable, report provenance, --json, desktop extension (2026-06-12)
+## 0.16.0 — guided run, panel wizard, opt-in timestamping; verified→accepted (BREAKING) (2026-06-16)
+
+Highlights since `v0.16.0-beta.1`:
+
+- **One guided command: `citevahti run`** (init if needed → say what's next → open the
+  panel), plus **`citevahti resume`** and **`citevahti doctor`** (plain-language readiness).
+  A single shared next-action resolver (`citevahti.workflow`) now backs every surface, so
+  the panel, VS Code, CLI, and agent prompt no longer each re-derive the
+  `rate → reveal → decide → write` phase.
+- **Panel "what's next" wizard**: a banner that names the one next action and routes you to
+  it — the no-terminal path for new users.
+- **Opt-in cryptographic timestamping of the audit head** (RFC 3161; `citevahti timestamp`)
+  — the foundation for third-party-verifiable provenance. Off by default; only the SHA-256
+  audit-head hash ever leaves the machine. Full TSA certificate-chain validation is a
+  follow-up, so RFC 3161 trust is currently experimental.
+- **Citation-on-copy**: copying a cited passage in the panel carries its source reference
+  (plain text + HTML). **Timestamped report** download button (header **⎙ Report**).
+- **`citevahti vocabulary`** exposes the verdicts/states/phases as JSON; the VS Code
+  extension reads it instead of hardcoding the verdict map.
+- Panel now **defaults to light** and remembers the theme toggle.
+- **Fix:** the report and panel select a (claim, candidate)'s rating deterministically
+  (most-advanced / most-recent), not an arbitrary uuid-sorted one.
+- **CI** runs the offline suite (py3.10 + 3.12) and the VS Code compile on every push/PR;
+  PEP 639 license metadata; SECURITY.md / REVIEW_CHECKLIST / VS Code docs de-drifted.
+
+Earlier in 0.16.0 (the `v0.16.0-beta.1` line):
 
 - **BREAKING: the `[oo]` claim state is renamed `verified` → `accepted`**
   (external-audit finding #7-B). "Verified" implied clinical/scientific truth;
