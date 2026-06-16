@@ -95,32 +95,36 @@ const ledgerOrder = Object.keys(cv.state.view.claim_states);
 eq("claimOrder differs from ledger order (the original bug)",
    JSON.stringify(cv.claimOrder()) !== JSON.stringify(ledgerOrder), true);
 
-// 5. undo-after-return: a committed (not-undone) Zotero write for the active candidate
-// is recovered from the per-claim audit trail, so the write step reads 'done' and its
-// transaction is undoable even after navigating away and back (state.lastTxn is null).
-const decidedCand = { candidate_id: "c1", rating: { human: { value: "yes" } },
-  evidence: { decision_id: "dec-1", final_decision: "accept" } };
+// 5. phase comes from the server (workflow.candidate_step) — phaseOf renders cand.step,
+// it no longer re-derives the rate→decide→write rules client-side. The in-session done
+// overlay still gives instant feedback right after a commit.
+const decidedCand = { candidate_id: "c1", step: { phase: "write" } };
 cv.state.activeClaim = "d2";
 cv.state.candIdx = 0;
 cv.state.claim = { claim: { claim_id: "d2" }, candidates: [decidedCand] };
-cv.state.lastTxn = null;
 cv.state.done = new Set();
+eq("phaseOf renders the server-provided step.phase", cv.phaseOf(decidedCand), "write");
+decidedCand.step = { phase: "done" };
+eq("phaseOf follows the server to 'done' (e.g. a committed write)", cv.phaseOf(decidedCand), "done");
+decidedCand.step = undefined;
+eq("phaseOf defaults to 'rate' when the server sent no step", cv.phaseOf(decidedCand), "rate");
+cv.state.done.add("d2:c1");
+eq("phaseOf overlays in-session done for instant post-commit feedback",
+   cv.phaseOf(decidedCand), "done");
+cv.state.done = new Set();
+
+// undo-after-return: a committed (not-undone) Zotero write for the active candidate is
+// still recovered from the per-claim audit trail so the Undo button works after a return.
+cv.state.lastTxn = null;
 cv.state.history = { transactions: [
   { transaction_id: "txn-aaa", candidate_id: "c1", status: "committed", undone_at: null },
 ] };
-eq("phaseOf is 'done' when a committed Zotero write is recovered from the trail",
-   cv.phaseOf(decidedCand), "done");
 eq("recoverableTxn returns the committed txn id after return (lastTxn cleared)",
    cv.recoverableTxn(), "txn-aaa");
-
-// an undone write must NOT be recovered: the step falls back to 'write', undo is gone
 cv.state.history = { transactions: [
   { transaction_id: "txn-aaa", candidate_id: "c1", status: "undone", undone_at: "2026-06-15T00:00" },
 ] };
-eq("phaseOf falls back to 'write' once the write is undone", cv.phaseOf(decidedCand), "write");
 eq("recoverableTxn is null once the write is undone", cv.recoverableTxn(), null);
-
-// in-session write still wins: state.lastTxn is preferred over trail recovery
 cv.state.lastTxn = "txn-session";
 eq("recoverableTxn prefers the in-session lastTxn", cv.recoverableTxn(), "txn-session");
 cv.state.lastTxn = null;

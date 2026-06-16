@@ -295,15 +295,11 @@ function recoverableTxn() {
   return t ? t.transaction_id : null;
 }
 function phaseOf(cand) {
-  const r = cand && cand.rating, ev = cand && cand.evidence;
   const key = state.activeClaim + ":" + (cand && cand.candidate_id);
-  if (state.done.has(key)) return "done";
-  if (!r || !r.human) return "rate";
-  if (!ev || !ev.decision_id) return "decide";
-  // a committed (not-undone) Zotero write means the write step is already done —
-  // recognise it after navigating away and back, not just in the session that made it.
-  if (committedZoteroTxn(cand)) return "done";
-  return "write";
+  if (state.done.has(key)) return "done";              // instant feedback right after a commit
+  // the phase is computed server-side in one place (workflow.candidate_step) so every
+  // surface agrees; the server already returns "done" for a committed, not-undone write.
+  return (cand && cand.step && cand.step.phase) || "rate";
 }
 
 function stepper(active) {
