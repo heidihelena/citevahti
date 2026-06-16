@@ -705,6 +705,7 @@ def onboard(*, root: Optional[str] = None, ncbi_email: Optional[str] = None,
             zotero_user_id: Optional[str] = None, zotero_library_id: Optional[str] = None,
             zotero_library_type: str = "user", default_collection_key: Optional[str] = None,
             zotero_write_key: Optional[str] = None, ncbi_api_key: Optional[str] = None,
+            fullvahti_token: Optional[str] = None,
             secrets_backend: str = "system_keyring", validate: bool = True,
             credential_store=None, validators="auto"):
     """Capture non-secret identifiers (config) and secret keys (OS keyring/env).
@@ -724,7 +725,7 @@ def onboard(*, root: Optional[str] = None, ncbi_email: Optional[str] = None,
         ncbi_email=ncbi_email, zotero_user_id=zotero_user_id, zotero_library_id=zotero_library_id,
         zotero_library_type=zotero_library_type, default_collection_key=default_collection_key,
         zotero_write_key=zotero_write_key, ncbi_api_key=ncbi_api_key,
-        secrets_backend=secrets_backend, validate=validate)
+        fullvahti_token=fullvahti_token, secrets_backend=secrets_backend, validate=validate)
 
 
 # ---- ADR-0001 step 1: claims --------------------------------------------

@@ -94,3 +94,22 @@ def test_audit_records_config_save(tmp_path):
     s.onboard(zotero_user_id="123456", zotero_write_key=SECRET)
     assert "config.save" in [e.event for e in store.audit.entries()]
     assert store.audit.verify() is True
+
+
+def test_fullvahti_token_stored_and_wires_local_addon(tmp_path):
+    from citevahti.credentials import FULLVAHTI_TOKEN
+    cred = InMemoryCredentialStore()
+    s, store = svc(tmp_path, cred=cred)
+    rep = s.onboard(fullvahti_token="fv-secret")
+    assert cred.get_secret(FULLVAHTI_TOKEN) == "fv-secret"      # in the secret store
+    assert FULLVAHTI_TOKEN in rep.secrets_stored               # names only
+    cfg = store.load_config()
+    assert cfg.writeback.enabled is True and cfg.writeback.kind == "local_addon"
+    assert "fv-secret" not in store.config_path.read_text()    # value never in config
+
+
+def test_web_api_takes_precedence_over_fullvahti(tmp_path):
+    # both a Zotero write key and a FullVahti token -> web_api (item creation) wins
+    s, store = svc(tmp_path, validators=OkValidators())
+    s.onboard(zotero_user_id="123456", zotero_write_key=SECRET, fullvahti_token="fv-secret")
+    assert store.load_config().writeback.kind == "web_api"

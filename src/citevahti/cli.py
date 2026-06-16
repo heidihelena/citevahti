@@ -1313,11 +1313,13 @@ def _cmd_onboard(args) -> int:
     print("Onboarding (secrets never printed, never written to config):")
     zkey = get_secret("CITEVAHTI_ZOTERO_WRITE_KEY", "Zotero write key", not args.no_zotero_key)
     nkey = get_secret("CITEVAHTI_NCBI_API_KEY", "NCBI API key", args.ncbi_key)
+    fvtoken = get_secret("CITEVAHTI_FULLVAHTI_TOKEN", "FullVahti plugin token",
+                         getattr(args, "fullvahti_token", False))
     rep = tools.onboard(
         root=args.root, ncbi_email=args.ncbi_email, zotero_user_id=args.zotero_user_id,
         zotero_library_id=args.zotero_library_id, zotero_library_type=args.zotero_library_type,
         default_collection_key=args.collection_key, zotero_write_key=zkey, ncbi_api_key=nkey,
-        secrets_backend=args.backend, validate=not args.skip_validate)
+        fullvahti_token=fvtoken, secrets_backend=args.backend, validate=not args.skip_validate)
     print(f"secrets_backend : {rep.secrets_backend}")
     print(f"config updated  : {sorted(set(rep.config_updated))}")
     print(f"secrets stored  : {rep.secrets_stored or '(none)'}")   # names only, never values
@@ -1767,6 +1769,8 @@ def main(argv: list[str] | None = None) -> int:
     ob.add_argument("--backend", choices=["system_keyring", "env"], default="system_keyring")
     ob.add_argument("--ncbi-key", action="store_true", help="also capture the NCBI API key")
     ob.add_argument("--no-zotero-key", action="store_true", help="do not capture a Zotero write key")
+    ob.add_argument("--fullvahti-token", action="store_true",
+                    help="also capture the FullVahti plugin's tag-write token (wires the local_addon backend)")
     ob.add_argument("--skip-validate", action="store_true",
                     help="skip live validation of keys before storing")
     ob.set_defaults(func=_cmd_onboard)
