@@ -590,6 +590,24 @@ def test_intake_commit_requires_confirm_token(tmp_path, monkeypatch):
     assert seen["dry_run"] is False and seen["confirm_token"] == "tok-1"
 
 
+def test_claim_revise_updates_ledger_text(tmp_path):
+    _setup(tmp_path)
+    store = CiteVahtiStore(tmp_path)
+    claim_id = store.list_claims()[0]
+    status, payload = dispatch(str(tmp_path), "POST", f"/api/claims/{claim_id}/revise",
+                               {"replacement": "LDCT reduces lung-cancer mortality in high-risk adults."})
+    assert status == 200 and payload["claim_id"] == claim_id
+    assert payload["claim_text"] == "LDCT reduces lung-cancer mortality in high-risk adults."
+    # the revision is persisted in the ledger
+    assert store.load_claim(claim_id).claim_text == "LDCT reduces lung-cancer mortality in high-risk adults."
+
+
+def test_claim_revise_requires_replacement(tmp_path):
+    store, claim_id, _ = _setup(tmp_path)
+    status, _ = dispatch(str(tmp_path), "POST", f"/api/claims/{claim_id}/revise", {})
+    assert status == 400
+
+
 def test_fs_browse_lists_subdirs_with_manuscript_counts(tmp_path):
     (tmp_path / "drafts").mkdir()
     (tmp_path / "drafts" / "a.md").write_text("# a", encoding="utf-8")

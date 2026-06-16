@@ -434,9 +434,8 @@ function renderCard() {
     ? `<div class="lbl">Candidate (${cands.length})</div><div class="candpick">` +
       cands.map((c, i) => `<button class="pick${i === state.candIdx ? " active" : ""}" data-cand="${i}">${esc(c.pmid || c.title || ("#" + (i + 1)))}</button>`).join("") + `</div>` : "";
   if (!cand) {
-    card.innerHTML = `<div class="lbl">Claim · ${esc(claim.claim_type || "")}</div>
-      <div class="claimline">“${esc(claim.claim_text)}”</div>
-      <div class="note">No candidate evidence linked yet — find and link one below.</div>
+    card.innerHTML = claimLineBlock(claim) +
+      `<div class="note">No candidate evidence linked yet — find and link one below.</div>
       ${searchBlock()}<div class="err" id="cardErr"></div>`;
     renderAgent("rate", claim, null);
     return;
@@ -453,10 +452,74 @@ function renderCard() {
     ? `<div class="removerow"><button class="btn ghost" data-act="unlink"
         title="Unlink this paper from the claim (keeps the claim and audit trail)">✕ Remove paper <span class="hk">⇧D</span></button></div>`
     : "";
-  card.innerHTML = stepper(ph) +
-    `<div class="lbl">Claim · ${esc(claim.claim_type || "")}</div><div class="claimline">“${esc(claim.claim_text)}”</div>` +
+  card.innerHTML = stepper(ph) + claimLineBlock(claim) +
     picker + candidateTags(cand) + removeRow + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr"></div>`;
   renderAgent(ph, claim, cand);
+}
+
+/* the claim text + an always-available "Edit claim" action: a reviewer who reads
+ * the evidence and realises the claim is overstated can reword it right here,
+ * regardless of the rate/decide phase. Writes to the .md when the document is
+ * open (previewed + undoable); otherwise saves the revision to the ledger. */
+function claimLineBlock(claim) {
+  return `<div class="lbl">Claim · ${esc(claim.claim_type || "")}
+      <button class="chip-btn tiny" data-act="edit-claim" title="Reword this claim after reading the evidence">✏ Edit claim</button></div>
+    <div class="claimline">“${esc(claim.claim_text)}”</div>
+    <div id="claimEdit"></div>`;
+}
+
+function toggleEditClaim() {
+  const box = $("#claimEdit"); if (!box) return;
+  if (box.innerHTML) { return cancelEditClaim(); }
+  const claim = state.claim && state.claim.claim; if (!claim) return;
+  state.pendingDocToken = null;
+  const resolved = state.view && state.view.mode === "file";
+  const ta = `<textarea id="editClaimText" class="revbox">${esc(claim.claim_text)}</textarea>`;
+  const note = resolved
+    ? `<div class="note">CiteVahti backs up the manuscript file first and the edit is undoable.</div>`
+    : `<div class="note">Your document isn't open, so this saves the new wording to your ledger (recorded as a revision). Open your document to also update the manuscript file.</div>`;
+  const act = resolved
+    ? `<button class="btn primary" data-act="claimedit-preview">Preview change</button>`
+    : `<button class="btn primary" data-act="claimedit-save">Save claim</button>`;
+  box.innerHTML = `<div class="claimeditor"><div class="lbl">Edit the claim</div>${ta}${note}
+    <div class="actions">${act}<button class="btn ghost" data-act="claimedit-cancel">Cancel</button></div></div>`;
+  const t = $("#editClaimText"); if (t) t.focus();
+}
+function cancelEditClaim() { state.pendingDocToken = null; const b = $("#claimEdit"); if (b) b.innerHTML = ""; }
+
+async function editClaimPreview() {
+  const replacement = (($("#editClaimText") || {}).value || "").trim();
+  if (!replacement) { showErr("Type the new wording first."); return; }
+  try {
+    const p = await api("POST", "/api/document/preview-edit",
+                        { claim_id: state.activeClaim, kind: "revise", replacement });
+    state.pendingDocToken = p.token;
+    const box = $("#claimEdit");
+    box.innerHTML = `<div class="claimeditor"><div class="lbl">Preview change</div>
+      <div id="claimEditDiff"></div>
+      <div class="actions"><button class="btn primary" data-act="claimedit-commit">Confirm &amp; save</button>
+        <button class="btn ghost" data-act="claimedit-cancel">Cancel</button></div></div>`;
+    renderDiff(p.diff, "#claimEditDiff");
+  } catch (e) { showErr(e.message); }
+}
+async function editClaimCommit() {
+  if (!state.pendingDocToken) return;
+  try {
+    const r = await api("POST", "/api/document/commit-edit", { token: state.pendingDocToken });
+    state.docTxn = r.transaction_id; state.pendingDocToken = null;
+    await loadManuscript(state.activeMs);     // refresh the prose with the new wording
+    await selectClaim(state.activeClaim);     // refresh the card's claim text
+    loadAudit();                              // the revision appended an audit entry
+  } catch (e) { showErr(e.message); }
+}
+async function editClaimSaveLedger() {
+  const replacement = (($("#editClaimText") || {}).value || "").trim();
+  if (!replacement) { showErr("Type the new wording first."); return; }
+  try {
+    await api("POST", `/api/claims/${encodeURIComponent(state.activeClaim)}/revise`, { replacement });
+    await loadManuscripts();                  // claim text changed across the list + view
+    await selectClaim(state.activeClaim);
+  } catch (e) { showErr(e.message); }
 }
 
 /* deterministic lexical sanity check — only AFTER the blind rating, so it can't
@@ -845,8 +908,8 @@ async function docPreview(kind) {
     state.pendingDocToken = p.token; renderCard(); renderDiff(p.diff);
   } catch (e) { showErr(e.message); }
 }
-function renderDiff(diff) {
-  const box = $("#docDiff"); if (!box) return;
+function renderDiff(diff, sel = "#docDiff") {
+  const box = $(sel); if (!box) return;
   box.className = "diff";
   box.innerHTML = (diff || "").split("\n").filter((l) => !l.startsWith("---") && !l.startsWith("+++") && !l.startsWith("@@"))
     .map((l) => { const cls = l.startsWith("+") ? "add" : l.startsWith("-") ? "del" : "ctx"; return `<div class="dl ${cls}">${esc(l)}</div>`; }).join("");
@@ -1084,6 +1147,8 @@ document.addEventListener("click", (e) => {
   ({ "connect-zotero": () => connect("zotero"), "connect-zotero-oauth": connectOAuth, search: doSearch,
      "open-zotero": () => openInZotero(activeCand()), "zot-evidence": openZotEvidence, lexcheck: runLexCheck,
      "print-audit": printAudit,
+     "edit-claim": toggleEditClaim, "claimedit-preview": editClaimPreview, "claimedit-commit": editClaimCommit,
+     "claimedit-save": editClaimSaveLedger, "claimedit-cancel": cancelEditClaim,
      "save-claim": saveClaim, "cancel-claim": () => { $("#addClaimBox").innerHTML = ""; },
      zpreview, zcommit, zcancel: () => { resetWrite(); renderCard(); },
      zundo, docpreview: () => docPreview(act.dataset.kind), doccommit: docCommit, doccancel: () => { resetWrite(); renderCard(); },
