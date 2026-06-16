@@ -381,6 +381,22 @@ Safety invariants are also asserted by the suite —
 [`docs/SAFETY_INVARIANTS.md`](docs/SAFETY_INVARIANTS.md) and
 [`docs/REVIEW_CHECKLIST.md`](docs/REVIEW_CHECKLIST.md).
 
+## Companion: FullVahti (open-access PDFs + local write-back)
+
+[**FullVahti**](https://github.com/heidihelena/fullvahti) is a sibling Vahtian tool — a
+Zotero plugin that finds **free, legal open-access PDFs** for your references (via
+Unpaywall and PubMed Central), attaches them, and writes one report of what's still
+missing. It pairs naturally with CiteVahti: once a candidate paper is in your library,
+FullVahti can fetch its full text so you're rating against the actual article, and it
+honestly reports paywalled papers as missing rather than bypassing them.
+
+FullVahti can also act as **CiteVahti's local write-back door**: with the user's explicit
+opt-in it exposes a token-guarded endpoint on Zotero's local server (`127.0.0.1:23119`)
+that accepts *tag-only* changes — so review-status tags can land in Zotero with no silent
+writes and nothing leaving the machine. Off by default; the door is closed until you open
+it. See the [FullVahti README](https://github.com/heidihelena/fullvahti) to install (it's a
+two-click Zotero plugin, no terminal).
+
 ## Build status
 
 Built in nine reviewed steps; see [`CHANGELOG.md`](CHANGELOG.md). Every step is a
