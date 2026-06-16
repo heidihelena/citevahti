@@ -4,6 +4,7 @@
   "description": "Run citation-integrity tests on your manuscript claims, inline. Verify the claim before you cite it. A product of Vahtian.",
   "version": "0.16.0",
   "publisher": "heidihelena",
+  "author": "Heidi Andersén",
   "license": "Apache-2.0",
   "icon": "icon.png",
   "galleryBanner": {
