@@ -7,7 +7,7 @@ result, with a side report.
 
 | Code | State | Highlight |
 |---|---|---|
-| `[oo]` | Verified | amber |
+| `[oo]` | Accepted | amber |
 | `[o ]` | Needs support | teal |
 | `[r ]` | Review needed | violet |
 | `[d ]` | Decision recorded | rose |
@@ -46,7 +46,7 @@ click the buttons:
 
 | Key | Action | Decision recorded |
 |---|---|---|
-| `o` `o` | Accept | `accept` (→ Verified) |
+| `o` `o` | Accept | `accept` (→ Accepted) |
 | `o` | Caution | `accepted_with_caution` |
 | `r` | Review | `needs_second_review` |
 | `d` | Reject | `reject` |

@@ -1,0 +1,49 @@
+name: CI
+
+# Runs the promised offline checks on every push/PR: the Python test suite (fully
+# offline — fake seams, no Zotero/BBT/PubMed/network), and the VS Code extension build.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: pytest (offline) · py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install (with all extras so every path is importable)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,mcp,keyring,timestamp]"
+      - name: Run the offline test suite
+        run: python -m pytest -q
+      - name: Probe + audit-chain smoke (no writes, no network)
+        run: |
+          python -m citevahti.cli --root "$RUNNER_TEMP/cv-smoke" init
+          python -m citevahti.cli --root "$RUNNER_TEMP/cv-smoke" verify-audit
+
+  vscode:
+    name: VS Code extension compiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Compile the extension
+        working-directory: vscode-extension
+        run: |
+          npm install
+          npm run compile

@@ -100,6 +100,11 @@ The `[mcp]` extra adds the chat surface; **keep both quotes** — the brackets a
 glob, so `pip install "citevahti[mcp]"` needs them (a missing quote drops you into a
 `dquote>`/`quote>` prompt; press Ctrl-C to get out).
 
+> **Newest commands need the latest version.** `citevahti run` / `resume` / `doctor` and
+> the guided panel ship in the current release line; if `pip` gives you an older build and
+> `citevahti run` reports "invalid choice", install the latest from source (`git clone … &&
+> pip install -e ".[mcp]"`) or upgrade with `pip install -U "citevahti[mcp]"`.
+
 > **One command.** `citevahti run` is the guided entry point: it initialises the project
 > if needed, prints the next step, and opens the review panel (whose banner routes you to
 > the next claim). `citevahti resume` reopens it where you left off, and `citevahti doctor`

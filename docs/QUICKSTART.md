@@ -43,6 +43,11 @@ pip install "citevahti[keyring,mcp]"
 (That makes a private workspace and installs CiteVahti into it. `keyring` keeps your Zotero
 key in your computer's secure keychain; `mcp` lets a chat assistant connect.)
 
+> If a later step says `citevahti run` is an "invalid choice", your installed version is
+> behind — `run`/`resume`/`doctor` are newest-release features. Upgrade with
+> `pip install -U "citevahti[keyring,mcp]"`, or install the latest from source
+> (`git clone https://github.com/heidihelena/citevahti && cd citevahti && pip install -e ".[keyring,mcp]"`).
+
 > On Windows PowerShell the middle step is `.venv\Scripts\Activate.ps1` instead of
 > `source .venv/bin/activate`. Everything else is identical.
 
@@ -177,18 +182,19 @@ is a companion Zotero plugin (two clicks, no terminal) that fetches free, legal 
 full text from Unpaywall and PubMed Central into the same library, and honestly reports what
 isn't available.
 
-## 6. Your proof of work — the timestamped report
+## 6. Your timestamped audit record of the review
 
 Click **⎙ Report** in the panel header any time (or run `citevahti claim-report --format md
 --output integrity.md`). You get a Markdown **Citation-Integrity Report** that records:
 
 - **when** it was generated, and **how many** claims were tested in each state;
 - an **Integrity** line carrying the hash-chained **audit head** and whether the chain is
-  intact — a tamper-evident record that *this review work was done, in this order, by you*.
+  intact — a tamper-evident record of the review work and the order it was done in.
 
-In an age of AI writing, that timestamped, audit-anchored report is how you show the
-verification was your own work — not a black box. (`citevahti agreement-report` and
-[REPORTING.md](REPORTING.md) add the method-transparency paragraph for a paper.)
+In an age of AI writing, that timestamped, audit-anchored record documents *how* the
+verification was done — the workflow's provenance, not a claim about correctness or
+completeness. (`citevahti agreement-report` and [REPORTING.md](REPORTING.md) add the
+method-transparency paragraph for a paper.)
 
 ---
 
