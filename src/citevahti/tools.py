@@ -938,6 +938,47 @@ def warehouse_purge(*, root: Optional[str] = None):
     return ValidationWarehouseService(_open_store(root)).purge()
 
 
+def warehouse_configure(*, enabled: Optional[bool] = None,
+                        include_claim_text: Optional[bool] = None,
+                        auto_emit: Optional[bool] = None, domain: Optional[str] = None,
+                        root: Optional[str] = None):
+    """Set the warehouse opt-ins (enable / include-claim-text / auto-emit / domain).
+
+    The warehouse is default-off; this is the explicit consent toggle. Only the
+    fields passed are changed. Returns the resulting status.
+    """
+    from .warehouse import ValidationWarehouseService
+
+    store = _open_store(root)
+    cfg = store.load_config()
+    wh = cfg.validation_warehouse
+    if enabled is not None:
+        wh.enabled = bool(enabled)
+    if include_claim_text is not None:
+        wh.include_claim_text = bool(include_claim_text)
+    if auto_emit is not None:
+        wh.auto_emit = bool(auto_emit)
+    if domain is not None:
+        wh.domain = domain or None
+    store.save_config(cfg)
+    return ValidationWarehouseService(store).status()
+
+
+# ---- AtlasVahti contribution (consented, de-identified, revocable) ----------
+def atlas_contribution_preview(*, allow_claim_text: bool = False,
+                               root: Optional[str] = None) -> dict:
+    """Build a de-identified contribution bundle from the warehouse. No transmission."""
+    from .atlas import build_contribution_bundle
+    return build_contribution_bundle(root=root, allow_claim_text=allow_claim_text)
+
+
+def atlas_revoke(contribution_id: str, *, reason: Optional[str] = None,
+                 root: Optional[str] = None) -> dict:
+    """Build a revocation (purge) request referencing a prior contribution."""
+    from .atlas import build_revocation
+    return build_revocation(contribution_id, reason=reason, root=root)
+
+
 def list_decisions(claim_id: str, *, root: Optional[str] = None):
     """List a claim's final decisions (read-only)."""
     from .claims import DecisionService
