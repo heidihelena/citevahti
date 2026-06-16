@@ -14,6 +14,7 @@ from typing import Optional, Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from .credentials import (
+    FULLVAHTI_TOKEN,
     NCBI_API_KEY,
     ZOTERO_WRITE_KEY,
     CredentialStore,
@@ -50,6 +51,7 @@ class OnboardingService:
                 zotero_library_id: Optional[str] = None, zotero_library_type: str = "user",
                 default_collection_key: Optional[str] = None,
                 zotero_write_key: Optional[str] = None, ncbi_api_key: Optional[str] = None,
+                fullvahti_token: Optional[str] = None,
                 enable_writeback: bool = True, validate: bool = True,
                 secrets_backend: str = "system_keyring") -> OnboardingReport:
         report = OnboardingReport(secrets_backend=secrets_backend)
@@ -108,6 +110,24 @@ class OnboardingService:
             else:
                 report.validations[NCBI_API_KEY] = "env-injected (not stored)"
                 report.warnings.append("env backend: export $CITEVAHTI_NCBI_API_KEY at runtime")
+
+        # FullVahti plugin tag-write token (no live validation — verified by `status` ping).
+        # web_api (item creation) takes precedence; FullVahti wires the local_addon backend
+        # only when no Zotero write key was provided.
+        fullvahti_ready = False
+        if fullvahti_token:
+            if store_secrets:
+                self._handle_secret(report, cred, FULLVAHTI_TOKEN, fullvahti_token, validate,
+                                     lambda k: (None, "skipped", None))
+                fullvahti_ready = FULLVAHTI_TOKEN in report.secrets_stored
+            else:
+                report.validations[FULLVAHTI_TOKEN] = "env-injected (not stored)"
+                report.warnings.append("env backend: export $CITEVAHTI_FULLVAHTI_TOKEN at runtime")
+                fullvahti_ready = True
+        if enable_writeback and fullvahti_ready and not write_key_ready and cfg.writeback.kind != "web_api":
+            cfg.writeback.enabled = True
+            cfg.writeback.kind = "local_addon"
+            report.config_updated += ["writeback.enabled", "writeback.kind"]
 
         self.store.save_config(cfg)   # config carries NO secret values
         return report
