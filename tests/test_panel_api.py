@@ -495,7 +495,8 @@ def test_search_pubmed_returns_hits(tmp_path, monkeypatch):
     status, payload = dispatch(str(tmp_path), "POST", "/api/search", {"query": "ldct", "source": "pubmed"})
     assert status == 200 and payload["batch_id"] == "b1"
     assert payload["hits"][0] == {"record_id": "r1", "title": "LDCT trial", "journal": "NEJM",
-                                  "year": 2011, "pmid": "21714641", "doi": None, "dedupe_status": None}
+                                  "year": 2011, "pmid": "21714641", "doi": None,
+                                  "abstract": None, "dedupe_status": None}
 
 
 def test_search_zotero_routes_through_manual_intake(tmp_path, monkeypatch):
@@ -539,6 +540,52 @@ def test_link_endpoint_forwards_to_engine(tmp_path, monkeypatch):
                                {"claim_id": "c1", "batch_id": "b1", "record_ids": ["r1", "r2"]})
     assert status == 200 and payload["linked"] == 2
     assert seen == {"claim_id": "c1", "batch_id": "b1", "record_ids": ["r1", "r2"]}
+
+
+def test_intake_preview_forwards_dry_run(tmp_path, monkeypatch):
+    _setup(tmp_path)
+    seen = {}
+
+    def fake_push(batch_id, record_ids=None, collection_key=None, dry_run=True, confirm_token=None, **kw):
+        seen.update(batch_id=batch_id, record_ids=record_ids, dry_run=dry_run, confirm_token=confirm_token)
+        return {"to_create": 1, "confirm_token": "tok-1", "skipped_duplicates": 0}
+    monkeypatch.setattr(engine, "intake_push", fake_push)
+    monkeypatch.setattr(engine, "resolve_dois", lambda *a, **k: {})   # isolate from DOI backfill
+    status, payload = dispatch(str(tmp_path), "POST", "/api/intake/preview",
+                               {"batch_id": "b1", "record_ids": ["r1"]})
+    assert status == 200 and payload["confirm_token"] == "tok-1"
+    # preview is a DRY RUN — nothing is written without a confirm token
+    assert seen["dry_run"] is True and seen["confirm_token"] is None
+    assert seen["batch_id"] == "b1" and seen["record_ids"] == ["r1"]
+
+
+def test_intake_commit_requires_confirm_token(tmp_path, monkeypatch):
+    _setup(tmp_path)
+    seen = {}
+
+    def fake_push(batch_id, record_ids=None, collection_key=None, dry_run=True, confirm_token=None, **kw):
+        seen.update(dry_run=dry_run, confirm_token=confirm_token)
+        return {"status": "committed", "created_keys": ["ABC"]}
+    monkeypatch.setattr(engine, "intake_push", fake_push)
+    # commit needs the token: omitting it is a 400, not a silent write
+    status, _ = dispatch(str(tmp_path), "POST", "/api/intake/commit", {"batch_id": "b1"})
+    assert status == 400 and not seen
+    status, payload = dispatch(str(tmp_path), "POST", "/api/intake/commit",
+                               {"batch_id": "b1", "confirm_token": "tok-1"})
+    assert status == 200 and payload["status"] == "committed"
+    assert seen["dry_run"] is False and seen["confirm_token"] == "tok-1"
+
+
+def test_fs_browse_lists_subdirs_with_manuscript_counts(tmp_path):
+    (tmp_path / "drafts").mkdir()
+    (tmp_path / "drafts" / "a.md").write_text("# a", encoding="utf-8")
+    (tmp_path / "drafts" / "b.txt").write_text("b", encoding="utf-8")
+    (tmp_path / ".hidden").mkdir()          # hidden dirs are skipped
+    status, payload = dispatch(str(tmp_path), "POST", "/api/fs/browse", {"path": str(tmp_path)})
+    assert status == 200 and payload["path"] == str(tmp_path.resolve())
+    names = {d["name"]: d["manuscript_count"] for d in payload["dirs"]}
+    assert names.get("drafts") == 2 and ".hidden" not in names
+    assert payload["parent"] == str(tmp_path.resolve().parent)
 
 
 def test_resolve_dois_returns_only_present_dois():

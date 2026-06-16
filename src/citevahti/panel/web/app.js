@@ -28,7 +28,15 @@ const STATE_CLASS = { oo: "s-oo", o: "s-o", r: "s-r", d: "s-d" };
 // (verified=accept, review_needed=revise, decision_recorded=reject; needs_support=pending)
 const PENDING_STATE = "needs_support";
 const isDecided = (state) => !!state && state !== PENDING_STATE;
-const PICO = [["population_fit", "P"], ["intervention_fit", "I"], ["outcome_fit", "O"], ["claim_fit", "Claim"]];
+// PICO fit dimensions: key, short label, and a plain explanation of what to judge.
+const PICO = [
+  ["population_fit", "P", "Population — does the paper study the same people/setting the claim is about?"],
+  ["intervention_fit", "I", "Intervention / exposure — does the paper test the same thing the claim is about?"],
+  ["outcome_fit", "O", "Outcome — does the paper measure the outcome the claim is about?"],
+  ["claim_fit", "Claim", "Overall — does this paper actually address this specific claim?"],
+];
+// What each 0/1/2 fit score means (the scale was ambiguous as bare numbers).
+const FIT_SCORES = [["0", "0 — no / off-topic"], ["1", "1 — partial / indirect"], ["2", "2 — strong / direct"]];
 const fitWord = (n) => n >= 7 ? "Strong" : n >= 4 ? "Moderate" : n >= 1 ? "Weak" : "None";
 
 const state = {
@@ -125,13 +133,50 @@ function renderConns() {
 
 function renderMsBar() {
   const picks = state.manuscripts.map((m) =>
-    `<button class="mspick${m.manuscript_id === state.activeMs ? " active" : ""}" data-ms="${esc(m.manuscript_id)}">
-      ${esc(m.manuscript_id)} · ${m.claim_count}${m.resolved ? "" : " · unbound"}</button>`).join("");
+    `<button class="mspick${m.manuscript_id === state.activeMs ? " active" : ""}" data-ms="${esc(m.manuscript_id)}"
+       title="${esc(m.manuscript_id)} — ${m.claim_count} claim(s) saved${m.resolved ? "" : "; original document not open yet"}">
+      ${esc(m.manuscript_id)} <span class="n">${m.claim_count}</span>${m.resolved ? "" : ' <span class="needsdoc">⚠ document not open</span>'}</button>`).join("");
+  const switcher = state.manuscripts.length
+    ? `<span class="msswitch"><span class="lbl">Manuscript</span>${picks}</span>` : "";
   const dir = state.ctx.manuscripts_dir || "";
   const bind = `<span class="bind"><button class="chip-btn" id="addClaim">＋ Claim</button>
-    <input id="bindDir" type="text" placeholder="manuscripts folder…" value="${esc(dir)}" />
-    <button class="chip-btn" id="bindBtn">Bind folder</button></span>`;
-  $("#msbar").innerHTML = picks + bind;
+    <button class="chip-btn primary-chip" id="browseBtn" title="Choose the folder your manuscript file is in — no typing">📁 Open my document…</button>
+    <input id="bindDir" type="text" placeholder="…or paste a folder path" value="${esc(dir)}" />
+    <button class="chip-btn" id="bindBtn" title="Use the pasted path">Use path</button></span>`;
+  $("#msbar").innerHTML = switcher + bind;
+  const name = $("#msName"); if (name) name.textContent = state.activeMs || "manuscript";
+}
+
+/* ---------- folder picker: click through the filesystem, no path typing ---- */
+async function openBrowse(path) {
+  let box = $("#browseModal");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "browseModal"; box.className = "modal";
+    document.body.appendChild(box);
+  }
+  box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
+  try {
+    const r = await api("POST", "/api/fs/browse", { path: path || null });
+    state.browsePath = r.path;
+    const up = r.parent ? `<button class="browse-row up" data-browse="${esc(r.parent)}">⬆ ${esc(r.parent)}</button>` : "";
+    const rows = (r.dirs || []).map((d) =>
+      `<button class="browse-row" data-browse="${esc(d.path)}">📁 ${esc(d.name)}${d.manuscript_count ? ` <span class="n">${d.manuscript_count} doc${d.manuscript_count > 1 ? "s" : ""}</span>` : ""}</button>`).join("");
+    box.innerHTML = `<div class="modal-card">
+      <div class="modal-head"><b>Open your manuscript — choose the folder it's in</b>
+        <button class="chip-btn" data-browse-close="1">✕</button></div>
+      <div class="browse-here">${esc(r.path)}${r.manuscript_count ? ` · <b>${r.manuscript_count}</b> manuscript file(s) here` : " · no manuscript files here"}</div>
+      <div class="browse-list">${up}${rows || '<div class="note">No sub-folders.</div>'}</div>
+      <div class="modal-foot">
+        <button class="btn primary" data-browse-use="${esc(r.path)}">Use this folder</button>
+        <button class="btn ghost" data-browse-close="1">Cancel</button></div></div>`;
+  } catch (e) { box.innerHTML = `<div class="modal-card"><div class="err">${esc(e.message)}</div>
+    <div class="modal-foot"><button class="btn ghost" data-browse-close="1">Close</button></div></div>`; }
+}
+function closeBrowse() { const b = $("#browseModal"); if (b) b.remove(); }
+async function useBrowseFolder(dir) {
+  try { await api("POST", "/api/manuscripts/bind", { dir }); closeBrowse(); await loadManuscripts(); }
+  catch (e) { alert(e.message); }
 }
 
 const CLAIM_TYPES = ["effectiveness", "diagnostic_accuracy", "prognosis", "risk_factor",
@@ -184,7 +229,9 @@ function renderDoc() {
   doc.innerHTML = html;
   if (v.mode === "reconstructed") {
     doc.insertAdjacentHTML("beforebegin", "");
-    $("#doc").innerHTML = `<div class="recon-note">Reconstructed from claim text — bind the manuscripts folder above to review claims inside the real prose.</div>` + html;
+    $("#doc").innerHTML = `<div class="recon-note">✓ Your claims, ratings, and saved citations are stored automatically — nothing here is lost.
+      Below are your saved claims. To see each one highlighted inside your original manuscript,
+      <button class="linklike" id="reconOpen">📁 open your document</button>.</div>` + html;
   }
   // unmatched claims (file mode): show as a side list so none are lost
   const un = (v.unmatched || []);
@@ -328,7 +375,46 @@ function historyBlock() {
   return `<details class="context"><summary>Audit trail (${rows.length})${chain}</summary><div class="body">
     ${rows.map((r) => `<div class="auditrow"><span class="atime">${esc(timeShort(r.at))}</span>
       <div class="acell"><div>${esc(r.text)}</div>${r.sub ? `<div class="note">${esc(r.sub)}</div>` : ""}</div></div>`).join("")}
+    <div class="actions" style="margin-top:10px">
+      <button class="btn ghost" data-act="print-audit" title="Open a printable report of this claim's audit trail">🖨 Print report</button></div>
   </div></details>`;
+}
+
+/* a clean, printable audit report for the active claim: the claim text, every
+ * decision + Zotero write with who/when/reason, and the chain-verified status.
+ * Opens in a new window and triggers the browser's print dialog (→ PDF or paper). */
+function printAudit() {
+  const h = state.history, claim = state.claim && state.claim.claim;
+  if (!h || !claim) return;
+  const rows = [];
+  for (const d of (h.decisions || [])) rows.push({ at: d.at,
+    text: `Decision: ${d.final_decision}${d.final_support_status ? " · " + d.final_support_status : ""} — ${d.decided_by}${d.agreement_status ? " · " + d.agreement_status : ""}`,
+    sub: d.reason || "" });
+  for (const t of (h.transactions || [])) rows.push({ at: t.at,
+    text: `Zotero write: ${t.status}${t.keys ? " · " + (Array.isArray(t.keys) ? t.keys.join(", ") : t.keys) : ""}`,
+    sub: t.undone_at ? "undone " + timeShort(t.undone_at) : "" });
+  rows.sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+  const chain = state.audit ? (state.audit.intact ? "verified ✓" : "⚠ TAMPERED") : "not checked";
+  const esc2 = (s) => esc(String(s == null ? "" : s));
+  const body = `<h1>CiteVahti — claim audit report</h1>
+    <p class="meta">Ledger: ${esc2(state.ctx && state.ctx.root)}<br>Manuscript: ${esc2(claim.manuscript_location || state.activeMs)}
+      <br>Claim id: ${esc2(claim.claim_id)} &nbsp; · &nbsp; Audit chain: ${chain}</p>
+    <h2>Claim</h2><blockquote>${esc2(claim.claim_text)}</blockquote>
+    <h2>Trail (${rows.length})</h2>
+    <table><thead><tr><th>When</th><th>Event</th><th>Detail</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td class="t">${esc2(r.at)}</td><td>${esc2(r.text)}</td><td>${esc2(r.sub)}</td></tr>`).join("")}
+    </tbody></table>
+    <p class="foot">Printed from the CiteVahti panel. The audit chain is append-only; "verified ✓" means the recorded hash chain is intact.</p>`;
+  const w = window.open("", "_blank");
+  if (!w) { showErr("Pop-up blocked — allow pop-ups to print the report."); return; }
+  w.document.write(`<!doctype html><meta charset=utf-8><title>CiteVahti audit — ${esc2(claim.claim_id)}</title>
+    <style>body{font:14px/1.5 -apple-system,Segoe UI,sans-serif;color:#111;max-width:760px;margin:32px auto;padding:0 20px}
+    h1{font-size:18px}h2{font-size:14px;margin-top:22px;border-bottom:1px solid #ccc;padding-bottom:4px}
+    .meta{color:#555;font-size:12px}blockquote{border-left:3px solid #6B4E9E;margin:0;padding:6px 14px;background:#f5f1fc}
+    table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;border-bottom:1px solid #e2e2e7;padding:6px 8px;vertical-align:top}
+    td.t{white-space:nowrap;color:#555;font-family:ui-monospace,Menlo,monospace}.foot{color:#777;font-size:11px;margin-top:24px}</style>
+    ${body}`);
+  w.document.close(); w.focus(); w.print();
 }
 
 /* at-a-glance status for the active candidate: whether it's already in the Zotero
@@ -376,8 +462,17 @@ function rateBlock(cand) {
     const chosen = r && r.human === v ? " chosen" : "";
     return `<button class="rate-btn${chosen}" data-rate="${v}"><span class="hk">${i + 1}</span>${l}</button>`;
   }).join("");
-  const fit = `<div class="fitrow"><span class="lbl" style="margin:0">Optional PICO fit</span>` +
-    PICO.map(([k, lab]) => `<label class="fitlab">${lab}<select data-fit="${k}"><option value="">–</option><option>0</option><option>1</option><option>2</option></select></label>`).join("") + `</div>`;
+  const opts = `<option value="">– not scored</option>` +
+    FIT_SCORES.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+  const fit = `<div class="fitblock">
+    <div class="fithead"><span class="lbl" style="margin:0">Optional fit check</span>
+      <details class="fithelp"><summary>?</summary>
+        <div class="body">How well does this paper match the claim, on each dimension? Scored
+          <b>0</b> (no/off-topic), <b>1</b> (partial/indirect) or <b>2</b> (strong/direct) — leave
+          blank to skip. It's an optional note for yourself; it doesn't change the verdict.</div></details></div>
+    <div class="fitrow">` +
+    PICO.map(([k, lab, help]) => `<label class="fitlab" title="${esc(help)}">${lab}
+      <select data-fit="${k}" aria-label="${esc(help)}">${opts}</select></label>`).join("") + `</div></div>`;
   return `<div class="next"><div class="ask">Your blind support rating</div>
     <div class="why">Press <kbd>1</kbd>–<kbd>6</kbd> or click. The AI second rating stays hidden until yours is recorded.</div>
     <div class="rates">${btns}</div>${fit}</div>`;
@@ -475,7 +570,9 @@ function doneBlock(cand) {
 
 function contextBlock(cand) {
   const ev = cand.evidence || {};
-  const ident = [cand.pmid && `PMID ${cand.pmid}`, cand.doi && `DOI ${cand.doi}`, cand.year].filter(Boolean).join(" · ");
+  const ident = [cand.pmid && `PMID ${cand.pmid}`, cand.year].filter(Boolean).join(" · ");
+  const doiLink = cand.doi
+    ? `<a class="doi" href="${esc(doiUrl(cand.doi))}" target="_blank" rel="noopener" title="Open the DOI in your browser">DOI ${esc(cand.doi)} ↗</a>` : "";
   const picks = ev.fit ? PICO.map(([k, lab]) => {
     const val = ev.fit[k]; const cls = val == null ? "" : (val >= 2 ? "ok" : val >= 1 ? "" : "no");
     return `<span class="check ${cls}">${lab} ${val == null ? "–" : val}</span>`;
@@ -483,7 +580,7 @@ function contextBlock(cand) {
   const cit = ev.fit_total == null ? "" : `<span class="fittag">Citation fit ${fitWord(ev.fit_total)} (${ev.fit_total}/8)</span>`;
   return `<details class="context" open><summary>Evidence &amp; fit checks</summary><div class="body">
     <div class="lbl">Candidate source</div><div class="paper">${esc(cand.title || "(untitled)")}</div>
-    <div class="note">${esc(cand.journal || "")} ${ident ? "· " + esc(ident) : ""}</div>
+    <div class="note">${esc(cand.journal || "")}${ident ? " · " + esc(ident) : ""}${doiLink ? " · " + doiLink : ""}</div>
     ${cand.abstract ? `<div class="lbl">Abstract</div><div class="excerpt">${esc(cand.abstract)}</div>` : ""}
     ${ev.excerpt ? `<div class="lbl">Supporting excerpt</div><div class="excerpt">${esc(ev.excerpt)}</div>` : ""}
     ${picks || cit ? `<div class="lbl">Fit checks</div><div class="checks">${picks}${cit}</div>` : ""}
@@ -685,11 +782,18 @@ async function doSearch() {
     state.searchBatch = r.batch_id;
     if (!r.hits || !r.hits.length) { if (box) box.innerHTML = `<div class="note">No results.</div>`; return; }
     if (box) box.innerHTML = r.hits.map((h) => {
-      const meta = [h.journal, h.year, h.pmid && ("PMID " + h.pmid), h.doi && ("DOI " + h.doi)].filter(Boolean).join(" · ");
+      const meta = [h.journal, h.year, h.pmid && ("PMID " + h.pmid)].filter(Boolean).join(" · ");
       const inzot = h.dedupe_status === "already_in_library" ? `<span class="tag inzot">in Zotero</span>` : "";
+      const doi = h.doi ? `<a class="doi" href="${esc(doiUrl(h.doi))}" target="_blank" rel="noopener" title="Open the DOI">DOI ${esc(h.doi)} ↗</a>` : "";
+      const abs = h.abstract ? `<details class="abs"><summary>Abstract</summary><div class="excerpt">${esc(h.abstract)}</div></details>` : "";
+      const inLib = h.dedupe_status === "already_in_library";
       return `<div class="result"><div class="rmeta"><b>${esc(h.title || "(untitled)")}</b> ${inzot}
-        <div class="note">${esc(meta)}</div></div>
-        <button class="btn ghost" data-link="${esc(h.record_id)}">Link</button></div>`;
+        <div class="note">${esc(meta)}${meta && doi ? " · " : ""}${doi}</div>${abs}</div>
+        <div class="ractions">
+          <button class="btn ghost" data-link="${esc(h.record_id)}">Link to claim</button>
+          ${inLib ? `<span class="note">already saved</span>`
+                  : `<button class="btn ghost" data-zsave="${esc(h.record_id)}" title="Add this paper to your Zotero library">＋ Save to Zotero</button>`}
+        </div></div>`;
     }).join("");
   } catch (e) { if (box) box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
@@ -699,6 +803,36 @@ async function linkRecord(recordId) {
     await api("POST", "/api/link", { claim_id: state.activeClaim, batch_id: state.searchBatch, record_ids: [recordId] });
     state.searchBatch = null;
     await selectClaim(state.activeClaim);   // reload the card with the newly linked candidate
+  } catch (e) { showErr(e.message); }
+}
+
+/* normalise a DOI (bare, or with a doi:/URL prefix) to an openable doi.org link */
+function doiUrl(doi) {
+  const d = String(doi).trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "").replace(/^doi:/i, "");
+  return "https://doi.org/" + d;
+}
+
+/* direct "Save to Zotero" for a search hit — preview the write, then confirm.
+ * Honors the same nothing-written-silently gate as the claim write: preview
+ * returns a confirm_token; the actual add needs it. */
+async function zsave(recordId, btn) {
+  const canWrite = (state.health && state.health.can_write || []).length > 0;
+  if (!canWrite) { showErr("Connect Zotero (with write access) first — see the Zotero chip."); return; }
+  if (!state.searchBatch) { showErr("Run the search again, then save."); return; }
+  try {
+    const p = await api("POST", "/api/intake/preview", { batch_id: state.searchBatch, record_ids: [recordId] });
+    const token = p.confirm_token || p.approval_token;
+    const n = (p.to_create != null ? p.to_create : (p.would_create != null ? p.would_create : 1));
+    const dup = p.skipped_duplicates || p.duplicates || 0;
+    if (!token) {
+      if (dup && !n) { if (btn) { btn.textContent = "already in Zotero"; btn.disabled = true; } return; }
+      showErr("Could not prepare the Zotero write (no confirm token returned)."); return;
+    }
+    if (!confirm(`Add this paper to your Zotero library?${dup ? `\n(${dup} duplicate skipped.)` : ""}`)) return;
+    const r = await api("POST", "/api/intake/commit", { batch_id: state.searchBatch, record_ids: [recordId], confirm_token: token });
+    const ok = (r.status === "committed") || r.created_keys || r.pushed;
+    if (btn) { btn.textContent = ok ? "✓ Saved to Zotero" : "save failed"; btn.disabled = !!ok; }
+    if (!ok) showErr(`Save not committed: ${r.error_code || r.status || "unknown"}`);
   } catch (e) { showErr(e.message); }
 }
 
@@ -719,12 +853,12 @@ async function renderFirstRun() {
     <div class="panel-box">${rows || '<div class="note">No other ledgers found.</div>'}</div>
     <div class="panel-box">
       <div class="lbl">Start from a manuscript</div>
-      <p class="note">Paste your manuscript Markdown — CiteVahti saves it and binds the
-      folder. Claim extraction runs in your chat client (the panel never calls an AI),
+      <p class="note">Paste your manuscript Markdown — CiteVahti saves it and remembers
+      where it lives. Claim extraction runs in your chat client (the panel never calls an AI),
       so you'll get the exact prompt to paste there next.</p>
       <input id="pasteName" type="text" placeholder="filename, e.g. my-draft.md" />
       <textarea id="pasteBody" class="revbox" placeholder="# Title&#10;&#10;Paste your Markdown here…"></textarea>
-      <div class="actions"><button class="btn primary" id="pasteSave">Save &amp; bind</button></div>
+      <div class="actions"><button class="btn primary" id="pasteSave">Save my document</button></div>
       <div id="pasteResult"></div>
     </div>
     <div class="panel-box">
@@ -747,7 +881,7 @@ async function savePastedManuscript() {
   if (!content.trim()) { out.innerHTML = `<div class="note">Paste some Markdown first.</div>`; return; }
   try {
     const r = await api("POST", "/api/manuscripts/paste", { filename, content });
-    out.innerHTML = `<div class="note ok">Saved <b>${esc(r.filename)}</b> and bound
+    out.innerHTML = `<div class="note ok">Saved <b>${esc(r.filename)}</b> in
       <code>${esc(r.manuscripts_dir)}</code>.</div>
       <div class="lbl" style="margin-top:8px">Next: extract claims in your chat client</div>
       <p class="note">Paste this prompt to CiteVahti over MCP — the panel will fill in
@@ -762,6 +896,10 @@ document.addEventListener("click", (e) => {
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
   const ms = e.target.closest("[data-ms]"); if (ms) return void loadManuscript(ms.dataset.ms).then(renderMsBar);
   if (e.target.id === "bindBtn") return void bindFolder();
+  if (e.target.closest("#browseBtn") || e.target.closest("#reconOpen")) return void openBrowse(($("#bindDir") || {}).value || state.ctx.manuscripts_dir);
+  const bn = e.target.closest("[data-browse]"); if (bn) return void openBrowse(bn.dataset.browse);
+  const bu = e.target.closest("[data-browse-use]"); if (bu) return void useBrowseFolder(bu.dataset.browseUse);
+  if (e.target.closest("[data-browse-close]")) return void closeBrowse();
   if (e.target.id === "pasteSave") return void savePastedManuscript();
   if (e.target.id === "addClaim") return void toggleAddClaim();
   const sp = e.target.closest("[data-claim]"); if (sp) return void selectClaim(sp.dataset.claim);
@@ -769,9 +907,11 @@ document.addEventListener("click", (e) => {
   const rb = e.target.closest("[data-rate]"); if (rb) return void rate(rb.dataset.rate);
   const dc = e.target.closest("[data-decide]"); if (dc) return void recordDecision(dc.dataset.decide);
   const lk = e.target.closest("[data-link]"); if (lk) return void linkRecord(lk.dataset.link);
+  const zs = e.target.closest("[data-zsave]"); if (zs) return void zsave(zs.dataset.zsave, zs);
   const act = e.target.closest("[data-act]"); if (!act) return;
   ({ "connect-zotero": () => connect("zotero"), "connect-zotero-oauth": connectOAuth, search: doSearch,
      "open-zotero": () => openInZotero(activeCand()), "zot-evidence": openZotEvidence, lexcheck: runLexCheck,
+     "print-audit": printAudit,
      "save-claim": saveClaim, "cancel-claim": () => { $("#addClaimBox").innerHTML = ""; },
      zpreview, zcommit, zcancel: () => { resetWrite(); renderCard(); },
      zundo, docpreview: () => docPreview(act.dataset.kind), doccommit: docCommit, doccancel: () => { resetWrite(); renderCard(); },
@@ -784,6 +924,16 @@ $("#legendBtn").addEventListener("click", () => {
   el.toggleAttribute("hidden");
   $("#legendBtn").setAttribute("aria-expanded", String(opening));
 });
+// keyboard-shortcut toggle, persisted across sessions (for people writing in the panel)
+(function initHotkeyToggle() {
+  try { state.hotkeysOff = localStorage.getItem("citevahti.hotkeysOff") === "1"; } catch { state.hotkeysOff = false; }
+  const cb = $("#hkToggle"); if (!cb) return;
+  cb.checked = state.hotkeysOff;
+  cb.addEventListener("change", () => {
+    state.hotkeysOff = cb.checked;
+    try { localStorage.setItem("citevahti.hotkeysOff", cb.checked ? "1" : "0"); } catch {}
+  });
+})();
 async function maintenance(path, label, fmt) {
   try {
     const r = await api("POST", path, {});
@@ -807,6 +957,7 @@ $("#theme").addEventListener("click", () => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea, select")) return;
+  if (state.hotkeysOff) return;                          // user turned shortcuts off (writing mode)
   const ids = claimOrder(); if (!ids.length) return;   // document order, matching the eye
   const i = ids.indexOf(state.activeClaim);
   if (e.key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); return e.preventDefault(); }
