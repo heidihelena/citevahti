@@ -581,6 +581,39 @@ def _cmd_claim_decide(args) -> int:
     return rc
 
 
+def _cmd_test(args) -> int:
+    """Run the manuscript unit-test suite — pass/fail per claim, exit non-zero on failure."""
+    import json as _json
+
+    from . import tools
+    from .state import CiteVahtiStore as _Store
+
+    store = _Store(args.root)
+    if not store.exists():
+        print(f"not initialized at {store.dir}; run `citevahti init` first")
+        return 1
+    suite = tools.run_manuscript_tests(root=args.root, online=getattr(args, "online", False))
+    if getattr(args, "json", False):
+        print(_json.dumps(suite, indent=2))
+        return 1 if suite["failed"] else 0
+
+    mark = {"pass": "PASS", "fail": "FAIL", "skip": "SKIP"}
+    for c in suite["claims"]:
+        text = c["claim_text"]
+        text = text if len(text) <= 70 else text[:67] + "…"
+        print(f"  [{mark[c['status']]}] {text}")
+        if c["status"] == "fail":
+            for chk in c["checks"]:
+                if chk["status"] == "fail":
+                    print(f"         ✗ {chk['name']}: {chk['detail'] or 'failed'}")
+    scope = "online (citations verified)" if suite["online"] else "offline (structural)"
+    print(f"\n{suite['passed']} passed · {suite['failed']} failed · {suite['skipped']} skipped "
+          f"of {suite['total']} claims — {scope}")
+    if not suite["online"]:
+        print("Tip: add --online to verify citations are real and not retracted.")
+    return 1 if suite["failed"] else 0
+
+
 def _cmd_claim_report(args) -> int:
     """Citation-integrity test results: the 4-state claim report."""
     from . import tools
@@ -1495,6 +1528,15 @@ def main(argv: list[str] | None = None) -> int:
     rpt.add_argument("--show-text", action="store_true", help="print full claim text (text format)")
     rpt.add_argument("--output", default=None, help="write the report to a file instead of stdout")
     rpt.set_defaults(func=_cmd_claim_report)
+
+    # `test` — run the manuscript "unit test" suite (each claim is a test case) and
+    # exit non-zero on failures, so it can gate CI on a manuscript repo.
+    tst = sub.add_parser("test",
+                         help="run unit tests on the manuscript — pass/fail per claim; exits non-zero on failure")
+    tst.add_argument("--online", action="store_true",
+                     help="also verify citations are real and not retracted (network; slower)")
+    tst.add_argument("--json", action="store_true", help="emit the suite result as JSON")
+    tst.set_defaults(func=_cmd_test)
 
     ccm = sub.add_parser("claim-commit",
                          help="decision-gated Zotero write for an accepted decision (dry-run default)")

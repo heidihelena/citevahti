@@ -590,6 +590,43 @@ def test_intake_commit_requires_confirm_token(tmp_path, monkeypatch):
     assert seen["dry_run"] is False and seen["confirm_token"] == "tok-1"
 
 
+def test_test_suite_endpoint_offline(tmp_path):
+    # a freshly-linked, undecided claim is SKIP (not yet reviewed), not a failure
+    _setup(tmp_path)
+    status, suite = dispatch(str(tmp_path), "POST", "/api/test-suite", {"online": False})
+    assert status == 200
+    assert suite["total"] == 1 and suite["online"] is False
+    assert suite["skipped"] == 1 and suite["failed"] == 0
+    assert suite["claims"][0]["status"] == "skip"
+
+
+def test_test_suite_passes_for_accepted_claim_with_doi(tmp_path):
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store)
+    rec = eng.support_start(claim_id, cand_id)
+    eng.support_commit_human(rec.rating_id, "directly_supports")
+    eng.support_compare(rec.rating_id)
+    DecisionService(store).decide(claim_id, cand_id, "accept", "supports", rating_id=rec.rating_id)
+    suite = engine.run_manuscript_tests(root=str(tmp_path), online=False)
+    assert suite["passed"] == 1 and suite["failed"] == 0
+    c = suite["claims"][0]
+    assert c["status"] == "pass"
+    names = {k["name"]: k["status"] for k in c["checks"]}
+    assert names["supported"] == "pass" and names["citation_identified"] == "pass"
+
+
+def test_test_suite_fails_when_claim_rejected(tmp_path):
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store)
+    rec = eng.support_start(claim_id, cand_id)
+    eng.support_commit_human(rec.rating_id, "does_not_support")
+    eng.support_compare(rec.rating_id)
+    DecisionService(store).decide(claim_id, cand_id, "reject", "does not support", rating_id=rec.rating_id)
+    suite = engine.run_manuscript_tests(root=str(tmp_path), online=False)
+    assert suite["failed"] == 1 and suite["passed"] == 0
+    assert suite["claims"][0]["status"] == "fail"
+
+
 def test_claim_revise_updates_ledger_text(tmp_path):
     _setup(tmp_path)
     store = CiteVahtiStore(tmp_path)
