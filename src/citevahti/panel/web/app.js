@@ -148,6 +148,49 @@ async function exportReport() {
 function setAgentLine(html) {
   const el = $("#agent"); if (el) el.innerHTML = `<span class="who">CiteVahti ▸</span> <span class="pill">${html}</span>`;
 }
+
+/* ---------- the manuscript "unit test" suite ---------- */
+// each claim is a test case: does it meet its references, and are the citations real?
+const TEST_CHECK_LABELS = {
+  has_reference: "has a reference", reviewed: "reviewed",
+  supported: "reference supports the claim", citation_identified: "citation has a DOI/PMID",
+  not_retracted: "citation not retracted", citation_real: "citation is real",
+  in_scope: "in indexed scope",
+};
+const TEST_BADGE = { pass: "PASS", fail: "FAIL", skip: "SKIP" };
+
+async function runTests(online) {
+  let box = $("#testModal");
+  if (!box) { box = document.createElement("div"); box.id = "testModal"; box.className = "modal"; document.body.appendChild(box); }
+  box.innerHTML = `<div class="modal-card"><div class="note">Running unit tests${online ? " — verifying citations online (this can take a moment)…" : "…"}</div></div>`;
+  try {
+    const s = await api("POST", "/api/test-suite", { online: !!online, manuscript_id: state.activeMs || null });
+    renderTestResults(box, s);
+  } catch (e) {
+    box.innerHTML = `<div class="modal-card"><div class="err">${esc(e.message)}</div>
+      <div class="modal-foot"><button class="btn ghost" data-test-close="1">Close</button></div></div>`;
+  }
+}
+function renderTestResults(box, s) {
+  const rows = (s.claims || []).map((c) => {
+    const fails = (c.checks || []).filter((k) => k.status === "fail");
+    const detail = fails.length
+      ? `<div class="tfail">${fails.map((k) => `✗ ${esc(TEST_CHECK_LABELS[k.name] || k.name)}${k.detail ? " — " + esc(k.detail) : ""}`).join("<br>")}</div>` : "";
+    const text = c.claim_text.length > 90 ? c.claim_text.slice(0, 88) + "…" : c.claim_text;
+    return `<div class="trow ${c.status}"><button class="trowtop" data-test-focus="${esc(c.claim_id)}"
+        title="Open this claim">${`<span class="tbadge ${c.status}">${TEST_BADGE[c.status]}</span>`} <span class="ttext">${esc(text)}</span></button>${detail}</div>`;
+  }).join("");
+  const allGreen = s.failed === 0;
+  box.innerHTML = `<div class="modal-card test">
+    <div class="modal-head"><b>Manuscript unit tests</b><button class="chip-btn" data-test-close="1">✕</button></div>
+    <div class="tsummary ${allGreen ? "ok" : "bad"}"><b>${s.passed}</b> passed · <b>${s.failed}</b> failed · <b>${s.skipped}</b> skipped — of ${s.total} claims</div>
+    <div class="note">${s.online ? "Citations verified online — real and not retracted." : "Structural checks only. Citations were not verified online."}</div>
+    <div class="tlist">${rows || '<div class="note">No claims to test yet.</div>'}</div>
+    <div class="modal-foot">
+      ${s.online ? "" : `<button class="btn ghost" data-test-online="1">Also verify citations online</button>`}
+      <button class="btn primary" data-test-close="1">Done</button></div></div>`;
+}
+function closeTests() { const b = $("#testModal"); if (b) b.remove(); }
 // CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
 function cssEscape(s) {
   return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
@@ -1135,6 +1178,9 @@ document.addEventListener("click", (e) => {
   const bn = e.target.closest("[data-browse]"); if (bn) return void openBrowse(bn.dataset.browse);
   const bu = e.target.closest("[data-browse-use]"); if (bu) return void useBrowseFolder(bu.dataset.browseUse);
   if (e.target.closest("[data-browse-close]")) return void closeBrowse();
+  if (e.target.closest("[data-test-close]")) return void closeTests();
+  if (e.target.closest("[data-test-online]")) return void runTests(true);
+  const tf = e.target.closest("[data-test-focus]"); if (tf) { closeTests(); return void selectClaim(tf.dataset.testFocus); }
   if (e.target.id === "pasteSave") return void savePastedManuscript();
   if (e.target.id === "addClaim") return void toggleAddClaim();
   const sp = e.target.closest("[data-claim]"); if (sp) return void selectClaim(sp.dataset.claim);
@@ -1157,6 +1203,7 @@ document.addEventListener("click", (e) => {
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
 $("#report").addEventListener("click", exportReport);
+$("#runTests").addEventListener("click", () => runTests(false));
 $("#auditBadge").addEventListener("click", () => loadAudit());
 $("#legendBtn").addEventListener("click", () => {
   const el = $("#legend"), opening = el.hasAttribute("hidden");

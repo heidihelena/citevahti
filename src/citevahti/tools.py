@@ -985,3 +985,92 @@ def claim_report(*, claim_ids: Optional[list] = None, root: Optional[str] = None
     """Run citation-integrity tests over the project's claims (read-only 4-state report)."""
     from .report import ClaimReportService
     return ClaimReportService(_open_store(root)).report(claim_ids=claim_ids)
+
+
+# ---- the manuscript "unit test" suite ---------------------------------------
+# CiteVahti's core metaphor: each claim is a test case. A claim PASSES when it is
+# backed by accepted, supporting evidence whose citation is identifiable (and,
+# online, real + not retracted); FAILS when the citation does not support it, is
+# retracted, or can't be identified; SKIPS when not yet reviewed or out of scope.
+_ACCEPTED_DECISIONS = ("accept", "accepted_with_caution")
+
+
+def _evaluate_claim_tests(row, online: bool) -> dict:
+    checks: list[dict] = []
+
+    def add(name, status, detail=""):
+        checks.append({"name": name, "status": status, "detail": detail})
+
+    def result(status):
+        return {"claim_id": row.claim_id, "claim_text": row.claim_text,
+                "state": row.state, "code": row.code.strip(),
+                "manuscript_location": row.manuscript_location,
+                "status": status, "checks": checks}
+
+    # SKIP: explicitly out of indexed scope (book/grey lit) — not a failure.
+    if row.state == "untestable":
+        add("in_scope", "skip", row.untestable_reason or "cited source is out of indexed-literature scope")
+        return result("skip")
+    # SKIP: not yet reviewed (no evidence linked, or linked but not rated/decided).
+    if row.state == "needs_support":
+        detail = "no reference linked yet" if row.candidate_count == 0 else "evidence linked but not yet rated/decided"
+        add("reviewed", "skip", detail)
+        return result("skip")
+
+    # decided states: accepted / review_needed / decision_recorded
+    add("has_reference", "pass" if row.candidate_count >= 1 else "fail",
+        "" if row.candidate_count >= 1 else "no reference linked")
+    add("reviewed", "pass")
+
+    if row.state == "review_needed":
+        add("supported", "fail", "rater discordance or a needs-second-review verdict is unresolved")
+        return result("fail")
+    if row.state == "decision_recorded":
+        add("supported", "fail", "no candidate was accepted as supporting this claim")
+        return result("fail")
+
+    # state == "accepted": the claim is supported — now test the citation itself.
+    add("supported", "pass")
+    accepted = [e for e in row.evidence if e.final_decision in _ACCEPTED_DECISIONS]
+    operative = accepted or row.evidence
+    identified = [e for e in operative if (e.doi or e.pmid)]
+    add("citation_identified", "pass" if identified else "fail",
+        "" if identified else "the supporting reference has no DOI or PMID")
+    if online:
+        retracted = [e for e in operative if e.retracted]
+        add("not_retracted", "fail" if retracted else "pass",
+            f"{len(retracted)} supporting reference(s) flagged retracted" if retracted else "")
+        add("citation_real", "pass" if identified else "fail",
+            "" if identified else "could not resolve a real DOI/PMID for the reference")
+
+    return result("fail" if any(c["status"] == "fail" for c in checks) else "pass")
+
+
+def run_manuscript_tests(*, root: Optional[str] = None, online: bool = False,
+                         claim_ids: Optional[list] = None, http=None) -> dict:
+    """Run the manuscript 'unit test' suite over the ledger's claims.
+
+    Offline checks (instant, deterministic): the claim has a linked reference, was
+    reviewed, the verdict supports it, and the supporting citation carries a DOI/PMID.
+    With ``online=True`` it first refreshes retraction flags and backfills/validates
+    identifiers (network), then also tests that the citation is real and not retracted.
+
+    Returns a JSON-serialisable suite result so the CLI and the panel share one engine.
+    """
+    online_actions: dict = {}
+    if online:
+        try:
+            online_actions["retractions"] = scan_retractions(root=root, http=http)
+        except Exception as e:  # noqa: BLE001 — a flaky network check must not crash the suite
+            online_actions["retractions_error"] = str(e)
+        try:
+            online_actions["dois"] = backfill_candidate_dois(root=root, http=http)
+        except Exception as e:  # noqa: BLE001
+            online_actions["dois_error"] = str(e)
+
+    rep = claim_report(claim_ids=claim_ids, root=root)
+    claims = [_evaluate_claim_tests(r, online) for r in rep.rows]
+    counts = {s: sum(1 for c in claims if c["status"] == s) for s in ("pass", "fail", "skip")}
+    return {"total": len(claims), "passed": counts["pass"], "failed": counts["fail"],
+            "skipped": counts["skip"], "online": online, "claims": claims,
+            "online_actions": online_actions or None, "generated_at": rep.generated_at}

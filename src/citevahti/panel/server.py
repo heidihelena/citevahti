@@ -450,6 +450,18 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                          "audit_entries": getattr(p, "audit_entries", None),
                          "audit_head": getattr(p, "audit_head_hash", None)}
 
+        # ---- the manuscript "unit test" suite (each claim is a test case) ----
+        # Offline by default (instant, structural); online verifies citations are
+        # real + not retracted. Optionally scoped to one manuscript.
+        if method == "POST" and path == "/api/test-suite":
+            online = bool(body.get("online", False))
+            mid = body.get("manuscript_id")
+            claim_ids = None
+            if mid:
+                rows = _manuscript_groups(root).get(mid, [])
+                claim_ids = [r.claim_id for r in rows]
+            return 200, engine.run_manuscript_tests(root=root, online=online, claim_ids=claim_ids)
+
         if method == "GET" and path == "/api/ledgers":
             return 200, {"active": str(Path(root).expanduser()),
                          "ledgers": prefs.discover_ledgers(root)}
