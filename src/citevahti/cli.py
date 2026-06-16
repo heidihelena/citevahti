@@ -622,6 +622,31 @@ def _cmd_test(args) -> int:
     return 1 if (suite["failed"] or online_errors) else 0
 
 
+def _cmd_risk(args) -> int:
+    """Epistemic Risk Score — derived, advisory manuscript triage (never a gate)."""
+    from . import tools
+    from .risk import score_report
+
+    r = score_report(tools.claim_report(root=args.root))
+    if getattr(args, "json", False):
+        print(r.model_dump_json(indent=2))
+        return 0
+    print(f"Epistemic Risk Score: {r.score}/100  ({r.band}; range {r.score_low}–{r.score_high})")
+    print(f"  {r.n_tested}/{r.n_testable} testable claims reviewed "
+          f"(coverage {r.coverage:.0%}); {r.n_claims} claims total")
+    s = r.subscores
+    print(f"  unsupported {s.unsupported_share:.0%} · contradiction {s.contradiction_risk:.0%} · "
+          f"retraction {s.retraction_exposure:.0%} · disagreement {s.disagreement_risk:.0%} · "
+          f"weak-fit {s.fit_risk:.0%}")
+    if r.top_contributors:
+        print("  highest-risk claims:")
+        for c in r.top_contributors[:5]:
+            print(f"    [risk {c.risk:>4}] {(c.claim_text or '')[:64]}")
+    for cav in r.caveats:
+        print(f"  · {cav}")
+    return 0   # advisory only — never a non-zero gate
+
+
 def _cmd_claim_report(args) -> int:
     """Citation-integrity test results: the 4-state claim report."""
     from . import tools
@@ -1538,6 +1563,13 @@ def main(argv: list[str] | None = None) -> int:
     rpt.add_argument("--show-text", action="store_true", help="print full claim text (text format)")
     rpt.add_argument("--output", default=None, help="write the report to a file instead of stdout")
     rpt.set_defaults(func=_cmd_claim_report)
+
+    # `risk` — the Epistemic Risk Score: a derived, advisory /100 triage number over
+    # the claim report (never a pass/fail gate). Always exits 0.
+    rsk = sub.add_parser("risk",
+                         help="Epistemic Risk Score — advisory /100 manuscript triage (read-only)")
+    rsk.add_argument("--json", action="store_true", help="emit the full risk report as JSON")
+    rsk.set_defaults(func=_cmd_risk)
 
     # `test` — run the manuscript "unit test" suite (each claim is a test case) and
     # exit non-zero on failures, so it can gate CI on a manuscript repo.
