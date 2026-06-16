@@ -1071,6 +1071,11 @@ def run_manuscript_tests(*, root: Optional[str] = None, online: bool = False,
     rep = claim_report(claim_ids=claim_ids, root=root)
     claims = [_evaluate_claim_tests(r, online) for r in rep.rows]
     counts = {s: sum(1 for c in claims if c["status"] == s) for s in ("pass", "fail", "skip")}
+    # Surface online-check failures explicitly: a swallowed retraction-scan / DOI
+    # backfill error means the citation_real / not_retracted checks ran against stale
+    # data, so a "pass" there is NOT trustworthy. Callers MUST show online_errors.
+    online_errors = [v for k, v in online_actions.items() if k.endswith("_error")]
     return {"total": len(claims), "passed": counts["pass"], "failed": counts["fail"],
             "skipped": counts["skip"], "online": online, "claims": claims,
-            "online_actions": online_actions or None, "generated_at": rep.generated_at}
+            "online_actions": online_actions or None, "online_errors": online_errors,
+            "generated_at": rep.generated_at}

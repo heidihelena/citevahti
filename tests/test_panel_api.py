@@ -598,6 +598,31 @@ def test_test_suite_endpoint_offline(tmp_path):
     assert suite["total"] == 1 and suite["online"] is False
     assert suite["skipped"] == 1 and suite["failed"] == 0
     assert suite["claims"][0]["status"] == "skip"
+    assert suite["online_errors"] == []          # offline run has no online errors
+
+
+def test_test_suite_surfaces_online_check_failures(tmp_path, monkeypatch):
+    # a swallowed retraction-scan failure must be reported, not silently "passed"
+    _setup(tmp_path)
+
+    def boom(*a, **k):
+        raise RuntimeError("OpenAlex unreachable")
+    monkeypatch.setattr(engine, "scan_retractions", boom)
+    monkeypatch.setattr(engine, "backfill_candidate_dois", lambda *a, **k: {"resolved": 0})
+    suite = engine.run_manuscript_tests(root=str(tmp_path), online=True)
+    assert suite["online"] is True
+    assert any("OpenAlex unreachable" in e for e in suite["online_errors"])
+
+
+def test_claim_revise_rejected_when_document_is_open(tmp_path):
+    # ledger-only revise must refuse when the .md is bound — would desync the file
+    store = _setup_ms(tmp_path)
+    claim_id = store.list_claims()[0]
+    status, body = dispatch(str(tmp_path), "POST", f"/api/claims/{claim_id}/revise",
+                            {"replacement": "A reworded claim."})
+    assert status == 409 and body["code"] == "document_open"
+    # the original claim text is untouched (no silent ledger write)
+    assert store.load_claim(claim_id).claim_text.startswith("Low-dose CT screening")
 
 
 def test_test_suite_passes_for_accepted_claim_with_doi(tmp_path):

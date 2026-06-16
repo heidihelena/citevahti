@@ -321,6 +321,17 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "POST" and m:
             claim_id = m.group(1)
             replacement = _req(body, "replacement")
+            # Refuse a ledger-only revise when the manuscript file IS open: writing
+            # the ledger alone would desync it from the .md. Route to the previewed
+            # document write-back instead (which updates both). Only the no-file case
+            # falls through to the audited ledger revise.
+            claim = engine._open_store(root).load_claim(claim_id)
+            if M.resolve_path(prefs.get_manuscripts_dir(root), claim.manuscript_id) is not None:
+                raise HttpError(409, "the manuscript file is open — use the previewed document edit "
+                                "so the .md and the ledger stay in sync",
+                                code="document_open",
+                                remediation="Preview and confirm the edit in the document "
+                                            "(POST /api/document/preview-edit), not the ledger-only revise.")
             engine.propose_revision(claim_id, replacement, root=root)
             engine.accept_revision(claim_id, root=root)
             claim = engine._open_store(root).load_claim(claim_id)
