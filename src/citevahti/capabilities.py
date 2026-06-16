@@ -122,6 +122,23 @@ class CapabilityStatusService:
             (rep.supported_write_ops if (backend.available and ok)
              else rep.unsupported_write_ops).append(kind)
 
+        # FullVahti (local_addon): a configured token doesn't mean the plugin door is
+        # actually up — probe it so the user learns "installed + write-back ON" vs not.
+        ping = getattr(backend, "ping", None)
+        if callable(ping):
+            p = ping()
+            reachable, wb = bool(p.get("reachable")), bool(p.get("writeback"))
+            rep.connections.append(ConnectionState(
+                name="fullvahti",
+                status="connected" if (reachable and wb) else "unavailable",
+                detail=p.get("message"), version=p.get("version"),
+                remediation=(None if (reachable and wb) else
+                             ("FullVahti is reachable but write-back is OFF — turn it on in the "
+                              "plugin's preferences." if reachable else
+                              "FullVahti door not reachable — install the Zotero plugin "
+                              "(github.com/heidihelena/fullvahti), enable write-back, and keep "
+                              "Zotero running."))))
+
         # ---- permissions (honest summary) -------------------------------
         rep.permissions = {
             "zotero_local_api": "read-only (GET-only)",
