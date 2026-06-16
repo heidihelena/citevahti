@@ -29,6 +29,7 @@ SUPPORT_VALUES = (
     "directly_supports",
     "partially_supports",
     "indirectly_supports",
+    "overstated",        # cited paper supports a *weaker* claim than the one made (overclaim)
     "does_not_support",
     "contradicts",
     "unclear",
