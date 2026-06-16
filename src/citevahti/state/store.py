@@ -82,7 +82,8 @@ class CiteVahtiStore:
         if self.exists():
             raise StateError(f"{self.dir} already initialized")
         for sub in ("frames", "ratings", "snapshots", "intake", "prisma", "claims",
-                    "candidates", "claim_support", "decisions", "transactions", "validation"):
+                    "candidates", "claim_support", "decisions", "transactions", "validation",
+                    "timestamps"):
             (self.dir / sub).mkdir(parents=True, exist_ok=True)
         cfg = config or Config.default()
         _atomic_write(self.config_path, _dump(cfg))
@@ -400,6 +401,33 @@ class CiteVahtiStore:
 
     def list_transactions(self) -> list[str]:
         d = self.transactions_dir()
+        return sorted(p.stem for p in d.glob("*.json")) if d.exists() else []
+
+    # ---- cryptographic timestamps over the audit head (issue #42) --------
+    def timestamps_dir(self) -> Path:
+        return self.dir / "timestamps"
+
+    def save_timestamp(self, proof):
+        """Audit, then atomically write a timestamp proof (audit-before-write: the proof
+        always carries its own audit_event_id)."""
+        entry = self.audit.append(
+            "timestamp.record",
+            {"proof_id": proof.proof_id, "digest_hex": proof.digest_hex,
+             "provider": proof.provider, "gentime": proof.gentime})
+        proof.audit_event_id = entry.hash
+        _atomic_write(self.timestamps_dir() / f"{proof.proof_id}.json", _dump(proof))
+        return proof
+
+    def load_timestamp(self, proof_id: str):
+        from ..schemas.timestamp import TimestampProof
+
+        path = self.timestamps_dir() / f"{proof_id}.json"
+        if not path.exists():
+            raise StateError(f"timestamp {proof_id!r} not found")
+        return TimestampProof.model_validate_json(path.read_text(encoding="utf-8"))
+
+    def list_timestamps(self) -> list[str]:
+        d = self.timestamps_dir()
         return sorted(p.stem for p in d.glob("*.json")) if d.exists() else []
 
     # ---- de-identified validation warehouse (ADR-0001, step 6) -----------

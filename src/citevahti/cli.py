@@ -192,6 +192,60 @@ def _cmd_vocabulary(args) -> int:
     return 0
 
 
+def _cmd_timestamp(args) -> int:
+    """Opt-in cryptographic timestamp of the audit head (issue #42).
+
+    Sends ONLY the audit-head hash to the configured RFC 3161 authority and stores the
+    proof. Off unless `timestamp.provider` is configured; degrades honestly when offline.
+    """
+    from .state import CiteVahtiStore
+    from .timestamp import (
+        FakeTimestampProvider,
+        TimestampService,
+        TimestampUnavailable,
+        provider_from_config,
+    )
+    from .timestamp.service import provider_for_proof
+
+    store = CiteVahtiStore(args.root)
+    if not store.exists():
+        print(f"not initialized at {store.dir}; run `citevahti init` first")
+        return 1
+
+    if args.list:
+        ids = store.list_timestamps()
+        if not ids:
+            print("no timestamps recorded yet.")
+            return 0
+        for pid in ids:
+            p = store.load_timestamp(pid)
+            print(f"  {pid}  {p.gentime or '(no gentime)'}  {p.provider}  digest={p.digest_hex[:16]}…")
+        return 0
+
+    if args.verify:
+        proof = store.load_timestamp(args.verify)
+        svc = TimestampService(store, provider_for_proof(proof))
+        res = svc.verify(args.verify)
+        for k, v in res.items():
+            print(f"  {k}: {v}")
+        return 0 if res["verified"] else 1
+
+    # stamp the current head
+    provider = FakeTimestampProvider() if args.fake else provider_from_config(store.load_config())
+    if provider is None:
+        print("timestamping is off. Set `timestamp.provider` (e.g. rfc3161 + a tsa_url) in "
+              ".citevahti/config.json, or pass --fake for a local, non-trusted demo proof.")
+        return 1
+    try:
+        proof = TimestampService(store, provider).stamp()
+    except TimestampUnavailable as exc:
+        print(f"could not timestamp (no proof written): {exc}")
+        return 1
+    print(f"timestamped audit head {proof.digest_hex[:16]}… → {proof.proof_id} "
+          f"({proof.provider}, gentime {proof.gentime or 'n/a'})")
+    return 0
+
+
 def _cmd_agent_tools(args) -> int:
     """Show the constrained agent (MCP) surface and the capabilities it can never have."""
     from .agent import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, TOOLS
@@ -1253,6 +1307,14 @@ def main(argv: list[str] | None = None) -> int:
 
     ms = sub.add_parser("mcp-serve", help="serve the constrained agent tools over MCP")
     ms.set_defaults(func=_cmd_mcp_serve)
+
+    ts = sub.add_parser("timestamp",
+                        help="opt-in cryptographic timestamp of the audit head (only the hash is sent)")
+    ts.add_argument("--verify", metavar="PROOF_ID", default=None, help="verify a stored proof")
+    ts.add_argument("--list", action="store_true", help="list recorded timestamp proofs")
+    ts.add_argument("--fake", action="store_true",
+                    help="local demo proof (no network, not third-party trusted)")
+    ts.set_defaults(func=_cmd_timestamp)
 
     bs = sub.add_parser("bib-sync", help="scan sources, resolve citekeys, export bibliographies")
     bs.add_argument("--target", action="append", default=[],

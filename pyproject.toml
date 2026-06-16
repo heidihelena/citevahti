@@ -24,6 +24,7 @@ Issues = "https://github.com/heidihelena/citevahti/issues"
 mcp = ["mcp>=1.27.2"]
 dev = ["pytest>=9.1.0"]
 keyring = ["keyring>=25.7.0"]   # OS-native secret store for onboarding (system_keyring backend)
+timestamp = ["asn1crypto>=1.5.1"]   # RFC 3161 timestamping of the audit head (issue #42); opt-in
 
 [project.scripts]
 citevahti = "citevahti.cli:main"

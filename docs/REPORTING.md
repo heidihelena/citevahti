@@ -116,3 +116,22 @@ What the report cannot prove: that every claim in the manuscript was entered,
 or that the ledger was not regenerated wholesale. It is honest-researcher
 provenance, not a forgery-proof certificate (see the **Tamper-evident audit**
 invariant in `SAFETY_INVARIANTS.md`).
+
+## Optional: a trusted timestamp (tamper-evident → third-party-verifiable)
+
+To close the "regenerated wholesale" gap, you can anchor the audit head to an external
+time source (issue #42). It is **opt-in** and **privacy-preserving**: only the SHA-256
+audit-head hash is sent — never manuscript text, claims, or ratings.
+
+```
+citevahti timestamp            # stamp the current audit head (needs a configured TSA)
+citevahti timestamp --verify <proof-id>
+citevahti timestamp --list
+```
+
+Configure a provider in `.citevahti/config.json` under `timestamp` (`provider: "rfc3161"`
+plus a `tsa_url`); install the optional dependency with `pip install "citevahti[timestamp]"`.
+Each proof is stored under `.citevahti/timestamps/` with its own audit entry. A verified
+proof shows that the ledger's history up to that point **provably existed by the
+authority's attested time** — so a later wholesale regeneration could not have produced it.
+(`--fake` writes a local, non-trusted demo proof for trying the flow offline.)
