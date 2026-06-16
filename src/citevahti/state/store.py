@@ -266,12 +266,27 @@ class CiteVahtiStore:
                                        {"claim_id": cc.claim_id, "candidates": len(cc.candidates)})
 
     def load_candidates(self, claim_id: str):
-        from ..schemas.candidate import ClaimCandidates
+        from ..schemas.candidate import ClaimCandidates, ClaimPaperCandidate
 
         path = self.candidates_dir() / f"{claim_id}.json"
         if not path.exists():
             raise StateError(f"no candidates for claim {claim_id!r}")
-        return ClaimCandidates.model_validate_json(path.read_text(encoding="utf-8"))
+        # Forward-compatible read: a newer CiteVahti may have written candidate fields
+        # this version doesn't know (e.g. `retracted`/`abstract` were added later).
+        # The models are extra="forbid" to catch typos at construction, but on DISK a
+        # stricter reader would crash and take the whole review surface down. So drop
+        # unknown top-level + per-candidate keys here, then validate the known shape.
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(raw, dict):
+            known_top = set(ClaimCandidates.model_fields)
+            known_cand = set(ClaimPaperCandidate.model_fields)
+            raw = {k: v for k, v in raw.items() if k in known_top}
+            cands = raw.get("candidates")
+            if isinstance(cands, list):
+                raw["candidates"] = [
+                    {k: v for k, v in c.items() if k in known_cand} if isinstance(c, dict) else c
+                    for c in cands]
+        return ClaimCandidates.model_validate(raw)
 
     def candidates_exist(self, claim_id: str) -> bool:
         return (self.candidates_dir() / f"{claim_id}.json").exists()

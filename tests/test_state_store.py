@@ -83,3 +83,30 @@ def test_locked_human_value_cannot_be_overwritten(tmp_path, frame):
     store.save_rating(make_grade_rating(human_value="Moderate"), frame=frame)
     with pytest.raises(HumanValueLockedError):
         store.save_rating(make_grade_rating(human_value="Low"), frame=frame)
+
+
+def test_load_candidates_tolerates_unknown_future_fields(tmp_path):
+    # forward-compat: a newer CiteVahti may write candidate fields this version doesn't
+    # know — the read must drop them, not crash and take the whole review surface down.
+    import json
+
+    from citevahti.schemas.candidate import ClaimCandidates, ClaimPaperCandidate
+
+    store = CiteVahtiStore(tmp_path)
+    store.init()
+    cc = ClaimCandidates(claim_id="c1", candidates=[
+        ClaimPaperCandidate(candidate_id="cand1", claim_id="c1", pmid="123", title="T",
+                            retrieval_source="pubmed")])
+
+    # write the on-disk file directly, then inject fields a FUTURE version added at both
+    # levels (bypassing save-time validation — we're simulating a newer writer)
+    data = json.loads(cc.model_dump_json())
+    data["future_top_level"] = {"x": 1}
+    data["candidates"][0]["future_candidate_field"] = "from a newer build"
+    store.candidates_dir().mkdir(parents=True, exist_ok=True)
+    (store.candidates_dir() / "c1.json").write_text(json.dumps(data), encoding="utf-8")
+
+    loaded = store.load_candidates("c1")            # must NOT raise
+    assert loaded.claim_id == "c1"
+    assert loaded.candidates[0].candidate_id == "cand1"
+    assert loaded.candidates[0].pmid == "123"

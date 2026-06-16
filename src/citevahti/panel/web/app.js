@@ -1252,6 +1252,12 @@ $("#theme").addEventListener("click", () => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea, select")) return;
+  // a focused claim span is role="button": Enter/Space must activate it (intrinsic
+  // button behaviour for keyboard users — works even when shortcuts are turned off).
+  const focusedClaim = e.target.closest && e.target.closest("[data-claim]");
+  if (focusedClaim && (e.key === "Enter" || e.key === " ")) {
+    selectClaim(focusedClaim.dataset.claim); return e.preventDefault();
+  }
   if (state.hotkeysOff) return;                          // user turned shortcuts off (writing mode)
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;   // letter keys are CapsLock-proof
   if (key === "?") { $("#legendBtn").click(); return e.preventDefault(); }              // ? help
