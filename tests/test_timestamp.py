@@ -43,6 +43,33 @@ def test_verify_confirms_binding_and_chain_anchoring(tmp_path):
     assert res["audit_chain_intact"] is True
     assert res["digest_in_current_chain"] is True      # the stamped head is still in the chain
     assert res["verified"] is True
+    assert res["trust"] == "demo"                      # a fake proof is internally verified, not trusted
+
+
+class _NoneBindingProvider:
+    """An rfc3161-labelled provider that can't decide the binding (e.g. asn1crypto absent)."""
+
+    name = "rfc3161"
+
+    def stamp(self, digest_hex):
+        from citevahti.timestamp import TimestampResult
+        return TimestampResult(provider="rfc3161:https://tsa.example/tsr",
+                               token_b64="opaque", gentime="2026-06-16T00:00:00+00:00")
+
+    def binds(self, token_b64, digest_hex):
+        return None
+
+
+def test_unknown_binding_does_not_count_as_verified(tmp_path):
+    # "could not check the token↔digest binding" must NOT become a successful verification
+    store = _store(tmp_path)
+    svc = TimestampService(store, _NoneBindingProvider())
+    proof = svc.stamp()
+    res = svc.verify(proof.proof_id)
+    assert res["token_binds_digest"] is None
+    assert res["audit_chain_intact"] is True and res["digest_in_current_chain"] is True
+    assert res["verified"] is False                    # binding must be established (True), not None
+    assert res["trust"] == "binding-only"              # rfc3161: full TSA trust still pending
 
 
 def test_verify_fails_when_the_digest_is_not_in_this_ledger(tmp_path):

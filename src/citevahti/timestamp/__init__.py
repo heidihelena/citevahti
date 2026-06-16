@@ -1,8 +1,8 @@
 """Opt-in cryptographic timestamping of the audit head (issue #42).
 
-Anchors the audit-head hash to a trusted external time source so the citation-integrity
-record becomes third-party-verifiable, not merely tamper-evident. Off by default; only the
-digest ever leaves the machine.
+Anchors the audit-head hash to an external time source — the foundation for
+third-party-verifiable timestamping (full TSA trust validation is a follow-up, #42). Off
+by default; only the digest ever leaves the machine.
 """
 
 from .provider import (

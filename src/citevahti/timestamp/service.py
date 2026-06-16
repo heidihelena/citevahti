@@ -32,22 +32,28 @@ class TimestampService:
         return self.store.save_timestamp(proof)      # audits + writes atomically
 
     def verify(self, proof_id: str) -> dict:
-        """Verify a stored proof. Two independent checks:
+        """Verify a stored proof. Independent checks:
 
         - **binding**: the token provably commits to the stored digest (provider-checked;
-          ``None`` when the provider can't tell without more deps);
+          ``None`` when the provider can't tell — e.g. RFC 3161 without ``asn1crypto``);
         - **anchored**: that digest is the hash of an entry in the *current* audit chain,
           and the chain is intact — so the proof attests to this very ledger's history.
+
+        ``verified`` requires binding to be **established** (``True``) — an unknown binding
+        (``None``) is *not* a success. ``trust`` says how far external trust goes: ``demo``
+        for a local fake proof; ``binding-only`` for RFC 3161 here, because full TSA
+        certificate-chain / signature validation is still a follow-up (#42).
         """
         proof = self.store.load_timestamp(proof_id)
         binding = self.provider.binds(proof.token_b64 or "", proof.digest_hex)
         intact = self.store.audit.verify()
         in_chain = any(e.hash == proof.digest_hex for e in self.store.audit.entries())
+        trust = "demo" if (proof.provider or "").startswith("fake") else "binding-only"
         return {"proof_id": proof_id, "digest_hex": proof.digest_hex,
                 "provider": proof.provider, "gentime": proof.gentime,
                 "token_binds_digest": binding, "audit_chain_intact": intact,
-                "digest_in_current_chain": in_chain,
-                "verified": bool(intact and in_chain and binding is not False)}
+                "digest_in_current_chain": in_chain, "trust": trust,
+                "verified": bool(intact and in_chain and binding is True)}
 
 
 def provider_for_proof(proof, *, http_post=None) -> TimestampProvider:

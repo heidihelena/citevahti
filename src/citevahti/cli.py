@@ -228,6 +228,13 @@ def _cmd_timestamp(args) -> int:
         res = svc.verify(args.verify)
         for k, v in res.items():
             print(f"  {k}: {v}")
+        if res["verified"]:
+            note = ("internally verified demo proof — NOT externally trusted"
+                    if res["trust"] == "demo"
+                    else "binding + chain verified; full TSA trust validation still pending")
+            print(f"  => verified ({note})")
+        else:
+            print("  => NOT verified")
         return 0 if res["verified"] else 1
 
     # stamp the current head

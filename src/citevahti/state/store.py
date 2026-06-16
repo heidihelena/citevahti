@@ -408,14 +408,19 @@ class CiteVahtiStore:
         return self.dir / "timestamps"
 
     def save_timestamp(self, proof):
-        """Audit, then atomically write a timestamp proof (audit-before-write: the proof
-        always carries its own audit_event_id)."""
+        """Validate, audit, atomically write, then re-validate the audit linkage — so a
+        persisted proof always has a well-formed digest/provider/token and its own
+        audit_event_id (same validate-around-audit pattern as the other critical objects)."""
+        from ..validators.timestamp import validate_timestamp
+
+        validate_timestamp(proof)
         entry = self.audit.append(
             "timestamp.record",
             {"proof_id": proof.proof_id, "digest_hex": proof.digest_hex,
              "provider": proof.provider, "gentime": proof.gentime})
         proof.audit_event_id = entry.hash
         _atomic_write(self.timestamps_dir() / f"{proof.proof_id}.json", _dump(proof))
+        validate_timestamp(proof, require_audit=True)
         return proof
 
     def load_timestamp(self, proof_id: str):
