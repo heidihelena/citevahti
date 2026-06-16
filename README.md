@@ -92,9 +92,13 @@ status, so the order is **auditable**, not assumed.)
 > [desktop-extension/BUILD.md](desktop-extension/BUILD.md).)
 
 ```bash
-pip install "citevahti[mcp]"     # the [mcp] extra adds the chat surface — keep both quotes
-citevahti run                    # creates the ledger if needed, says what's next, opens the panel
+pip install "citevahti[mcp]"
+citevahti run
 ```
+
+The `[mcp]` extra adds the chat surface; **keep both quotes** — the brackets are a shell
+glob, so `pip install "citevahti[mcp]"` needs them (a missing quote drops you into a
+`dquote>`/`quote>` prompt; press Ctrl-C to get out).
 
 > **One command.** `citevahti run` is the guided entry point: it initialises the project
 > if needed, prints the next step, and opens the review panel (whose banner routes you to
@@ -102,10 +106,13 @@ citevahti run                    # creates the ledger if needed, says what's nex
 > is a plain-language check of what's set up and what to fix. Prefer the pieces? `citevahti
 > init` then `citevahti start` still work.
 
-> `init` creates `.citevahti/` **in the current folder** — run it from your project
-> folder, not your home directory. (Quote the install: the `[mcp]` brackets are a
-> shell glob, so `pip install "citevahti[mcp]"` needs *both* quotes — a missing
-> closing quote drops you into a `dquote>` prompt.)
+> **`citevahti run` then stays running** — it keeps serving the panel (and a chat
+> connection on stdin), so the terminal won't return a prompt and may look idle. That's
+> normal: switch to the browser tab it opened (or visit **http://127.0.0.1:8765**), and
+> press **Ctrl-C** in the terminal when you're done. Just want the panel, no chat
+> assistant? Run **`citevahti-panel --root .`** instead — same panel, and Ctrl-C stops it
+> cleanly. `init` creates `.citevahti/` **in the current folder**, so run these from your
+> project folder, not your home directory.
 
 Now choose **one** of two ways to drive the blinded review. Both use the same
 ledger and the same loopback side panel; the human always rates first.

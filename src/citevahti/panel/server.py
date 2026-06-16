@@ -416,11 +416,18 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, workflow.project_status(root)
 
         # the citation-integrity report as Markdown, so the wizard's final step can hand
-        # the never-touched-a-terminal user a file without `citevahti report`.
+        # the never-touched-a-terminal user a file without `citevahti report`. It carries a
+        # generation timestamp + the hash-chained audit head (intact?) — a verifiable record
+        # that this review work was done, in this order, by the human.
         if method == "GET" and path == "/api/report":
             from ..report import render_markdown
             rep = engine.claim_report(root=root)
-            return 200, {"markdown": render_markdown(rep), "total": rep.total}
+            p = rep.provenance
+            return 200, {"markdown": render_markdown(rep), "total": rep.total,
+                         "generated_at": rep.generated_at,
+                         "audit_intact": getattr(p, "audit_chain_intact", None),
+                         "audit_entries": getattr(p, "audit_entries", None),
+                         "audit_head": getattr(p, "audit_head_hash", None)}
 
         if method == "GET" and path == "/api/ledgers":
             return 200, {"active": str(Path(root).expanduser()),

@@ -1,209 +1,194 @@
-# CiteVahti Quickstart — from zero to your first claim-tested citation
+# CiteVahti Quickstart — check your first citation in ~10 minutes
 
-*A product of [Vahtian](https://vahtian.com).* In ~10 minutes you'll take one
-manuscript claim, find a supporting paper on PubMed, rate it, decide, and write an
-**audited, undoable** reference into Zotero — `[oo] accepted`.
+*A product of [Vahtian](https://vahtian.com).* This guide assumes **no prior terminal
+experience**. You'll take one sentence from your manuscript, find a paper that should
+support it, judge whether it really does, and save an **audited, undoable** reference into
+Zotero. Every command is something you **copy and paste** — nothing to memorise.
 
-> **What CiteVahti is (and isn't).** It records a documented **human → AI →
-> adjudication** workflow. *You* are always the decider. It never writes silently,
-> never invents citations, and never claims a paper supports a claim — it records
-> *your* judgment, with provenance. Beta scope: **local-first and single-user**;
-> literature lookups go to PubMed, OpenAlex, Semantic Scholar and Crossref, and writes
-> (if connected) to your Zotero — no telemetry; your manuscript and ratings stay local.
+> **What CiteVahti is (and isn't).** It records a documented **human → AI → adjudication**
+> workflow. *You* are always the decider. It never writes silently, never invents
+> citations, and never claims a paper supports a claim — it records *your* judgment, with
+> provenance. Beta scope: **local-first and single-user**; literature lookups go to PubMed,
+> OpenAlex, Semantic Scholar and Crossref, and writes (if you connect Zotero) go to your
+> Zotero — no telemetry; your manuscript and ratings never leave your machine.
 
 ---
 
-> **No terminal needed if you use Claude Desktop:** download
-> **`citevahti.mcpb`** from the
-> [latest release](https://github.com/heidihelena/citevahti/releases/latest),
-> double-click it, pick your CiteVahti folder once, and run the
-> `run_claim_tests` prompt in chat — the runtime is bundled (no Python, no
-> pip), and the assistant opens the rating panel for you when it's time to
-> rate. Everything below is the terminal route.
+## The easiest path: no terminal at all (Claude Desktop)
 
-## 0. Prerequisites
-- **Zotero desktop** installed and **running** (CiteVahti reads your library locally, keyless).
-- **Python 3.10+**.
-- A contact **email for PubMed** (NCBI asks for one; never used for anything else).
-- *Optional:* [Better BibTeX](https://retorque.re/zotero-better-bibtex/) for citekeys.
+If you use **Claude Desktop**, you don't need a terminal:
 
-## 1. Install (on PyPI)
+1. Download **`citevahti.mcpb`** from the [latest release](https://github.com/heidihelena/citevahti/releases/latest).
+2. Double-click it. Claude Desktop installs it and asks once for a folder to keep your work in.
+3. In the chat, type **`run_claim_tests`** and paste a paragraph of your manuscript.
+
+The assistant finds candidate papers and opens the rating panel in your browser when it's
+your turn to rate. The runtime is bundled — no Python, no setup. **You can stop reading here.**
+
+The rest of this guide is the **terminal route** (more control, works with any chat client).
+
+---
+
+## 1. Install it
+
+You'll use the **Terminal** app (on macOS: press `⌘ Space`, type "Terminal", hit Enter; on
+Windows: open "PowerShell"; on Linux: your terminal). **Copy the block below and paste it
+in**, then press Enter:
+
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install "citevahti[keyring,mcp]"   # keyring = Zotero key in your OS keychain; mcp = chat surface
-citevahti --help
+pip install "citevahti[keyring,mcp]"
 ```
-<details><summary>or from source</summary>
+
+(That makes a private workspace and installs CiteVahti into it. `keyring` keeps your Zotero
+key in your computer's secure keychain; `mcp` lets a chat assistant connect.)
+
+> On Windows PowerShell the middle step is `.venv\Scripts\Activate.ps1` instead of
+> `source .venv/bin/activate`. Everything else is identical.
+
+## 2. Open CiteVahti
+
+Make sure **Zotero is open** (CiteVahti reads your library from the running Zotero app).
+Then **copy this and paste it into your terminal:**
 
 ```bash
-git clone https://github.com/heidihelena/citevahti
-cd citevahti && python -m venv .venv && source .venv/bin/activate
-pip install -e ".[keyring,mcp]"
+citevahti run
 ```
-</details>
 
-**VS Code extension** (the inline review surface — optional):
+That one command creates your project, checks what's set up, prints the next step, and
+**opens the review panel in your browser**. A banner at the top of the panel always tells
+you the single next thing to do — you're never lost.
+
+> **The terminal then stays busy — that's normal, not a freeze.** `citevahti run` keeps
+> running to serve the panel (and a chat connection), so no new prompt appears. Switch to
+> the browser tab it opened — or visit **http://127.0.0.1:8765** — and do your work there.
+> Press **Ctrl-C** in the terminal when you're finished.
+>
+> **Just want the panel, without a chat assistant?** Use this instead — it serves the same
+> panel and Ctrl-C stops it cleanly. It won't pop a browser, so open the link yourself:
+> ```
+> citevahti-panel --root .
+> ```
+> then visit **http://127.0.0.1:8765**.
+
+- Came back the next day? Run **`citevahti resume`** — it reopens the panel right where you
+  left off.
+- Not sure something's set up? Run **`citevahti doctor`** — it explains, in plain language,
+  what's ready and what to fix.
+
+## 3. Connect your sources (in the panel)
+
+On first run the panel shows two buttons:
+
+- **Connect Zotero** — needed only to *save* references back to Zotero. Click it; CiteVahti
+  opens Zotero's key page with everything pre-filled. Click **Save Key**, copy the key, and
+  paste it back. (Your key is stored in your computer's keychain — never in a file.)
+- **Connect PubMed** — enter a contact email (PubMed asks every tool for one; it's used only
+  to talk to PubMed).
+
+You can rate and decide without Zotero connected — you only need it for the final "save the
+citation" step.
+
+## 4. Add your claims, then do the loop — in the panel
+
+First, get your manuscript's claims into CiteVahti. **The panel itself doesn't read your
+prose with AI** — finding the claims is the one step that needs a chat assistant:
+
+- **With a chat client** (Claude Desktop / ChatGPT / Claude Code / Codex connected over
+  MCP): run the **`run_claim_tests`** prompt and paste a paragraph. The assistant extracts
+  the claims into your ledger. *(Or paste your manuscript into the panel's box — that saves
+  the file and hands you the exact prompt to run in the chat; it doesn't extract on its own.)*
+- **No chat client?** Add a claim by hand with the panel's **+ Claim** button (or the CLI in
+  the box below).
+
+Once claims exist, CiteVahti highlights them in the manuscript. Click one, and the card on
+the right walks you through four steps, following the banner's prompts:
+
+1. **Rate** — read the candidate paper and record *your* judgment of whether it supports the
+   claim. You go first.
+2. **Reveal** — only now does the AI's independent second opinion appear. If you disagree,
+   you adjudicate; the AI never decides.
+3. **Decide** — press the verdict: **Accept**, **Accept with caution**, **Needs review**, or
+   **Reject**.
+4. **Write** — for an accepted claim, click **✓ Add to Zotero** → preview → confirm → done,
+   with **Undo** if you change your mind. Nothing is ever written without your confirmation.
+
+When every claim is handled, the banner offers **Export report**. You can also download it
+any time from the header — see §6.
+
+<details><summary><b>Prefer to drive every step from the terminal?</b> (power users / scripting)</summary>
+
+The panel is the recommended surface. But the whole loop is also available as commands —
+each one prints an id you paste into the next. **Copy/paste, replacing the `<…>` parts:**
+
 ```bash
-cd vscode-extension && npm install && npm run package
-code --install-extension citevahti-vscode-0.16.0.vsix
-```
-Then set `citevahti.cliPath` to your `citevahti` binary (e.g. `.venv/bin/citevahti`).
+# add a claim
+citevahti claim-add --text "Low-dose CT screening reduces lung-cancer mortality." --type effectiveness
+# → claim recorded: claim-…   (copy this id)
 
-## 2. One-time setup
-```bash
-citevahti init                                   # creates the .citevahti/ ledger
-citevahti onboard --ncbi-email you@uni.edu \
-                  --no-zotero-key --skip-validate # records your PubMed email (no secrets)
-citevahti connect-zotero                          # ← the one-paste Zotero connect
-```
-`connect-zotero` opens Zotero's key page **pre-filled** (name + write permission).
-Click **Save Key**, copy it, paste it back. CiteVahti validates it, learns your
-userID automatically, and stores the key in your **OS keychain** — never in a file.
-You should see `✓ Connected to Zotero as … (user …)`.
-
-## 3. Start the workspace — two paths
-
-CiteVahti has two co-primary surfaces (ADR-0007): a **chat client** via the MCP
-server, and a **loopback side panel** where you record your blind rating. Pick the
-path that matches how you want to work — both use the same `.citevahti/` ledger and
-the human always rates first.
-
-### Path A — chat-driven (recommended)
-
-You don't launch a server yourself. Add one line to your chat client's MCP config;
-the client spawns it and the panel + browser open for you:
-```json
-{ "mcpServers": { "citevahti": { "command": "citevahti", "args": ["start", "--root", "/path/to/project"] } } }
-```
-- **Claude Desktop / ChatGPT desktop:** add the block to the app's MCP config.
-- **Claude Code:** `claude mcp add citevahti -- citevahti start --root /path/to/project`
-- **Codex:** add the equivalent stdio server entry in `config.toml`.
-
-Then run the **`run_claim_tests`** prompt in the chat — or just paste a manuscript
-paragraph. The chat finds candidates and records the AI's second rating; **you rate
-first in the panel**, the AI rating stays hidden until you do, and any Zotero write
-is previewed → confirmed → **undoable**. That is the whole loop.
-
-> **Don't run `citevahti start` in a terminal yourself for this path.** It's the
-> command the client spawns. Run by hand it serves the MCP protocol on stdin — the
-> terminal blocks, **no prompt returns**, and the panel stays **empty until a claim
-> exists**. That's not a crash; it's a server waiting for a client. `Ctrl-C` stops
-> it and returns your shell.
-
-### Path B — hands-on (panel + CLI)
-
-Prefer to drive every step by hand (or script it in CI)? Open **two terminals**.
-
-Terminal 1 — bring up the panel; it stays running and occupies this terminal:
-```bash
-citevahti-panel --root /path/to/project     # http://127.0.0.1:8765, loopback only
-```
-Terminal 2 — run the loop on the CLI (sections 4–7 below). Reload the panel to see
-each change.
-
-> The panel opens **empty** — "No claims yet." That's expected until you add a
-> claim in §4. Use `citevahti-panel` here, **not** `citevahti start`: `start` would
-> grab stdin for the MCP protocol and never return your prompt.
-
-## 4. Add a claim from your manuscript
-```bash
-citevahti claim-add \
-  --text "Low-dose CT screening reduces lung-cancer mortality in high-risk populations." \
-  --type effectiveness --location "Discussion ¶2"
-# → claim recorded: claim-2026...-abcd1234   (copy this id)
-```
-
-> **Citing a book, chapter, or report?** Sources outside the indexed
-> literature (PubMed/OpenAlex/Semantic Scholar) can't be auto-checked — that is
-> a scope limit, not a failing claim. Mark it:
-> `citevahti claim-untestable <claim-id> --reason "monograph, not indexed"`
-> and the report shows `[u] untestable` instead of "needs support".
-
-## 5. Find candidate evidence (PubMed) and link it
-```bash
+# find candidate papers on PubMed and link them to the claim
 citevahti literature-search --query "low-dose CT lung cancer screening mortality randomized" --question-id q1
-# → intake batch  : intake-2026...-xxxx      (copy the batch id)
-
+# → intake batch: intake-…    (copy this id)
 citevahti claim-link-candidates --claim-id <CLAIM_ID> --intake-batch-id <BATCH_ID>
-citevahti candidate-list --claim-id <CLAIM_ID>
-# → … cand=cand-...-yyyy                      (copy a candidate id)
-```
-> Finding a paper isn't citing it. The next step tests whether it actually
-> **supports the claim**.
+citevahti candidate-list --claim-id <CLAIM_ID>          # → cand-…  (copy a candidate id)
 
-## 6. Review & decide — *you* are the decider
-
-*(With the side panel up — from either path in §3 — you do this in the panel. The
-two surfaces below are the same decision by hand — in the VS Code adapter, or fully
-on the CLI.)*
-
-### Option A — in VS Code
-1. Open your manuscript (`.md`), run **CiteVahti: Verify claims** (Command Palette).
-2. Each claim is highlighted by its state. Expand the claim, focus a candidate.
-3. Rate support, then press the verdict: **`o o` accept → `[oo]`**, `o` caution, `r` review, `d` reject.
-   *(The panel hides the AI's opinion until you rate; the ledger logs the order, so blinding is auditable.)*
-4. On an accepted candidate, click **✓ Add to Zotero** → preview → confirm → done, with **Undo**.
-
-### Option B — full CLI
-```bash
-citevahti claim-support-start --claim-id <CLAIM_ID> --candidate-id <CAND_ID>
-# → claim-support rating started: cs-...-zzzz
-
+# rate (you first), then decide
+citevahti claim-support-start --claim-id <CLAIM_ID> --candidate-id <CAND_ID>     # → cs-… rating id
 citevahti claim-support-commit-human --rating-id <RATING_ID> --value directly_supports
 citevahti claim-support-compare --rating-id <RATING_ID>
-
 citevahti claim-decide --claim-id <CLAIM_ID> --candidate-id <CAND_ID> \
   --decision accept --reason "RCT directly evaluates the claim" --rating-id <RATING_ID>
-# → decision_id : decision-...-wwww
-#   → write it  : citevahti claim-commit --decision-id decision-...-wwww --commit
+# → decision-…  (copy this id)
+
+# save to Zotero — always previews first, then asks before writing
+citevahti claim-commit --decision-id <DECISION_ID>            # preview only
+citevahti claim-commit --decision-id <DECISION_ID> --commit   # shows preview, asks [y/N], writes
+# undo any time:
+citevahti txn-undo --transaction-id <TXN_ID>
 ```
-Then the **decision-gated write** (preview first, always):
-```bash
-citevahti claim-commit --decision-id <DECISION_ID>            # dry-run preview only
-citevahti claim-commit --decision-id <DECISION_ID> --commit   # shows the preview, asks [y/N], then writes
-# undo any time: citevahti txn-undo --transaction-id <TXN_ID>
-```
-`--commit` always shows the preview and asks before writing — never a silent write.
-**Non-interactive (scripts/CI):** there's no prompt, so replay the token from the
-preview. Run the preview as JSON, read its `confirm_token`, then commit with it:
+
+For scripts/CI (no prompt available), replay the preview's token:
 ```bash
 TOKEN=$(citevahti claim-commit --decision-id <DECISION_ID> --json | python -c "import sys,json;print(json.load(sys.stdin)['confirm_token'])")
 citevahti claim-commit --decision-id <DECISION_ID> --commit --confirm-token "$TOKEN"
 ```
-A `--commit` without a token in a non-interactive shell refuses (`missing_confirm_token`)
-— so nothing is ever written unseen.
 
-## 7. The Citation-Integrity Report
-```bash
-citevahti claim-report                       # 4-state summary (exit ≠ 0 if any need attention)
-citevahti claim-report --format md --output integrity.md   # the editor/supervisor report
-```
+> **Citing a book, chapter, or report?** Sources outside the indexed literature can't be
+> auto-checked — that's a scope limit, not a failed claim. Mark it:
+> `citevahti claim-untestable <claim-id> --reason "monograph, not indexed"` and the report
+> shows `[u] untestable` instead of "needs support".
+</details>
 
-Writing this up for a paper? `citevahti agreement-report --format markdown`
-produces the method-transparency section (blinding mode, model provenance,
-agreement metrics), and **[REPORTING.md](REPORTING.md)** has a fill-in-the-blanks
-methods paragraph wired to those numbers.
+## 5. Get the references into your thesis or paper
 
-## 8. Getting the references into your article or thesis
+CiteVahti's job ends with a **vetted reference sitting in your Zotero library** — checked
+against the claim, deduped, audited. It does *not* type citations into your prose. How a
+citation reaches your document depends on your writing tool:
 
-**CiteVahti's job ends with a vetted reference in your Zotero library** — checked against
-the claim, deduped, audited. It does **not** insert live citations into your prose. So how
-a citation reaches your final document depends on your writing tool:
+- **Word / Google Docs:** the reference is already in Zotero, so cite it the normal way with
+  the **Zotero Word/Docs plugin** ("Add/Edit Citation"). (Pasting prose never carries live
+  citations in any tool — you cite *in* Word.)
+- **Markdown → Pandoc:** write `[@citekey]` markers; **Pandoc `--citeproc`** with a Better
+  BibTeX `.bib` from Zotero formats them automatically. Pin your Better BibTeX citekeys so
+  they keep resolving.
 
-- **Word / Google Docs (typical for a thesis):** your manuscript prose is plain text, so
-  copy-pasting it carries no citations — CiteVahti never put any *in the prose*. But the
-  **reference is already in your Zotero library**, vetted and deduped, so you cite it the
-  normal way with the **Zotero Word/Docs plugin** ("Add/Edit Citation"). Nothing is lost —
-  you *cite in Word*, you don't paste citations. (A plain text paste never carries live
-  citations into Word; that's true of any tool.)
-- **Markdown → Pandoc:** if you write citations as Better BibTeX keys in Pandoc form
-  `[@citekey]`, those travel as plain text and **Pandoc `--citeproc`** (with a Better
-  BibTeX `.bib`/CSL exported from Zotero) formats them into in-text citations + a
-  bibliography automatically.
+Want the **actual PDFs** beside your vetted references? [**FullVahti**](https://github.com/heidihelena/fullvahti)
+is a companion Zotero plugin (two clicks, no terminal) that fetches free, legal open-access
+full text from Unpaywall and PubMed Central into the same library, and honestly reports what
+isn't available.
 
-> **In short:** the Zotero references always persist; the *in-text citing* happens in your
-> writing tool (Word + Zotero plugin, or Markdown + Pandoc) — not via copy-pasting prose.
-> If you use `[@citekey]` markers, **pin your Better BibTeX citekeys** so they keep resolving.
+## 6. Your proof of work — the timestamped report
+
+Click **⎙ Report** in the panel header any time (or run `citevahti claim-report --format md
+--output integrity.md`). You get a Markdown **Citation-Integrity Report** that records:
+
+- **when** it was generated, and **how many** claims were tested in each state;
+- an **Integrity** line carrying the hash-chained **audit head** and whether the chain is
+  intact — a tamper-evident record that *this review work was done, in this order, by you*.
+
+In an age of AI writing, that timestamped, audit-anchored report is how you show the
+verification was your own work — not a black box. (`citevahti agreement-report` and
+[REPORTING.md](REPORTING.md) add the method-transparency paragraph for a paper.)
 
 ---
 
@@ -211,25 +196,24 @@ a citation reaches your final document depends on your writing tool:
 ```
 claim → candidate → blinded support rating → your decision → guarded, undoable Zotero write → audit
 ```
-Every step is recorded in `.citevahti/` with provenance and a **hash-chained audit
-log** — so the whole workflow can be reported in a methods section. Verify it any
-time: `citevahti verify-audit`.
+Every step is recorded in your project's `.citevahti/` folder with provenance and a
+**hash-chained audit log**, so the whole workflow is reportable. Verify it any time with
+`citevahti verify-audit`.
 
 ## Safety, by design
 - **You decide.** AI is a blinded, advisory second rater — never decisive, never silent.
-- **No silent writes.** Every Zotero write is preview → confirm → commit, and undoable; duplicates fail closed by default. If a duplicate check can't be run, the write is refused unless you pass an explicit override — which is warned at preview and recorded on the committed transaction (`dedupe_unverified`).
-- **Your key is yours.** Stored only in the OS keychain — never in config, logs, or settings. Reads need no key at all.
+- **No silent writes.** Every Zotero write is preview → confirm → commit, and undoable;
+  duplicates fail closed.
+- **Your key is yours.** Stored only in your OS keychain — never in config, logs, or
+  settings. Reading your library needs no key at all.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| "Zotero isn't connected" on write | Run `citevahti connect-zotero` (or the VS Code **Connect Zotero** command). |
-| Reads fail / empty | Make sure **Zotero desktop is running** (the local API is keyless but needs the app open). |
+| Not sure what's set up | Run **`citevahti doctor`** — it lists what's ready and the next step in plain language. |
+| "Zotero isn't connected" on write | Click **Connect Zotero** in the panel (or run `citevahti connect-zotero`). |
+| Reads fail / library empty | Make sure the **Zotero desktop app is open** (the local connection needs it running). |
 | PubMed search rejected | Set your email: `citevahti onboard --ncbi-email you@uni.edu --no-zotero-key --skip-validate`. |
-| "keyring … unavailable" | `pip install keyring`, or use the env key `CITEVAHTI_ZOTERO_WRITE_KEY` for a headless run. |
-| Want the AI second opinion | Configure an AI model in `.citevahti/config.json` (`ai_provenance`); otherwise the human-only path above works fully. |
-| Ran `citevahti start`; terminal has no prompt | Expected — `start` serves the MCP protocol on stdin (it's meant to be spawned by a chat client). `Ctrl-C` returns your shell. For hands-on use, run `citevahti-panel` instead (Path B). |
-| Panel opens but is "static" / empty | "No claims yet" is the empty state — add a claim (§4), then reload the panel. Also check you started from your project folder, not `~` (the ledger is per-folder). |
-| Shell stuck at `dquote>` on install | The install string lost its closing quote. `Ctrl-C`, then run `pip install "citevahti[mcp]"` with **both** quotes. |
-
-Questions / issues: <https://github.com/heidihelena/citevahti/issues>
+| The panel says "No claims yet" | Expected until you add a claim — paste a paragraph in the panel, or run the `run_claim_tests` prompt in your chat client. |
+| "keyring … unavailable" | `pip install keyring`, or set `CITEVAHTI_ZOTERO_WRITE_KEY` for a headless run. |
+| Want the AI second opinion | Configure an AI model in `.citevahti/config.json` (`ai_provenance`); the human-only path works fully without it. |
