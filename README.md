@@ -160,6 +160,21 @@ citevahti literature-search --query "…" --question-id q1
 # … then rate and decide — full sequence in docs/QUICKSTART.md §4–7
 ```
 
+**Run unit tests on the whole manuscript.** CiteVahti treats each claim as a test
+case: does it meet its references, and are the citations real? Run the suite at any
+point — it prints pass/fail per claim and **exits non-zero on failure**, so it can
+gate CI on a manuscript repo:
+
+```bash
+citevahti test            # instant, structural: evidence linked, reviewed, supported, citation has a DOI/PMID
+citevahti test --online   # also verify each citation resolves to a real record and isn't retracted
+```
+
+In the panel, the same suite is the **▶ Run unit tests** button. A claim PASSES when
+it's backed by accepted, supporting evidence with a real citation; FAILS when the
+citation doesn't support it, is retracted, or has no identifier; and is SKIPPED when
+it's not yet reviewed or marked out of indexed scope.
+
 That's the whole loop, either way. Everything below is depth on top of it.
 
 **▶ New here? [`docs/QUICKSTART.md`](docs/QUICKSTART.md)** — the same path in full,
