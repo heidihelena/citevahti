@@ -1,102 +1,83 @@
 # CiteVahti
 
-**Run unit tests on your manuscript. Check every claim before you cite it.**
+**Check every claim before you cite it.**
 
-> *A product of **Vahtian**.*
+CiteVahti tests whether a manuscript claim is supported by the paper cited for it.
+**You rate first. AI gives a blinded second opinion. You adjudicate.** The Zotero
+write-back is previewed, confirmed, audited, and undoable.
 
-> **Status: v0.16.0 — the inline reviewer is the default, self-sufficient panel.**
-> The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
-> blinded support rating → final decision → decision-gated, undoable Zotero write →
-> de-identified warehouse), hash-chain audited, with 600+ offline tests. The loopback
-> panel is now the **inline manuscript reviewer**: claims highlighted in place, an
-> action-first **Rate → Reveal → Decide → Write** card, and enough built in to run
-> the whole loop without the chat — find evidence (PubMed / OpenAlex / Semantic
-> Scholar / your Zotero library), add claims, connect Zotero (paste or OAuth),
-> backfill DOIs, scan for retractions, open a reference's PDF in Zotero, revise the
-> `.md`, and read a per-claim audit trail. The AI second rating still comes only from
-> your chat client over MCP. **`citevahti start`**
-> launches the whole workspace at once — panel + browser + MCP server — and
-> doubles as the one line in your chat client's MCP config. You drive the
-> blinded review from **two co-primary surfaces (ADR-0007)**: a **chat client**
-> (Claude Desktop / ChatGPT / Claude Code / Codex) via the MCP server and its
-> **`run_claim_tests`** prompt, and a **loopback side panel** (`citevahti-panel`)
-> that is the blind human-rating surface — the AI rating stays hidden until you
-> rate. The VS Code inline review loop remains one adapter: claim spans by state,
-> an evidence card that is now **rate-first** (the Accept/Caution/Review/Reject
-> verdict is locked until you record your blind support rating), with **PICO
-> fit-checks, a citation-fit score, and the supporting
-> excerpt**, a **"Change reference"** PubMed search-and-link flow, an editor-mode
-> Citation-Integrity Report, and an agent-proposes / human-accepts revision diff.
-> Local-first and single-user. Your manuscript text and ratings stay on your machine
-> and there is no telemetry; the only outbound calls are to the literature services it
-> searches or checks — **PubMed (NCBI), OpenAlex, Semantic Scholar, and Crossref/doi.org**
-> — and, if you connect it, **your Zotero**. Search queries and the titles/DOIs/PMIDs of
-> references you look up are sent to those services. (PubMed is the primary search source;
-> "PubMed-only" was an earlier, narrower scope.)
+> *A product of **Vahtian**.* Free and local-first for researchers; Vahtian sells paid
+> infrastructure to organizations that need auditable citation integrity at publication
+> scale. The open Apache-2.0 core never paywalls a researcher's ability to verify their
+> own manuscript.
 
-> **Positioning.** *CiteVahti is free and local-first for researchers, and Vahtian
-> sells paid infrastructure to organizations that need auditable citation integrity
-> at publication scale.* The open Apache-2.0 core never paywalls a researcher's
-> ability to verify their own manuscript; the hosted layer (ADR-0003) serves
-> organizations with citation-risk exposure — publishers, guideline groups,
-> institutions, and medical-communications teams.
+> **The human or panel is always the decider. The AI is a blinded, advisory second rater
+> only — its values are advisory, never decisive, and never silently propagated.**
 
-**CiteVahti runs unit tests on manuscript claims.** The manuscript is the code;
-each scientific claim is a test case. It checks whether each claim is actually
-supported by its cited or candidate evidence — using PubMed and Zotero, a
-**blinded, human-first** rating workflow, and MCP-connected agents such as Codex or
-Claude Code. The human rates support first; the AI second opinion stays hidden
-until then; Zotero writes are previewed, confirmed, and undoable.
+## Choose your path
 
-Three doors to the same product: *run unit tests on your manuscript* (agents /
-technical researchers) · *check every claim before you cite it* (researchers) ·
-*create an auditable claim-evidence trail* (journals / institutions). The core unit
-is **not a paper and not a reference — it is a claim test.** VS Code is one adapter
-and PyPI one install path; neither defines the product. CiteVahti's value is **not**
-autonomous reviewing; it is a documented **human → AI → adjudication** workflow you
-can report transparently in a methods section —
-[docs/REPORTING.md](docs/REPORTING.md) has the fill-in-the-blanks methods
-paragraph and the commands that produce its numbers. Single-user and local; literature
-lookups use PubMed, OpenAlex, Semantic Scholar and Crossref (no telemetry).
-The de-identified validation warehouse is local too; contributing any of it to
-the shared evidence corpus is a separate, active opt-in with its own
-[contributor privacy notice](docs/CONTRIBUTOR_PRIVACY.md) — never automatic.
+### I write manuscripts
+Use the **browser panel** — no terminal required. Paste a paragraph, rate whether each
+cited paper supports its claim, and verify your first claim in ~10 minutes.
+→ [Getting started](#getting-started-install-then-pick-a-path) · [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
 
-> **The human or panel is always the decider. The AI is a blinded, advisory
-> second rater only. AI values are advisory, never decisive, and never silently
-> propagated.**
+### I use agents or VS Code
+Install the **MCP server** and run claim tests from Claude, ChatGPT, Codex, or the VS Code
+inline review loop. → [Path A — chat-driven](#path-a--chat-driven-recommended)
 
-## Beta
+### I review manuscripts for a journal
+Export an **auditable claim-evidence trail** for methods reporting, then install.
+→ [`docs/REPORTING.md`](docs/REPORTING.md)
 
-**CiteVahti is currently in beta and free to use for testing, research feedback, and
-early development. Pricing for hosted and advanced features may be introduced later.
-A free local/community version is intended to remain available.**
+> **Beta.** Free to use for testing, research feedback, and early development. Pricing for
+> hosted and advanced features may come later; a free local/community version is intended
+> to remain available.
+
+**Full status & capabilities** — what's complete in v0.16.0, the two co-primary surfaces,
+the literature sources, and the VS Code adapter: **[`docs/STATUS.md`](docs/STATUS.md)**.
 
 ## See it
 
-The inline reviewer — your manuscript with claims highlighted in place, each reviewed
-in an action-first **Rate → Reveal → Decide → Write** card. You rate first; the panel
-withholds the AI's second rating until yours is recorded. Blinding is a panel-enforced
-workflow, not a hard engine lock — but the ledger logs each rating's timestamp and the
-rating **mode** (e.g. `human_first_ai_blind`) plus the comparison status (human-only /
-AI-abstained / concordant / discordant), so the actual order is **auditable**, not assumed.
+The panel always tells you the one next thing to do — no terminal, no command to
+remember. A guided banner names the next action and takes you there.
 
-![The inline reviewer: a manuscript with colour-coded claim spans and the blind support-rating card.](docs/screenshots/01-review-surface.png)
+![A "what's next" banner above the manuscript names the next action — rate the next claim, or export the report — with a single button.](docs/screenshots/00-next-step.png)
 
-The legend (the header **?**) explains every mark and states plainly that CiteVahti
-checks **citation support, not clinical truth**:
+*You're never lost: the banner reads the project's state and hands you the next step
+(rate the next claim, or export the report). `citevahti run` opens straight to this.*
 
-![The verdict legend, open over the manuscript.](docs/screenshots/02-legend.png)
+The journey, then, in three screens: paste a paragraph, rate each claim against the paper
+cited for it, and let the AI's second opinion appear only after you've rated.
 
-First run, on an empty ledger — paste a manuscript to get started, or connect your
-sources. Claim extraction runs in your chat client, so the panel hands you the exact
-prompt to use next:
+![CiteVahti highlights claim-like statements in the manuscript; you rate whether the cited paper supports each one, and the AI's second rating stays hidden until you do.](docs/screenshots/01-review-surface.png)
 
-![First-run empty state with the paste-a-manuscript box and connect actions.](docs/screenshots/03-first-run.png)
+*Paste a manuscript paragraph. CiteVahti highlights claim-like statements and asks you to
+rate whether the cited paper supports each one — before any AI rating is shown.*
+
+![The verdict legend: what accept, caution, review, reject, and untestable each mean.](docs/screenshots/02-legend.png)
+
+*Accept, caution, review, reject, or mark untestable. CiteVahti checks **citation support,
+not clinical truth** — the legend (header **?**) spells out every mark.*
+
+![First-run empty state with a box to paste a manuscript paragraph.](docs/screenshots/03-first-run.png)
+
+*Start from nothing: paste a manuscript paragraph to begin — no account, nothing uploaded.
+Claim extraction runs in your chat client, so the panel hands you the exact prompt next.*
+
+Then the loop continues in the same shape: **reveal** the blinded AI rating only after
+yours is in, **decide** the verdict, **write** the verified reference to Zotero only after
+a previewed confirmation, and **export** the claim-evidence trail for a methods section.
+Every write is audited and undoable. (Blinding is a panel-enforced workflow, not a hard
+engine lock — but the ledger logs each rating's timestamp and mode plus the comparison
+status, so the order is **auditable**, not assumed.)
 
 > The screenshots use a small synthetic demo ledger. Regenerate it any time with
 > `PYTHONPATH=src python3 docs/demo/build_demo_ledger.py .demo-ledger`, then preview it
-> with the `cv-demo` launch config (`--root .demo-ledger`).
+> with the `cv-demo` launch config (`--root .demo-ledger`). To regenerate the screenshots
+> themselves in light mode, run `PYTHONPATH=src python3 docs/demo/capture_screenshots.py`
+> (needs `pip install playwright && playwright install chromium`); it forces light via the
+> panel's `?theme=light` hook. The panel defaults to light — the **◑/◐** toggle in the
+> header switches to dark and now remembers your choice.
 
 ## Getting started: install, then pick a path
 
@@ -111,14 +92,32 @@ prompt to use next:
 > [desktop-extension/BUILD.md](desktop-extension/BUILD.md).)
 
 ```bash
-pip install "citevahti[mcp]"     # the [mcp] extra adds the chat surface — keep both quotes
-citevahti init                   # one-time: create the local .citevahti/ ledger
+pip install "citevahti[mcp]"
+citevahti run
 ```
 
-> `init` creates `.citevahti/` **in the current folder** — run it from your project
-> folder, not your home directory. (Quote the install: the `[mcp]` brackets are a
-> shell glob, so `pip install "citevahti[mcp]"` needs *both* quotes — a missing
-> closing quote drops you into a `dquote>` prompt.)
+The `[mcp]` extra adds the chat surface; **keep both quotes** — the brackets are a shell
+glob, so `pip install "citevahti[mcp]"` needs them (a missing quote drops you into a
+`dquote>`/`quote>` prompt; press Ctrl-C to get out).
+
+> **Newest commands need the latest version.** `citevahti run` / `resume` / `doctor` and
+> the guided panel ship in the current release line; if `pip` gives you an older build and
+> `citevahti run` reports "invalid choice", install the latest from source (`git clone … &&
+> pip install -e ".[mcp]"`) or upgrade with `pip install -U "citevahti[mcp]"`.
+
+> **One command.** `citevahti run` is the guided entry point: it initialises the project
+> if needed, prints the next step, and opens the review panel (whose banner routes you to
+> the next claim). `citevahti resume` reopens it where you left off, and `citevahti doctor`
+> is a plain-language check of what's set up and what to fix. Prefer the pieces? `citevahti
+> init` then `citevahti start` still work.
+
+> **`citevahti run` then stays running** — it keeps serving the panel (and a chat
+> connection on stdin), so the terminal won't return a prompt and may look idle. That's
+> normal: switch to the browser tab it opened (or visit **http://127.0.0.1:8765**), and
+> press **Ctrl-C** in the terminal when you're done. Just want the panel, no chat
+> assistant? Run **`citevahti-panel --root .`** instead — same panel, and Ctrl-C stops it
+> cleanly. `init` creates `.citevahti/` **in the current folder**, so run these from your
+> project folder, not your home directory.
 
 Now choose **one** of two ways to drive the blinded review. Both use the same
 ledger and the same loopback side panel; the human always rates first.
@@ -172,21 +171,20 @@ reference, the reviewer checklist, and the [glossary](docs/GLOSSARY.md)
 
 ## Direction: the citation-integrity ledger (ADR-0001)
 
-As of 0.4.0 the product spine is **citation integrity** — *verify the claim
-before you cite it.* The **claim** is the first-class object, and the ledger is:
+The product spine is **citation integrity** — *verify the claim before you cite it.* The
+**claim** is the first-class object, and the ledger is:
 
 ```
 manuscript claim → candidate papers → blinded claim-support rating
   → human-owned final decision → decision-gated, undoable Zotero write → audit
 ```
 
-An **audited** Zotero write happens only as the terminal step of that chain
-(one claim · one paper · one final `accept` decision · provenance · transaction ·
-audit · undo) — never silently, never for a paper that doesn't support the claim.
-See [`docs/adr/0001-citation-integrity-architecture.md`](docs/adr/0001-citation-integrity-architecture.md)
-for the decision and the local-first build sequence (**steps 1–6 complete**), and
-[`docs/adr/0002-ui-delivery-and-review-layer.md`](docs/adr/0002-ui-delivery-and-review-layer.md)
-for the inline `[oo/o/r/d]` review-layer UI direction.
+An **audited** Zotero write happens only as the terminal step of that chain (one claim ·
+one paper · one final `accept` decision · provenance · transaction · audit · undo) — never
+silently, never for a paper that doesn't support the claim. The full direction, status, and
+build sequence live in **[`docs/STATUS.md`](docs/STATUS.md)**; the decisions are in
+[`docs/adr/0001-citation-integrity-architecture.md`](docs/adr/0001-citation-integrity-architecture.md)
+and [`docs/adr/0002-ui-delivery-and-review-layer.md`](docs/adr/0002-ui-delivery-and-review-layer.md).
 
 ## What CiteVahti guarantees (read first)
 
@@ -394,6 +392,22 @@ Then a manual acceptance pass in VS Code (after **CiteVahti: Verify claims**):
 Safety invariants are also asserted by the suite —
 [`docs/SAFETY_INVARIANTS.md`](docs/SAFETY_INVARIANTS.md) and
 [`docs/REVIEW_CHECKLIST.md`](docs/REVIEW_CHECKLIST.md).
+
+## Companion: FullVahti (open-access PDFs + local write-back)
+
+[**FullVahti**](https://github.com/heidihelena/fullvahti) is a sibling Vahtian tool — a
+Zotero plugin that finds **free, legal open-access PDFs** for your references (via
+Unpaywall and PubMed Central), attaches them, and writes one report of what's still
+missing. It pairs naturally with CiteVahti: once a candidate paper is in your library,
+FullVahti can fetch its full text so you're rating against the actual article, and it
+honestly reports paywalled papers as missing rather than bypassing them.
+
+FullVahti can also act as **CiteVahti's local write-back door**: with the user's explicit
+opt-in it exposes a token-guarded endpoint on Zotero's local server (`127.0.0.1:23119`)
+that accepts *tag-only* changes — so review-status tags can land in Zotero with no silent
+writes and nothing leaving the machine. Off by default; the door is closed until you open
+it. See the [FullVahti README](https://github.com/heidihelena/fullvahti) to install (it's a
+two-click Zotero plugin, no terminal).
 
 ## Build status
 

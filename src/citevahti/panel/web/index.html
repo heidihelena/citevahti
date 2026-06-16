@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="zs-dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <h1 class="sr-only">CiteVahti — inline claim review</h1>
     <div class="ide">
       <header class="ide-bar">
         <span class="mark" data-logo="neutral" aria-hidden="true"></span>
@@ -23,15 +24,17 @@
           <button id="resolveDois" class="chip-btn" type="button" aria-label="Resolve missing DOIs from PMIDs" title="Resolve missing DOIs from PMIDs (NCBI)">⟳ DOIs</button>
           <button id="recheckLib" class="chip-btn" type="button" aria-label="Re-check Zotero library membership" title="Re-check which candidates are already in your Zotero library">⟳ Library</button>
           <button id="scanRetractions" class="chip-btn" type="button" aria-label="Scan candidates for retractions" title="Scan candidates for retracted papers (OpenAlex)">⚠ Retractions</button>
+          <button id="report" class="chip-btn" type="button" aria-label="Download a timestamped citation-integrity report" title="Download a timestamped, audit-anchored record of the review work — with the hash-chained audit head and generation time.">⎙ Report</button>
           <span class="beta-badge" title="CiteVahti is in beta — free to use for testing, research feedback, and early development">BETA</span>
           <button id="legendBtn" class="chip-btn" type="button" aria-label="What the marks mean" aria-expanded="false" title="What the marks and statuses mean">?</button>
           <button id="reload" class="chip-btn" type="button" aria-label="Reload claims" title="reload claims">↻</button>
-          <button id="theme" class="chip-btn" type="button" aria-label="Toggle light or dark theme">◐ Light</button>
+          <button id="theme" class="chip-btn" type="button" aria-label="Toggle light or dark theme">◑ Dark</button>
         </div>
       </header>
 
       <main class="split" id="split">
         <section class="editor" aria-label="Manuscript">
+          <div class="nextstep" id="nextstep" role="status" aria-live="polite" hidden></div>
           <div class="msbar" id="msbar"></div>
           <div class="legend" id="legend" role="region" aria-label="Legend" hidden>
             <div class="lbl">What the marks mean</div>

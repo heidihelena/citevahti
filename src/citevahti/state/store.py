@@ -82,7 +82,8 @@ class CiteVahtiStore:
         if self.exists():
             raise StateError(f"{self.dir} already initialized")
         for sub in ("frames", "ratings", "snapshots", "intake", "prisma", "claims",
-                    "candidates", "claim_support", "decisions", "transactions", "validation"):
+                    "candidates", "claim_support", "decisions", "transactions", "validation",
+                    "timestamps"):
             (self.dir / sub).mkdir(parents=True, exist_ok=True)
         cfg = config or Config.default()
         _atomic_write(self.config_path, _dump(cfg))
@@ -247,17 +248,22 @@ class CiteVahtiStore:
     def candidates_dir(self) -> Path:
         return self.dir / "candidates"
 
-    def save_candidates(self, cc):
-        """Validate, audit, and atomically write a claim's candidate set."""
+    def _commit_candidates(self, cc, event: str, payload: dict):
+        """The one write path for a claim's candidate set: validate, audit, write
+        atomically, then re-validate that the audit stamp landed. Both link and
+        unlink go through here so the audit invariants can never drift apart."""
         from ..validators.candidate import validate_claim_candidates
 
         validate_claim_candidates(cc)
-        entry = self.audit.append("candidate.link",
-                                  {"claim_id": cc.claim_id, "candidates": len(cc.candidates)})
-        cc.audit_event_id = entry.hash
+        cc.audit_event_id = self.audit.append(event, payload).hash
         _atomic_write(self.candidates_dir() / f"{cc.claim_id}.json", _dump(cc))
         validate_claim_candidates(cc, require_audit=True)
         return cc
+
+    def save_candidates(self, cc):
+        """Validate, audit, and atomically write a claim's candidate set."""
+        return self._commit_candidates(cc, "candidate.link",
+                                       {"claim_id": cc.claim_id, "candidates": len(cc.candidates)})
 
     def load_candidates(self, claim_id: str):
         from ..schemas.candidate import ClaimCandidates
@@ -269,6 +275,29 @@ class CiteVahtiStore:
 
     def candidates_exist(self, claim_id: str) -> bool:
         return (self.candidates_dir() / f"{claim_id}.json").exists()
+
+    def unlink_candidate(self, claim_id: str, candidate_id: str):
+        """Drop one candidate from a claim's set, recording the removal in the
+        audit chain. Non-destructive: the hash chain only grows. Only allowed
+        BEFORE a verdict is recorded — a candidate with a final decision (and so
+        possibly a Zotero write) must have that decision undone first, otherwise
+        the decision/write would be left orphaned and the claim would still
+        render its decided colour from the now-missing candidate."""
+        cc = self.load_candidates(claim_id)
+        if not any(c.candidate_id == candidate_id for c in cc.candidates):
+            err = StateError(f"candidate {candidate_id!r} is not linked to claim {claim_id!r}")
+            err.code = "candidate_not_linked"
+            raise err
+        if (self.decisions_dir() / f"dec-{candidate_id}.json").exists():
+            err = StateError(
+                f"candidate {candidate_id!r} has a recorded decision — undo the decision "
+                "(and any Zotero write) before unlinking the paper")
+            err.code = "candidate_decided"
+            raise err
+        cc.candidates = [c for c in cc.candidates if c.candidate_id != candidate_id]
+        return self._commit_candidates(cc, "candidate.unlink",
+                                       {"claim_id": claim_id, "candidate_id": candidate_id,
+                                        "remaining": len(cc.candidates)})
 
     # ---- claim-support ratings (ADR-0001, step 3) ------------------------
     def claim_support_dir(self) -> Path:
@@ -372,6 +401,38 @@ class CiteVahtiStore:
 
     def list_transactions(self) -> list[str]:
         d = self.transactions_dir()
+        return sorted(p.stem for p in d.glob("*.json")) if d.exists() else []
+
+    # ---- cryptographic timestamps over the audit head (issue #42) --------
+    def timestamps_dir(self) -> Path:
+        return self.dir / "timestamps"
+
+    def save_timestamp(self, proof):
+        """Validate, audit, atomically write, then re-validate the audit linkage — so a
+        persisted proof always has a well-formed digest/provider/token and its own
+        audit_event_id (same validate-around-audit pattern as the other critical objects)."""
+        from ..validators.timestamp import validate_timestamp
+
+        validate_timestamp(proof)
+        entry = self.audit.append(
+            "timestamp.record",
+            {"proof_id": proof.proof_id, "digest_hex": proof.digest_hex,
+             "provider": proof.provider, "gentime": proof.gentime})
+        proof.audit_event_id = entry.hash
+        _atomic_write(self.timestamps_dir() / f"{proof.proof_id}.json", _dump(proof))
+        validate_timestamp(proof, require_audit=True)
+        return proof
+
+    def load_timestamp(self, proof_id: str):
+        from ..schemas.timestamp import TimestampProof
+
+        path = self.timestamps_dir() / f"{proof_id}.json"
+        if not path.exists():
+            raise StateError(f"timestamp {proof_id!r} not found")
+        return TimestampProof.model_validate_json(path.read_text(encoding="utf-8"))
+
+    def list_timestamps(self) -> list[str]:
+        d = self.timestamps_dir()
         return sorted(p.stem for p in d.glob("*.json")) if d.exists() else []
 
     # ---- de-identified validation warehouse (ADR-0001, step 6) -----------

@@ -47,10 +47,18 @@ class ClaimReportService:
             return None
 
     def _ratings_index(self):
+        # A pair can have more than one rating on disk (support_start mints a new id each
+        # call); pick the most advanced/recent one deterministically — not an arbitrary
+        # uuid-sorted one. (The old code used setdefault: "last wins" was a lie; the first
+        # in uuid order won.)
+        from ..claims.support import rating_preference_key
+
         idx: dict = {}
         for rid in self.store.list_support_ratings():
             r = self.store.load_support_rating(rid)
-            idx.setdefault((r.claim_id, r.candidate_id), r)   # last wins
+            key = (r.claim_id, r.candidate_id)
+            if key not in idx or rating_preference_key(r) > rating_preference_key(idx[key]):
+                idx[key] = r
         return idx
 
     @staticmethod

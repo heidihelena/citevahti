@@ -31,6 +31,7 @@ from typing import Optional
 
 from .. import agent
 from .. import tools as engine
+from .. import workflow
 from . import manuscript as M
 from . import prefs
 
@@ -76,11 +77,18 @@ def blinded_rating_view(record) -> dict:
 
 
 def _find_rating_for(store, claim_id: str, candidate_id: str):
+    # multiple ratings can exist for a pair (support_start mints a new id each call) —
+    # select the most advanced/recent one, the same rule the report uses, not an arbitrary
+    # uuid-sorted first match.
+    from ..claims.support import rating_preference_key
+
+    best = None
     for rid in store.list_support_ratings():
         rec = store.load_support_rating(rid)
         if rec.claim_id == claim_id and rec.candidate_id == candidate_id:
-            return rec
-    return None
+            if best is None or rating_preference_key(rec) > rating_preference_key(best):
+                best = rec
+    return best
 
 
 def _candidate_card(c) -> dict:
@@ -169,6 +177,21 @@ def _claim_history(root: str, claim_id: str) -> dict:
     return {"claim_id": claim_id, "decisions": decisions, "transactions": txns}
 
 
+def _written_candidates(root: str, claim_id: str) -> set:
+    """Candidate ids for this claim with a committed, not-yet-undone Zotero write — the
+    durable 'done' signal the per-candidate step uses (survives navigating away)."""
+    try:
+        cand_ids = {c.candidate_id for c in engine._open_store(root).load_candidates(claim_id).candidates}
+    except Exception:  # noqa: BLE001
+        return set()
+    out = set()
+    for t in engine.list_transactions(root=root):
+        cid = getattr(t, "candidate_id", None)
+        if cid in cand_ids and t.status == "committed" and not getattr(t, "undone_at", None):
+            out.add(cid)
+    return out
+
+
 # ---- manuscript grouping ----------------------------------------------------
 def _manuscript_groups(root: str) -> dict:
     """Group claim-report rows by manuscript_id (the file part of the location)."""
@@ -186,8 +209,24 @@ def _row_claim(r) -> dict:
 
 
 def _claim_state(r) -> dict:
-    return {"state": r.state, "code": r.code.strip(),
-            "candidate_count": r.candidate_count, "accepted_count": r.accepted_count}
+    out = {"state": r.state, "code": r.code.strip(),
+           "candidate_count": r.candidate_count, "accepted_count": r.accepted_count}
+    cite = _accepted_cite(r)
+    if cite:
+        out["cite"] = cite          # accepted candidate's identifiers → citation-on-copy
+    return out
+
+
+# A claim is a "cited passage" once it has an accepted, supporting candidate; expose
+# that candidate's identifiers so copying the claim text can carry its citation.
+_ACCEPTED_DECISIONS = {"accept", "accepted_with_caution"}
+
+
+def _accepted_cite(r) -> Optional[dict]:
+    for ev in r.evidence:
+        if ev.final_decision in _ACCEPTED_DECISIONS and (ev.title or ev.doi or ev.pmid):
+            return {"title": ev.title, "doi": ev.doi, "pmid": ev.pmid}
+    return None
 
 
 # ---- stable error codes + plain remediation (for users AND agents) ----------
@@ -203,6 +242,8 @@ _REMEDIATION = {
     "stale_preview": "The file changed since the preview — preview again so the edit applies to the current text.",
     "support_rule": "Follow the rate → reveal → decide order; adjudicate a disagreement before deciding.",
     "decision_rule": "Resolve the support rating first (rate, then adjudicate a discordance), then decide.",
+    "candidate_decided": "Undo the decision (and any Zotero write) before unlinking this paper.",
+    "candidate_not_linked": "Reload the claim — this paper is no longer one of its candidates.",
 }
 _CODE_BY_TYPE = {
     "ValidationError": "invalid_input", "ManualParseError": "parse_error",
@@ -281,12 +322,22 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             except Exception:
                 cands = []
             evidence = _evidence_index(root, claim_id)
+            written = _written_candidates(root, claim_id)   # committed, not-undone Zotero writes
             cand_views = []
             for c in cands:
                 view = _candidate_card(c)
                 rec = _find_rating_for(store, claim_id, c.candidate_id)
                 view["rating"] = blinded_rating_view(rec) if rec else None
-                view["evidence"] = evidence.get(c.candidate_id)
+                ev = evidence.get(c.candidate_id)
+                view["evidence"] = ev
+                # the workflow phase is computed in ONE place (workflow.candidate_step);
+                # surfaces render it rather than re-deriving the rate→decide→write rules.
+                view["step"] = workflow.candidate_step(
+                    has_human_rating=bool(rec and rec.human_rating
+                                          and rec.human_rating.value is not None),
+                    has_ai_rating=bool(rec and rec.ai_rating is not None),
+                    has_decision=bool(ev and ev.get("decision_id")),
+                    written=c.candidate_id in written)
                 cand_views.append(view)
             return 200, {"claim": {"claim_id": claim.claim_id, "claim_text": claim.claim_text,
                                    "claim_type": claim.claim_type,
@@ -363,7 +414,27 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             rep = engine.claim_report(root=root)
             return 200, {"root": str(Path(root).expanduser()),
                          "claim_total": rep.total,
-                         "manuscripts_dir": prefs.get_manuscripts_dir(root)}
+                         "manuscripts_dir": prefs.get_manuscripts_dir(root),
+                         "vocabulary": workflow.vocabulary()}   # verdicts/states/phases (single source)
+
+        # project-level "what's next" — the one next action for the whole project,
+        # computed in the resolver. Drives the panel wizard and (later) `citevahti run`.
+        if method == "GET" and path == "/api/next":
+            return 200, workflow.project_status(root)
+
+        # the citation-integrity report as Markdown, so the wizard's final step can hand
+        # the never-touched-a-terminal user a file without `citevahti report`. It carries a
+        # generation timestamp + the hash-chained audit head (intact?) — a verifiable record
+        # that this review work was done, in this order, by the human.
+        if method == "GET" and path == "/api/report":
+            from ..report import render_markdown
+            rep = engine.claim_report(root=root)
+            p = rep.provenance
+            return 200, {"markdown": render_markdown(rep), "total": rep.total,
+                         "generated_at": rep.generated_at,
+                         "audit_intact": getattr(p, "audit_chain_intact", None),
+                         "audit_entries": getattr(p, "audit_entries", None),
+                         "audit_head": getattr(p, "audit_head_hash", None)}
 
         if method == "GET" and path == "/api/ledgers":
             return 200, {"active": str(Path(root).expanduser()),
@@ -463,6 +534,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                                            collection_key=body.get("collection_key"),
                                            dry_run=False,
                                            confirm_token=_req(body, "confirm_token"), root=root)
+
+        # guarded remove: unlink the wrong paper from a claim (audited, non-destructive)
+        if method == "POST" and path == "/api/candidates/unlink":
+            return 200, engine.unlink_candidate(_req(body, "claim_id"), _req(body, "candidate_id"), root=root)
 
         # ---- library maintenance: backfill DOIs / re-check Zotero membership ----
         if method == "POST" and path == "/api/candidates/resolve-dois":

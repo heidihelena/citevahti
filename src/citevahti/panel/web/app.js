@@ -44,6 +44,7 @@ const state = {
   activeClaim: null, claim: null, candIdx: 0, done: new Set(),
   lastTxn: null, docTxn: null, pendingDocToken: null,
 };
+let oTimer = null;   // double-tap "o" (decide phase): single = caution [o], double = accept [oo]
 
 async function api(method, path, body) {
   const opts = { method, headers: { "Content-Type": "application/json" } };
@@ -60,8 +61,23 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const $ = (sel) => document.querySelector(sel);
 
+/* A one-line reference from whatever identifiers a candidate carries — honest with
+ * partial metadata. Used both to tag cited passages (data-citation) and, on copy, to
+ * append the source to the clipboard. */
+function citeOf(c) {
+  if (!c) return "";
+  const bits = [];
+  if (c.title) bits.push(String(c.title).trim().replace(/\.+$/, ""));
+  const meta = [c.journal, c.year].filter(Boolean).join(" ");
+  if (meta) bits.push(meta);
+  if (c.doi) bits.push("https://doi.org/" + c.doi);
+  else if (c.pmid) bits.push("PMID " + c.pmid);
+  return bits.join(". ");
+}
+
 /* ---------- boot ---------- */
 async function boot() {
+  applyTheme();
   drawLogos();
   try { state.ctx = await api("GET", "/api/context"); }
   catch (e) { $("#card").innerHTML = `<div class="err">panel API unreachable: ${esc(e.message)}</div>`; return; }
@@ -73,8 +89,91 @@ async function boot() {
   applyDeepLink();
 }
 
+/* The "what's next" wizard: the single next action for the whole project, from the
+ * resolver (GET /api/next, i.e. workflow.project_status). One banner, one button —
+ * the guided thread for someone who's never run the rate→decide→write→cite loop.
+ * Read-only and blinding-safe; it only routes, it never mutates. */
+async function loadNext() {
+  try { state.next = await api("GET", "/api/next"); } catch { state.next = null; }
+  renderNext();
+}
+function renderNext() {
+  const box = $("#nextstep"); if (!box) return;
+  const n = state.next && state.next.next;
+  // first-run (init / add_claims) is handled by the full-page first-run screen
+  if (!n || n.kind === "init" || n.kind === "add_claims") { box.hidden = true; return; }
+  const blockers = (state.next && state.next.blockers) || [];
+  const needsZotero = blockers.includes("zotero_not_write_ready");
+  let cta = "";
+  if (n.kind === "rate" && n.claim_id) {
+    cta = `<button class="btn primary" data-act="gonext">Go to the next claim <span class="hk">→</span></button>`;
+  } else if (n.kind === "report") {
+    cta = `<button class="btn ghost" data-act="exportreport">Export report</button>`;
+  }
+  const step = n.kind === "report" ? `<span class="ns-step ns-done">✓ all decided</span>` : `<span class="ns-step">Next</span>`;
+  const blockerLine = needsZotero
+    ? `<div class="ns-blocker">Citing is gated on Zotero — <a data-connect="zotero">connect it</a> to enable the write-back step (rating and deciding work without it).</div>`
+    : "";
+  box.hidden = false;
+  box.innerHTML = `${step}<span class="ns-label">${esc(n.label)}</span>${cta}${blockerLine}`;
+}
+function goToNextClaim() {
+  const id = state.next && state.next.next && state.next.next.claim_id;
+  if (!id) return;
+  selectClaim(id);
+  const span = document.querySelector(`.claim[data-claim="${cssEscape(id)}"]`);
+  if (span) span.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+// Download a timestamped, audit-anchored citation-integrity report — no terminal needed.
+// In an age of AI, this is a timestamped audit record of the review work: the report embeds
+// its generation time and the hash-chained audit head, documenting that this review was
+// done, in this order. Available any time from the header (⎙ Report) and as the wizard's
+// final step.
+async function exportReport() {
+  try {
+    const r = await api("GET", "/api/report");
+    const blob = new Blob([r.markdown || ""], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const stamp = String(r.generated_at || new Date().toISOString()).replace(/[:.]/g, "-").slice(0, 19);
+    const a = document.createElement("a");
+    a.href = url; a.download = `citation-integrity-report-${stamp}.md`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    // reinforce the proof: surface the timestamp + audit-chain state on save
+    const intact = r.audit_intact === false ? "⚠ audit chain BROKEN"
+      : r.audit_intact ? `audit chain intact ✓ (${r.audit_entries} entries)` : "";
+    setAgentLine(`Report saved — generated ${esc(r.generated_at || "now")}${intact ? " · " + intact : ""}.`);
+  } catch (e) { alert(e.message); }
+}
+function setAgentLine(html) {
+  const el = $("#agent"); if (el) el.innerHTML = `<span class="who">CiteVahti ▸</span> <span class="pill">${html}</span>`;
+}
+// CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
+function cssEscape(s) {
+  return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
+}
+
+/* Theme: light by default (the base stylesheet; .zs-dark is the override, and
+ * index.html ships no default class). A ?theme=light|dark override wins
+ * (deterministic for screenshots and deep links); otherwise a previously toggled
+ * theme is restored from localStorage, so the choice survives a reload. */
+function applyTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem("cv-theme"); } catch { /* private mode */ }
+  const q = new URLSearchParams(location.search).get("theme");
+  const pref = (q === "light" || q === "dark") ? q : saved;
+  if (pref === "light") document.documentElement.classList.remove("zs-dark");
+  else if (pref === "dark") document.documentElement.classList.add("zs-dark");
+  syncThemeLabel();
+}
+function syncThemeLabel() {
+  const btn = $("#theme"); if (!btn) return;
+  btn.textContent = document.documentElement.classList.contains("zs-dark") ? "◐ Light" : "◑ Dark";
+}
+
 // Optional URL hooks so a specific review state can be linked or screenshotted:
 //   ?focus=<claim_id>   open that claim's card   ?legend=1   open the legend
+//   ?theme=light|dark   force the theme (see applyTheme)
 function applyDeepLink() {
   const q = new URLSearchParams(location.search);
   const focus = q.get("focus");
@@ -93,6 +192,7 @@ async function loadHealth() {
 async function loadAudit() {
   try { state.audit = await api("GET", "/api/audit/verify"); } catch { state.audit = null; }
   renderAuditBadge();
+  loadNext();        // mutations (and reload) flow through here — refresh "what's next" with them
 }
 function renderAuditBadge() {
   const el = $("#auditBadge"); if (!el) return;
@@ -224,7 +324,10 @@ function renderDoc() {
     const code = decided && st.code ? `[${st.code.padEnd(2)}]` : "[··]";
     const active = seg.claim_id === state.activeClaim ? " active" : "";
     const aria = decided ? ({ oo: "accepted", o: "accept with caution", r: "needs review", d: "rejected" }[st.code] || "decided") : "pending";
-    return `<span class="claim ${cls}${active}" data-claim="${esc(seg.claim_id)}" tabindex="0" role="button" aria-label="${esc("claim " + aria + ": " + seg.text)}">${esc(seg.text)}<span class="code" aria-hidden="true">${esc(code)}</span></span>`;
+    // an accepted claim is a cited passage: tag it so copying carries the citation
+    const ref = st.cite ? citeOf(st.cite) : "";
+    const cite = ref ? ` data-citation="${esc(ref)}"` : "";
+    return `<span class="claim ${cls}${active}" data-claim="${esc(seg.claim_id)}"${cite} tabindex="0" role="button" aria-label="${esc("claim " + aria + ": " + seg.text)}">${esc(seg.text)}<span class="code" aria-hidden="true">${esc(code)}</span></span>`;
   }).join("");
   doc.innerHTML = html;
   if (v.mode === "reconstructed") {
@@ -275,7 +378,10 @@ function claimOrder() {
 async function selectClaim(id) {
   const sameClaim = id === state.activeClaim;
   state.activeClaim = id;
-  if (!sameClaim) { state.candIdx = 0; resetWrite(); }   // keep the candidate in view on a same-claim refresh
+  // moving to a different claim: drop the in-session write/undo/timer state so a global
+  // key (u undo, the o double-tap) can't act on the claim you just navigated away from.
+  // (Undo is still recoverable per-claim from the audit trail via recoverableTxn().)
+  if (!sameClaim) { state.candIdx = 0; resetWrite(); state.lastTxn = null; state.docTxn = null; clearTimeout(oTimer); oTimer = null; }   // keep the candidate in view on a same-claim refresh
   renderDoc(); renderProgress();
   try { state.claim = await api("GET", `/api/claims/${encodeURIComponent(id)}`); }
   catch (e) { $("#card").innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
@@ -284,13 +390,28 @@ async function selectClaim(id) {
   renderCard();
 }
 function activeCand() { return (state.claim && state.claim.candidates || [])[state.candIdx] || null; }
+/* The committed, not-yet-undone Zotero write recorded for this candidate in the
+ * claim's audit trail (per-claim, durable). Unlike state.lastTxn it survives
+ * navigating away and back, so the write step — and its undo — can be recognised
+ * on return. (Document edits aren't in the per-claim trail, only Zotero writes.) */
+function committedZoteroTxn(cand) {
+  if (!cand || !state.history) return null;
+  return (state.history.transactions || []).find(
+    (t) => t.candidate_id === cand.candidate_id && t.status === "committed" && !t.undone_at) || null;
+}
+/* The transaction the Undo button/`u` key should act on: the in-session write if
+ * we just made one, else the recovered committed write for the active candidate. */
+function recoverableTxn() {
+  if (state.lastTxn) return state.lastTxn;
+  const t = committedZoteroTxn(activeCand());
+  return t ? t.transaction_id : null;
+}
 function phaseOf(cand) {
-  const r = cand && cand.rating, ev = cand && cand.evidence;
   const key = state.activeClaim + ":" + (cand && cand.candidate_id);
-  if (state.done.has(key)) return "done";
-  if (!r || !r.human) return "rate";
-  if (!ev || !ev.decision_id) return "decide";
-  return "write";
+  if (state.done.has(key)) return "done";              // instant feedback right after a commit
+  // the phase is computed server-side in one place (workflow.candidate_step) so every
+  // surface agrees; the server already returns "done" for a committed, not-undone write.
+  return (cand && cand.step && cand.step.phase) || "rate";
 }
 
 function stepper(active) {
@@ -326,9 +447,15 @@ function renderCard() {
   else if (ph === "decide") block = decideBlock(cand);
   else if (ph === "write") block = writeBlock(claim, cand);
   else block = doneBlock(cand);
+  // remove is for the "wrong paper" case before a verdict is recorded; once a
+  // decision exists (write/done) the engine refuses unlink, so hide it there.
+  const removeRow = (ph === "rate" || ph === "decide")
+    ? `<div class="removerow"><button class="btn ghost" data-act="unlink"
+        title="Unlink this paper from the claim (keeps the claim and audit trail)">✕ Remove paper <span class="hk">⇧D</span></button></div>`
+    : "";
   card.innerHTML = stepper(ph) +
     `<div class="lbl">Claim · ${esc(claim.claim_type || "")}</div><div class="claimline">“${esc(claim.claim_text)}”</div>` +
-    picker + candidateTags(cand) + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr"></div>`;
+    picker + candidateTags(cand) + removeRow + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr"></div>`;
   renderAgent(ph, claim, cand);
 }
 
@@ -562,7 +689,7 @@ function doneBlock(cand) {
   const code = (cand.evidence && cand.evidence.final_decision) || "";
   const what = { accept: "Added to Zotero", accepted_with_caution: "Added with caution",
     needs_second_review: "Manuscript revised", reject: "Claim struck in document" }[code] || "Recorded";
-  const undo = state.lastTxn ? `<button class="btn ghost" data-act="zundo">Undo Zotero write</button>`
+  const undo = recoverableTxn() ? `<button class="btn ghost" data-act="zundo">Undo Zotero write</button>`
     : state.docTxn ? `<button class="btn ghost" data-act="docundo">Undo document edit</button>` : "";
   return `<div class="next"><div class="done-banner">✓ ${what} — recorded with an undo path.</div>
     <div class="actions">${undo}<button class="btn primary" data-act="next">Next claim <span class="hk">↵</span></button></div></div>`;
@@ -578,11 +705,14 @@ function contextBlock(cand) {
     return `<span class="check ${cls}">${lab} ${val == null ? "–" : val}</span>`;
   }).join("") : "";
   const cit = ev.fit_total == null ? "" : `<span class="fittag">Citation fit ${fitWord(ev.fit_total)} (${ev.fit_total}/8)</span>`;
+  // the abstract and supporting excerpt are verbatim source text — tag them so a copy
+  // carries this candidate's citation (same data-citation hook as the claim spans)
+  const dc = citeOf(cand) ? ` data-citation="${esc(citeOf(cand))}"` : "";
   return `<details class="context" open><summary>Evidence &amp; fit checks</summary><div class="body">
     <div class="lbl">Candidate source</div><div class="paper">${esc(cand.title || "(untitled)")}</div>
     <div class="note">${esc(cand.journal || "")}${ident ? " · " + esc(ident) : ""}${doiLink ? " · " + doiLink : ""}</div>
-    ${cand.abstract ? `<div class="lbl">Abstract</div><div class="excerpt">${esc(cand.abstract)}</div>` : ""}
-    ${ev.excerpt ? `<div class="lbl">Supporting excerpt</div><div class="excerpt">${esc(ev.excerpt)}</div>` : ""}
+    ${cand.abstract ? `<div class="lbl">Abstract</div><div class="excerpt"${dc}>${esc(cand.abstract)}</div>` : ""}
+    ${ev.excerpt ? `<div class="lbl">Supporting excerpt</div><div class="excerpt"${dc}>${esc(ev.excerpt)}</div>` : ""}
     ${picks || cit ? `<div class="lbl">Fit checks</div><div class="checks">${picks}${cit}</div>` : ""}
     <div class="actions" style="margin-top:10px"><button class="btn ghost" data-act="zot-evidence">Show Zotero highlights &amp; full text</button></div>
     <div id="zotEvidence"></div>
@@ -661,6 +791,21 @@ async function recordDecision(v) {
     loadAudit();                            // a decision appended an audit entry
   } catch (e) { showErr(e.message); }
 }
+// guarded remove (⇧D): unlink the wrong paper from the claim. Audited and
+// non-destructive — the claim and audit trail stay; only this paper leaves.
+async function unlinkCandidate() {
+  const cand = activeCand(); if (!cand) return;
+  const label = cand.title || cand.pmid || cand.doi || cand.candidate_id;
+  if (!confirm(`Remove this paper from the claim?\n\n${label}\n\nThe claim and the audit trail are kept — this only unlinks the paper from review.`)) return;
+  try {
+    await api("POST", "/api/candidates/unlink", { claim_id: state.activeClaim, candidate_id: cand.candidate_id });
+    state.done.delete(state.activeClaim + ":" + cand.candidate_id);   // drop stale done-state for the removed paper
+    state.candIdx = 0; resetWrite(); state.lastTxn = null; state.docTxn = null;
+    await loadManuscript(state.activeMs);   // refresh span colour
+    await selectClaim(state.activeClaim);
+    loadAudit();                            // the unlink appended an audit entry
+  } catch (e) { showErr(e.message); }
+}
 async function zpreview() {
   const cand = activeCand(); const decId = cand && cand.evidence && cand.evidence.decision_id;
   if (!decId) return showErr("no decision to write");
@@ -680,9 +825,16 @@ async function zcommit() {
   } catch (e) { showErr(e.message); }
 }
 async function zundo() {
-  if (!state.lastTxn) return;
-  try { await api("POST", "/api/writes/undo", { transaction_id: state.lastTxn }); state.lastTxn = null; unmarkDone(); }
-  catch (e) { showErr(e.message); }
+  const txn = recoverableTxn();
+  if (!txn) return;
+  const cand = activeCand();
+  try {
+    await api("POST", "/api/writes/undo", { transaction_id: txn });
+    state.lastTxn = null;
+    state.done.delete(state.activeClaim + ":" + (cand && cand.candidate_id));
+    await selectClaim(state.activeClaim);   // reload the trail: the txn now reads 'undone' and the step falls back to write
+    loadAudit();
+  } catch (e) { showErr(e.message); }
 }
 async function docPreview(kind) {
   // for a revise, send the wording the human typed; strike needs no replacement
@@ -891,6 +1043,26 @@ async function savePastedManuscript() {
 }
 
 /* ---------- events ---------- */
+/* Citation-on-copy: copying text from a cited passage carries its source, like the
+ * "read more at…" pattern. When the whole selection sits inside an element tagged with
+ * data-citation (an accepted claim, or a quoted source excerpt/abstract), append the
+ * reference to both clipboard formats. Self-contained — no network, no external deps. */
+document.addEventListener("copy", (e) => {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+  const start = sel.anchorNode, end = sel.focusNode;
+  const host = start && (start.nodeType === 1 ? start : start.parentElement);
+  const cite = host && host.closest("[data-citation]");
+  if (!cite || !end || !cite.contains(end)) return;   // both ends must be inside the passage
+  const ref = cite.getAttribute("data-citation");
+  if (!ref || !e.clipboardData) return;
+  const text = sel.toString().trim();
+  if (!text) return;
+  e.clipboardData.setData("text/plain", `${text}\n\n— ${ref}`);
+  e.clipboardData.setData("text/html", `${esc(text)} <cite>(${esc(ref)})</cite>`);
+  e.preventDefault();
+});
+
 document.addEventListener("click", (e) => {
   const sw = e.target.closest("[data-switch]"); if (sw) return switchRoot(sw.dataset.switch);
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
@@ -915,9 +1087,11 @@ document.addEventListener("click", (e) => {
      "save-claim": saveClaim, "cancel-claim": () => { $("#addClaimBox").innerHTML = ""; },
      zpreview, zcommit, zcancel: () => { resetWrite(); renderCard(); },
      zundo, docpreview: () => docPreview(act.dataset.kind), doccommit: docCommit, doccancel: () => { resetWrite(); renderCard(); },
-     docundo: docUndo, next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
+     docundo: docUndo, unlink: unlinkCandidate, gonext: goToNextClaim, exportreport: exportReport,
+     next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
+$("#report").addEventListener("click", exportReport);
 $("#auditBadge").addEventListener("click", () => loadAudit());
 $("#legendBtn").addEventListener("click", () => {
   const el = $("#legend"), opening = el.hasAttribute("hidden");
@@ -952,19 +1126,50 @@ $("#scanRetractions").addEventListener("click", () =>
   maintenance("/api/candidates/scan-retractions", "Scan retractions",
               (r) => `Checked ${r.checked || 0} candidate(s); ${r.flagged || 0} flagged as RETRACTED.`));
 $("#theme").addEventListener("click", () => {
-  document.documentElement.classList.toggle("zs-dark");
-  $("#theme").textContent = document.documentElement.classList.contains("zs-dark") ? "◐ Light" : "◑ Dark";
+  const dark = document.documentElement.classList.toggle("zs-dark");
+  try { localStorage.setItem("cv-theme", dark ? "dark" : "light"); } catch { /* private mode */ }
+  syncThemeLabel();
 });
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea, select")) return;
   if (state.hotkeysOff) return;                          // user turned shortcuts off (writing mode)
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;   // letter keys are CapsLock-proof
+  if (key === "?") { $("#legendBtn").click(); return e.preventDefault(); }              // ? help
+  if (key === "u") {                                                                    // u undo last write/edit
+    if (recoverableTxn()) { zundo(); return e.preventDefault(); }
+    if (state.docTxn) { docUndo(); return e.preventDefault(); }
+  }
   const ids = claimOrder(); if (!ids.length) return;   // document order, matching the eye
   const i = ids.indexOf(state.activeClaim);
-  if (e.key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); return e.preventDefault(); }
-  if (e.key === "k" || e.key === "ArrowUp") { selectClaim(ids[Math.max(i - 1, 0)]); return e.preventDefault(); }
-  const cand = activeCand();
-  if (cand && phaseOf(cand) === "rate" && /^[1-6]$/.test(e.key)) { rate(SUPPORT[+e.key - 1][0]); return e.preventDefault(); }
-  if (e.key === "Enter") { const p = primary(); if (p) { p(); e.preventDefault(); } }
+  if (key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); return e.preventDefault(); }
+  if (key === "k" || e.key === "ArrowUp") { selectClaim(ids[Math.max(i - 1, 0)]); return e.preventDefault(); }
+  const cand = activeCand(); if (!cand) return;
+  if (e.shiftKey && key === "d") { unlinkCandidate(); return e.preventDefault(); }       // ⇧D guarded remove
+  const ph = phaseOf(cand);
+  if (ph === "rate" && /^[1-6]$/.test(e.key)) { rate(SUPPORT[+e.key - 1][0]); return e.preventDefault(); }   // 1–6 support rating
+  if (ph === "decide") {                                                                // verdict keys: oo / o / r / d
+    if (key === "r") { recordDecision("needs_second_review"); return e.preventDefault(); }
+    if (key === "d") { recordDecision("reject"); return e.preventDefault(); }            // (⇧D handled above)
+    if (key === "o") {
+      if (e.repeat) return e.preventDefault();   // ignore auto-repeat so a held "o" isn't read as "oo"
+      if (oTimer) { clearTimeout(oTimer); oTimer = null; recordDecision("accept"); }                         // "oo" → [oo]
+      else { oTimer = setTimeout(() => { oTimer = null; recordDecision("accepted_with_caution"); }, 300); }   // "o"  → [o]
+      return e.preventDefault();
+    }
+  }
+  if (ph === "write") {
+    if (key === "s") {                                                                  // s stage = preview (no-op if already staged)
+      if (!state.pendingZtoken && !state.pendingDocToken) {
+        const code = cand.evidence && cand.evidence.final_decision;
+        if (code === "needs_second_review") docPreview("revise");
+        else if (code === "reject") docPreview("strike");
+        else zpreview();
+      }
+      return e.preventDefault();
+    }
+    if (key === "a") { const p = primary(); if (p) p(); return e.preventDefault(); }     // a apply / add to Zotero
+  }
+  if (e.key === "Enter") { const p = primary(); if (p) { p(); e.preventDefault(); } }    // ↵ primary action
 });
 function primary() {
   const cand = activeCand(); if (!cand) return null;

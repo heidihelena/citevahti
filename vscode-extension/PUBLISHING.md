@@ -26,7 +26,7 @@ npm run package        # -> citevahti-<version>.vsix  (runs `vsce package --no-d
 Install it locally to smoke-test, or hand it to a colleague for private use:
 
 ```bash
-code --install-extension citevahti-0.10.0.vsix
+code --install-extension citevahti-vscode-0.16.0.vsix
 ```
 
 This is the **private-distribution** path — no Marketplace required. Good for a
@@ -38,7 +38,7 @@ The Marketplace is run by Microsoft via Azure DevOps.
 
 1. **Create the publisher.** Go to <https://marketplace.visualstudio.com/manage>
    and create a publisher. Its ID **must equal** the `publisher` field in
-   `package.json` (currently `vahtian`). If that ID is unavailable, change the
+   `package.json` (currently `heidihelena`). If that ID is unavailable, change the
    field to the one you registered and rebuild.
 2. **Mint a PAT.** In Azure DevOps (<https://dev.azure.com>) →
    *User settings → Personal access tokens → New token*:
@@ -50,7 +50,7 @@ The Marketplace is run by Microsoft via Azure DevOps.
    export VSCE_PAT='<your-token>'      # not committed, not logged
    npm run publish                     # vsce publish --no-dependencies, reads VSCE_PAT
    # or, to publish a pre-built file:
-   #   npx vsce publish --packagePath citevahti-0.10.0.vsix
+   #   npx vsce publish --packagePath citevahti-vscode-0.16.0.vsix
    ```
 
 Updating later: bump `version` in `package.json` (keep it in lockstep with the
@@ -63,8 +63,8 @@ VSCodium, Cursor, Gitpod, and other non-Microsoft builds pull from
 tool this roughly doubles reach.
 
 ```bash
-npx ovsx create-namespace vahtian -p '<open-vsx-token>'   # one-time (namespace = publisher)
-npx ovsx publish citevahti-0.10.0.vsix -p '<open-vsx-token>'
+npx ovsx create-namespace heidihelena -p '<open-vsx-token>'   # one-time (namespace = publisher)
+npx ovsx publish citevahti-vscode-0.16.0.vsix -p '<open-vsx-token>'
 ```
 
 ## What ships in the VSIX

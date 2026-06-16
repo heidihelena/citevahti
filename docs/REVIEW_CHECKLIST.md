@@ -6,7 +6,7 @@ step performs a live PubMed call or a real Zotero write.
 ## 1. Run the full test suite
 ```bash
 cd /path/to/Citevahti
-pytest            # expect: 308 passed, fully offline
+pytest            # expect: all pass, fully offline (no Zotero/BBT/PubMed/network needed)
 ```
 - [ ] All tests pass with no network access.
 
