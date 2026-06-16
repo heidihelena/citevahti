@@ -599,7 +599,7 @@ def _cmd_test(args) -> int:
 
     mark = {"pass": "PASS", "fail": "FAIL", "skip": "SKIP"}
     for c in suite["claims"]:
-        text = c["claim_text"]
+        text = " ".join(c["claim_text"].split())          # collapse newlines for one-line output
         text = text if len(text) <= 70 else text[:67] + "…"
         print(f"  [{mark[c['status']]}] {text}")
         if c["status"] == "fail":
@@ -609,9 +609,17 @@ def _cmd_test(args) -> int:
     scope = "online (citations verified)" if suite["online"] else "offline (structural)"
     print(f"\n{suite['passed']} passed · {suite['failed']} failed · {suite['skipped']} skipped "
           f"of {suite['total']} claims — {scope}")
+    # A swallowed online-check error means citation_real / not_retracted ran on stale
+    # data — say so loudly and fail the run, so a degraded check is never read as green.
+    online_errors = suite.get("online_errors") or []
+    if online_errors:
+        print("\n⚠ online checks could not complete — citation verification is INCOMPLETE:")
+        for e in online_errors:
+            print(f"    • {e}")
+        print("  (citation_real / not_retracted may be stale; treat this run as inconclusive.)")
     if not suite["online"]:
         print("Tip: add --online to verify citations are real and not retracted.")
-    return 1 if suite["failed"] else 0
+    return 1 if (suite["failed"] or online_errors) else 0
 
 
 def _cmd_claim_report(args) -> int:

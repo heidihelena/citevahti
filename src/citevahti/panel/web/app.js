@@ -181,10 +181,18 @@ function renderTestResults(box, s) {
         title="Open this claim">${`<span class="tbadge ${c.status}">${TEST_BADGE[c.status]}</span>`} <span class="ttext">${esc(text)}</span></button>${detail}</div>`;
   }).join("");
   const allGreen = s.failed === 0;
+  const errs = s.online_errors || [];
+  // a swallowed online-check failure means citation_real / not_retracted ran on stale
+  // data — warn so a degraded run isn't mistaken for a clean one.
+  const warn = errs.length
+    ? `<div class="twarn">⚠ Online checks couldn't complete — citation verification is incomplete:
+        <ul>${errs.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>
+        citation checks may be stale; treat this run as inconclusive.</div>` : "";
   box.innerHTML = `<div class="modal-card test">
     <div class="modal-head"><b>Manuscript unit tests</b><button class="chip-btn" data-test-close="1">✕</button></div>
     <div class="tsummary ${allGreen ? "ok" : "bad"}"><b>${s.passed}</b> passed · <b>${s.failed}</b> failed · <b>${s.skipped}</b> skipped — of ${s.total} claims</div>
     <div class="note">${s.online ? "Citations verified online — real and not retracted." : "Structural checks only. Citations were not verified online."}</div>
+    ${warn}
     <div class="tlist">${rows || '<div class="note">No claims to test yet.</div>'}</div>
     <div class="modal-foot">
       ${s.online ? "" : `<button class="btn ghost" data-test-online="1">Also verify citations online</button>`}
