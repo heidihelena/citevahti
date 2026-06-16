@@ -27,6 +27,22 @@ from ..validators.claim_support import ClaimSupportError
 from ..validators.config import authorize_rating_task, require_model_pinned
 
 
+def rating_preference_key(rating) -> tuple:
+    """Order ratings for the same (claim, candidate) so the *most advanced and most recent*
+    one represents the pair: an adjudicated value > a committed human rating > a
+    started-but-unrated one; ties broken by recency, then id.
+
+    ``support_start`` mints a fresh rating id each call, so a pair can have more than one
+    rating on disk; reports and the panel must select deterministically rather than take an
+    arbitrary (uuid-sorted) one. Higher key wins.
+    """
+    has_final = rating.adjudication.final_value is not None
+    committed_at = (rating.human_rating.committed_at
+                    if rating.human_rating and rating.human_rating.committed_at else "")
+    last_activity = max((e.ts for e in rating.blinding.access_log), default="")
+    return (has_final, bool(committed_at), committed_at, last_activity, rating.rating_id)
+
+
 @dataclass
 class SupportAiOutput:
     value: Optional[str] = None

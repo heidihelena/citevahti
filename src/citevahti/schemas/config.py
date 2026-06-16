@@ -154,6 +154,15 @@ class ValidationWarehouseConfig(BaseModel):
     domain: Optional[str] = None
 
 
+class TimestampConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    # Opt-in cryptographic timestamping of the audit head (RFC 3161). OFF by default:
+    # nothing leaves the machine until a provider is configured, and even then only the
+    # SHA-256 audit-head hash is sent — never manuscript text, claims, or ratings.
+    provider: Literal["none", "rfc3161"] = "none"
+    tsa_url: Optional[str] = None         # RFC 3161 Time-Stamping Authority endpoint
+
+
 class Config(BaseModel):
     model_config = ConfigDict(extra="forbid")
     schema_version: str = SCHEMA_VERSION
@@ -166,6 +175,7 @@ class Config(BaseModel):
     writeback: WritebackConfig = Field(default_factory=WritebackConfig)
     validation_warehouse: ValidationWarehouseConfig = Field(
         default_factory=ValidationWarehouseConfig)
+    timestamp: TimestampConfig = Field(default_factory=TimestampConfig)
     # where secrets live; config NEVER stores the secret values themselves
     secrets_backend: Literal["system_keyring", "env"] = "system_keyring"
 

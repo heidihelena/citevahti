@@ -116,3 +116,27 @@ What the report cannot prove: that every claim in the manuscript was entered,
 or that the ledger was not regenerated wholesale. It is honest-researcher
 provenance, not a forgery-proof certificate (see the **Tamper-evident audit**
 invariant in `SAFETY_INVARIANTS.md`).
+
+## Optional: timestamp the audit head (foundation for third-party verification)
+
+To start closing the "regenerated wholesale" gap, you can anchor the audit head to an
+external time source (issue #42). It is **opt-in** and **privacy-preserving**: only the
+SHA-256 audit-head hash is sent — never manuscript text, claims, or ratings.
+
+```
+citevahti timestamp            # stamp the current audit head (needs a configured TSA)
+citevahti timestamp --verify <proof-id>
+citevahti timestamp --list
+```
+
+Configure a provider in `.citevahti/config.json` under `timestamp` (`provider: "rfc3161"`
+plus a `tsa_url`); install the optional dependency with `pip install "citevahti[timestamp]"`.
+Each proof is stored under `.citevahti/timestamps/` with its own audit entry.
+
+**What verification proves today, and what's still pending.** `--verify` checks two things:
+the token **binds** the audit-head digest, and that digest is an entry in the **current
+intact chain** (so the proof attests to *this* ledger). Full RFC 3161 TSA
+certificate-chain / signature validation is **not yet implemented**, so RFC 3161 trust
+should be treated as **experimental** for now — the result reports `trust: binding-only`.
+(`--fake` writes a local demo proof that verifies internally but is `trust: demo` — not
+externally trusted; for trying the flow offline.)

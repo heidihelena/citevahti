@@ -26,10 +26,14 @@ and the version (`citevahti --version` / the extension version).
 
 ## Scope
 
-This is **single-user, local-first, PubMed-only** software: it stores state under
-`.citevahti/` on your machine, holds the Zotero key only in the OS keychain, and
-makes no telemetry or cloud calls. Reports about the local trust boundary (keychain
-handling, the loopback panel, the constrained MCP agent surface) are in scope.
+This is **single-user, local-first** software: it stores state under `.citevahti/` on
+your machine, holds the Zotero key only in the OS keychain, and sends **no telemetry**.
+Its only outbound calls are: literature lookups to **PubMed (NCBI), OpenAlex, Semantic
+Scholar, and Crossref/doi.org** (carrying search queries and the DOIs/PMIDs you look up);
+**your Zotero**, if you connect it; and — only if you enable opt-in timestamping — the
+**audit-head hash** to the RFC 3161 authority you configure. Reports about the local trust
+boundary (keychain handling, the loopback panel, the constrained MCP agent surface, and
+what crosses these outbound boundaries) are in scope.
 
 ## Supported versions
 

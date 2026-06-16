@@ -117,10 +117,10 @@ function goToNextClaim() {
   if (span) span.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 // Download a timestamped, audit-anchored citation-integrity report — no terminal needed.
-// In an age of AI, this is the researcher's proof of authorship: the report embeds its
-// generation time and the hash-chained audit head, so it records that THIS review work
-// was done, in this order, by the human. Available any time from the header (⎙ Report)
-// and as the wizard's final step.
+// In an age of AI, this is a timestamped audit record of the review work: the report embeds
+// its generation time and the hash-chained audit head, documenting that this review was
+// done, in this order. Available any time from the header (⎙ Report) and as the wizard's
+// final step.
 async function exportReport() {
   try {
     const r = await api("GET", "/api/report");
