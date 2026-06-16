@@ -19,11 +19,13 @@ SERVICE = "CiteVahti"
 # keyring secret names
 ZOTERO_WRITE_KEY = "zotero_write_key"
 NCBI_API_KEY = "ncbi_api_key"
+FULLVAHTI_TOKEN = "fullvahti_token"      # the FullVahti plugin's local tag-write token
 
 # env escape hatches (runtime injection only; override the keyring)
 ENV_FOR_SECRET = {
     ZOTERO_WRITE_KEY: "CITEVAHTI_ZOTERO_WRITE_KEY",
     NCBI_API_KEY: "CITEVAHTI_NCBI_API_KEY",
+    FULLVAHTI_TOKEN: "CITEVAHTI_FULLVAHTI_TOKEN",
 }
 
 SECRET_NAMES = tuple(ENV_FOR_SECRET)

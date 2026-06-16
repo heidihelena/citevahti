@@ -147,9 +147,30 @@ def make_backend(config) -> WriteBackend:
                         "set the Zotero user id. No silent fallback."))
         return WebApiWriteBackend(HttpxClient(), api_key, str(user_id), base=wb.web_api_base)
 
-    # local_addon (and anything else): Zotero's local /api/ is read-only -- there is no
-    # live write endpoint. Explicitly unavailable; never fall back to web_api.
+    if wb.kind == "local_addon":
+        # Zotero's built-in local /api/ is read-only, so tag writes go through the
+        # FullVahti plugin's token-gated /fullvahti/tag door. Needs a token (env/keyring).
+        from ..credentials import FULLVAHTI_TOKEN, get_credential_store, resolve_secret
+        from ..probe.client import HttpxClient
+        from .local_addon import FullVahtiWriteBackend
+        try:
+            cred_store = get_credential_store(getattr(config, "secrets_backend", "system_keyring"))
+        except Exception:  # noqa: BLE001 (keyring missing)
+            cred_store = None
+        token = resolve_secret(FULLVAHTI_TOKEN, cred_store)
+        if not token:
+            return UnavailableBackend(
+                kind="local_addon",
+                reason=("local_addon enabled but no FullVahti token: install the FullVahti Zotero "
+                        "plugin (github.com/heidihelena/fullvahti), enable write-back to get a token, "
+                        "then set $CITEVAHTI_FULLVAHTI_TOKEN (or store it via `citevahti onboard`)."))
+        try:
+            return FullVahtiWriteBackend(HttpxClient(), token, base=wb.local_addon_base,
+                                         allow_remote=wb.allow_remote_writeback)
+        except WriteUnavailable as e:
+            return UnavailableBackend(kind="local_addon", reason=str(e))
+
+    # anything else: explicitly unavailable; never fall back to web_api.
     return UnavailableBackend(
         kind=wb.kind,
-        reason=f"writeback.kind={wb.kind!r} has no live write endpoint (Zotero local /api/ is "
-               "read-only); no silent fallback is performed.")
+        reason=f"writeback.kind={wb.kind!r} has no live write endpoint; no silent fallback is performed.")
