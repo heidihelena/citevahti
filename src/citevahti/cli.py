@@ -126,6 +126,72 @@ def _cmd_start(args) -> int:
     return start(root, port=args.port, open_browser=not args.no_browser)
 
 
+def _cmd_doctor(args) -> int:
+    """Plain-language health check: what's ready, and the one next thing to do.
+
+    The humane counterpart to `status`/`probe`/`preflight` — for the researcher who's
+    never opened a terminal and just needs to be told what to fix."""
+    from .start import preflight_snapshot, readiness_lines
+
+    snap = preflight_snapshot(args.root, HttpxClient())
+    z, b = snap["zotero"], snap["better_bibtex"]
+    print("CiteVahti — readiness check\n")
+    print(f"  project ledger : {'ready' if snap['project_initialized'] else 'not created'}")
+    print(f"  Zotero         : {'reachable' if z['reachable'] else 'not detected'}"
+          + (f" (v{z['version']})" if z.get('version') else ""))
+    print(f"  Better BibTeX  : {'reachable' if b['reachable'] else 'not detected'}")
+    print(f"  write-ready    : {'yes' if snap['zotero_write_ready'] else 'no (rating still works)'}")
+    if snap.get("claims"):
+        c = snap["claims"]
+        need = c.get("needs_support", 0) + c.get("review_needed", 0)
+        print(f"  claims         : {c['total']} ({need} still need you)")
+    print("\nWhat to do next:")
+    for line in readiness_lines(snap):
+        print(f"  • {line}")
+    return 0
+
+
+def _cmd_run(args) -> int:
+    """Guided one command: create the ledger if needed, say what's next, open the panel.
+
+    Resumable by construction — the ledger is the state, so re-running picks up exactly
+    where you left off (same as `resume`)."""
+    from .start import preflight_snapshot, readiness_lines, start
+    from .state import CiteVahtiStore
+
+    root = args.root
+    store = CiteVahtiStore(root)
+    if not store.exists():
+        store.init()
+        print(f"Created a new project ledger at {store.dir}.\n")
+    for line in readiness_lines(preflight_snapshot(root, HttpxClient())):
+        print(f"  • {line}")
+    print("\nOpening the review panel — rate first; the AI's second rating stays hidden "
+          "until you do.\n")
+    return start(root, port=args.port, open_browser=not args.no_browser)
+
+
+def _cmd_resume(args) -> int:
+    """Resume where you left off: name the next pending action, then open the panel
+    (its 'what's next' banner routes you straight to the claim)."""
+    from . import workflow
+    from .start import start
+
+    nxt = (workflow.project_status(args.root, HttpxClient()).get("next") or {})
+    print(f"Resuming → {nxt.get('label', 'open the panel to continue.')}\n")
+    return start(args.root, port=args.port, open_browser=not args.no_browser)
+
+
+def _cmd_vocabulary(args) -> int:
+    """The verdicts, states, and phases as JSON — one source every surface reads
+    (so the VS Code extension stops hardcoding the verdict map)."""
+    import json as _json
+
+    from . import workflow
+    print(_json.dumps(workflow.vocabulary()))
+    return 0
+
+
 def _cmd_agent_tools(args) -> int:
     """Show the constrained agent (MCP) surface and the capabilities it can never have."""
     from .agent import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, TOOLS
@@ -1169,16 +1235,21 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name, fn in (("init", _cmd_init), ("probe", _cmd_probe),
                      ("verify-audit", _cmd_verify_audit), ("status", _cmd_status),
-                     ("preflight", _cmd_preflight), ("agent-tools", _cmd_agent_tools)):
+                     ("preflight", _cmd_preflight), ("doctor", _cmd_doctor),
+                     ("vocabulary", _cmd_vocabulary), ("agent-tools", _cmd_agent_tools)):
         p = sub.add_parser(name)
         p.set_defaults(func=fn)
 
-    st = sub.add_parser("start",
-                        help="one command: launch the panel + browser and serve MCP (ADR-0007)")
-    st.add_argument("--port", type=int, default=8765, help="panel port (default 8765, loopback)")
-    st.add_argument("--no-browser", action="store_true",
-                    help="don't open a browser window for the panel")
-    st.set_defaults(func=_cmd_start)
+    # start / run / resume all launch the workspace; run + resume add guided framing.
+    for name, fn, helptext in (
+        ("start", _cmd_start, "launch the panel + browser and serve MCP (ADR-0007)"),
+        ("run", _cmd_run, "guided one command: init if needed, say what's next, open the panel"),
+        ("resume", _cmd_resume, "resume where you left off — open the panel at the next pending step")):
+        sp = sub.add_parser(name, help=helptext)
+        sp.add_argument("--port", type=int, default=8765, help="panel port (default 8765, loopback)")
+        sp.add_argument("--no-browser", action="store_true",
+                        help="don't open a browser window for the panel")
+        sp.set_defaults(func=fn)
 
     ms = sub.add_parser("mcp-serve", help="serve the constrained agent tools over MCP")
     ms.set_defaults(func=_cmd_mcp_serve)
