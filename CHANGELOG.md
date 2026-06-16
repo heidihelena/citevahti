@@ -4,6 +4,45 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.17.0 — unit-test the manuscript, edit claims inline, the Atlas contribution + FullVahti write-back (2026-06-16)
+
+The release that makes CiteVahti's core metaphor literal and connects the tool to its
+siblings. Everything below is local-first and opt-in; nothing new leaves the machine
+without an explicit, previewed action.
+
+- **"Run unit tests" on the manuscript.** Each claim is a test case. `citevahti test`
+  (and a **▶ Run unit tests** panel button) reports pass / fail / skip per claim — does
+  the claim meet its references, and are the citations real? Offline by default
+  (has-evidence, reviewed, supported, identifiable citation); `--online` also verifies
+  the citation resolves and isn't retracted. The CLI exits non-zero on failure, so it can
+  gate CI on a manuscript repo.
+- **Edit the claim while reviewing evidence.** A first-class **✏ Edit claim** action on
+  the review card, in any phase — reword an overstated claim as you read the evidence.
+  Writes to the manuscript `.md` (previewed, backed-up, undoable) when the document is
+  open; otherwise records an audited revision in the ledger.
+- **Researcher-friendly panel.** A folder picker (no path typing), a one-click **Save to
+  Zotero** on search results, openable **DOI links** and inline **abstracts**, a clearer
+  fit-check (P/I/O/Claim with a 0/1/2 scale), a keyboard-shortcut legend with an off
+  toggle, a printable audit report, and plain language throughout (no more "bind/unbound").
+  Claim spans are keyboard-activatable (Enter/Space).
+- **Shared claim-text normalization (spec v1).** `claim_text_hash` is now computed over a
+  normalized claim (NFC → lowercase → collapse whitespace → trim), **byte-identical across
+  CiteVahti, MatchVahti, and the corpus** — so the same claim pools into one AtlasVahti
+  cell. See [`docs/CLAIM_NORMALIZATION.md`](docs/CLAIM_NORMALIZATION.md).
+- **Warehouse + Atlas contribution (download-only).** The de-identified warehouse is now
+  visible in the panel (status, opt-in, export, purge), and a **Contribute to Atlas** flow
+  builds a consented, de-identified bundle you can **download** — de-identification is
+  enforced (`assert_poolable` refuses any leak), nothing is uploaded, and every
+  contribution is revocable and audited.
+- **CiteVahti → FullVahti tag write-back.** The `local_addon` write backend now writes
+  status tags into Zotero through the [FullVahti](https://github.com/heidihelena/fullvahti)
+  plugin's token-gated door (`/fullvahti/tag`); `citevahti status` probes the door and says
+  whether it's reachable + enabled. The token is local-only.
+- **Fixes:** forward-compatible candidate loading (a newer-written ledger no longer crashes
+  an older reader and takes down the whole review surface); online unit-test-check failures
+  are surfaced loudly instead of read as green; the inline claim-revise is guarded; the
+  legacy dashboard mockup is watermarked as non-production.
+
 ## 0.16.0 — guided run, panel wizard, opt-in timestamping; verified→accepted (BREAKING) (2026-06-16)
 
 Highlights since `v0.16.0-beta.1`:

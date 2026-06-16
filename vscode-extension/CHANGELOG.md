@@ -1,5 +1,12 @@
 # Changelog — CiteVahti VS Code extension
 
+## 0.17.0
+
+- Version bump to track the **`citevahti` CLI 0.17.0** (manuscript unit tests, inline
+  claim editing, the warehouse/Atlas contribution surface, and FullVahti tag write-back —
+  all driven through the CLI the extension shells out to). No change to the extension's
+  own commands; set `citevahti.cliPath` to a 0.17.0 binary to pick up the new capabilities.
+
 ## 0.16.0
 
 - **`[oo]` claim state renamed Verified → Accepted** to match the engine — "accepted"
