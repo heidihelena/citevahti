@@ -409,3 +409,10 @@ a.doi:hover { text-decoration: underline; }
   background: var(--zs-surface); border-radius: 7px; padding: 8px 10px; }
 .hkoff { cursor: pointer; white-space: nowrap; }
 .hkoff input { vertical-align: middle; margin-right: 3px; }
+
+/* ---- edit-the-claim (available regardless of verdict) ---- */
+.chip-btn.tiny { font-size: 10px; padding: 2px 7px; margin-left: 8px; vertical-align: middle; }
+.claimeditor { margin: 8px 0 4px; padding: 10px; border: 1px solid var(--zs-revise-border);
+  border-radius: 9px; background: var(--zs-revise-bg); }
+.claimeditor .revbox { width: 100%; box-sizing: border-box; }
+.claimeditor .actions { margin-top: 8px; }

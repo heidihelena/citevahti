@@ -312,6 +312,20 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "GET" and m:
             return 200, _claim_history(root, m.group(1))
 
+        # Edit the claim wording in the LEDGER (audited revision). Used when the
+        # manuscript file isn't open, so a reviewer can refine the claim after
+        # reading the evidence without first locating the .md. When the file IS
+        # open the UI uses the previewed document write-back instead, which keeps
+        # the .md and the ledger in sync.
+        m = re.fullmatch(r"/api/claims/([^/]+)/revise", path)
+        if method == "POST" and m:
+            claim_id = m.group(1)
+            replacement = _req(body, "replacement")
+            engine.propose_revision(claim_id, replacement, root=root)
+            engine.accept_revision(claim_id, root=root)
+            claim = engine._open_store(root).load_claim(claim_id)
+            return 200, {"claim_id": claim_id, "claim_text": claim.claim_text}
+
         m = re.fullmatch(r"/api/claims/([^/]+)", path)
         if method == "GET" and m:
             claim_id = m.group(1)
