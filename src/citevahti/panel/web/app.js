@@ -11,6 +11,7 @@ const SUPPORT = [
   ["directly_supports", "Directly supports"],
   ["partially_supports", "Partially supports"],
   ["indirectly_supports", "Indirectly supports"],
+  ["overstated", "Overstated"],            // the paper supports a weaker claim than the one made
   ["does_not_support", "Does not support"],
   ["contradicts", "Contradicts"],
   ["unclear", "Unclear"],
@@ -792,7 +793,7 @@ function rateBlock(cand) {
     PICO.map(([k, lab, help]) => `<label class="fitlab" title="${esc(help)}">${lab}
       <select data-fit="${k}" aria-label="${esc(help)}">${opts}</select></label>`).join("") + `</div></div>`;
   return `<div class="next"><div class="ask">Your blind support rating</div>
-    <div class="why">Press <kbd>1</kbd>–<kbd>6</kbd> or click. The AI second rating stays hidden until yours is recorded.</div>
+    <div class="why">Press <kbd>1</kbd>–<kbd>7</kbd> or click. The AI second rating stays hidden until yours is recorded.</div>
     <div class="rates">${btns}</div>${fit}</div>`;
 }
 
@@ -1357,7 +1358,7 @@ document.addEventListener("keydown", (e) => {
   const cand = activeCand(); if (!cand) return;
   if (e.shiftKey && key === "d") { unlinkCandidate(); return e.preventDefault(); }       // ⇧D guarded remove
   const ph = phaseOf(cand);
-  if (ph === "rate" && /^[1-6]$/.test(e.key)) { rate(SUPPORT[+e.key - 1][0]); return e.preventDefault(); }   // 1–6 support rating
+  if (ph === "rate" && /^[1-7]$/.test(e.key)) { rate(SUPPORT[+e.key - 1][0]); return e.preventDefault(); }   // 1–7 support rating
   if (ph === "decide") {                                                                // verdict keys: oo / o / r / d
     if (key === "r") { recordDecision("needs_second_review"); return e.preventDefault(); }
     if (key === "d") { recordDecision("reject"); return e.preventDefault(); }            // (⇧D handled above)
