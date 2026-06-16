@@ -31,6 +31,7 @@ from typing import Optional
 
 from .. import agent
 from .. import tools as engine
+from .. import workflow
 from . import manuscript as M
 from . import prefs
 
@@ -169,6 +170,21 @@ def _claim_history(root: str, claim_id: str) -> dict:
     return {"claim_id": claim_id, "decisions": decisions, "transactions": txns}
 
 
+def _written_candidates(root: str, claim_id: str) -> set:
+    """Candidate ids for this claim with a committed, not-yet-undone Zotero write — the
+    durable 'done' signal the per-candidate step uses (survives navigating away)."""
+    try:
+        cand_ids = {c.candidate_id for c in engine._open_store(root).load_candidates(claim_id).candidates}
+    except Exception:  # noqa: BLE001
+        return set()
+    out = set()
+    for t in engine.list_transactions(root=root):
+        cid = getattr(t, "candidate_id", None)
+        if cid in cand_ids and t.status == "committed" and not getattr(t, "undone_at", None):
+            out.add(cid)
+    return out
+
+
 # ---- manuscript grouping ----------------------------------------------------
 def _manuscript_groups(root: str) -> dict:
     """Group claim-report rows by manuscript_id (the file part of the location)."""
@@ -299,12 +315,22 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             except Exception:
                 cands = []
             evidence = _evidence_index(root, claim_id)
+            written = _written_candidates(root, claim_id)   # committed, not-undone Zotero writes
             cand_views = []
             for c in cands:
                 view = _candidate_card(c)
                 rec = _find_rating_for(store, claim_id, c.candidate_id)
                 view["rating"] = blinded_rating_view(rec) if rec else None
-                view["evidence"] = evidence.get(c.candidate_id)
+                ev = evidence.get(c.candidate_id)
+                view["evidence"] = ev
+                # the workflow phase is computed in ONE place (workflow.candidate_step);
+                # surfaces render it rather than re-deriving the rate→decide→write rules.
+                view["step"] = workflow.candidate_step(
+                    has_human_rating=bool(rec and rec.human_rating
+                                          and rec.human_rating.value is not None),
+                    has_ai_rating=bool(rec and rec.ai_rating is not None),
+                    has_decision=bool(ev and ev.get("decision_id")),
+                    written=c.candidate_id in written)
                 cand_views.append(view)
             return 200, {"claim": {"claim_id": claim.claim_id, "claim_text": claim.claim_text,
                                    "claim_type": claim.claim_type,
@@ -381,7 +407,13 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             rep = engine.claim_report(root=root)
             return 200, {"root": str(Path(root).expanduser()),
                          "claim_total": rep.total,
-                         "manuscripts_dir": prefs.get_manuscripts_dir(root)}
+                         "manuscripts_dir": prefs.get_manuscripts_dir(root),
+                         "vocabulary": workflow.vocabulary()}   # verdicts/states/phases (single source)
+
+        # project-level "what's next" — the one next action for the whole project,
+        # computed in the resolver. Drives the panel wizard and (later) `citevahti run`.
+        if method == "GET" and path == "/api/next":
+            return 200, workflow.project_status(root)
 
         if method == "GET" and path == "/api/ledgers":
             return 200, {"active": str(Path(root).expanduser()),
