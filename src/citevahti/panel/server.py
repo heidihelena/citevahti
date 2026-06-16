@@ -415,6 +415,13 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "GET" and path == "/api/next":
             return 200, workflow.project_status(root)
 
+        # the citation-integrity report as Markdown, so the wizard's final step can hand
+        # the never-touched-a-terminal user a file without `citevahti report`.
+        if method == "GET" and path == "/api/report":
+            from ..report import render_markdown
+            rep = engine.claim_report(root=root)
+            return 200, {"markdown": render_markdown(rep), "total": rep.total}
+
         if method == "GET" and path == "/api/ledgers":
             return 200, {"active": str(Path(root).expanduser()),
                          "ledgers": prefs.discover_ledgers(root)}

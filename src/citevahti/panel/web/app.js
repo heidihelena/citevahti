@@ -81,6 +81,58 @@ async function boot() {
   applyDeepLink();
 }
 
+/* The "what's next" wizard: the single next action for the whole project, from the
+ * resolver (GET /api/next, i.e. workflow.project_status). One banner, one button —
+ * the guided thread for someone who's never run the rate→decide→write→cite loop.
+ * Read-only and blinding-safe; it only routes, it never mutates. */
+async function loadNext() {
+  try { state.next = await api("GET", "/api/next"); } catch { state.next = null; }
+  renderNext();
+}
+function renderNext() {
+  const box = $("#nextstep"); if (!box) return;
+  const n = state.next && state.next.next;
+  // first-run (init / add_claims) is handled by the full-page first-run screen
+  if (!n || n.kind === "init" || n.kind === "add_claims") { box.hidden = true; return; }
+  const blockers = (state.next && state.next.blockers) || [];
+  const needsZotero = blockers.includes("zotero_not_write_ready");
+  let cta = "";
+  if (n.kind === "rate" && n.claim_id) {
+    cta = `<button class="btn primary" data-act="gonext">Go to the next claim <span class="hk">→</span></button>`;
+  } else if (n.kind === "report") {
+    cta = `<button class="btn ghost" data-act="exportreport">Export report</button>`;
+  }
+  const step = n.kind === "report" ? `<span class="ns-step ns-done">✓ all decided</span>` : `<span class="ns-step">Next</span>`;
+  const blockerLine = needsZotero
+    ? `<div class="ns-blocker">Citing is gated on Zotero — <a data-connect="zotero">connect it</a> to enable the write-back step (rating and deciding work without it).</div>`
+    : "";
+  box.hidden = false;
+  box.innerHTML = `${step}<span class="ns-label">${esc(n.label)}</span>${cta}${blockerLine}`;
+}
+function goToNextClaim() {
+  const id = state.next && state.next.next && state.next.next.claim_id;
+  if (!id) return;
+  selectClaim(id);
+  const span = document.querySelector(`.claim[data-claim="${cssEscape(id)}"]`);
+  if (span) span.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+// the wizard's final step: download the citation-integrity report (no terminal needed)
+async function exportReport() {
+  try {
+    const r = await api("GET", "/api/report");
+    const blob = new Blob([r.markdown || ""], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "citation-integrity-report.md";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) { alert(e.message); }
+}
+// CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
+function cssEscape(s) {
+  return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
+}
+
 /* Theme: light by default (the base stylesheet; .zs-dark is the override, and
  * index.html ships no default class). A ?theme=light|dark override wins
  * (deterministic for screenshots and deep links); otherwise a previously toggled
@@ -120,6 +172,7 @@ async function loadHealth() {
 async function loadAudit() {
   try { state.audit = await api("GET", "/api/audit/verify"); } catch { state.audit = null; }
   renderAuditBadge();
+  loadNext();        // mutations (and reload) flow through here — refresh "what's next" with them
 }
 function renderAuditBadge() {
   const el = $("#auditBadge"); if (!el) return;
@@ -882,7 +935,7 @@ document.addEventListener("click", (e) => {
      "save-claim": saveClaim, "cancel-claim": () => { $("#addClaimBox").innerHTML = ""; },
      zpreview, zcommit, zcancel: () => { resetWrite(); renderCard(); },
      zundo, docpreview: () => docPreview(act.dataset.kind), doccommit: docCommit, doccancel: () => { resetWrite(); renderCard(); },
-     docundo: docUndo, unlink: unlinkCandidate,
+     docundo: docUndo, unlink: unlinkCandidate, gonext: goToNextClaim, exportreport: exportReport,
      next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
