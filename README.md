@@ -33,7 +33,7 @@ Export an **auditable claim-evidence trail** for methods reporting, then install
 > hosted and advanced features may come later; a free local/community version is intended
 > to remain available.
 
-**Full status & capabilities** — what's complete in v0.16.0, the two co-primary surfaces,
+**Full status & capabilities** — what's complete in v0.17.0, the two co-primary surfaces,
 the literature sources, and the VS Code adapter: **[`docs/STATUS.md`](docs/STATUS.md)**.
 
 ## See it
@@ -330,12 +330,12 @@ Prefer not to use the Marketplace? Build it yourself or grab the prebuilt `.vsix
 
 ```bash
 cd vscode-extension && npm install && npm run package
-code --install-extension citevahti-vscode-0.16.0.vsix
+code --install-extension citevahti-vscode-0.17.0.vsix
 ```
 
 The prebuilt `.vsix` is attached to the
 [latest release](https://github.com/heidihelena/citevahti/releases/latest);
-run `code --install-extension citevahti-vscode-0.16.0.vsix` (or, in VS Code,
+run `code --install-extension citevahti-vscode-0.17.0.vsix` (or, in VS Code,
 Extensions → `…` → **Install from VSIX…**).
 
 Config via environment (`NCBI_EMAIL`, `NCBI_API_KEY`) + `.citevahti/config.json`.
