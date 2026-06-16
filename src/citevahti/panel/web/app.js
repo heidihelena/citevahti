@@ -116,17 +116,29 @@ function goToNextClaim() {
   const span = document.querySelector(`.claim[data-claim="${cssEscape(id)}"]`);
   if (span) span.scrollIntoView({ behavior: "smooth", block: "center" });
 }
-// the wizard's final step: download the citation-integrity report (no terminal needed)
+// Download a timestamped, audit-anchored citation-integrity report — no terminal needed.
+// In an age of AI, this is the researcher's proof of authorship: the report embeds its
+// generation time and the hash-chained audit head, so it records that THIS review work
+// was done, in this order, by the human. Available any time from the header (⎙ Report)
+// and as the wizard's final step.
 async function exportReport() {
   try {
     const r = await api("GET", "/api/report");
     const blob = new Blob([r.markdown || ""], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
+    const stamp = String(r.generated_at || new Date().toISOString()).replace(/[:.]/g, "-").slice(0, 19);
     const a = document.createElement("a");
-    a.href = url; a.download = "citation-integrity-report.md";
+    a.href = url; a.download = `citation-integrity-report-${stamp}.md`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
+    // reinforce the proof: surface the timestamp + audit-chain state on save
+    const intact = r.audit_intact === false ? "⚠ audit chain BROKEN"
+      : r.audit_intact ? `audit chain intact ✓ (${r.audit_entries} entries)` : "";
+    setAgentLine(`Report saved — generated ${esc(r.generated_at || "now")}${intact ? " · " + intact : ""}.`);
   } catch (e) { alert(e.message); }
+}
+function setAgentLine(html) {
+  const el = $("#agent"); if (el) el.innerHTML = `<span class="who">CiteVahti ▸</span> <span class="pill">${html}</span>`;
 }
 // CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
 function cssEscape(s) {
@@ -939,6 +951,7 @@ document.addEventListener("click", (e) => {
      next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
+$("#report").addEventListener("click", exportReport);
 $("#auditBadge").addEventListener("click", () => loadAudit());
 $("#legendBtn").addEventListener("click", () => {
   const el = $("#legend"), opening = el.hasAttribute("hidden");

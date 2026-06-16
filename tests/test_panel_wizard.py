@@ -78,9 +78,15 @@ def test_context_exposes_the_single_vocabulary(tmp_path):
     assert decisions == {"accept", "accepted_with_caution", "needs_second_review", "reject"}
 
 
-def test_report_endpoint_returns_markdown(tmp_path):
+def test_report_endpoint_is_timestamped_and_audit_anchored(tmp_path):
+    # the report is the "you did this work, in this order" artifact: a generation
+    # timestamp + the hash-chained audit head, surfaced for the panel's Report button.
     _seed_claim(tmp_path)
     status, body = dispatch(str(tmp_path), "GET", "/api/report", None)
     assert status == 200
     assert body["total"] == 1
     assert "# " in body["markdown"]                       # a real Markdown document
+    assert body["generated_at"]                           # timestamped
+    assert body["audit_intact"] is True                   # chain verified at generation
+    assert body["audit_entries"] and body["audit_head"]   # anchored to the audit head
+    assert "Integrity:" in body["markdown"]               # the proof line is in the document
