@@ -473,6 +473,12 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             prefs.set_manuscripts_dir(root, mdir)
             return 200, {"ok": True, "manuscripts_dir": prefs.get_manuscripts_dir(root)}
 
+        # loopback-only folder browser: lets the user click through their filesystem
+        # to pick a manuscripts folder instead of hand-typing a path (the no-terminal
+        # constraint). Read-only listing of sub-directories + manuscript-file counts.
+        if method == "POST" and path == "/api/fs/browse":
+            return 200, _browse_dir(body.get("path"))
+
         # First-run hand-off: save a pasted Markdown manuscript, bind its folder, and
         # tell the user the MCP prompt to extract claims. Extraction stays chat-driven
         # (no AI in the panel) — this only writes the file and points at the next step.
@@ -508,6 +514,26 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                          "skipped_duplicates": getattr(rep, "skipped_duplicates", None),
                          "total_candidates": getattr(rep, "total_candidates", None),
                          "doi_resolved": resolved}
+
+        # ---- direct "Save to Zotero" for a search hit (preview → confirm) ------
+        # Pushes a staged search record into the Zotero library as an item, WITHOUT
+        # going through the claim rate→decide gate. Same write-safety invariant as
+        # the claim write: preview returns a confirm_token; commit needs it. This is
+        # "add this paper to my library", not the validated-evidence claim write.
+        if method == "POST" and path == "/api/intake/preview":
+            batch_id = _req(body, "batch_id")
+            record_ids = body.get("record_ids")
+            _resolve_missing_dois(root, batch_id, record_ids)   # carry the authoritative DOI
+            return 200, engine.intake_push(batch_id, record_ids=record_ids,
+                                           collection_key=body.get("collection_key"),
+                                           dry_run=True, root=root)
+
+        if method == "POST" and path == "/api/intake/commit":
+            return 200, engine.intake_push(_req(body, "batch_id"),
+                                           record_ids=body.get("record_ids"),
+                                           collection_key=body.get("collection_key"),
+                                           dry_run=False,
+                                           confirm_token=_req(body, "confirm_token"), root=root)
 
         # guarded remove: unlink the wrong paper from a claim (audited, non-destructive)
         if method == "POST" and path == "/api/candidates/unlink":
@@ -604,6 +630,43 @@ def _safe_md_name(raw: str) -> str:
     return base + ".md"
 
 
+# manuscript file types the browser counts/surfaces when picking a folder
+_MS_SUFFIXES = (".md", ".markdown", ".txt", ".docx", ".tex")
+
+
+def _browse_dir(raw_path) -> dict:
+    """List sub-directories of ``raw_path`` (default: home) for the folder picker.
+
+    Read-only and loopback-only. Returns the resolved path, its parent, and each
+    sub-directory with a count of manuscript-like files inside it — so the user can
+    see "the folder with 3 .md files" and bind it without typing a path. Hidden
+    directories are skipped; unreadable entries degrade silently."""
+    base = Path(raw_path).expanduser() if raw_path else Path.home()
+    try:
+        base = base.resolve()
+    except OSError:
+        base = Path.home()
+    if not base.is_dir():
+        base = Path.home()
+    dirs = []
+    try:
+        for entry in sorted(base.iterdir(), key=lambda p: p.name.lower()):
+            if entry.name.startswith(".") or not entry.is_dir():
+                continue
+            try:
+                n = sum(1 for f in entry.iterdir()
+                        if f.is_file() and f.suffix.lower() in _MS_SUFFIXES)
+            except OSError:
+                n = 0
+            dirs.append({"name": entry.name, "path": str(entry), "manuscript_count": n})
+    except OSError:
+        pass
+    here = sum(1 for f in base.iterdir()
+               if f.is_file() and f.suffix.lower() in _MS_SUFFIXES) if base.is_dir() else 0
+    parent = str(base.parent) if base.parent != base else None
+    return {"path": str(base), "parent": parent, "manuscript_count": here, "dirs": dirs}
+
+
 # ---- find evidence: stage candidates from PubMed or the Zotero library ------
 # PubMed uses the engine's literature_search; the Zotero library is searched
 # read-only and its hits are staged through the SAME manual-intake path that other
@@ -685,12 +748,14 @@ def _search(root: str, query: str, source: str, max_results: int) -> dict:
         rec = engine.import_results({"text": _openalex_hits_to_csv(items)}, "csv",
                                     source_label=f"s2:{query}", root=root)
     else:
-        rec = engine.literature_search(query, max_results=max_results, root=root)
+        # request abstracts so the user can read them in the results before linking
+        rec = engine.literature_search(query, max_results=max_results,
+                                       include_abstracts=True, root=root)
     if getattr(rec, "status", "ok") not in ("ok", None):
         raise HttpError(400, f"search failed ({rec.error_code}): {rec.remediation or ''}".strip())
     hits = [{"record_id": h.record_id, "title": h.title,
              "journal": getattr(h, "journal", None), "year": getattr(h, "year", None),
-             "pmid": h.pmid, "doi": h.doi,
+             "pmid": h.pmid, "doi": h.doi, "abstract": getattr(h, "abstract", None),
              "dedupe_status": getattr(h, "dedupe_status", None)} for h in rec.hits]
     return {"batch_id": rec.batch_id, "source": source, "status": getattr(rec, "status", "ok"),
             "hits": hits}
