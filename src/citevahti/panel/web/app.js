@@ -199,6 +199,83 @@ function renderTestResults(box, s) {
       <button class="btn primary" data-test-close="1">Done</button></div></div>`;
 }
 function closeTests() { const b = $("#testModal"); if (b) b.remove(); }
+
+/* ---------- de-identified warehouse + Atlas contribution (download-only) ---- */
+function downloadJson(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+async function openWarehouse() {
+  let box = $("#whModal");
+  if (!box) { box = document.createElement("div"); box.id = "whModal"; box.className = "modal"; document.body.appendChild(box); }
+  box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
+  try { renderWarehouse(box, await api("GET", "/api/warehouse")); }
+  catch (e) { box.innerHTML = `<div class="modal-card"><div class="err">${esc(e.message)}</div>
+    <div class="modal-foot"><button class="btn ghost" data-wh-close="1">Close</button></div></div>`; }
+}
+function renderWarehouse(box, st) {
+  const on = !!st.enabled, text = !!st.include_claim_text;
+  const bundle = state.lastBundle;
+  box.innerHTML = `<div class="modal-card wh">
+    <div class="modal-head"><b>De-identified warehouse</b><button class="chip-btn" data-wh-close="1">✕</button></div>
+    <div class="note">A local, opt-in record of your claim-test work — claim <b>hash</b> (not text), public
+      PMID/DOI, and the ratings. Off by default. Nothing here is uploaded anywhere.</div>
+    <label class="wh-toggle"><input type="checkbox" id="whEnabled" ${on ? "checked" : ""}>
+      <span><b>Collect de-identified records</b> — ${st.record_count} stored</span></label>
+    <label class="wh-toggle${on ? "" : " dim"}"><input type="checkbox" id="whText" ${text ? "checked" : ""} ${on ? "" : "disabled"}>
+      <span>Also store the <b>raw claim text</b> <span class="sensitive">sensitive — separate opt-in</span></span></label>
+    <div class="actions">
+      <button class="btn ghost" data-wh="export" ${on ? "" : "disabled"}>Export records (local file)</button>
+      <button class="btn ghost danger" data-wh="purge" ${st.record_count ? "" : "disabled"}>Purge (withdraw)</button></div>
+
+    <div class="lbl" style="margin-top:14px">Contribute to Atlas</div>
+    <div class="note">Build a de-identified bundle to <b>download</b>. Nothing is transmitted — there is
+      no upload from here. Composed vs decomposed and case are normalized so your claim hashes match
+      across tools (spec v1).</div>
+    <div class="actions">
+      <button class="btn primary" data-wh="preview" ${on && st.record_count ? "" : "disabled"}>Preview bundle</button>
+      ${bundle ? `<button class="btn ghost" data-wh="download">⬇ Download bundle (${bundle.count})</button>` : ""}</div>
+    ${bundle ? `<div class="note ok" id="whBundleNote"><b>${esc(bundle.contribution_id)}</b> · ${bundle.count} record(s) · ${esc(bundle.sensitivity)}
+      · sha256 ${esc(String(bundle.content_hash).slice(0, 12))}…<br>${esc(bundle.consent_receipt.egress)}</div>` : ""}
+    <details class="context"><summary>Revoke a contribution</summary><div class="body">
+      <input id="whRevokeId" type="text" placeholder="contribution_id (contrib_…)" />
+      <div class="actions"><button class="btn ghost" data-wh="revoke">Download revocation</button></div></div></details>
+    <div class="modal-foot"><button class="btn primary" data-wh-close="1">Done</button></div></div>`;
+}
+async function whConfigure(patch) {
+  try { const st = await api("POST", "/api/warehouse/configure", patch);
+    state.lastBundle = null; renderWarehouse($("#whModal"), st); }
+  catch (e) { alert(e.message); }
+}
+async function whAction(act) {
+  const box = $("#whModal");
+  try {
+    if (act === "export") {
+      const r = await api("POST", "/api/warehouse/export", {});
+      alert(`Exported ${r.record_count} record(s) to:\n${r.output_file}`);
+    } else if (act === "purge") {
+      if (!confirm("Erase the local warehouse? This withdraws every de-identified record.")) return;
+      await api("POST", "/api/warehouse/purge", {}); state.lastBundle = null;
+      renderWarehouse(box, await api("GET", "/api/warehouse"));
+    } else if (act === "preview") {
+      const text = $("#whText") && $("#whText").checked;
+      state.lastBundle = await api("POST", "/api/atlas/contribution-preview", { allow_claim_text: !!text });
+      renderWarehouse(box, await api("GET", "/api/warehouse"));
+    } else if (act === "download") {
+      if (state.lastBundle) downloadJson(state.lastBundle, `${state.lastBundle.contribution_id}.json`);
+    } else if (act === "revoke") {
+      const id = (($("#whRevokeId") || {}).value || "").trim();
+      if (!id) { alert("Paste the contribution_id to revoke."); return; }
+      const req = await api("POST", "/api/atlas/revoke", { contribution_id: id });
+      downloadJson(req, `revocation-${id}.json`);
+    }
+  } catch (e) { alert(e.message); }
+}
+function closeWarehouse() { state.lastBundle = null; const b = $("#whModal"); if (b) b.remove(); }
 // CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
 function cssEscape(s) {
   return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
@@ -1189,6 +1266,8 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-test-close]")) return void closeTests();
   if (e.target.closest("[data-test-online]")) return void runTests(true);
   const tf = e.target.closest("[data-test-focus]"); if (tf) { closeTests(); return void selectClaim(tf.dataset.testFocus); }
+  if (e.target.closest("[data-wh-close]")) return void closeWarehouse();
+  const wh = e.target.closest("[data-wh]"); if (wh) return void whAction(wh.dataset.wh);
   if (e.target.id === "pasteSave") return void savePastedManuscript();
   if (e.target.id === "addClaim") return void toggleAddClaim();
   const sp = e.target.closest("[data-claim]"); if (sp) return void selectClaim(sp.dataset.claim);
@@ -1212,6 +1291,12 @@ document.addEventListener("click", (e) => {
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
 $("#report").addEventListener("click", exportReport);
 $("#runTests").addEventListener("click", () => runTests(false));
+$("#warehouse").addEventListener("click", openWarehouse);
+// warehouse opt-in toggles (delegated — the modal is rendered dynamically)
+document.addEventListener("change", (e) => {
+  if (e.target.id === "whEnabled") return void whConfigure({ enabled: e.target.checked });
+  if (e.target.id === "whText") return void whConfigure({ include_claim_text: e.target.checked });
+});
 $("#auditBadge").addEventListener("click", () => loadAudit());
 $("#legendBtn").addEventListener("click", () => {
   const el = $("#legend"), opening = el.hasAttribute("hidden");
