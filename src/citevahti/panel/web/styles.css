@@ -109,6 +109,17 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .recon-note { font: 600 11px/1.4 ui-monospace, Menlo, monospace; color: var(--zs-muted);
   border: 1px dashed var(--zs-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px; }
 
+/* ---- "what's next" wizard: the one next action for the whole project (workflow.next) */
+.nextstep { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--zs-panel); border: 1px solid var(--zs-brand); border-left: 4px solid var(--zs-brand);
+  border-radius: 10px; padding: 11px 14px; margin-bottom: 14px; }
+.nextstep .ns-step { font: 700 10px/1 ui-monospace, Menlo, monospace; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--zs-brand-strong); }
+.nextstep .ns-label { flex: 1 1 220px; font-size: 13.5px; color: var(--zs-ink); }
+.nextstep .ns-done { color: var(--zs-partial-text); }
+.nextstep .ns-blocker { flex-basis: 100%; font-size: 12px; color: var(--zs-muted); }
+.nextstep .ns-blocker a { color: var(--zs-brand-strong); cursor: pointer; text-decoration: underline; }
+
 /* ---- claim spans ---- */
 .claim { border-radius: 4px; padding: 1px 3px; cursor: pointer; border-bottom: 2px solid transparent; }
 .claim .code { font: 700 11px/1 ui-monospace, Menlo, monospace; margin-left: 5px; padding: 1px 4px;

@@ -48,13 +48,40 @@ const STATE = {
     untestable: { code: "u", label: "Out of indexed scope", bg: "rgba(91,85,112,0.16)", ruler: "#5B5570" },
 };
 // The human's keystroke actions on a candidate -> a final decision (the human is
-// the decider; the extension drives the CLI, never the agent surface).
+// the decider; the extension drives the CLI, never the agent surface). The label/cls
+// are local styling; the verdict CODES and DECISION strings are the engine's vocabulary
+// and are refreshed from `citevahti vocabulary` at activation (verdictDecisions) so this
+// map can't silently drift from schemas/decision.py. The literals here are the fallback
+// when the CLI vocabulary can't be read.
 const ACTIONS = {
     oo: { decision: "accept", label: "Accept", cls: "accepted" },
     o: { decision: "accepted_with_caution", label: "Caution", cls: "needs_support" },
     r: { decision: "needs_second_review", label: "Review", cls: "review_needed" },
     d: { decision: "reject", label: "Reject", cls: "decision_recorded" },
 };
+// code -> decision, sourced from the engine at activation (see loadVocabulary).
+const verdictDecisions = Object.fromEntries(Object.entries(ACTIONS).map(([k, v]) => [k, v.decision]));
+function verdictDecision(code) {
+    return verdictDecisions[code] ?? ACTIONS[code].decision;
+}
+// Pull the verdict vocabulary from the engine so the extension renders the same
+// decisions the ledger accepts. Best-effort: on any failure we keep the fallback map.
+async function loadVocabulary() {
+    try {
+        const { code, stdout } = await runCli(["vocabulary"]);
+        if (code !== 0)
+            return;
+        const vocab = JSON.parse(stdout);
+        for (const v of vocab.verdicts ?? []) {
+            if (v.code && v.decision)
+                verdictDecisions[v.code] = v.decision;
+            if (v.code && !(v.code in ACTIONS)) {
+                console.warn(`CiteVahti: engine verdict "${v.code}" has no UI button — extension may be out of date.`);
+            }
+        }
+    }
+    catch { /* keep the built-in fallback */ }
+}
 // The controlled blind support vocabulary (schemas/claim_support.py SUPPORT_VALUES).
 // The human records one of these FIRST — before any decision and before the AI's
 // rating is unblinded. Digit keys 1–6 mirror this order for keyboard raters.
@@ -193,7 +220,7 @@ function evidenceHtml(claimId, e) {
     const rated = !!e.human_support;
     const rateBtns = SUPPORT_VALUES.map(([v, label], i) => `<button class="ratebtn" ${data} data-value="${v}" title="Record your blind support rating">` +
         `<span class="kbd">${i + 1}</span> ${label}</button>`).join(" ");
-    const decideBtns = Object.keys(ACTIONS).map((k) => `<button class="act ${ACTIONS[k].cls}" ${data} data-decision="${ACTIONS[k].decision}"` +
+    const decideBtns = Object.keys(ACTIONS).map((k) => `<button class="act ${ACTIONS[k].cls}" ${data} data-decision="${verdictDecision(k)}"` +
         ` title="${ACTIONS[k].label}">[${k}] ${ACTIONS[k].label}</button>`).join(" ");
     const accepted = e.decision_id && (e.final_decision === "accept" || e.final_decision === "accepted_with_caution");
     const writeBtn = accepted
@@ -896,6 +923,7 @@ function reviewHtml(pf, manuscript) {
     </script></body></html>`;
 }
 function activate(context) {
+    void loadVocabulary(); // refresh verdict decisions from the engine (best-effort)
     context.subscriptions.push(...Object.values(decoTypes));
     context.subscriptions.push(vscode.commands.registerCommand("citevahti.startReview", startReview));
     context.subscriptions.push(vscode.commands.registerCommand("citevahti.verifyClaims", verifyClaims));

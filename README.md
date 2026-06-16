@@ -38,8 +38,16 @@ the literature sources, and the VS Code adapter: **[`docs/STATUS.md`](docs/STATU
 
 ## See it
 
-The journey, in three screens: paste a paragraph, rate each claim against the paper cited
-for it, and let the AI's second opinion appear only after you've rated.
+The panel always tells you the one next thing to do — no terminal, no command to
+remember. A guided banner names the next action and takes you there.
+
+![A "what's next" banner above the manuscript names the next action — rate the next claim, or export the report — with a single button.](docs/screenshots/00-next-step.png)
+
+*You're never lost: the banner reads the project's state and hands you the next step
+(rate the next claim, or export the report). `citevahti run` opens straight to this.*
+
+The journey, then, in three screens: paste a paragraph, rate each claim against the paper
+cited for it, and let the AI's second opinion appear only after you've rated.
 
 ![CiteVahti highlights claim-like statements in the manuscript; you rate whether the cited paper supports each one, and the AI's second rating stays hidden until you do.](docs/screenshots/01-review-surface.png)
 
@@ -85,8 +93,14 @@ status, so the order is **auditable**, not assumed.)
 
 ```bash
 pip install "citevahti[mcp]"     # the [mcp] extra adds the chat surface — keep both quotes
-citevahti init                   # one-time: create the local .citevahti/ ledger
+citevahti run                    # creates the ledger if needed, says what's next, opens the panel
 ```
+
+> **One command.** `citevahti run` is the guided entry point: it initialises the project
+> if needed, prints the next step, and opens the review panel (whose banner routes you to
+> the next claim). `citevahti resume` reopens it where you left off, and `citevahti doctor`
+> is a plain-language check of what's set up and what to fix. Prefer the pieces? `citevahti
+> init` then `citevahti start` still work.
 
 > `init` creates `.citevahti/` **in the current folder** — run it from your project
 > folder, not your home directory. (Quote the install: the `[mcp]` brackets are a
@@ -366,6 +380,22 @@ Then a manual acceptance pass in VS Code (after **CiteVahti: Verify claims**):
 Safety invariants are also asserted by the suite —
 [`docs/SAFETY_INVARIANTS.md`](docs/SAFETY_INVARIANTS.md) and
 [`docs/REVIEW_CHECKLIST.md`](docs/REVIEW_CHECKLIST.md).
+
+## Companion: FullVahti (open-access PDFs + local write-back)
+
+[**FullVahti**](https://github.com/heidihelena/fullvahti) is a sibling Vahtian tool — a
+Zotero plugin that finds **free, legal open-access PDFs** for your references (via
+Unpaywall and PubMed Central), attaches them, and writes one report of what's still
+missing. It pairs naturally with CiteVahti: once a candidate paper is in your library,
+FullVahti can fetch its full text so you're rating against the actual article, and it
+honestly reports paywalled papers as missing rather than bypassing them.
+
+FullVahti can also act as **CiteVahti's local write-back door**: with the user's explicit
+opt-in it exposes a token-guarded endpoint on Zotero's local server (`127.0.0.1:23119`)
+that accepts *tag-only* changes — so review-status tags can land in Zotero with no silent
+writes and nothing leaving the machine. Off by default; the door is closed until you open
+it. See the [FullVahti README](https://github.com/heidihelena/fullvahti) to install (it's a
+two-click Zotero plugin, no terminal).
 
 ## Build status
 
