@@ -55,9 +55,21 @@ Then **copy this and paste it into your terminal:**
 citevahti run
 ```
 
-That one command does everything: it creates your project, checks what's set up, prints the
-next step, and **opens the review panel in your browser**. A banner at the top of the panel
-always tells you the single next thing to do — you're never lost.
+That one command creates your project, checks what's set up, prints the next step, and
+**opens the review panel in your browser**. A banner at the top of the panel always tells
+you the single next thing to do — you're never lost.
+
+> **The terminal then stays busy — that's normal, not a freeze.** `citevahti run` keeps
+> running to serve the panel (and a chat connection), so no new prompt appears. Switch to
+> the browser tab it opened — or visit **http://127.0.0.1:8765** — and do your work there.
+> Press **Ctrl-C** in the terminal when you're finished.
+>
+> **Just want the panel, without a chat assistant?** Use this instead — it serves the same
+> panel and Ctrl-C stops it cleanly. It won't pop a browser, so open the link yourself:
+> ```
+> citevahti-panel --root .
+> ```
+> then visit **http://127.0.0.1:8765**.
 
 - Came back the next day? Run **`citevahti resume`** — it reopens the panel right where you
   left off.
@@ -77,11 +89,20 @@ On first run the panel shows two buttons:
 You can rate and decide without Zotero connected — you only need it for the final "save the
 citation" step.
 
-## 4. Do the loop — in the panel
+## 4. Add your claims, then do the loop — in the panel
 
-Paste a paragraph of your manuscript into the panel's box (or, in your chat client, run the
-**`run_claim_tests`** prompt). CiteVahti highlights the claim-like sentences. Click one, and
-the card on the right walks you through four steps, following the banner's prompts:
+First, get your manuscript's claims into CiteVahti. **The panel itself doesn't read your
+prose with AI** — finding the claims is the one step that needs a chat assistant:
+
+- **With a chat client** (Claude Desktop / ChatGPT / Claude Code / Codex connected over
+  MCP): run the **`run_claim_tests`** prompt and paste a paragraph. The assistant extracts
+  the claims into your ledger. *(Or paste your manuscript into the panel's box — that saves
+  the file and hands you the exact prompt to run in the chat; it doesn't extract on its own.)*
+- **No chat client?** Add a claim by hand with the panel's **+ Claim** button (or the CLI in
+  the box below).
+
+Once claims exist, CiteVahti highlights them in the manuscript. Click one, and the card on
+the right walks you through four steps, following the banner's prompts:
 
 1. **Rate** — read the candidate paper and record *your* judgment of whether it supports the
    claim. You go first.
