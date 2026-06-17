@@ -73,7 +73,9 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .conns { display: flex; gap: 6px; }
 .conn { display: inline-flex; align-items: center; gap: 5px; font: 600 11px/1 ui-monospace, Menlo, monospace;
   padding: 4px 8px; border-radius: 999px; border: 1px solid var(--zs-line); background: var(--zs-surface-2);
-  color: var(--zs-muted); cursor: pointer; }
+  color: var(--zs-muted); cursor: pointer; appearance: none; -webkit-appearance: none; }
+.conn:focus-visible { outline: 2px solid var(--zs-brand); outline-offset: 1px; }
+.modal:focus { outline: none; }   /* the dialog container takes programmatic focus; no focus ring on it */
 .conn .led { width: 7px; height: 7px; border-radius: 999px; background: var(--zs-muted); }
 .conn.ok .led { background: var(--zs-partial-border); }
 .conn.off .led { background: var(--zs-delete-border); }
