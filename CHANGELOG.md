@@ -4,6 +4,24 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## Unreleased
+
+- **claim-check polarity guard — a contradicting source is never silently returned as
+  support (correctness fix).** Lexical `coverage_score` is direction-blind: *"Drug X did not
+  reduce mortality"* shares its content tokens with *"Drug X reduced mortality"*, so a
+  contradicting passage scored as high as a supporting one and was returned
+  `supported_candidate`. New deterministic (no-AI) `has_negation` / `polarity_conflict` in
+  `retrieval/text.py` route a high-overlap but opposite-polarity passage to a new
+  `contradiction_candidate` status (the mirror of `supported_candidate`; still a *candidate*,
+  never asserts truth). The aggregate leads with the contradiction and `check` adds a
+  conflicting-evidence warning. Two improvements over the seed patch: **(1)** the flag is
+  *inspectable* — `negation_cue` / the new `PerCitekeyResult.polarity_cue` name the word that
+  flipped the polarity (e.g. `"did not"`), mirroring MatchVahti's "Flagged on the word …"
+  pattern; **(2)** a source carrying **both** a supporting and an opposing passage surfaces the
+  conflict (both passages + cue + warning) instead of silently dropping the opposing one.
+  Conservative by design (fires only on lexical overlap + opposite negation parity);
+  paraphrase / synonymy stay the advisory layer's job. Locked by `tests/test_claimcheck_polarity.py`.
+
 ## 0.16.0 — verified→accepted (BREAKING), [u] untestable, report provenance, --json, desktop extension (2026-06-12)
 
 - **BREAKING: the `[oo]` claim state is renamed `verified` → `accepted`**

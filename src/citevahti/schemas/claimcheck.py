@@ -2,6 +2,10 @@
 
 ``claim_check`` never asserts truth. The only positive status is
 ``supported_candidate`` -- the ``_candidate`` qualifier is mandatory.
+
+``contradiction_candidate`` is its mirror: the passage overlaps the claim but
+asserts the OPPOSITE polarity (e.g. "did not reduce" vs "reduced"). It is also a
+*candidate* -- it flags a possible contradiction for the human, and never decides.
 """
 
 from __future__ import annotations
@@ -13,7 +17,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from .common import Provenance
 from .passage import RetrievedPassage
 
-ClaimStatus = Literal["supported_candidate", "no_support_found", "unverifiable"]
+ClaimStatus = Literal[
+    "supported_candidate", "contradiction_candidate", "no_support_found", "unverifiable"
+]
 
 
 class PerCitekeyResult(BaseModel):
@@ -23,6 +29,7 @@ class PerCitekeyResult(BaseModel):
     zotero_key: Optional[str] = None
     reason: Optional[str] = None
     score: Optional[float] = None
+    polarity_cue: Optional[str] = None   # the negation word that flipped polarity (inspectable)
     passages: list[RetrievedPassage] = Field(default_factory=list)
 
 

@@ -7,6 +7,7 @@ from typing import Optional
 from .. import __version__
 from ..retrieval.service import PassageRetrievalService
 from ..retrieval.source import TextSource
+from ..retrieval.text import negation_cue, polarity_conflict
 from ..schemas.claimcheck import ClaimCheckResult, ClaimStatus, PerCitekeyResult
 from ..schemas.common import Provenance
 from ..util import config_hash, utc_now_iso
@@ -51,6 +52,27 @@ class ClaimCheckService:
 
         if candidates:
             best = max(p.score or 0 for p in candidates)
+            # Direction guard: lexical overlap is polarity-blind. Split candidates by
+            # whether they OPPOSE the claim's polarity ("did not reduce" vs "reduced").
+            opposing = [p for p in candidates if polarity_conflict(claim_text, p.quote)]
+            supporting = [p for p in candidates if not polarity_conflict(claim_text, p.quote)]
+            if opposing:
+                cue = negation_cue(opposing[0].quote) or negation_cue(claim_text)
+                if not supporting:
+                    # every candidate opposes the claim -> a contradiction candidate
+                    # (the mirror of support); never silently return it as support.
+                    return PerCitekeyResult(
+                        citekey=citekey, status="contradiction_candidate",
+                        zotero_key=retr.zotero_key, score=best, polarity_cue=cue,
+                        reason=f'passage opposes the claim\'s polarity (negation cue: "{cue}")',
+                        passages=opposing)
+                # mixed inside one source: real support AND an opposing passage. Keep the
+                # support headline but surface BOTH passages + the cue — never hide the conflict.
+                return PerCitekeyResult(
+                    citekey=citekey, status="supported_candidate",
+                    zotero_key=retr.zotero_key, score=best, polarity_cue=cue,
+                    reason=f'also contains an opposing passage (negation cue: "{cue}") — review the conflict',
+                    passages=supporting + opposing)
             return PerCitekeyResult(citekey=citekey, status="supported_candidate",
                                     zotero_key=retr.zotero_key, score=best, passages=candidates)
         # source available + searched, but no adequate support
@@ -59,6 +81,11 @@ class ClaimCheckService:
 
     @staticmethod
     def _aggregate(statuses: list[ClaimStatus]) -> ClaimStatus:
+        # A contradicting source is the thing a human most needs to see, so it
+        # leads the headline even when another source supports (per_citekey keeps
+        # the full breakdown; ``check`` also adds a conflict warning).
+        if "contradiction_candidate" in statuses:
+            return "contradiction_candidate"
         if "supported_candidate" in statuses:
             return "supported_candidate"
         if "no_support_found" in statuses:
@@ -75,4 +102,11 @@ class ClaimCheckService:
             provenance=prov)
         if not citekeys:
             result.warnings.append("no citekeys provided")
+        seen = {p.status for p in per}
+        if "contradiction_candidate" in seen and "supported_candidate" in seen:
+            result.warnings.append(
+                "conflicting evidence: both support and contradiction candidates found")
+        if any(p.status == "supported_candidate" and p.polarity_cue for p in per):
+            result.warnings.append(
+                "a supporting source also contains an opposing passage — review the conflict")
         return result
