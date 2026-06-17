@@ -156,9 +156,11 @@ with timestamps and comparison status so the order is auditable, not assumed.
 
 ## Companion: FullVahti
 
-A Zotero plugin that finds free, legal open-access PDFs for your references and writes
-CiteVahti's verified results back as tags — so the citation check and the full text live
-in one place.
+[**FullVahti**](https://github.com/heidihelena/fullvahti) is a sibling Zotero plugin that
+finds free, legal open-access PDFs for your references and writes CiteVahti's verified
+results back as tags — so the citation check and the full text live in one place. See the
+[FullVahti README](https://github.com/heidihelena/fullvahti) to install (a two-click Zotero
+plugin, no terminal).
 
 ## License
 
