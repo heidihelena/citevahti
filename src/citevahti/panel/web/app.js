@@ -277,6 +277,86 @@ async function whAction(act) {
   } catch (e) { alert(e.message); }
 }
 function closeWarehouse() { state.lastBundle = null; const b = $("#whModal"); if (b) b.remove(); }
+
+/* ---------- AI second opinion settings ----------
+ * Privacy-first. Most users drive CiteVahti through an assistant over MCP, which
+ * submits the blinded rating with no key (subscription pays) — so the MCP path is
+ * framed first and the off/local/api modes are for CiteVahti's OWN call. The API
+ * key is NEVER entered here: it lives in the keychain/env (we only show presence). */
+async function openAiSettings() {
+  let box = $("#aiModal");
+  if (!box) { box = document.createElement("div"); box.id = "aiModal"; box.className = "modal"; document.body.appendChild(box); }
+  box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
+  try {
+    const cfg = await api("GET", "/api/ai-config");
+    let models = [], suggested = "";
+    if (cfg.mode === "local") {
+      try { const r = await api("GET", "/api/ai/local-models"); models = r.models || []; suggested = r.suggested || ""; } catch {}
+    }
+    state.aiModels = models; state.aiSuggested = suggested;
+    renderAiSettings(box, cfg, models, suggested);
+  } catch (e) {
+    box.innerHTML = `<div class="modal-card"><div class="err">${esc(e.message)}</div>
+      <div class="modal-foot"><button class="btn ghost" data-ai-close="1">Close</button></div></div>`;
+  }
+}
+function renderAiSettings(box, cfg, models, suggested) {
+  models = models || []; suggested = suggested || cfg.model_id || "";
+  const m = cfg.mode;
+  const opt = (v, on) => `<input type="radio" name="aiMode" value="${v}" ${on ? "checked" : ""}>`;
+  const known = models.some((x) => x.name === cfg.model_id);
+  const localCfg = m !== "local" ? "" : `<div class="ai-cfg">
+    <div class="lbl">Local model</div>
+    <div class="note">${models.length
+      ? `On this machine: ${models.length} model(s). Qwen is offered first — it tends to beat llama at the term-extraction that claim-checking is.`
+      : `Ollama not detected. Start it (or type a name); CiteVahti uses the model when it's available.`}</div>
+    <select id="aiModelSel">
+      ${models.map((x) => `<option value="${esc(x.name)}" ${x.name === cfg.model_id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}
+      ${(!known && cfg.model_id && !cfg.model_id.startsWith("PENDING")) ? `<option value="${esc(cfg.model_id)}" selected>${esc(cfg.model_id)} (configured)</option>` : ""}
+      ${(!models.length && suggested) ? `<option value="${esc(suggested)}" selected>${esc(suggested)}</option>` : ""}
+    </select>
+    <input id="aiEndpoint" type="text" placeholder="http://localhost:11434/v1/chat/completions" value="${esc(cfg.endpoint || "")}">
+    <div class="note">${cfg.model_pinned ? `Pinned for audit: <b>${esc(cfg.model_snapshot)}</b> ✓` : `Pick a model to pin it (the Ollama digest is recorded automatically).`}</div>
+  </div>`;
+  const apiCfg = m !== "api" ? "" : `<div class="ai-cfg">
+    <div class="lbl">Provider &amp; model</div>
+    <select id="aiProvider">
+      <option value="anthropic" ${cfg.provider === "anthropic" ? "selected" : ""}>Anthropic</option>
+      <option value="openai" ${cfg.provider !== "anthropic" ? "selected" : ""}>OpenAI-compatible</option></select>
+    <input id="aiModelId" type="text" placeholder="model id (e.g. claude-…, gpt-…)" value="${esc(cfg.model_id && !cfg.model_id.startsWith("PENDING") ? cfg.model_id : "")}">
+    <input id="aiEndpoint" type="text" placeholder="https://… (https only)" value="${esc(cfg.endpoint || "")}">
+    <div class="note ${cfg.api_key_present ? "ok" : "warn"}">${cfg.api_key_present
+      ? "API key: configured (in your keychain / env)."
+      : "API key not set — store <b>CITEVAHTI_AI_API_KEY</b> in your env or keychain. The key is never saved in config or sent through this panel."}</div>
+  </div>`;
+  box.innerHTML = `<div class="modal-card ai">
+    <div class="modal-head"><b>AI second opinion</b><button class="chip-btn" data-ai-close="1">✕</button></div>
+    <div class="note">Privacy-first &middot; optional. <b>You rate first — the AI is a blinded second opinion.</b>
+      Bring your own model or API key. No hidden AI subscription.</div>
+    <div class="note ok"><b>Working through an assistant (Cowork / Claude via MCP)?</b> It already gives the
+      blinded second opinion through CiteVahti's MCP tools — nothing to set up here, paid by your assistant
+      subscription. The modes below are only for when CiteVahti makes its <i>own</i> call (standalone, or
+      high-volume local screening).</div>
+    <div class="ai-modes">
+      <label class="ai-mode">${opt("off", m === "off")}<span><b>Off</b> — human-only (or your MCP assistant provides it).</span></label>
+      <label class="ai-mode">${opt("local", m === "local")}<span><b>Local AI</b> — a model on your machine or network (Ollama). No API key; nothing leaves your device. Best for high-volume screening.</span></label>
+      <label class="ai-mode">${opt("api", m === "api")}<span><b>My API key</b> — an external provider (OpenAI / Anthropic / compatible) with your own key.</span></label>
+    </div>
+    ${localCfg}${apiCfg}
+    <div class="modal-foot"><button class="btn primary" data-ai-close="1">Done</button></div></div>`;
+}
+async function aiConfigure(patch) {
+  try {
+    const cfg = await api("POST", "/api/ai-config", patch);
+    let models = state.aiModels || [], suggested = state.aiSuggested || "";
+    if (cfg.mode === "local") {
+      try { const r = await api("GET", "/api/ai/local-models"); models = r.models || []; suggested = r.suggested || ""; } catch {}
+      state.aiModels = models; state.aiSuggested = suggested;
+    }
+    renderAiSettings($("#aiModal"), cfg, models, suggested);
+  } catch (e) { alert(e.message); }
+}
+function closeAiSettings() { const b = $("#aiModal"); if (b) b.remove(); }
 // CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
 function cssEscape(s) {
   return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
@@ -1269,6 +1349,7 @@ document.addEventListener("click", (e) => {
   const tf = e.target.closest("[data-test-focus]"); if (tf) { closeTests(); return void selectClaim(tf.dataset.testFocus); }
   if (e.target.closest("[data-wh-close]")) return void closeWarehouse();
   const wh = e.target.closest("[data-wh]"); if (wh) return void whAction(wh.dataset.wh);
+  if (e.target.closest("[data-ai-close]")) return void closeAiSettings();
   if (e.target.id === "pasteSave") return void savePastedManuscript();
   if (e.target.id === "addClaim") return void toggleAddClaim();
   const sp = e.target.closest("[data-claim]"); if (sp) return void selectClaim(sp.dataset.claim);
@@ -1293,10 +1374,17 @@ $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); }
 $("#report").addEventListener("click", exportReport);
 $("#runTests").addEventListener("click", () => runTests(false));
 $("#warehouse").addEventListener("click", openWarehouse);
+$("#aiSettings").addEventListener("click", openAiSettings);
 // warehouse opt-in toggles (delegated — the modal is rendered dynamically)
 document.addEventListener("change", (e) => {
   if (e.target.id === "whEnabled") return void whConfigure({ enabled: e.target.checked });
   if (e.target.id === "whText") return void whConfigure({ include_claim_text: e.target.checked });
+  // AI settings (modal rendered dynamically) — persist on change
+  if (e.target.name === "aiMode") return void aiConfigure({ mode: e.target.value });
+  if (e.target.id === "aiModelSel") return void aiConfigure({ model_id: e.target.value });
+  if (e.target.id === "aiProvider") return void aiConfigure({ provider: e.target.value });
+  if (e.target.id === "aiModelId") return void aiConfigure({ model_id: e.target.value.trim() });
+  if (e.target.id === "aiEndpoint") return void aiConfigure({ endpoint: e.target.value.trim() });
 });
 $("#auditBadge").addEventListener("click", () => loadAudit());
 $("#legendBtn").addEventListener("click", () => {

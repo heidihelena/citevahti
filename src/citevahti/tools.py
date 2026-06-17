@@ -1121,3 +1121,73 @@ def run_manuscript_tests(*, root: Optional[str] = None, online: bool = False,
             "skipped": counts["skip"], "online": online, "claims": claims,
             "online_actions": online_actions or None, "online_errors": online_errors,
             "generated_at": rep.generated_at}
+
+
+# ---- AI assistant settings (panel) -----------------------------------------
+# How the (optional) AI second opinion is sourced. Most users drive CiteVahti
+# through an assistant over MCP — it submits a blinded rating with no key, the
+# subscription pays. These settings only govern CiteVahti's OWN call (local /
+# external), used by the standalone / high-volume screener. The secret value is
+# never returned — only whether one is present.
+_AI_MODES = ("off", "local", "api")
+_LOCAL_DEFAULT_ENDPOINT = "http://localhost:11434/v1/chat/completions"
+
+
+def ai_config_get(*, root: Optional[str] = None) -> dict:
+    from .credentials import AI_API_KEY, CredentialError, get_credential_store, resolve_secret
+    cfg = _open_store(root).load_config()
+    conn, prov = cfg.ai_connection, cfg.ai_provenance
+    try:
+        store = get_credential_store(cfg.secrets_backend)
+    except CredentialError:
+        store = None  # keyring extra absent — env escape hatch still resolves
+    return {
+        "mode": conn.mode,
+        "endpoint": conn.endpoint,
+        "request_timeout_s": conn.request_timeout_s,
+        "provider": prov.provider,
+        "model_id": prov.model_id,
+        "model_snapshot": prov.model_snapshot,
+        "model_pinned": prov.is_model_pinned(),
+        "api_key_present": bool(resolve_secret(AI_API_KEY, store)),  # never the value
+    }
+
+
+def ai_config_set(*, mode: Optional[str] = None, endpoint: Optional[str] = None,
+                  provider: Optional[str] = None, model_id: Optional[str] = None,
+                  root: Optional[str] = None) -> dict:
+    from .rating import ollama_model_snapshot
+    if mode is not None and mode not in _AI_MODES:
+        raise ValueError(f"mode must be one of {_AI_MODES}")
+    s = _open_store(root)
+    cfg = s.load_config()
+    conn, prov = cfg.ai_connection, cfg.ai_provenance
+    if mode is not None:
+        conn.mode = mode
+    if endpoint is not None:
+        conn.endpoint = endpoint or None
+    if provider is not None:
+        prov.provider = provider
+    if model_id is not None:
+        prov.model_id = model_id
+    # local mode: auto-pin the Ollama digest as the snapshot so the local model is
+    # auditable like a cloud one (falls back to the model tag if Ollama is down).
+    if conn.mode == "local" and prov.model_id:
+        ep = conn.endpoint or _LOCAL_DEFAULT_ENDPOINT
+        try:
+            digest = ollama_model_snapshot(ep, prov.model_id)
+        except Exception:  # noqa: BLE001
+            digest = None
+        prov.model_snapshot = digest or f"ollama:{prov.model_id}"
+    s.save_config(cfg)
+    return ai_config_get(root=root)
+
+
+def ai_local_models(*, root: Optional[str] = None) -> dict:
+    """Installed local (Ollama) models + a suggested one (Qwen-first). Empty when
+    Ollama isn't running — the panel offers the default name and stays usable."""
+    from .rating import list_ollama_models, suggest_local_model
+    cfg = _open_store(root).load_config()
+    ep = cfg.ai_connection.endpoint or _LOCAL_DEFAULT_ENDPOINT
+    models = list_ollama_models(ep)
+    return {"models": models, "suggested": suggest_local_model(models)}

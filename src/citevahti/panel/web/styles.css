@@ -439,6 +439,16 @@ a.doi:hover { text-decoration: underline; }
 
 /* ---- de-identified warehouse modal ---- */
 .modal-card.wh { width: min(560px, 94vw); }
+.modal-card.ai { width: min(580px, 94vw); }
+.note.warn { color: var(--zs-delete-text); }
+.ai-modes { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.ai-mode { display: flex; gap: 9px; align-items: flex-start; padding: 10px 11px;
+  border: 1px solid var(--zs-line); border-radius: 8px; background: var(--zs-surface); cursor: pointer; }
+.ai-mode:has(input:checked) { border-color: var(--zs-accent, #6a5acd); box-shadow: 0 0 0 1px var(--zs-accent, #6a5acd) inset; }
+.ai-mode input { margin-top: 2px; flex: none; }
+.ai-cfg { border: 1px solid var(--zs-line); border-radius: 8px; padding: 10px 11px; margin: 4px 0 8px;
+  background: var(--zs-surface); display: flex; flex-direction: column; gap: 7px; }
+.ai-cfg select, .ai-cfg input[type=text] { width: 100%; box-sizing: border-box; }
 .wh-toggle { display: flex; gap: 9px; align-items: flex-start; padding: 9px 10px; margin: 6px 0;
   border: 1px solid var(--zs-line); border-radius: 8px; background: var(--zs-surface); cursor: pointer; }
 .wh-toggle.dim { opacity: .55; }

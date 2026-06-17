@@ -1072,3 +1072,38 @@ def test_atlas_revoke_builds_request(tmp_path):
     status, req = dispatch(str(tmp_path), "POST", "/api/atlas/revoke",
                            {"contribution_id": "contrib_abc"})
     assert status == 200 and req["kind"] == "revocation" and req["contribution_id"] == "contrib_abc"
+
+
+# ---- AI assistant settings --------------------------------------------------
+def test_ai_config_default_off_and_no_secret_leak(tmp_path):
+    CiteVahtiStore(tmp_path).init()
+    status, cfg = dispatch(str(tmp_path), "GET", "/api/ai-config", None)
+    assert status == 200 and cfg["mode"] == "off"
+    assert cfg["api_key_present"] is False
+    assert "api_key" not in cfg          # only presence is reported, never the value
+
+
+def test_ai_config_set_local_pins_model_and_persists(tmp_path):
+    CiteVahtiStore(tmp_path).init()
+    root = str(tmp_path)
+    status, cfg = dispatch(root, "POST", "/api/ai-config",
+                           {"mode": "local", "model_id": "qwen2.5:7b"})
+    assert status == 200 and cfg["mode"] == "local" and cfg["model_id"] == "qwen2.5:7b"
+    # the local model is pinned for audit even if Ollama is down (digest or tag fallback)
+    assert cfg["model_pinned"] is True and cfg["model_snapshot"]
+    _, again = dispatch(root, "GET", "/api/ai-config", None)
+    assert again["mode"] == "local" and again["model_id"] == "qwen2.5:7b"
+
+
+def test_ai_config_rejects_unknown_mode(tmp_path):
+    CiteVahtiStore(tmp_path).init()
+    status, _ = dispatch(str(tmp_path), "POST", "/api/ai-config", {"mode": "wat"})
+    assert status == 400
+
+
+def test_ai_local_models_shape(tmp_path):
+    CiteVahtiStore(tmp_path).init()
+    status, payload = dispatch(str(tmp_path), "GET", "/api/ai/local-models", None)
+    assert status == 200
+    assert isinstance(payload["models"], list)            # [] when Ollama isn't running
+    assert isinstance(payload["suggested"], str) and payload["suggested"]  # always a suggestion

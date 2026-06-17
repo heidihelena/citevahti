@@ -506,6 +506,16 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             s = engine.warehouse_purge(root=root)
             return 200, {"record_count": s.record_count, "skipped_reason": s.skipped_reason}
 
+        # ---- AI assistant settings (off / local / api; MCP path needs none) ---
+        if method == "GET" and path == "/api/ai-config":
+            return 200, engine.ai_config_get(root=root)
+        if method == "POST" and path == "/api/ai-config":
+            return 200, engine.ai_config_set(
+                mode=body.get("mode"), endpoint=body.get("endpoint"),
+                provider=body.get("provider"), model_id=body.get("model_id"), root=root)
+        if method == "GET" and path == "/api/ai/local-models":
+            return 200, engine.ai_local_models(root=root)
+
         # ---- Atlas contribution: build a bundle / revocation (NO transmission) --
         # The panel offers the returned bundle as a local download; nothing is sent
         # anywhere from here (download-only egress — there is no upload endpoint).
