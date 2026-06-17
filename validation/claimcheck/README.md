@@ -30,11 +30,17 @@ agreement is not mistaken for accuracy.
 # 1. seed the ledger from the curated set, using the repo's real (patched) text.py
 python validation/claimcheck/build_ledger.py            # -> ledger.jsonl (human cols blank)
 
-# 2. two raters fill rater1 / rater2 (blinded), then adjudicate -> adjudicated.relation
-#    (edit ledger.jsonl by hand; it is append-only JSONL, one record per line)
+# 2. two raters fill rater1 / rater2 (BLINDED — claim + passage only), then adjudicate.
+#    Use the fill tool instead of hand-editing JSONL: it keeps blinding intact and
+#    saves after every answer (resumable, crash-safe).
+python validation/claimcheck/fill_ledger.py rater1
+python validation/claimcheck/fill_ledger.py rater2
+python validation/claimcheck/fill_ledger.py adjudicate   # reveals both raters
+python validation/claimcheck/fill_ledger.py status       # progress / disagreements
 
 # 3. score it
 python validation/claimcheck/score_ledger.py validation/claimcheck/ledger.jsonl
+#    (shortcut: python validation/claimcheck/fill_ledger.py score)
 ```
 
 ## Files
@@ -42,6 +48,11 @@ python validation/claimcheck/score_ledger.py validation/claimcheck/ledger.jsonl
 - `build_ledger.py` — seeds `ledger.jsonl` from the curated set; imports the
   repo's `text.py` so the seed reflects the real, shipped decision logic. Human
   columns left blank.
+- `fill_ledger.py` — interactive, **blinded** filler for the human columns
+  (`rater1` / `rater2` / `adjudicated`). Shows only the claim + passage while
+  rating (never claim-check's status, the LLM, or the other rater), validates the
+  relation vocabulary, verifies each pair's hash, and saves after every answer.
+  Also `status` (progress + disagreements) and `score` (→ `score_ledger.py`).
 - `score_ledger.py` — metrics from a filled ledger; **refuses to invent labels**
   (reports what is missing instead).
 - `make_demo_ledger.py` + `ledger.demo.jsonl` — an **ILLUSTRATIVE** synthetic
