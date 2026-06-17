@@ -138,6 +138,10 @@ class WritebackConfig(BaseModel):
     web_api_user_id: Optional[str] = None
     web_api_base: str = "https://api.zotero.org"
     default_collection_key: Optional[str] = None
+    # local_addon backend = the FullVahti Zotero plugin's token-gated tag door on
+    # Zotero's own local server. The token is a secret (env/keyring), never config.
+    local_addon_base: str = "http://127.0.0.1:23119"
+    allow_remote_writeback: bool = False     # refuse to post the token off-loopback unless set
 
 
 class ValidationWarehouseConfig(BaseModel):

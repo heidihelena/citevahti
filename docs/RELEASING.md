@@ -18,6 +18,23 @@ Open VSX). Publish the **Python package first** — the extension calls the
 
 ## 1. Python package → PyPI
 
+### Recommended: one-click via GitHub Release (Trusted Publishing, no token)
+
+`.github/workflows/publish-pypi.yml` builds, `twine check`s, and publishes on a published
+GitHub Release — no PyPI token stored anywhere.
+
+- **One-time setup:** on PyPI → the `citevahti` project → *Publishing* → add a **Trusted
+  Publisher**: owner `heidihelena`, repo `citevahti`, workflow `publish-pypi.yml`,
+  environment `pypi`. (For the very first upload, use the manual `twine` path below once,
+  or configure a "pending" trusted publisher.)
+- **To release:** make sure `pyproject.toml`/`__init__.py`/`vscode-extension/package.json`
+  and the tag agree, then create a GitHub Release with tag `vX.Y.Z`. The workflow publishes.
+- **Verify** `twine check` locally with current tooling first (`pip install -U twine
+  'packaging>=24.2'`) — an old `packaging` (<24.2) falsely rejects Metadata-2.4 license
+  fields.
+
+### Manual fallback (`twine`)
+
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install --upgrade build hatchling twine    # the build toolchain (not runtime deps)

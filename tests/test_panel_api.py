@@ -509,7 +509,8 @@ def test_search_pubmed_returns_hits(tmp_path, monkeypatch):
     status, payload = dispatch(str(tmp_path), "POST", "/api/search", {"query": "ldct", "source": "pubmed"})
     assert status == 200 and payload["batch_id"] == "b1"
     assert payload["hits"][0] == {"record_id": "r1", "title": "LDCT trial", "journal": "NEJM",
-                                  "year": 2011, "pmid": "21714641", "doi": None, "dedupe_status": None}
+                                  "year": 2011, "pmid": "21714641", "doi": None,
+                                  "abstract": None, "dedupe_status": None}
 
 
 def test_search_zotero_routes_through_manual_intake(tmp_path, monkeypatch):
@@ -553,6 +554,132 @@ def test_link_endpoint_forwards_to_engine(tmp_path, monkeypatch):
                                {"claim_id": "c1", "batch_id": "b1", "record_ids": ["r1", "r2"]})
     assert status == 200 and payload["linked"] == 2
     assert seen == {"claim_id": "c1", "batch_id": "b1", "record_ids": ["r1", "r2"]}
+
+
+def test_intake_preview_forwards_dry_run(tmp_path, monkeypatch):
+    _setup(tmp_path)
+    seen = {}
+
+    def fake_push(batch_id, record_ids=None, collection_key=None, dry_run=True, confirm_token=None, **kw):
+        seen.update(batch_id=batch_id, record_ids=record_ids, dry_run=dry_run, confirm_token=confirm_token)
+        return {"to_create": 1, "confirm_token": "tok-1", "skipped_duplicates": 0}
+    monkeypatch.setattr(engine, "intake_push", fake_push)
+    monkeypatch.setattr(engine, "resolve_dois", lambda *a, **k: {})   # isolate from DOI backfill
+    status, payload = dispatch(str(tmp_path), "POST", "/api/intake/preview",
+                               {"batch_id": "b1", "record_ids": ["r1"]})
+    assert status == 200 and payload["confirm_token"] == "tok-1"
+    # preview is a DRY RUN — nothing is written without a confirm token
+    assert seen["dry_run"] is True and seen["confirm_token"] is None
+    assert seen["batch_id"] == "b1" and seen["record_ids"] == ["r1"]
+
+
+def test_intake_commit_requires_confirm_token(tmp_path, monkeypatch):
+    _setup(tmp_path)
+    seen = {}
+
+    def fake_push(batch_id, record_ids=None, collection_key=None, dry_run=True, confirm_token=None, **kw):
+        seen.update(dry_run=dry_run, confirm_token=confirm_token)
+        return {"status": "committed", "created_keys": ["ABC"]}
+    monkeypatch.setattr(engine, "intake_push", fake_push)
+    # commit needs the token: omitting it is a 400, not a silent write
+    status, _ = dispatch(str(tmp_path), "POST", "/api/intake/commit", {"batch_id": "b1"})
+    assert status == 400 and not seen
+    status, payload = dispatch(str(tmp_path), "POST", "/api/intake/commit",
+                               {"batch_id": "b1", "confirm_token": "tok-1"})
+    assert status == 200 and payload["status"] == "committed"
+    assert seen["dry_run"] is False and seen["confirm_token"] == "tok-1"
+
+
+def test_test_suite_endpoint_offline(tmp_path):
+    # a freshly-linked, undecided claim is SKIP (not yet reviewed), not a failure
+    _setup(tmp_path)
+    status, suite = dispatch(str(tmp_path), "POST", "/api/test-suite", {"online": False})
+    assert status == 200
+    assert suite["total"] == 1 and suite["online"] is False
+    assert suite["skipped"] == 1 and suite["failed"] == 0
+    assert suite["claims"][0]["status"] == "skip"
+    assert suite["online_errors"] == []          # offline run has no online errors
+
+
+def test_test_suite_surfaces_online_check_failures(tmp_path, monkeypatch):
+    # a swallowed retraction-scan failure must be reported, not silently "passed"
+    _setup(tmp_path)
+
+    def boom(*a, **k):
+        raise RuntimeError("OpenAlex unreachable")
+    monkeypatch.setattr(engine, "scan_retractions", boom)
+    monkeypatch.setattr(engine, "backfill_candidate_dois", lambda *a, **k: {"resolved": 0})
+    suite = engine.run_manuscript_tests(root=str(tmp_path), online=True)
+    assert suite["online"] is True
+    assert any("OpenAlex unreachable" in e for e in suite["online_errors"])
+
+
+def test_claim_revise_rejected_when_document_is_open(tmp_path):
+    # ledger-only revise must refuse when the .md is bound — would desync the file
+    store = _setup_ms(tmp_path)
+    claim_id = store.list_claims()[0]
+    status, body = dispatch(str(tmp_path), "POST", f"/api/claims/{claim_id}/revise",
+                            {"replacement": "A reworded claim."})
+    assert status == 409 and body["code"] == "document_open"
+    # the original claim text is untouched (no silent ledger write)
+    assert store.load_claim(claim_id).claim_text.startswith("Low-dose CT screening")
+
+
+def test_test_suite_passes_for_accepted_claim_with_doi(tmp_path):
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store)
+    rec = eng.support_start(claim_id, cand_id)
+    eng.support_commit_human(rec.rating_id, "directly_supports")
+    eng.support_compare(rec.rating_id)
+    DecisionService(store).decide(claim_id, cand_id, "accept", "supports", rating_id=rec.rating_id)
+    suite = engine.run_manuscript_tests(root=str(tmp_path), online=False)
+    assert suite["passed"] == 1 and suite["failed"] == 0
+    c = suite["claims"][0]
+    assert c["status"] == "pass"
+    names = {k["name"]: k["status"] for k in c["checks"]}
+    assert names["supported"] == "pass" and names["citation_identified"] == "pass"
+
+
+def test_test_suite_fails_when_claim_rejected(tmp_path):
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store)
+    rec = eng.support_start(claim_id, cand_id)
+    eng.support_commit_human(rec.rating_id, "does_not_support")
+    eng.support_compare(rec.rating_id)
+    DecisionService(store).decide(claim_id, cand_id, "reject", "does not support", rating_id=rec.rating_id)
+    suite = engine.run_manuscript_tests(root=str(tmp_path), online=False)
+    assert suite["failed"] == 1 and suite["passed"] == 0
+    assert suite["claims"][0]["status"] == "fail"
+
+
+def test_claim_revise_updates_ledger_text(tmp_path):
+    _setup(tmp_path)
+    store = CiteVahtiStore(tmp_path)
+    claim_id = store.list_claims()[0]
+    status, payload = dispatch(str(tmp_path), "POST", f"/api/claims/{claim_id}/revise",
+                               {"replacement": "LDCT reduces lung-cancer mortality in high-risk adults."})
+    assert status == 200 and payload["claim_id"] == claim_id
+    assert payload["claim_text"] == "LDCT reduces lung-cancer mortality in high-risk adults."
+    # the revision is persisted in the ledger
+    assert store.load_claim(claim_id).claim_text == "LDCT reduces lung-cancer mortality in high-risk adults."
+
+
+def test_claim_revise_requires_replacement(tmp_path):
+    store, claim_id, _ = _setup(tmp_path)
+    status, _ = dispatch(str(tmp_path), "POST", f"/api/claims/{claim_id}/revise", {})
+    assert status == 400
+
+
+def test_fs_browse_lists_subdirs_with_manuscript_counts(tmp_path):
+    (tmp_path / "drafts").mkdir()
+    (tmp_path / "drafts" / "a.md").write_text("# a", encoding="utf-8")
+    (tmp_path / "drafts" / "b.txt").write_text("b", encoding="utf-8")
+    (tmp_path / ".hidden").mkdir()          # hidden dirs are skipped
+    status, payload = dispatch(str(tmp_path), "POST", "/api/fs/browse", {"path": str(tmp_path)})
+    assert status == 200 and payload["path"] == str(tmp_path.resolve())
+    names = {d["name"]: d["manuscript_count"] for d in payload["dirs"]}
+    assert names.get("drafts") == 2 and ".hidden" not in names
+    assert payload["parent"] == str(tmp_path.resolve().parent)
 
 
 def test_resolve_dois_returns_only_present_dois():
@@ -912,3 +1039,36 @@ def test_oauth_callback_finishes_handshake_and_clears_pending(tmp_path, monkeypa
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def test_warehouse_status_and_configure(tmp_path):
+    _setup(tmp_path)
+    status, st = dispatch(str(tmp_path), "GET", "/api/warehouse", None)
+    assert status == 200 and st["enabled"] is False and st["record_count"] == 0
+    status, st = dispatch(str(tmp_path), "POST", "/api/warehouse/configure", {"enabled": True})
+    assert status == 200 and st["enabled"] is True
+
+
+def test_atlas_contribution_preview_is_download_only(tmp_path):
+    from citevahti.schemas.validation_record import ValidationRecord
+    from citevahti.util import sha256_hex
+
+    store, _claim, _cand = _setup(tmp_path)
+    store.append_validation_record(ValidationRecord(
+        record_id="vr-1", created_at="2026-06-16T00:00:00+00:00",
+        claim_text_hash=sha256_hex("ldct reduces mortality"), pmid="123",
+        claim_text="LDCT reduces mortality", final_decision="accept"))
+    status, bundle = dispatch(str(tmp_path), "POST", "/api/atlas/contribution-preview",
+                              {"allow_claim_text": False})
+    assert status == 200 and bundle["count"] == 1
+    assert bundle["records"][0]["claim_text"] is None         # stripped — no leak by default
+    assert bundle["contribution_id"].startswith("contrib_")
+    # the receipt makes the no-transmission promise explicit
+    assert "transmit" in bundle["consent_receipt"]["egress"].lower()
+
+
+def test_atlas_revoke_builds_request(tmp_path):
+    _setup(tmp_path)
+    status, req = dispatch(str(tmp_path), "POST", "/api/atlas/revoke",
+                           {"contribution_id": "contrib_abc"})
+    assert status == 200 and req["kind"] == "revocation" and req["contribution_id"] == "contrib_abc"

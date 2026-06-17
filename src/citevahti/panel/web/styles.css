@@ -106,8 +106,6 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
   border: 1px solid var(--zs-line); background: var(--zs-surface); color: var(--zs-ink); width: 200px; }
 .doc { max-width: 740px; font-size: 17px; line-height: 1.95; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; }
 .doc h1, .doc h2 { font-size: 19px; }
-.recon-note { font: 600 11px/1.4 ui-monospace, Menlo, monospace; color: var(--zs-muted);
-  border: 1px dashed var(--zs-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px; }
 
 /* ---- "what's next" wizard: the one next action for the whole project (workflow.next) */
 .nextstep { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -354,3 +352,98 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
   .msbar .bind { margin-left: 0; width: 100%; }
   .msbar .bind input { width: 100%; flex: 1; }
 }
+
+/* ---- manuscript switcher (clearer than bare buttons) ---- */
+.msswitch { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.msswitch .lbl { font: 600 10px/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--zs-muted); margin-right: 2px; }
+.msbar .mspick .n { opacity: .65; font-weight: 700; }
+
+/* ---- folder picker modal ---- */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex;
+  align-items: center; justify-content: center; z-index: 50; }
+.modal-card { width: min(560px, 92vw); max-height: 80vh; display: flex; flex-direction: column;
+  background: var(--zs-paper); border: 1px solid var(--zs-line); border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.4); padding: 16px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.browse-here { font: 12px/1.4 ui-monospace, Menlo, monospace; color: var(--zs-muted);
+  background: var(--zs-surface); border-radius: 7px; padding: 7px 9px; margin-bottom: 8px;
+  word-break: break-all; }
+.browse-list { overflow: auto; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.browse-row { text-align: left; font: 13px/1.2 inherit; cursor: pointer; padding: 8px 10px;
+  border: 1px solid var(--zs-line); border-radius: 7px; background: var(--zs-surface); color: var(--zs-ink); }
+.browse-row:hover { border-color: var(--zs-brand); background: var(--zs-brand-bg); }
+.browse-row.up { color: var(--zs-muted); font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+.browse-row .n { color: var(--zs-partial-text); font-weight: 700; margin-left: 6px; }
+.modal-foot { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+
+/* ---- search result: DOI link, abstract, save action ---- */
+.result { flex-wrap: wrap; }
+.result .ractions { display: flex; gap: 6px; align-items: center; }
+a.doi { color: var(--zs-brand); text-decoration: none; }
+a.doi:hover { text-decoration: underline; }
+.abs { margin-top: 5px; }
+.abs summary { cursor: pointer; font: 600 11px/1 ui-monospace, Menlo, monospace; color: var(--zs-muted); }
+.abs .excerpt { margin-top: 5px; }
+
+/* ---- plain-language manuscript state (no "bind/unbound" jargon) ---- */
+.mspick .needsdoc { color: var(--zs-supported-text); background: var(--zs-supported-bg);
+  border: 1px solid var(--zs-supported-border); border-radius: 5px; padding: 1px 5px;
+  font-weight: 600; margin-left: 4px; white-space: nowrap; }
+.chip-btn.primary-chip { border-color: var(--zs-brand); background: var(--zs-brand-bg); color: var(--zs-ink); }
+.recon-note { background: var(--zs-partial-bg); border: 1px solid var(--zs-partial-border);
+  color: var(--zs-partial-text); border-radius: 8px; padding: 9px 12px; margin-bottom: 12px;
+  font-size: 13px; line-height: 1.5; }
+.linklike { font: inherit; color: var(--zs-brand); background: none; border: none; padding: 0;
+  cursor: pointer; text-decoration: underline; }
+
+/* ---- fit-check clarity (P/I/O/Claim + 0/1/2 meaning) ---- */
+.fitblock { margin-top: 12px; }
+.fithead { display: flex; align-items: center; gap: 8px; }
+.fithelp { display: inline; }
+.fithelp summary { cursor: pointer; width: 16px; height: 16px; line-height: 16px; text-align: center;
+  border: 1px solid var(--zs-line); border-radius: 50%; font: 700 10px/16px ui-monospace, Menlo, monospace;
+  color: var(--zs-muted); list-style: none; }
+.fithelp summary::-webkit-details-marker { display: none; }
+.fithelp .body { font-size: 12px; color: var(--zs-muted); line-height: 1.5; margin-top: 6px;
+  background: var(--zs-surface); border-radius: 7px; padding: 8px 10px; }
+.hkoff { cursor: pointer; white-space: nowrap; }
+.hkoff input { vertical-align: middle; margin-right: 3px; }
+
+/* ---- manuscript unit-test results ---- */
+.modal-card.test { width: min(620px, 94vw); }
+.tsummary { font-size: 15px; padding: 8px 10px; border-radius: 8px; margin: 4px 0 6px; }
+.tsummary.ok { color: var(--zs-partial-text); background: var(--zs-partial-bg); border: 1px solid var(--zs-partial-border); }
+.tsummary.bad { color: var(--zs-delete-text); background: var(--zs-delete-bg); border: 1px solid var(--zs-delete-border); }
+.tlist { overflow: auto; display: flex; flex-direction: column; gap: 5px; flex: 1; margin-top: 4px; }
+.trow { border: 1px solid var(--zs-line); border-radius: 7px; padding: 7px 9px; background: var(--zs-surface); }
+.trow.fail { border-color: var(--zs-delete-border); }
+.trowtop { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  background: none; border: none; cursor: pointer; color: var(--zs-ink); font: inherit; padding: 0; }
+.ttext { flex: 1; min-width: 0; }
+.tbadge { font: 700 10px/1 ui-monospace, Menlo, monospace; padding: 3px 6px; border-radius: 5px; flex: none; }
+.tbadge.pass { color: var(--zs-partial-text); background: var(--zs-partial-bg); border: 1px solid var(--zs-partial-border); }
+.tbadge.fail { color: var(--zs-delete-text); background: var(--zs-delete-bg); border: 1px solid var(--zs-delete-border); }
+.tbadge.skip { color: var(--zs-muted); background: var(--zs-surface-2); border: 1px solid var(--zs-line); }
+.tfail { font-size: 12px; color: var(--zs-delete-text); margin-top: 6px; padding-left: 4px; line-height: 1.5; }
+.twarn { font-size: 12.5px; color: var(--zs-supported-text); background: var(--zs-supported-bg);
+  border: 1px solid var(--zs-supported-border); border-radius: 8px; padding: 8px 10px; margin: 4px 0 6px; line-height: 1.5; }
+.twarn ul { margin: 4px 0 4px 18px; padding: 0; }
+
+/* ---- edit-the-claim (available regardless of verdict) ---- */
+.chip-btn.tiny { font-size: 10px; padding: 2px 7px; margin-left: 8px; vertical-align: middle; }
+.claimeditor { margin: 8px 0 4px; padding: 10px; border: 1px solid var(--zs-revise-border);
+  border-radius: 9px; background: var(--zs-revise-bg); }
+.claimeditor .revbox { width: 100%; box-sizing: border-box; }
+.claimeditor .actions { margin-top: 8px; }
+
+/* ---- de-identified warehouse modal ---- */
+.modal-card.wh { width: min(560px, 94vw); }
+.wh-toggle { display: flex; gap: 9px; align-items: flex-start; padding: 9px 10px; margin: 6px 0;
+  border: 1px solid var(--zs-line); border-radius: 8px; background: var(--zs-surface); cursor: pointer; }
+.wh-toggle.dim { opacity: .55; }
+.wh-toggle input { margin-top: 2px; }
+.sensitive { font: 600 10px/1 ui-monospace, Menlo, monospace; color: var(--zs-delete-text);
+  background: var(--zs-delete-bg); border: 1px solid var(--zs-delete-border); border-radius: 5px;
+  padding: 2px 6px; margin-left: 4px; white-space: nowrap; }
+.btn.ghost.danger { color: var(--zs-delete-text); border-color: var(--zs-delete-border); }

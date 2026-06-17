@@ -705,6 +705,7 @@ def onboard(*, root: Optional[str] = None, ncbi_email: Optional[str] = None,
             zotero_user_id: Optional[str] = None, zotero_library_id: Optional[str] = None,
             zotero_library_type: str = "user", default_collection_key: Optional[str] = None,
             zotero_write_key: Optional[str] = None, ncbi_api_key: Optional[str] = None,
+            fullvahti_token: Optional[str] = None,
             secrets_backend: str = "system_keyring", validate: bool = True,
             credential_store=None, validators="auto"):
     """Capture non-secret identifiers (config) and secret keys (OS keyring/env).
@@ -724,7 +725,7 @@ def onboard(*, root: Optional[str] = None, ncbi_email: Optional[str] = None,
         ncbi_email=ncbi_email, zotero_user_id=zotero_user_id, zotero_library_id=zotero_library_id,
         zotero_library_type=zotero_library_type, default_collection_key=default_collection_key,
         zotero_write_key=zotero_write_key, ncbi_api_key=ncbi_api_key,
-        secrets_backend=secrets_backend, validate=validate)
+        fullvahti_token=fullvahti_token, secrets_backend=secrets_backend, validate=validate)
 
 
 # ---- ADR-0001 step 1: claims --------------------------------------------
@@ -938,6 +939,47 @@ def warehouse_purge(*, root: Optional[str] = None):
     return ValidationWarehouseService(_open_store(root)).purge()
 
 
+def warehouse_configure(*, enabled: Optional[bool] = None,
+                        include_claim_text: Optional[bool] = None,
+                        auto_emit: Optional[bool] = None, domain: Optional[str] = None,
+                        root: Optional[str] = None):
+    """Set the warehouse opt-ins (enable / include-claim-text / auto-emit / domain).
+
+    The warehouse is default-off; this is the explicit consent toggle. Only the
+    fields passed are changed. Returns the resulting status.
+    """
+    from .warehouse import ValidationWarehouseService
+
+    store = _open_store(root)
+    cfg = store.load_config()
+    wh = cfg.validation_warehouse
+    if enabled is not None:
+        wh.enabled = bool(enabled)
+    if include_claim_text is not None:
+        wh.include_claim_text = bool(include_claim_text)
+    if auto_emit is not None:
+        wh.auto_emit = bool(auto_emit)
+    if domain is not None:
+        wh.domain = domain or None
+    store.save_config(cfg)
+    return ValidationWarehouseService(store).status()
+
+
+# ---- AtlasVahti contribution (consented, de-identified, revocable) ----------
+def atlas_contribution_preview(*, allow_claim_text: bool = False,
+                               root: Optional[str] = None) -> dict:
+    """Build a de-identified contribution bundle from the warehouse. No transmission."""
+    from .atlas import build_contribution_bundle
+    return build_contribution_bundle(root=root, allow_claim_text=allow_claim_text)
+
+
+def atlas_revoke(contribution_id: str, *, reason: Optional[str] = None,
+                 root: Optional[str] = None) -> dict:
+    """Build a revocation (purge) request referencing a prior contribution."""
+    from .atlas import build_revocation
+    return build_revocation(contribution_id, reason=reason, root=root)
+
+
 def list_decisions(claim_id: str, *, root: Optional[str] = None):
     """List a claim's final decisions (read-only)."""
     from .claims import DecisionService
@@ -985,3 +1027,97 @@ def claim_report(*, claim_ids: Optional[list] = None, root: Optional[str] = None
     """Run citation-integrity tests over the project's claims (read-only 4-state report)."""
     from .report import ClaimReportService
     return ClaimReportService(_open_store(root)).report(claim_ids=claim_ids)
+
+
+# ---- the manuscript "unit test" suite ---------------------------------------
+# CiteVahti's core metaphor: each claim is a test case. A claim PASSES when it is
+# backed by accepted, supporting evidence whose citation is identifiable (and,
+# online, real + not retracted); FAILS when the citation does not support it, is
+# retracted, or can't be identified; SKIPS when not yet reviewed or out of scope.
+_ACCEPTED_DECISIONS = ("accept", "accepted_with_caution")
+
+
+def _evaluate_claim_tests(row, online: bool) -> dict:
+    checks: list[dict] = []
+
+    def add(name, status, detail=""):
+        checks.append({"name": name, "status": status, "detail": detail})
+
+    def result(status):
+        return {"claim_id": row.claim_id, "claim_text": row.claim_text,
+                "state": row.state, "code": row.code.strip(),
+                "manuscript_location": row.manuscript_location,
+                "status": status, "checks": checks}
+
+    # SKIP: explicitly out of indexed scope (book/grey lit) — not a failure.
+    if row.state == "untestable":
+        add("in_scope", "skip", row.untestable_reason or "cited source is out of indexed-literature scope")
+        return result("skip")
+    # SKIP: not yet reviewed (no evidence linked, or linked but not rated/decided).
+    if row.state == "needs_support":
+        detail = "no reference linked yet" if row.candidate_count == 0 else "evidence linked but not yet rated/decided"
+        add("reviewed", "skip", detail)
+        return result("skip")
+
+    # decided states: accepted / review_needed / decision_recorded
+    add("has_reference", "pass" if row.candidate_count >= 1 else "fail",
+        "" if row.candidate_count >= 1 else "no reference linked")
+    add("reviewed", "pass")
+
+    if row.state == "review_needed":
+        add("supported", "fail", "rater discordance or a needs-second-review verdict is unresolved")
+        return result("fail")
+    if row.state == "decision_recorded":
+        add("supported", "fail", "no candidate was accepted as supporting this claim")
+        return result("fail")
+
+    # state == "accepted": the claim is supported — now test the citation itself.
+    add("supported", "pass")
+    accepted = [e for e in row.evidence if e.final_decision in _ACCEPTED_DECISIONS]
+    operative = accepted or row.evidence
+    identified = [e for e in operative if (e.doi or e.pmid)]
+    add("citation_identified", "pass" if identified else "fail",
+        "" if identified else "the supporting reference has no DOI or PMID")
+    if online:
+        retracted = [e for e in operative if e.retracted]
+        add("not_retracted", "fail" if retracted else "pass",
+            f"{len(retracted)} supporting reference(s) flagged retracted" if retracted else "")
+        add("citation_real", "pass" if identified else "fail",
+            "" if identified else "could not resolve a real DOI/PMID for the reference")
+
+    return result("fail" if any(c["status"] == "fail" for c in checks) else "pass")
+
+
+def run_manuscript_tests(*, root: Optional[str] = None, online: bool = False,
+                         claim_ids: Optional[list] = None, http=None) -> dict:
+    """Run the manuscript 'unit test' suite over the ledger's claims.
+
+    Offline checks (instant, deterministic): the claim has a linked reference, was
+    reviewed, the verdict supports it, and the supporting citation carries a DOI/PMID.
+    With ``online=True`` it first refreshes retraction flags and backfills/validates
+    identifiers (network), then also tests that the citation is real and not retracted.
+
+    Returns a JSON-serialisable suite result so the CLI and the panel share one engine.
+    """
+    online_actions: dict = {}
+    if online:
+        try:
+            online_actions["retractions"] = scan_retractions(root=root, http=http)
+        except Exception as e:  # noqa: BLE001 — a flaky network check must not crash the suite
+            online_actions["retractions_error"] = str(e)
+        try:
+            online_actions["dois"] = backfill_candidate_dois(root=root, http=http)
+        except Exception as e:  # noqa: BLE001
+            online_actions["dois_error"] = str(e)
+
+    rep = claim_report(claim_ids=claim_ids, root=root)
+    claims = [_evaluate_claim_tests(r, online) for r in rep.rows]
+    counts = {s: sum(1 for c in claims if c["status"] == s) for s in ("pass", "fail", "skip")}
+    # Surface online-check failures explicitly: a swallowed retraction-scan / DOI
+    # backfill error means the citation_real / not_retracted checks ran against stale
+    # data, so a "pass" there is NOT trustworthy. Callers MUST show online_errors.
+    online_errors = [v for k, v in online_actions.items() if k.endswith("_error")]
+    return {"total": len(claims), "passed": counts["pass"], "failed": counts["fail"],
+            "skipped": counts["skip"], "online": online, "claims": claims,
+            "online_actions": online_actions or None, "online_errors": online_errors,
+            "generated_at": rep.generated_at}

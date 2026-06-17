@@ -99,3 +99,46 @@ def test_secret_state_never_leaks_value(tmp_path, monkeypatch):
     wk = rep.get("zotero_write_key")
     assert wk.status == "configured"
     assert wk.secret_source == "env:CITEVAHTI_ZOTERO_WRITE_KEY"   # source, not value
+
+
+class _FakeFullVahti:
+    kind = "local_addon"
+    available = True
+    reason = None
+
+    def __init__(self, ping):
+        self._ping = ping
+
+    def supports(self, kind):
+        return kind in {"tag_add", "tag_remove", "tag_mirror"}
+
+    def ping(self):
+        return self._ping
+
+
+def test_fullvahti_reachable_shows_connected(tmp_path, monkeypatch):
+    monkeypatch.setattr("citevahti.capabilities.make_backend",
+                        lambda cfg: _FakeFullVahti({"reachable": True, "writeback": True,
+                                                    "version": "0.1", "message": "ok"}))
+    rep = CapabilityStatusService(_store(tmp_path), _healthy()).report()
+    fv = rep.get("fullvahti")
+    assert fv and fv.status == "connected" and fv.version == "0.1"
+    assert "tag_add" in rep.supported_write_ops          # tags are writable via the plugin
+
+
+def test_fullvahti_door_down_explains_how_to_fix(tmp_path, monkeypatch):
+    monkeypatch.setattr("citevahti.capabilities.make_backend",
+                        lambda cfg: _FakeFullVahti({"reachable": False, "writeback": False,
+                                                    "message": "not reachable"}))
+    rep = CapabilityStatusService(_store(tmp_path), _healthy()).report()
+    fv = rep.get("fullvahti")
+    assert fv.status == "unavailable" and "install" in (fv.remediation or "").lower()
+
+
+def test_fullvahti_writeback_off_is_distinct_from_not_installed(tmp_path, monkeypatch):
+    monkeypatch.setattr("citevahti.capabilities.make_backend",
+                        lambda cfg: _FakeFullVahti({"reachable": True, "writeback": False,
+                                                    "version": "0.1", "message": "ok"}))
+    rep = CapabilityStatusService(_store(tmp_path), _healthy()).report()
+    fv = rep.get("fullvahti")
+    assert fv.status == "unavailable" and "write-back is OFF" in (fv.remediation or "")

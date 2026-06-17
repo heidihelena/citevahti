@@ -2,8 +2,9 @@
   "name": "citevahti-vscode",
   "displayName": "CiteVahti (Vahtian)",
   "description": "Run citation-integrity tests on your manuscript claims, inline. Verify the claim before you cite it. A product of Vahtian.",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "publisher": "heidihelena",
+  "author": "Vahtian",
   "license": "Apache-2.0",
   "icon": "icon.png",
   "galleryBanner": {

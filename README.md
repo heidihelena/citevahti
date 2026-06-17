@@ -33,7 +33,7 @@ Export an **auditable claim-evidence trail** for methods reporting, then install
 > hosted and advanced features may come later; a free local/community version is intended
 > to remain available.
 
-**Full status & capabilities** — what's complete in v0.16.0, the two co-primary surfaces,
+**Full status & capabilities** — what's complete in v0.17.0, the two co-primary surfaces,
 the literature sources, and the VS Code adapter: **[`docs/STATUS.md`](docs/STATUS.md)**.
 
 ## See it
@@ -159,6 +159,21 @@ citevahti claim-add --text "…" --type effectiveness
 citevahti literature-search --query "…" --question-id q1
 # … then rate and decide — full sequence in docs/QUICKSTART.md §4–7
 ```
+
+**Run unit tests on the whole manuscript.** CiteVahti treats each claim as a test
+case: does it meet its references, and are the citations real? Run the suite at any
+point — it prints pass/fail per claim and **exits non-zero on failure**, so it can
+gate CI on a manuscript repo:
+
+```bash
+citevahti test            # instant, structural: evidence linked, reviewed, supported, citation has a DOI/PMID
+citevahti test --online   # also verify each citation resolves to a real record and isn't retracted
+```
+
+In the panel, the same suite is the **▶ Run unit tests** button. A claim PASSES when
+it's backed by accepted, supporting evidence with a real citation; FAILS when the
+citation doesn't support it, is retracted, or has no identifier; and is SKIPPED when
+it's not yet reviewed or marked out of indexed scope.
 
 That's the whole loop, either way. Everything below is depth on top of it.
 
@@ -315,12 +330,12 @@ Prefer not to use the Marketplace? Build it yourself or grab the prebuilt `.vsix
 
 ```bash
 cd vscode-extension && npm install && npm run package
-code --install-extension citevahti-vscode-0.16.0.vsix
+code --install-extension citevahti-vscode-0.17.0.vsix
 ```
 
 The prebuilt `.vsix` is attached to the
 [latest release](https://github.com/heidihelena/citevahti/releases/latest);
-run `code --install-extension citevahti-vscode-0.16.0.vsix` (or, in VS Code,
+run `code --install-extension citevahti-vscode-0.17.0.vsix` (or, in VS Code,
 Extensions → `…` → **Install from VSIX…**).
 
 Config via environment (`NCBI_EMAIL`, `NCBI_API_KEY`) + `.citevahti/config.json`.

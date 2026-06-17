@@ -63,6 +63,7 @@ _SUPPORT_VALUE_TO_FINDING = {
     "directly_supports": "support_direct",
     "partially_supports": "support_partial",
     "indirectly_supports": "related_but_insufficient",
+    "overstated": "overclaim",
     "does_not_support": "missing_support",
     "contradicts": "reference_real_but_wrong",
     "unclear": "needs_full_text",

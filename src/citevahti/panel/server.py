@@ -312,6 +312,31 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "GET" and m:
             return 200, _claim_history(root, m.group(1))
 
+        # Edit the claim wording in the LEDGER (audited revision). Used when the
+        # manuscript file isn't open, so a reviewer can refine the claim after
+        # reading the evidence without first locating the .md. When the file IS
+        # open the UI uses the previewed document write-back instead, which keeps
+        # the .md and the ledger in sync.
+        m = re.fullmatch(r"/api/claims/([^/]+)/revise", path)
+        if method == "POST" and m:
+            claim_id = m.group(1)
+            replacement = _req(body, "replacement")
+            # Refuse a ledger-only revise when the manuscript file IS open: writing
+            # the ledger alone would desync it from the .md. Route to the previewed
+            # document write-back instead (which updates both). Only the no-file case
+            # falls through to the audited ledger revise.
+            claim = engine._open_store(root).load_claim(claim_id)
+            if M.resolve_path(prefs.get_manuscripts_dir(root), claim.manuscript_id) is not None:
+                raise HttpError(409, "the manuscript file is open — use the previewed document edit "
+                                "so the .md and the ledger stay in sync",
+                                code="document_open",
+                                remediation="Preview and confirm the edit in the document "
+                                            "(POST /api/document/preview-edit), not the ledger-only revise.")
+            engine.propose_revision(claim_id, replacement, root=root)
+            engine.accept_revision(claim_id, root=root)
+            claim = engine._open_store(root).load_claim(claim_id)
+            return 200, {"claim_id": claim_id, "claim_text": claim.claim_text}
+
         m = re.fullmatch(r"/api/claims/([^/]+)", path)
         if method == "GET" and m:
             claim_id = m.group(1)
@@ -436,6 +461,18 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                          "audit_entries": getattr(p, "audit_entries", None),
                          "audit_head": getattr(p, "audit_head_hash", None)}
 
+        # ---- the manuscript "unit test" suite (each claim is a test case) ----
+        # Offline by default (instant, structural); online verifies citations are
+        # real + not retracted. Optionally scoped to one manuscript.
+        if method == "POST" and path == "/api/test-suite":
+            online = bool(body.get("online", False))
+            mid = body.get("manuscript_id")
+            claim_ids = None
+            if mid:
+                rows = _manuscript_groups(root).get(mid, [])
+                claim_ids = [r.claim_id for r in rows]
+            return 200, engine.run_manuscript_tests(root=root, online=online, claim_ids=claim_ids)
+
         if method == "GET" and path == "/api/ledgers":
             return 200, {"active": str(Path(root).expanduser()),
                          "ledgers": prefs.discover_ledgers(root)}
@@ -446,6 +483,39 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             store = engine._open_store(root)
             return 200, {"intact": bool(store.audit.verify()),
                          "entries": len(store.audit.entries())}
+
+        # ---- de-identified warehouse (local, opt-in, default-off) -----------
+        if method == "GET" and path == "/api/warehouse":
+            s = engine.warehouse_status(root=root)
+            return 200, {"enabled": s.enabled, "include_claim_text": s.include_claim_text,
+                         "record_count": s.record_count}
+
+        if method == "POST" and path == "/api/warehouse/configure":
+            s = engine.warehouse_configure(enabled=body.get("enabled"),
+                                           include_claim_text=body.get("include_claim_text"),
+                                           auto_emit=body.get("auto_emit"),
+                                           domain=body.get("domain"), root=root)
+            return 200, {"enabled": s.enabled, "include_claim_text": s.include_claim_text,
+                         "record_count": s.record_count}
+
+        if method == "POST" and path == "/api/warehouse/export":
+            s = engine.warehouse_export(root=root)
+            return 200, {"output_file": s.output_file, "record_count": s.record_count}
+
+        if method == "POST" and path == "/api/warehouse/purge":
+            s = engine.warehouse_purge(root=root)
+            return 200, {"record_count": s.record_count, "skipped_reason": s.skipped_reason}
+
+        # ---- Atlas contribution: build a bundle / revocation (NO transmission) --
+        # The panel offers the returned bundle as a local download; nothing is sent
+        # anywhere from here (download-only egress — there is no upload endpoint).
+        if method == "POST" and path == "/api/atlas/contribution-preview":
+            return 200, engine.atlas_contribution_preview(
+                allow_claim_text=bool(body.get("allow_claim_text", False)), root=root)
+
+        if method == "POST" and path == "/api/atlas/revoke":
+            return 200, engine.atlas_revoke(_req(body, "contribution_id"),
+                                            reason=body.get("reason"), root=root)
 
         # ---- manuscripts (inline review surface) ---------------------------
         if method == "GET" and path == "/api/manuscripts":
@@ -472,6 +542,12 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             mdir = _req(body, "dir")
             prefs.set_manuscripts_dir(root, mdir)
             return 200, {"ok": True, "manuscripts_dir": prefs.get_manuscripts_dir(root)}
+
+        # loopback-only folder browser: lets the user click through their filesystem
+        # to pick a manuscripts folder instead of hand-typing a path (the no-terminal
+        # constraint). Read-only listing of sub-directories + manuscript-file counts.
+        if method == "POST" and path == "/api/fs/browse":
+            return 200, _browse_dir(body.get("path"))
 
         # First-run hand-off: save a pasted Markdown manuscript, bind its folder, and
         # tell the user the MCP prompt to extract claims. Extraction stays chat-driven
@@ -508,6 +584,26 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                          "skipped_duplicates": getattr(rep, "skipped_duplicates", None),
                          "total_candidates": getattr(rep, "total_candidates", None),
                          "doi_resolved": resolved}
+
+        # ---- direct "Save to Zotero" for a search hit (preview → confirm) ------
+        # Pushes a staged search record into the Zotero library as an item, WITHOUT
+        # going through the claim rate→decide gate. Same write-safety invariant as
+        # the claim write: preview returns a confirm_token; commit needs it. This is
+        # "add this paper to my library", not the validated-evidence claim write.
+        if method == "POST" and path == "/api/intake/preview":
+            batch_id = _req(body, "batch_id")
+            record_ids = body.get("record_ids")
+            _resolve_missing_dois(root, batch_id, record_ids)   # carry the authoritative DOI
+            return 200, engine.intake_push(batch_id, record_ids=record_ids,
+                                           collection_key=body.get("collection_key"),
+                                           dry_run=True, root=root)
+
+        if method == "POST" and path == "/api/intake/commit":
+            return 200, engine.intake_push(_req(body, "batch_id"),
+                                           record_ids=body.get("record_ids"),
+                                           collection_key=body.get("collection_key"),
+                                           dry_run=False,
+                                           confirm_token=_req(body, "confirm_token"), root=root)
 
         # guarded remove: unlink the wrong paper from a claim (audited, non-destructive)
         if method == "POST" and path == "/api/candidates/unlink":
@@ -604,6 +700,43 @@ def _safe_md_name(raw: str) -> str:
     return base + ".md"
 
 
+# manuscript file types the browser counts/surfaces when picking a folder
+_MS_SUFFIXES = (".md", ".markdown", ".txt", ".docx", ".tex")
+
+
+def _browse_dir(raw_path) -> dict:
+    """List sub-directories of ``raw_path`` (default: home) for the folder picker.
+
+    Read-only and loopback-only. Returns the resolved path, its parent, and each
+    sub-directory with a count of manuscript-like files inside it — so the user can
+    see "the folder with 3 .md files" and bind it without typing a path. Hidden
+    directories are skipped; unreadable entries degrade silently."""
+    base = Path(raw_path).expanduser() if raw_path else Path.home()
+    try:
+        base = base.resolve()
+    except OSError:
+        base = Path.home()
+    if not base.is_dir():
+        base = Path.home()
+    dirs = []
+    try:
+        for entry in sorted(base.iterdir(), key=lambda p: p.name.lower()):
+            if entry.name.startswith(".") or not entry.is_dir():
+                continue
+            try:
+                n = sum(1 for f in entry.iterdir()
+                        if f.is_file() and f.suffix.lower() in _MS_SUFFIXES)
+            except OSError:
+                n = 0
+            dirs.append({"name": entry.name, "path": str(entry), "manuscript_count": n})
+    except OSError:
+        pass
+    here = sum(1 for f in base.iterdir()
+               if f.is_file() and f.suffix.lower() in _MS_SUFFIXES) if base.is_dir() else 0
+    parent = str(base.parent) if base.parent != base else None
+    return {"path": str(base), "parent": parent, "manuscript_count": here, "dirs": dirs}
+
+
 # ---- find evidence: stage candidates from PubMed or the Zotero library ------
 # PubMed uses the engine's literature_search; the Zotero library is searched
 # read-only and its hits are staged through the SAME manual-intake path that other
@@ -685,12 +818,14 @@ def _search(root: str, query: str, source: str, max_results: int) -> dict:
         rec = engine.import_results({"text": _openalex_hits_to_csv(items)}, "csv",
                                     source_label=f"s2:{query}", root=root)
     else:
-        rec = engine.literature_search(query, max_results=max_results, root=root)
+        # request abstracts so the user can read them in the results before linking
+        rec = engine.literature_search(query, max_results=max_results,
+                                       include_abstracts=True, root=root)
     if getattr(rec, "status", "ok") not in ("ok", None):
         raise HttpError(400, f"search failed ({rec.error_code}): {rec.remediation or ''}".strip())
     hits = [{"record_id": h.record_id, "title": h.title,
              "journal": getattr(h, "journal", None), "year": getattr(h, "year", None),
-             "pmid": h.pmid, "doi": h.doi,
+             "pmid": h.pmid, "doi": h.doi, "abstract": getattr(h, "abstract", None),
              "dedupe_status": getattr(h, "dedupe_status", None)} for h in rec.hits]
     return {"batch_id": rec.batch_id, "source": source, "status": getattr(rec, "status", "ok"),
             "hits": hits}

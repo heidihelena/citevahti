@@ -35,6 +35,71 @@ previous one.
   paraphrase / synonymy stay the advisory layer's job. Locked by `tests/test_claimcheck_polarity.py`.
 
 ## 0.16.0 — verified→accepted (BREAKING), [u] untestable, report provenance, --json, desktop extension (2026-06-12)
+## 0.17.0 — unit-test the manuscript, edit claims inline, the Atlas contribution + FullVahti write-back (2026-06-16)
+
+The release that makes CiteVahti's core metaphor literal and connects the tool to its
+siblings. Everything below is local-first and opt-in; nothing new leaves the machine
+without an explicit, previewed action.
+
+- **"Run unit tests" on the manuscript.** Each claim is a test case. `citevahti test`
+  (and a **▶ Run unit tests** panel button) reports pass / fail / skip per claim — does
+  the claim meet its references, and are the citations real? Offline by default
+  (has-evidence, reviewed, supported, identifiable citation); `--online` also verifies
+  the citation resolves and isn't retracted. The CLI exits non-zero on failure, so it can
+  gate CI on a manuscript repo.
+- **Edit the claim while reviewing evidence.** A first-class **✏ Edit claim** action on
+  the review card, in any phase — reword an overstated claim as you read the evidence.
+  Writes to the manuscript `.md` (previewed, backed-up, undoable) when the document is
+  open; otherwise records an audited revision in the ledger.
+- **Researcher-friendly panel.** A folder picker (no path typing), a one-click **Save to
+  Zotero** on search results, openable **DOI links** and inline **abstracts**, a clearer
+  fit-check (P/I/O/Claim with a 0/1/2 scale), a keyboard-shortcut legend with an off
+  toggle, a printable audit report, and plain language throughout (no more "bind/unbound").
+  Claim spans are keyboard-activatable (Enter/Space).
+- **Shared claim-text normalization (spec v1).** `claim_text_hash` is now computed over a
+  normalized claim (NFC → lowercase → collapse whitespace → trim), **byte-identical across
+  CiteVahti, MatchVahti, and the corpus** — so the same claim pools into one AtlasVahti
+  cell. See [`docs/CLAIM_NORMALIZATION.md`](docs/CLAIM_NORMALIZATION.md).
+- **Warehouse + Atlas contribution (download-only).** The de-identified warehouse is now
+  visible in the panel (status, opt-in, export, purge), and a **Contribute to Atlas** flow
+  builds a consented, de-identified bundle you can **download** — de-identification is
+  enforced (`assert_poolable` refuses any leak), nothing is uploaded, and every
+  contribution is revocable and audited.
+- **CiteVahti → FullVahti tag write-back.** The `local_addon` write backend now writes
+  status tags into Zotero through the [FullVahti](https://github.com/heidihelena/fullvahti)
+  plugin's token-gated door (`/fullvahti/tag`); `citevahti status` probes the door and says
+  whether it's reachable + enabled. The token is local-only.
+- **Fixes:** forward-compatible candidate loading (a newer-written ledger no longer crashes
+  an older reader and takes down the whole review surface); online unit-test-check failures
+  are surfaced loudly instead of read as green; the inline claim-revise is guarded; the
+  legacy dashboard mockup is watermarked as non-production.
+
+## 0.16.0 — guided run, panel wizard, opt-in timestamping; verified→accepted (BREAKING) (2026-06-16)
+
+Highlights since `v0.16.0-beta.1`:
+
+- **One guided command: `citevahti run`** (init if needed → say what's next → open the
+  panel), plus **`citevahti resume`** and **`citevahti doctor`** (plain-language readiness).
+  A single shared next-action resolver (`citevahti.workflow`) now backs every surface, so
+  the panel, VS Code, CLI, and agent prompt no longer each re-derive the
+  `rate → reveal → decide → write` phase.
+- **Panel "what's next" wizard**: a banner that names the one next action and routes you to
+  it — the no-terminal path for new users.
+- **Opt-in cryptographic timestamping of the audit head** (RFC 3161; `citevahti timestamp`)
+  — the foundation for third-party-verifiable provenance. Off by default; only the SHA-256
+  audit-head hash ever leaves the machine. Full TSA certificate-chain validation is a
+  follow-up, so RFC 3161 trust is currently experimental.
+- **Citation-on-copy**: copying a cited passage in the panel carries its source reference
+  (plain text + HTML). **Timestamped report** download button (header **⎙ Report**).
+- **`citevahti vocabulary`** exposes the verdicts/states/phases as JSON; the VS Code
+  extension reads it instead of hardcoding the verdict map.
+- Panel now **defaults to light** and remembers the theme toggle.
+- **Fix:** the report and panel select a (claim, candidate)'s rating deterministically
+  (most-advanced / most-recent), not an arbitrary uuid-sorted one.
+- **CI** runs the offline suite (py3.10 + 3.12) and the VS Code compile on every push/PR;
+  PEP 639 license metadata; SECURITY.md / REVIEW_CHECKLIST / VS Code docs de-drifted.
+
+Earlier in 0.16.0 (the `v0.16.0-beta.1` line):
 
 - **BREAKING: the `[oo]` claim state is renamed `verified` → `accepted`**
   (external-audit finding #7-B). "Verified" implied clinical/scientific truth;

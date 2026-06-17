@@ -581,6 +581,72 @@ def _cmd_claim_decide(args) -> int:
     return rc
 
 
+def _cmd_test(args) -> int:
+    """Run the manuscript unit-test suite — pass/fail per claim, exit non-zero on failure."""
+    import json as _json
+
+    from . import tools
+    from .state import CiteVahtiStore as _Store
+
+    store = _Store(args.root)
+    if not store.exists():
+        print(f"not initialized at {store.dir}; run `citevahti init` first")
+        return 1
+    suite = tools.run_manuscript_tests(root=args.root, online=getattr(args, "online", False))
+    if getattr(args, "json", False):
+        print(_json.dumps(suite, indent=2))
+        return 1 if suite["failed"] else 0
+
+    mark = {"pass": "PASS", "fail": "FAIL", "skip": "SKIP"}
+    for c in suite["claims"]:
+        text = " ".join(c["claim_text"].split())          # collapse newlines for one-line output
+        text = text if len(text) <= 70 else text[:67] + "…"
+        print(f"  [{mark[c['status']]}] {text}")
+        if c["status"] == "fail":
+            for chk in c["checks"]:
+                if chk["status"] == "fail":
+                    print(f"         ✗ {chk['name']}: {chk['detail'] or 'failed'}")
+    scope = "online (citations verified)" if suite["online"] else "offline (structural)"
+    print(f"\n{suite['passed']} passed · {suite['failed']} failed · {suite['skipped']} skipped "
+          f"of {suite['total']} claims — {scope}")
+    # A swallowed online-check error means citation_real / not_retracted ran on stale
+    # data — say so loudly and fail the run, so a degraded check is never read as green.
+    online_errors = suite.get("online_errors") or []
+    if online_errors:
+        print("\n⚠ online checks could not complete — citation verification is INCOMPLETE:")
+        for e in online_errors:
+            print(f"    • {e}")
+        print("  (citation_real / not_retracted may be stale; treat this run as inconclusive.)")
+    if not suite["online"]:
+        print("Tip: add --online to verify citations are real and not retracted.")
+    return 1 if (suite["failed"] or online_errors) else 0
+
+
+def _cmd_risk(args) -> int:
+    """Epistemic Risk Score — derived, advisory manuscript triage (never a gate)."""
+    from . import tools
+    from .risk import score_report
+
+    r = score_report(tools.claim_report(root=args.root))
+    if getattr(args, "json", False):
+        print(r.model_dump_json(indent=2))
+        return 0
+    print(f"Epistemic Risk Score: {r.score}/100  ({r.band}; range {r.score_low}–{r.score_high})")
+    print(f"  {r.n_tested}/{r.n_testable} testable claims reviewed "
+          f"(coverage {r.coverage:.0%}); {r.n_claims} claims total")
+    s = r.subscores
+    print(f"  unsupported {s.unsupported_share:.0%} · contradiction {s.contradiction_risk:.0%} · "
+          f"retraction {s.retraction_exposure:.0%} · disagreement {s.disagreement_risk:.0%} · "
+          f"weak-fit {s.fit_risk:.0%}")
+    if r.top_contributors:
+        print("  highest-risk claims:")
+        for c in r.top_contributors[:5]:
+            print(f"    [risk {c.risk:>4}] {(c.claim_text or '')[:64]}")
+    for cav in r.caveats:
+        print(f"  · {cav}")
+    return 0   # advisory only — never a non-zero gate
+
+
 def _cmd_claim_report(args) -> int:
     """Citation-integrity test results: the 4-state claim report."""
     from . import tools
@@ -1272,11 +1338,13 @@ def _cmd_onboard(args) -> int:
     print("Onboarding (secrets never printed, never written to config):")
     zkey = get_secret("CITEVAHTI_ZOTERO_WRITE_KEY", "Zotero write key", not args.no_zotero_key)
     nkey = get_secret("CITEVAHTI_NCBI_API_KEY", "NCBI API key", args.ncbi_key)
+    fvtoken = get_secret("CITEVAHTI_FULLVAHTI_TOKEN", "FullVahti plugin token",
+                         getattr(args, "fullvahti_token", False))
     rep = tools.onboard(
         root=args.root, ncbi_email=args.ncbi_email, zotero_user_id=args.zotero_user_id,
         zotero_library_id=args.zotero_library_id, zotero_library_type=args.zotero_library_type,
         default_collection_key=args.collection_key, zotero_write_key=zkey, ncbi_api_key=nkey,
-        secrets_backend=args.backend, validate=not args.skip_validate)
+        fullvahti_token=fvtoken, secrets_backend=args.backend, validate=not args.skip_validate)
     print(f"secrets_backend : {rep.secrets_backend}")
     print(f"config updated  : {sorted(set(rep.config_updated))}")
     print(f"secrets stored  : {rep.secrets_stored or '(none)'}")   # names only, never values
@@ -1495,6 +1563,22 @@ def main(argv: list[str] | None = None) -> int:
     rpt.add_argument("--show-text", action="store_true", help="print full claim text (text format)")
     rpt.add_argument("--output", default=None, help="write the report to a file instead of stdout")
     rpt.set_defaults(func=_cmd_claim_report)
+
+    # `risk` — the Epistemic Risk Score: a derived, advisory /100 triage number over
+    # the claim report (never a pass/fail gate). Always exits 0.
+    rsk = sub.add_parser("risk",
+                         help="Epistemic Risk Score — advisory /100 manuscript triage (read-only)")
+    rsk.add_argument("--json", action="store_true", help="emit the full risk report as JSON")
+    rsk.set_defaults(func=_cmd_risk)
+
+    # `test` — run the manuscript "unit test" suite (each claim is a test case) and
+    # exit non-zero on failures, so it can gate CI on a manuscript repo.
+    tst = sub.add_parser("test",
+                         help="run unit tests on the manuscript — pass/fail per claim; exits non-zero on failure")
+    tst.add_argument("--online", action="store_true",
+                     help="also verify citations are real and not retracted (network; slower)")
+    tst.add_argument("--json", action="store_true", help="emit the suite result as JSON")
+    tst.set_defaults(func=_cmd_test)
 
     ccm = sub.add_parser("claim-commit",
                          help="decision-gated Zotero write for an accepted decision (dry-run default)")
@@ -1717,6 +1801,8 @@ def main(argv: list[str] | None = None) -> int:
     ob.add_argument("--backend", choices=["system_keyring", "env"], default="system_keyring")
     ob.add_argument("--ncbi-key", action="store_true", help="also capture the NCBI API key")
     ob.add_argument("--no-zotero-key", action="store_true", help="do not capture a Zotero write key")
+    ob.add_argument("--fullvahti-token", action="store_true",
+                    help="also capture the FullVahti plugin's tag-write token (wires the local_addon backend)")
     ob.add_argument("--skip-validate", action="store_true",
                     help="skip live validation of keys before storing")
     ob.set_defaults(func=_cmd_onboard)

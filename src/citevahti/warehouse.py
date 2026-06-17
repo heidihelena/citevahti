@@ -15,11 +15,8 @@ import uuid
 from typing import Optional
 
 from .schemas.validation_record import ValidationRecord, WarehouseReport
+from .util import normalize_claim_text as _norm_claim
 from .util import sha256_hex, utc_now_iso
-
-
-def _norm_claim(text: str) -> str:
-    return " ".join((text or "").strip().lower().split())
 
 
 class ValidationWarehouseService:
