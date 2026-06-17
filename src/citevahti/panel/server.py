@@ -77,18 +77,10 @@ def blinded_rating_view(record) -> dict:
 
 
 def _find_rating_for(store, claim_id: str, candidate_id: str):
-    # multiple ratings can exist for a pair (support_start mints a new id each call) —
-    # select the most advanced/recent one, the same rule the report uses, not an arbitrary
-    # uuid-sorted first match.
-    from ..claims.support import rating_preference_key
-
-    best = None
-    for rid in store.list_support_ratings():
-        rec = store.load_support_rating(rid)
-        if rec.claim_id == claim_id and rec.candidate_id == candidate_id:
-            if best is None or rating_preference_key(rec) > rating_preference_key(best):
-                best = rec
-    return best
+    # the most advanced/recent rating for a pair (support_start mints a new id each
+    # call) — one shared selector so the panel, report, and agent provenance agree.
+    from ..claims.support import select_support_rating
+    return select_support_rating(store, claim_id, candidate_id)
 
 
 def _candidate_card(c) -> dict:
