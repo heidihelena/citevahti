@@ -87,6 +87,21 @@ yours. There is no hidden AI subscription — pick the mode you want, or leave A
 
 ![AI second-opinion settings: Off · Local AI · My API key.](docs/screenshots/06-ai-settings.png)
 
+### Run AI on your own machine (free, private)
+
+Local mode runs the model on your computer — no API key, nothing leaves your device.
+
+1. Install [Ollama](https://ollama.com/download) (macOS: `brew install ollama`).
+2. Pull a model — `qwen2.5` is recommended for claim checking:
+   ```bash
+   ollama pull qwen2.5
+   ```
+   (Pick a smaller tag if your machine is tight on memory, e.g. `ollama pull qwen2.5:3b`.)
+3. In the panel, open **✦ AI → Local AI**. CiteVahti detects the installed model and
+   pins its exact version so the rating stays auditable.
+
+To update later, re-pull the same name (`ollama pull qwen2.5`) for the newest build.
+
 ## What gets written
 
 CiteVahti never silently changes Zotero or your manuscript. Every write follows the same
