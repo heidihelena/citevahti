@@ -29,6 +29,62 @@ def coverage_score(query: str, passage: str) -> float:
     return len(q & p) / len(q)
 
 
+# --- Polarity / direction (deterministic; no AI, no embeddings) --------------
+# Lexical coverage is DIRECTION-BLIND: "X reduced mortality" and "X did NOT
+# reduce mortality" share their content tokens, so a contradicting passage scores
+# as high as a supporting one. These cues let claim-check tell a SUPPORT candidate
+# apart from a CONTRADICTION candidate, so a negated passage is never silently
+# returned as support. This is a correctness floor, not semantic understanding:
+# paraphrase / synonymy still need the advisory layer downstream.
+#
+# Ordered tuples (not sets) so negation_cue() returns a stable, inspectable cue.
+_NEGATION_PHRASES = (
+    "no longer", "did not", "does not", "do not", "was not", "were not",
+    "is not", "are not", "not associated", "no association", "no significant",
+    "no difference", "no effect", "no evidence",
+)
+_NEGATION_CUES = (
+    "no", "not", "never", "without", "neither", "nor", "none", "non",
+    "cannot", "fail", "fails", "failed", "lack", "lacks", "lacked",
+    "absence", "absent", "unable", "unchanged", "unaffected",
+)
+
+
+def negation_cue(text: str) -> str | None:
+    """The first negation cue in ``text`` (multi-word phrase preferred), else None.
+
+    Returned so a contradiction candidate is *inspectable* — the human sees which
+    word flipped the polarity ("did not"), not just a verdict.
+    """
+    low = text.lower()
+    for phrase in _NEGATION_PHRASES:
+        if phrase in low:
+            return phrase
+    toks = set(tokenize(low))
+    for cue in _NEGATION_CUES:
+        if cue in toks:
+            return cue
+    return None
+
+
+def has_negation(text: str) -> bool:
+    """True if ``text`` carries a sentential negation of its main relation."""
+    return negation_cue(text) is not None
+
+
+def polarity_conflict(query: str, passage: str) -> bool:
+    """True when query and passage assert OPPOSITE polarity on a shared relation.
+
+    Conservative: only fires when they actually overlap lexically (same relation
+    being discussed) AND differ in negation parity. Same-parity (both asserted, or
+    both negated) is NOT a conflict — a negated claim is supported by a negated
+    passage.
+    """
+    if coverage_score(query, passage) <= 0.0:
+        return False
+    return has_negation(query) != has_negation(passage)
+
+
 _SENT_END = re.compile(r"[.!?]+(?=\s|$)|\n+")
 
 
