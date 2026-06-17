@@ -6,6 +6,11 @@ previous one.
 
 ## Unreleased
 
+- **Panel: "✦ Get AI second opinion" on the decide step.** When the reveal shows no AI rating yet,
+  a button runs CiteVahti's configured local/external model (`POST /api/ratings/{id}/run-ai`) and
+  reloads — the standalone trigger for the executable path, no CLI needed. Off-mode points to ✦ AI
+  instead of dead-ending; the MCP assistant path is unchanged. UI only (app.js / styles.css).
+
 - **CiteVahti now runs its own blinded claim-support second opinion (local / api).** The settings
   were configurable; this makes the standalone path *execute*. New `HttpClaimSupportRater` (blinded,
   reuses the shared `chat_completion` transport + `resolve_ai_connection` connection rules) and
