@@ -1,5 +1,7 @@
 """Credential resolution: env escape hatch precedence, store fallback, no leaks."""
 
+import pytest
+
 from citevahti.credentials import (
     NCBI_API_KEY,
     ZOTERO_WRITE_KEY,
@@ -46,5 +48,6 @@ def test_secret_source_labels(monkeypatch):
 
 def test_get_credential_store_backends():
     assert isinstance(get_credential_store("env"), InMemoryCredentialStore)
-    # keyring is installed in this environment; constructing must not write anything
+    # constructing the keyring backend needs the optional `keyring` extra
+    pytest.importorskip("keyring")
     assert isinstance(get_credential_store("system_keyring"), KeyringCredentialStore)

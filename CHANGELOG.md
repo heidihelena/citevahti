@@ -6,6 +6,18 @@ previous one.
 
 ## Unreleased
 
+- **claim-check measurement ledger (`validation/claimcheck/`).** The "measure before you
+  tune" half of the polarity work: a pre-registered (claim, passage) ledger scored κ-first,
+  with support- and contradiction-detectors measured against two-rater human gold and an LLM
+  advisor scored against the same gold (correlated-error count shown). `build_ledger.py` seeds
+  from the repo's real `text.py`; `score_ledger.py` refuses to invent labels; a synthetic demo
+  shows the output shape (cite no number from it). Mirrors MatchVahti's validation protocol.
+- **`keyring` test hygiene.** The optional `keyring` extra is now `pytest.importorskip`-guarded
+  in `test_keyring_graceful.py` and `test_credentials.py`, so the suite is green without the
+  extra installed (it ran the keyring path only when present; now it skips cleanly otherwise).
+  No behavior change — `keyring` stays the optional, secure OS-vault store with the env-var
+  escape hatch and never-on-disk guarantee.
+
 - **claim-check polarity guard — a contradicting source is never silently returned as
   support (correctness fix).** Lexical `coverage_score` is direction-blind: *"Drug X did not
   reduce mortality"* shares its content tokens with *"Drug X reduced mortality"*, so a

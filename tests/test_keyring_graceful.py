@@ -7,6 +7,10 @@ NCBI-key lookup crashed `literature_search`. The keyring store now raises a clea
 
 import pytest
 
+# `keyring` is an optional extra (pip install citevahti[keyring]); these tests
+# exercise the real keyring backend, so skip cleanly when it isn't installed.
+pytest.importorskip("keyring")
+
 from citevahti.credentials import (
     NCBI_API_KEY,
     CredentialError,
