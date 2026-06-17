@@ -452,14 +452,17 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         # generation timestamp + the hash-chained audit head (intact?) — a verifiable record
         # that this review work was done, in this order, by the human.
         if method == "GET" and path == "/api/report":
-            from ..report import render_markdown
+            from ..report import render_html, render_markdown
             rep = engine.claim_report(root=root)
             p = rep.provenance
-            return 200, {"markdown": render_markdown(rep), "total": rep.total,
-                         "generated_at": rep.generated_at,
+            return 200, {"markdown": render_markdown(rep), "html": render_html(rep),
+                         "total": rep.total, "generated_at": rep.generated_at,
                          "audit_intact": getattr(p, "audit_chain_intact", None),
                          "audit_entries": getattr(p, "audit_entries", None),
                          "audit_head": getattr(p, "audit_head_hash", None)}
+
+        if method == "POST" and path == "/api/report/packet":
+            return 200, engine.export_review_packet(root=root)
 
         # ---- the manuscript "unit test" suite (each claim is a test case) ----
         # Offline by default (instant, structural); online verifies citations are

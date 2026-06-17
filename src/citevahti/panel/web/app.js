@@ -146,6 +146,44 @@ async function exportReport() {
     setAgentLine(`Report saved — generated ${esc(r.generated_at || "now")}${intact ? " · " + intact : ""}.`);
   } catch (e) { alert(e.message); }
 }
+
+/* ---------- export menu: Markdown · PDF (print) · review packet (.zip) ----------
+ * Researchers live in Word/PDF; these bridge out without leaving local-first. PDF is
+ * the browser's own "Save as PDF" on a print-styled render — zero dependencies. */
+function openExportModal() {
+  const box = modalShell("exportModal");
+  box.innerHTML = `<div class="modal-card">
+    <div class="modal-head"><b>Export</b><button class="chip-btn" data-export-close="1">✕</button></div>
+    <div class="note">The Citation-Integrity Report and review trail — for a supervisor, co-author,
+      or journal. Local; nothing is transmitted.</div>
+    <div class="actions" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
+      <button class="btn ghost" data-act="export-md">⬇ Markdown (.md)</button>
+      <button class="btn ghost" data-act="export-pdf">⎙ PDF — print / Save as PDF</button>
+      <button class="btn primary" data-act="export-packet">⛁ Review packet (.zip)</button>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" data-export-close="1">Done</button></div></div>`;
+}
+function closeExportModal() { closeModalEl($("#exportModal")); }
+
+async function exportPdf() {
+  try {
+    const r = await api("GET", "/api/report");
+    const w = window.open("", "_blank");
+    if (!w) { alert("Allow pop-ups to print the report to PDF, or use Markdown export."); return; }
+    w.document.write(r.html || "<p>(empty report)</p>");
+    w.document.close(); w.focus();
+    setTimeout(() => { try { w.print(); } catch {} }, 350);   // render, then open the print dialog
+  } catch (e) { alert(e.message); }
+}
+async function exportPacket() {
+  try {
+    const r = await api("POST", "/api/report/packet", {});
+    closeExportModal();
+    setAgentLine(`Review packet saved (${r.claim_count} claim(s)) → ${esc(r.output_file)}`);
+    alert(`Review packet saved (${r.claim_count} claim(s)):\n${r.output_file}\n\nContains: ${r.members.join(", ")}`);
+  } catch (e) { alert(e.message); }
+}
+
 function setAgentLine(html) {
   const el = $("#agent"); if (el) el.innerHTML = `<span class="who">CiteVahti ▸</span> <span class="pill">${html}</span>`;
 }
@@ -1422,6 +1460,7 @@ document.addEventListener("click", (e) => {
   const sw = e.target.closest("[data-switch]"); if (sw) return switchRoot(sw.dataset.switch);
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
   if (e.target.closest("[data-connect-close]")) return void closeConnectModal();
+  if (e.target.closest("[data-export-close]")) return void closeExportModal();
   const cs = e.target.closest("[data-connect-submit]"); if (cs) return void submitConnect(cs.dataset.connectSubmit);
   const ms = e.target.closest("[data-ms]"); if (ms) return void loadManuscript(ms.dataset.ms).then(renderMsBar);
   if (e.target.id === "bindBtn") return void bindFolder();
@@ -1454,10 +1493,11 @@ document.addEventListener("click", (e) => {
      zundo, docpreview: () => docPreview(act.dataset.kind), doccommit: docCommit, doccancel: () => { resetWrite(); renderCard(); },
      docundo: docUndo, unlink: unlinkCandidate, gonext: goToNextClaim, exportreport: exportReport,
      "run-ai": runAiSecondOpinion,
+     "export-md": exportReport, "export-pdf": exportPdf, "export-packet": exportPacket,
      next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
-$("#report").addEventListener("click", exportReport);
+$("#report").addEventListener("click", openExportModal);
 $("#runTests").addEventListener("click", () => runTests(false));
 $("#warehouse").addEventListener("click", openWarehouse);
 $("#aiSettings").addEventListener("click", openAiSettings);
@@ -1517,7 +1557,7 @@ document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       const close = { whModal: closeWarehouse, aiModal: closeAiSettings,
                       browseModal: closeBrowse, testModal: closeTests,
-                      connectModal: closeConnectModal }[openModal.id];
+                      connectModal: closeConnectModal, exportModal: closeExportModal }[openModal.id];
       (close || (() => closeModalEl(openModal)))();
       return e.preventDefault();
     }
