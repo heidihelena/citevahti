@@ -6,6 +6,15 @@ previous one.
 
 ## Unreleased
 
+- **Export menu (Markdown · PDF · review packet) — bridging to the Word world.** The header
+  ⎙ Export button opens a dialog with: **Markdown** (the existing report download), **PDF**
+  (the report rendered as a print-ready standalone HTML via the new `render_html`, opened for
+  the browser's *Save as PDF* — zero dependencies, fully offline), and a **review packet `.zip`**
+  (`POST /api/report/packet` → report Markdown + HTML + the structured `claims.json` evidence/
+  audit trail + a README) for a supervisor or journal. All local; nothing transmitted. Word
+  export + Word import follow in a small optional-`docx`-extra change. Locked by
+  `tests/test_report_export.py`.
+
 - **Panel: "✦ Get AI second opinion" on the decide step.** When the reveal shows no AI rating yet,
   a button runs CiteVahti's configured local/external model (`POST /api/ratings/{id}/run-ai`) and
   reloads — the standalone trigger for the executable path, no CLI needed. Off-mode points to ✦ AI
