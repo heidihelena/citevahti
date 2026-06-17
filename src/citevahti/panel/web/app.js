@@ -909,10 +909,12 @@ function decideBlock(cand) {
     <button class="btn ghost" data-act="run-ai" title="Ask CiteVahti's configured local/external model for a blinded second opinion">✦ Get AI second opinion</button>
     <span class="note dim">Optional. Or your assistant provides it over MCP. Configure a model in ✦ AI.</span></div>`;
   return `<div class="next"><div class="ask">Reveal &amp; decide</div>
-    <div class="why">Your blind rating is in. Here is the AI second rating.</div>
+    <div class="why">${r.ai
+      ? "Your blind rating is in. Here is the AI second opinion."
+      : "Your blind rating is in. No AI second opinion has been recorded yet — decide on yours, or get one below."}</div>
     <div class="compare">
       <div class="col you"><div class="who">You</div><div class="val">${esc(SUP_LABEL[r.human] || r.human)}</div></div>
-      <div class="col"><div class="who">AI (2nd)</div><div class="val">${esc(SUP_LABEL[r.ai] || r.ai || "—")}</div></div>
+      <div class="col"><div class="who">AI (2nd)</div><div class="val">${r.ai ? esc(SUP_LABEL[r.ai] || r.ai) : '<span class="dim">not recorded yet</span>'}</div></div>
     </div>
     ${cmp ? `<span class="verdict-tag ${cmp}">${esc(cmp)}</span>` : ""}
     ${getAi}
@@ -967,6 +969,15 @@ function writeBlock(claim, cand) {
   if (code === "needs_second_review" || code === "reject") {
     const kind = code === "reject" ? "strike" : "revise";
     const verb = code === "reject" ? "Strike the claim in the document" : "Rewrite the claim and apply it to the document";
+    const resolved = state.view && state.view.mode === "file";
+    // No manuscript file bound -> the .md edit can't be applied; don't offer a Preview
+    // that the server would reject. Point to the folder picker instead.
+    if (!resolved) {
+      const dir = esc((state.ctx && state.ctx.manuscripts_dir) || "");
+      return `<div class="next">${head}
+        <div class="note">Open your manuscript to apply this ${kind} — bind the folder that contains it, then preview the change. (The decision is already recorded; this only writes the wording into your <span class="mono">.md</span>.)</div>
+        <div class="actions"><button class="btn primary" data-browse="${dir}">Open manuscript folder…</button></div></div>`;
+    }
     // revise: an editable box pre-filled with the current wording (or a pending proposal)
     const editor = kind === "revise" && !state.pendingDocToken
       ? `<div class="lbl">New wording</div><textarea id="revText" class="revbox">${esc(claim.proposed_revision || claim.claim_text)}</textarea>` : "";
@@ -1189,21 +1200,25 @@ function nextPending() {
   return null;
 }
 
-async function connect(which) {
+function connect(which) {
+  // the inline write-step field (if present) connects directly; otherwise the
+  // header chip / first-run opens a proper modal with password inputs (not a prompt).
+  if (which === "zotero") {
+    const inline = (($("#zoteroKey") || {}).value || "").trim();
+    if (inline) return void _applyConnect("zotero", { key: inline });
+  }
+  openConnectModal(which);
+}
+
+async function _applyConnect(which, payload) {
   try {
     let health;
     if (which === "zotero") {
-      // use the inline write-step field if present, else prompt (header chip / first-run)
-      let key = ($("#zoteroKey") || {}).value || "";
-      if (!key.trim()) key = (prompt("Paste your Zotero API key (needs write access):") || "");
-      if (!key.trim()) return;
-      const r = await api("POST", "/api/connect/zotero", { api_key: key.trim() });
+      const r = await api("POST", "/api/connect/zotero", { api_key: payload.key });
       health = r.health;
     } else {
-      const email = prompt("Your NCBI / PubMed contact email (required by NCBI):");
-      if (!email) return;
-      const apiKey = prompt("NCBI API key (optional — raises your rate limit):") || undefined;
-      const r = await api("POST", "/api/connect/pubmed", { email, api_key: apiKey });
+      const r = await api("POST", "/api/connect/pubmed",
+                          { email: payload.email, api_key: payload.apiKey || undefined });
       health = r.health;
     }
     state.health = health || state.health;
@@ -1213,8 +1228,39 @@ async function connect(which) {
       alert("Zotero key accepted but no write access detected — check the key has write permission to your library.");
     if (state.activeClaim) renderCard();
   } catch (e) {
-    // surface the real reason (bad key, no write scope, network) instead of failing silently
-    alert("Connect " + which + " failed: " + e.message);
+    alert("Connect " + which + " failed: " + e.message);   // surface the real reason
+  }
+}
+
+function openConnectModal(which) {
+  const isZ = which === "zotero";
+  const box = modalShell("connectModal");
+  box.innerHTML = `<div class="modal-card">
+    <div class="modal-head"><b>Connect ${isZ ? "Zotero" : "PubMed (NCBI)"}</b><button class="chip-btn" data-connect-close="1">✕</button></div>
+    ${isZ
+      ? `<div class="lbl">Zotero API key — write access</div>
+         <input id="cmKey" type="password" autocomplete="off" spellcheck="false" placeholder="Zotero API key" />
+         <div class="actions" style="margin-top:8px"><a class="btn ghost" href="https://www.zotero.org/settings/keys/new" target="_blank" rel="noopener">Get a key ↗</a></div>`
+      : `<div class="lbl">Contact email — required by NCBI</div>
+         <input id="cmEmail" type="email" autocomplete="off" spellcheck="false" placeholder="you@institution.edu" />
+         <div class="lbl" style="margin-top:10px">NCBI API key — optional, raises your rate limit</div>
+         <input id="cmKey" type="password" autocomplete="off" spellcheck="false" placeholder="optional" />`}
+    <div class="note ok">Stored in your OS keychain. Never written to the ledger.</div>
+    <div class="modal-foot"><button class="btn primary" data-connect-submit="${which}">Connect</button>
+      <button class="btn ghost" data-connect-close="1">Cancel</button></div></div>`;
+}
+function closeConnectModal() { closeModalEl($("#connectModal")); }
+async function submitConnect(which) {
+  const key = (($("#cmKey") || {}).value || "").trim();
+  if (which === "zotero") {
+    if (!key) { ($("#cmKey") || {}).focus && $("#cmKey").focus(); return; }
+    closeConnectModal();
+    await _applyConnect("zotero", { key });
+  } else {
+    const email = (($("#cmEmail") || {}).value || "").trim();
+    if (!email) { ($("#cmEmail") || {}).focus && $("#cmEmail").focus(); return; }
+    closeConnectModal();
+    await _applyConnect("pubmed", { email, apiKey: key });
   }
 }
 
@@ -1375,6 +1421,8 @@ document.addEventListener("copy", (e) => {
 document.addEventListener("click", (e) => {
   const sw = e.target.closest("[data-switch]"); if (sw) return switchRoot(sw.dataset.switch);
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
+  if (e.target.closest("[data-connect-close]")) return void closeConnectModal();
+  const cs = e.target.closest("[data-connect-submit]"); if (cs) return void submitConnect(cs.dataset.connectSubmit);
   const ms = e.target.closest("[data-ms]"); if (ms) return void loadManuscript(ms.dataset.ms).then(renderMsBar);
   if (e.target.id === "bindBtn") return void bindFolder();
   if (e.target.closest("#browseBtn") || e.target.closest("#reconOpen")) return void openBrowse(($("#bindDir") || {}).value || state.ctx.manuscripts_dir);
@@ -1468,7 +1516,8 @@ document.addEventListener("keydown", (e) => {
   if (openModal) {
     if (e.key === "Escape") {
       const close = { whModal: closeWarehouse, aiModal: closeAiSettings,
-                      browseModal: closeBrowse, testModal: closeTests }[openModal.id];
+                      browseModal: closeBrowse, testModal: closeTests,
+                      connectModal: closeConnectModal }[openModal.id];
       (close || (() => closeModalEl(openModal)))();
       return e.preventDefault();
     }
