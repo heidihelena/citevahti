@@ -6,6 +6,8 @@ always the decider.
 """
 
 from .ai import (
+    DEFAULT_LOCAL_MODEL,
+    PREFERRED_LOCAL_MODELS,
     AiRater,
     AiRatingOutput,
     FakeAiRater,
@@ -13,10 +15,15 @@ from .ai import (
     HttpPoster,
     HttpxPoster,
     build_ai_rater,
+    list_ollama_models,
+    ollama_model_snapshot,
+    suggest_local_model,
 )
 from .engine import RatingEngine
 
 __all__ = [
     "RatingEngine", "AiRater", "AiRatingOutput", "FakeAiRater",
     "HttpAiRater", "HttpPoster", "HttpxPoster", "build_ai_rater",
+    "list_ollama_models", "suggest_local_model", "ollama_model_snapshot",
+    "PREFERRED_LOCAL_MODELS", "DEFAULT_LOCAL_MODEL",
 ]
