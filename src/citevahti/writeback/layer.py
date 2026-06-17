@@ -18,8 +18,13 @@ _TOKEN_TTL_SECONDS = 3600
 
 
 def _payload_hash(op: WriteOperation) -> str:
+    # Binds EVERYTHING the confirmed write will use — including ``structured``, where
+    # intake push keeps the full paper metadata (not in ``payload``). Without it, that
+    # metadata could change between preview and commit and the token would still match,
+    # so the committed write could differ from what the human approved.
     return sha256_hex(canonical_json({"kind": op.kind, "library": op.library,
-                                      "targets": sorted(op.targets), "payload": op.payload}))
+                                      "targets": sorted(op.targets), "payload": op.payload,
+                                      "structured": op.structured}))
 
 
 class WriteLayer:
