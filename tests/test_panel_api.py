@@ -791,10 +791,22 @@ def test_claim_lexical_check_engine():
     yes = engine.claim_lexical_check("Low-dose CT screening reduces lung-cancer mortality",
                                      "Screening with low-dose CT reduced lung-cancer mortality versus radiography.")
     assert yes["available"] and yes["status"] == "terms_present" and yes["coverage"] >= 0.5
+    assert yes["contradiction"] is False and yes["polarity_cue"] is None  # same polarity → no conflict
     no = engine.claim_lexical_check("Prehabilitation improves surgical readiness",
                                     "This paper concerns coronary artery calcium scoring.")
     assert no["status"] == "terms_missing" and "prehabilitation" in no["missing"]
     assert engine.claim_lexical_check("anything", "") == {"available": False}
+
+
+def test_claim_lexical_check_flags_polarity_conflict():
+    # passage overlaps the claim's terms but asserts the OPPOSITE polarity → a
+    # deterministic, inspectable "may contradict" hint with the negation cue
+    r = engine.claim_lexical_check(
+        "Low-dose CT screening reduces lung-cancer mortality",
+        "Low-dose CT screening did not reduce lung-cancer mortality in this cohort.")
+    assert r["contradiction"] is True
+    assert r["polarity_cue"] == "did not"
+    assert "did not reduce" in r["opposing_quote"]
 
 
 def test_claim_check_endpoint_uses_candidate_abstract(tmp_path, monkeypatch):

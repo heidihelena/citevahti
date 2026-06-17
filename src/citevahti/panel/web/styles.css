@@ -286,6 +286,10 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
   color: var(--zs-partial-text); background: var(--zs-partial-bg); border: 1px solid var(--zs-partial-border); }
 .claim .stalemark { margin-left: 2px; font-size: 11px; color: var(--zs-partial-text); }
 
+/* deterministic "may contradict" hint in the lexical check (polarity conflict) */
+.polconflict { margin: 8px 0 4px; padding: 7px 9px; border-radius: 6px; font-size: 12px;
+  color: var(--zs-partial-text); background: var(--zs-partial-bg); border: 1px solid var(--zs-partial-border); }
+
 /* find evidence: search box + results */
 .finder { margin-top: 10px; }
 .finder .row { display: flex; gap: 6px; align-items: center; }
