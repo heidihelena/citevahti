@@ -208,9 +208,33 @@ function openImportReview(filename, markdown) {
     <div class="lbl">Manuscript (Markdown)</div>
     <textarea id="imBody" class="revbox" style="min-height:220px">${esc(markdown)}</textarea>
     <div class="modal-foot"><button class="btn primary" data-import-save="1">Save document</button>
-      <button class="btn ghost" data-import-close="1">Cancel</button></div></div>`;
+      <button class="btn" data-import-prompt="1" title="Copy the run_claim_tests prompt (with this text) to paste into your chat client">⧉ Copy claim-tests prompt</button>
+      <button class="btn ghost" data-import-close="1">Cancel</button></div>
+    <div id="imPromptResult" class="note"></div></div>`;
 }
 function closeImportModal() { closeModalEl($("#importModal")); }
+
+/* Close the Word → claims loop: hand the reviewer the exact run_claim_tests prompt,
+ * pre-filled with the imported text, ready to paste into chat (the panel never calls
+ * an AI itself). The choreography text is built server-side — one source of truth. */
+async function copyClaimTestsPrompt() {
+  const out = $("#imPromptResult");
+  const manuscript = ($("#imBody") || {}).value || "";
+  try {
+    const r = await api("POST", "/api/claim-tests-prompt", { manuscript });
+    await copyText(r.prompt || "");
+    if (out) out.innerHTML = `✓ Copied the <b>${esc(r.name || "run_claim_tests")}</b> prompt — paste it into your chat client to start the review.`;
+  } catch (e) { if (out) out.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) return await navigator.clipboard.writeText(text);
+  } catch {}
+  const ta = document.createElement("textarea");      // fallback for non-secure contexts
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); } finally { ta.remove(); }
+}
 async function saveImported() {
   const filename = (($("#imName") || {}).value || "").trim();
   const content = ($("#imBody") || {}).value || "";
@@ -1521,6 +1545,7 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-export-close]")) return void closeExportModal();
   if (e.target.closest("[data-import-close]")) return void closeImportModal();
   if (e.target.closest("[data-import-save]")) return void saveImported();
+  if (e.target.closest("[data-import-prompt]")) return void copyClaimTestsPrompt();
   const cs = e.target.closest("[data-connect-submit]"); if (cs) return void submitConnect(cs.dataset.connectSubmit);
   const ms = e.target.closest("[data-ms]"); if (ms) return void loadManuscript(ms.dataset.ms).then(renderMsBar);
   if (e.target.id === "bindBtn") return void bindFolder();

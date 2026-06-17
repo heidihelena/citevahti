@@ -1015,6 +1015,16 @@ def import_manuscript_docx(docx_base64: str, *, root: Optional[str] = None) -> d
     return {"markdown": md, "lines": md.count("\n")}
 
 
+def claim_tests_prompt(manuscript: str = "") -> dict:
+    """The ready-to-paste ``run_claim_tests`` choreography, optionally pre-filled with
+    a manuscript. This is the bridge that closes the Word/Markdown → claims loop: after
+    importing a .docx, the panel hands the reviewer the exact prompt to paste into their
+    chat client, with the imported text already embedded. Single source of truth — the
+    choreography text lives in ``agent.prompts``, never duplicated in the UI."""
+    from .agent.prompts import CLAIM_TEST_PROMPT_NAME, run_claim_tests_prompt
+    return {"name": CLAIM_TEST_PROMPT_NAME, "prompt": run_claim_tests_prompt(manuscript or "")}
+
+
 def warehouse_purge(*, root: Optional[str] = None):
     """Erase the validation warehouse (consent withdrawal)."""
     from .warehouse import ValidationWarehouseService
