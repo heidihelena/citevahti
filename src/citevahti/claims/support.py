@@ -43,6 +43,20 @@ def rating_preference_key(rating) -> tuple:
     return (has_final, bool(committed_at), committed_at, last_activity, rating.rating_id)
 
 
+def select_support_rating(store, claim_id: str, candidate_id: str):
+    """The representative rating for a (claim, candidate) pair: the most advanced and
+    recent one by ``rating_preference_key``. A pair can have several ratings on disk
+    (``support_start`` mints a new id each call); selecting deterministically HERE keeps
+    the panel, the report, and agent provenance consistent — none picks an arbitrary one."""
+    best = None
+    for rid in store.list_support_ratings():
+        rec = store.load_support_rating(rid)
+        if rec.claim_id == claim_id and rec.candidate_id == candidate_id:
+            if best is None or rating_preference_key(rec) > rating_preference_key(best):
+                best = rec
+    return best
+
+
 @dataclass
 class SupportAiOutput:
     value: Optional[str] = None

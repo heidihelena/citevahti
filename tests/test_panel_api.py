@@ -140,6 +140,25 @@ def test_provenance_endpoint_blinds_until_human_rated(tmp_path):
     assert "does_not_support" not in json.dumps(prov)
 
 
+def test_provenance_picks_the_advanced_rating_not_a_blank_duplicate(tmp_path):
+    # a pair can have several ratings; provenance must explain the REAL one, not an
+    # empty duplicate that merely sorts last by id (the old "take the last" bug).
+    from citevahti.schemas.claim_support import ClaimSupportRating
+    store, claim_id, cand_id = _setup(tmp_path)
+    root = str(tmp_path)
+    eng = ClaimSupportEngine(store)
+    advanced = eng.support_start(claim_id, cand_id)
+    eng.support_commit_human(advanced.rating_id, "directly_supports")
+    # blank duplicate for the SAME pair, with an id that sorts AFTER the real one
+    store.save_support_rating(ClaimSupportRating(
+        rating_id="cs-zzzzzzzzzz", claim_id=claim_id, candidate_id=cand_id))
+    dec = DecisionService(store).decide(claim_id, cand_id, "needs_second_review",
+                                        "dup-rating regression", rating_id=advanced.rating_id)
+    status, prov = dispatch(root, "GET", f"/api/decisions/{dec.decision_id}/provenance", None)
+    assert status == 200
+    assert prov["support"]["human"] == "directly_supports"   # the real rating, not the blank
+
+
 # ---- write path: preview returns a token; bogus token cannot write ---------
 def test_commit_requires_a_real_preview_token(tmp_path):
     store, claim_id, cand_id = _setup(tmp_path)

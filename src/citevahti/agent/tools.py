@@ -184,11 +184,10 @@ def get_provenance(decision_id: str, *, root: Optional[str] = None) -> dict:
     claim = store.load_claim(dec.claim_id)
     cand = next((c for c in store.load_candidates(dec.claim_id).candidates
                  if c.candidate_id == dec.candidate_id), None)
-    rating = None
-    for rid in store.list_support_ratings():
-        r = store.load_support_rating(rid)
-        if r.claim_id == dec.claim_id and r.candidate_id == dec.candidate_id:
-            rating = r
+    # the most advanced/recent rating for the pair — the SAME selector the panel and
+    # report use, so provenance never explains a stale or blank duplicate rating.
+    from ..claims.support import select_support_rating
+    rating = select_support_rating(store, dec.claim_id, dec.candidate_id)
     human_v = rating.human_rating.value if (rating and rating.human_rating) else None
     ai_v = (rating.ai_rating.value if (rating and rating.ai_rating) else None)
     ai_shown = ai_v if human_v is not None else ("hidden (blinded until human rates)"
