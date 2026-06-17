@@ -5,7 +5,18 @@ recorded value, and never silently propagates a rating. The human or panel is
 always the decider.
 """
 
-from .ai import AiRater, AiRatingOutput, FakeAiRater
+from .ai import (
+    AiRater,
+    AiRatingOutput,
+    FakeAiRater,
+    HttpAiRater,
+    HttpPoster,
+    HttpxPoster,
+    build_ai_rater,
+)
 from .engine import RatingEngine
 
-__all__ = ["RatingEngine", "AiRater", "AiRatingOutput", "FakeAiRater"]
+__all__ = [
+    "RatingEngine", "AiRater", "AiRatingOutput", "FakeAiRater",
+    "HttpAiRater", "HttpPoster", "HttpxPoster", "build_ai_rater",
+]

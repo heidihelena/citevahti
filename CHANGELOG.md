@@ -6,6 +6,19 @@ previous one.
 
 ## Unreleased
 
+- **Real AI rater backend — three modes (Off · Local AI · My API key), privacy-first.** The
+  `AiRater` seam shipped only a `FakeAiRater`; now there is a real, optional, **blinded**
+  `HttpAiRater` over an OpenAI-compatible or Anthropic chat endpoint, plus `build_ai_rater(config)`
+  that returns it or `None` when AI is off. New `ai_connection` config block: **off** (human-only),
+  **local** (a model on your device/network — Ollama / LM Studio, **no API key**, localhost/https
+  only, nothing leaves the device), **api** (external provider with your own key from the credential
+  store — env escape hatch honored, **https-only so a key never rides plaintext**). New
+  `AI_API_KEY` secret (`CITEVAHTI_AI_API_KEY`). The rater stays blind (the `rate` signature
+  excludes the human value) and **abstains rather than fabricate** an out-of-scheme value; the model
+  is still pinned in `ai_provenance` for audit. Ports MatchVahti's AI-settings concept to
+  CiteVahti's rater architecture. Locked by `tests/test_ai_rater.py` (offline, fake poster). The
+  panel settings UI is a follow-up.
+
 - **claim-check measurement ledger (`validation/claimcheck/`).** The "measure before you
   tune" half of the polarity work: a pre-registered (claim, passage) ledger scored κ-first,
   with support- and contradiction-detectors measured against two-rater human gold and an LLM

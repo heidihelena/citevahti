@@ -113,6 +113,29 @@ class AIProvenanceConfig(BaseModel):
         return tasks
 
 
+class AIConnectionConfig(BaseModel):
+    """How (and whether) to reach a real AI rater. Privacy-first, off by default.
+
+    - ``off``   : human-only screening; no model is ever contacted.
+    - ``local`` : an OpenAI-compatible model on your device or local network
+      (Ollama / LM Studio). No API key; the claim and abstract never leave the
+      device/network.
+    - ``api``   : an external provider (OpenAI / Anthropic / compatible) with your
+      own key, resolved from the credential store (never stored in config).
+
+    The model itself is still pinned in ``ai_provenance`` (model_id + snapshot) for
+    audit; this block only carries the connection.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    mode: Literal["off", "local", "api"] = "off"
+    endpoint: Optional[str] = None        # OpenAI-compatible (or Anthropic) chat URL; defaulted per mode
+    request_timeout_s: float = 60.0
+
+    def is_enabled(self) -> bool:
+        return self.mode in ("local", "api")
+
+
 class RatingConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     order: Literal["human_first_ai_blind", "ai_first_human_blind", "parallel_blind"] = (
@@ -176,6 +199,7 @@ class Config(BaseModel):
     pubmed: PubMedConfig = Field(default_factory=PubMedConfig)
     rating: RatingConfig
     ai_provenance: AIProvenanceConfig = Field(default_factory=AIProvenanceConfig)
+    ai_connection: AIConnectionConfig = Field(default_factory=AIConnectionConfig)
     writeback: WritebackConfig = Field(default_factory=WritebackConfig)
     validation_warehouse: ValidationWarehouseConfig = Field(
         default_factory=ValidationWarehouseConfig)
