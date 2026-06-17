@@ -972,7 +972,9 @@ _PACKET_README = (
     "  citation-integrity-report.md    — the human-readable report (Markdown)\n"
     "  citation-integrity-report.html  — the same report, print-ready (open + Save as PDF)\n"
     "  claims.json                     — the structured claim-by-claim evidence trail,\n"
-    "                                    ratings, decisions, and the audit-chain provenance\n\n"
+    "                                    ratings, decisions, and the audit-chain provenance\n"
+    "  methods.md                      — a submission-ready methods paragraph, auto-filled\n"
+    "                                    with this review's numbers (paste into your manuscript)\n\n"
     "The states record citation support from the blinded human -> AI -> adjudication\n"
     "workflow — not clinical or scientific truth. See the report's Scope & limitations.\n"
 )
@@ -985,19 +987,20 @@ def export_review_packet(output_path: Optional[str] = None, *, root: Optional[st
     import os
     import zipfile
 
-    from .report import render_html, render_markdown
+    from .report import build_methods_markdown, render_html, render_markdown
     store = _open_store(root)
     rep = claim_report(root=root)
     stamp = (rep.generated_at or "report").replace(":", "-").replace(".", "-")[:19]
     out = output_path or str(store.dir / "exports" / f"review-packet-{stamp}.zip")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     members = ["citation-integrity-report.md", "citation-integrity-report.html",
-               "claims.json", "README.txt"]
+               "claims.json", "methods.md", "README.txt"]
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(members[0], render_markdown(rep))
         z.writestr(members[1], render_html(rep))
         z.writestr(members[2], json.dumps(rep.model_dump(mode="json"), indent=2, sort_keys=True))
-        z.writestr(members[3], _PACKET_README)
+        z.writestr(members[3], build_methods_markdown(store))   # submission-ready methods paragraph
+        z.writestr(members[4], _PACKET_README)
     return {"output_file": out, "claim_count": rep.total, "members": members}
 
 

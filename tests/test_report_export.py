@@ -60,11 +60,25 @@ def test_review_packet_zips_report_and_trail(tmp_path):
     with zipfile.ZipFile(res["output_file"]) as z:
         names = set(z.namelist())
         assert names == {"citation-integrity-report.md", "citation-integrity-report.html",
-                         "claims.json", "README.txt"}
+                         "claims.json", "methods.md", "README.txt"}
         assert "LDCT reduces lung-cancer mortality." in z.read("citation-integrity-report.md").decode()
         assert z.read("citation-integrity-report.html").decode().startswith("<!DOCTYPE html>")
         # the structured trail carries the claim + provenance
         assert "LDCT reduces lung-cancer mortality." in z.read("claims.json").decode()
+        # the submission-ready methods paragraph is auto-filled with this ledger's values
+        methods = z.read("methods.md").decode()
+        assert "Methods statement" in methods and "blinded dual-rating workflow" in methods
+        assert "claude-opus-4-8" in methods                    # the pinned model id
+
+
+def test_methods_statement_is_honest_about_missing_data(tmp_path):
+    # no dual-rated pairs yet → agreement/κ are marked n/a, never invented
+    from citevahti.report import build_methods_markdown
+    s, _ = _store(tmp_path)
+    md = build_methods_markdown(s)
+    assert "Of 0 comparable human–AI pairs" in md
+    assert "n/a" in md                                          # raw agreement / κ not fabricated
+    assert "No comparable human–AI pairs yet" in md            # the before-you-submit note
 
 
 # ---- Word (.docx) bridge — needs the optional 'docx' extra -----------------
