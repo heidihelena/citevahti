@@ -403,6 +403,14 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             engine.support_compare(rating_id, root=root)
             return 200, blinded_rating_view(engine.get_support_rating(rating_id, root=root))
 
+        # CiteVahti's OWN AI second opinion (local / api). Off-mode -> a clear 4xx;
+        # the MCP assistant path (submit_ai_support_rating) is unchanged. Recorded
+        # blind — the view hides the AI value until a human rating exists.
+        m = re.fullmatch(r"/api/ratings/([^/]+)/run-ai", path)
+        if method == "POST" and m:
+            engine.support_run_ai(m.group(1), body.get("task_type", "assess"), root=root)
+            return 200, blinded_rating_view(engine.get_support_rating(m.group(1), root=root))
+
         m = re.fullmatch(r"/api/ratings/([^/]+)/adjudicate", path)
         if method == "POST" and m:
             rec = engine.support_adjudicate(m.group(1), _req(body, "final_value"),

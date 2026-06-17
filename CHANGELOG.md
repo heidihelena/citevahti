@@ -6,6 +6,18 @@ previous one.
 
 ## Unreleased
 
+- **CiteVahti now runs its own blinded claim-support second opinion (local / api).** The settings
+  were configurable; this makes the standalone path *execute*. New `HttpClaimSupportRater` (blinded,
+  reuses the shared `chat_completion` transport + `resolve_ai_connection` connection rules) and
+  `build_support_ai_rater(config)`; `tools.support_run_ai` builds the rater from config when none is
+  injected (off → a clear "AI is off — use local/api or your MCP assistant" error). New route
+  `POST /api/ratings/{id}/run-ai` records the AI rating **blind** (the view hides it until a human
+  rating exists). The rater abstains rather than emit an out-of-vocabulary value (`overstated`
+  included). The MCP assistant path (`submit_ai_support_rating`) is unchanged — this is purely the
+  no-assistant fallback. The GRADE `build_ai_rater` was refactored onto the same shared helpers (no
+  behaviour change; #59 tests still green). Locked by `tests/test_support_ai_rater.py` + panel
+  route tests.
+
 - **Panel AI settings (✦ AI) — MCP-first, all modes selectable.** A panel modal to configure the
   AI second opinion. Leads with the truth that **most users need no setup**: when you drive
   CiteVahti through an assistant over MCP (Cowork / Claude), it already submits the blinded second

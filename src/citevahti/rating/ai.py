@@ -84,6 +84,36 @@ class HttpxPoster:
         return resp.json()
 
 
+def chat_completion(*, shape: str, endpoint: str, model: str, prompt: str,
+                    api_key: Optional[str] = None, poster: Optional[HttpPoster] = None,
+                    timeout: float = 60.0) -> str:
+    """One blinded chat turn over an OpenAI-compatible or Anthropic endpoint → reply text.
+
+    Shared by every CiteVahti rater. A key (when present) rides the provider's header;
+    local servers (Ollama / LM Studio) need none. Returns "" on an unexpected shape.
+    """
+    poster = poster or HttpxPoster()
+    if shape == "anthropic":
+        headers = {"content-type": "application/json", "anthropic-version": "2023-06-01"}
+        if api_key:
+            headers["x-api-key"] = api_key
+        payload = {"model": model, "max_tokens": 300,
+                   "messages": [{"role": "user", "content": prompt}]}
+    else:
+        headers = {"content-type": "application/json"}
+        if api_key:
+            headers["authorization"] = "Bearer " + api_key
+        payload = {"model": model, "max_tokens": 300, "temperature": 0,
+                   "messages": [{"role": "user", "content": prompt}]}
+    data = poster.post_json(endpoint, headers, payload, timeout)
+    try:
+        if isinstance(data.get("content"), list):          # anthropic
+            return data["content"][0].get("text", "")
+        return data["choices"][0]["message"]["content"]    # openai-compatible
+    except (KeyError, IndexError, AttributeError, TypeError):
+        return ""
+
+
 class HttpAiRater:
     """A real, BLIND AI rater over an OpenAI-compatible or Anthropic chat endpoint.
 
@@ -106,7 +136,9 @@ class HttpAiRater:
 
     def rate(self, *, frame, scheme, subject, task_type: str) -> AiRatingOutput:
         prompt = self._build_prompt(frame, scheme, subject, task_type)
-        text = self._extract_text(self._call(prompt))
+        text = chat_completion(shape=self.shape, endpoint=self.endpoint, model=self.model,
+                               api_key=self.api_key, prompt=prompt, poster=self.poster,
+                               timeout=self.timeout)
         return self._parse(text, scheme)
 
     # blinded: only the frame/scheme/subject context is available here
@@ -137,30 +169,6 @@ class HttpAiRater:
                      '"abstained":<bool>,"confidence":<0..1 or null>,"rationale":"<=25 words"}')
         return "\n".join(lines)
 
-    def _call(self, prompt: str) -> dict:
-        if self.shape == "anthropic":
-            headers = {"content-type": "application/json", "anthropic-version": "2023-06-01"}
-            if self.api_key:
-                headers["x-api-key"] = self.api_key
-            payload = {"model": self.model, "max_tokens": 300,
-                       "messages": [{"role": "user", "content": prompt}]}
-        else:
-            headers = {"content-type": "application/json"}
-            if self.api_key:  # local servers (Ollama/LM Studio) need no key
-                headers["authorization"] = "Bearer " + self.api_key
-            payload = {"model": self.model, "max_tokens": 300, "temperature": 0,
-                       "messages": [{"role": "user", "content": prompt}]}
-        return self.poster.post_json(self.endpoint, headers, payload, self.timeout)
-
-    @staticmethod
-    def _extract_text(data: dict) -> str:
-        try:
-            if isinstance(data.get("content"), list):          # anthropic
-                return data["content"][0].get("text", "")
-            return data["choices"][0]["message"]["content"]    # openai-compatible
-        except (KeyError, IndexError, AttributeError, TypeError):
-            return ""
-
     def _parse(self, text: str, scheme) -> AiRatingOutput:
         m = re.search(r"\{.*\}", text or "", re.DOTALL)
         if not m:
@@ -183,8 +191,10 @@ class HttpAiRater:
                               domain_reasoning=rationale)
 
 
-def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secret=None):
-    """Construct the configured AI rater, or **None when AI is off**.
+def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
+    """Resolve ``{shape, endpoint, api_key}`` for the configured AI connection, or
+    **None when AI is off**. Shared by every rater factory so the connection rules
+    live in one place.
 
     ``local`` -> OpenAI-compatible, no key, localhost/https only. ``api`` -> provider
     shape + key from the credential store (env escape hatch honored), https only —
@@ -198,8 +208,7 @@ def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secre
         endpoint = conn.endpoint or _OLLAMA_DEFAULT
         if not _safe_endpoint(endpoint, allow_local=True):
             raise ValueError("local AI endpoint must be http://localhost or an https URL")
-        return HttpAiRater(shape="openai", endpoint=endpoint, model=prov.model_id,
-                           api_key=None, poster=poster, timeout=conn.request_timeout_s)
+        return {"shape": "openai", "endpoint": endpoint, "api_key": None}
     # api mode
     shape = "anthropic" if prov.provider == "anthropic" else "openai"
     endpoint = conn.endpoint or (_ANTHROPIC_DEFAULT if shape == "anthropic" else _OPENAI_DEFAULT)
@@ -218,8 +227,17 @@ def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secre
         api_key = cred_resolve(AI_API_KEY, store)
     if not api_key:
         raise ValueError("api mode needs an AI key (set CITEVAHTI_AI_API_KEY or store it)")
-    return HttpAiRater(shape=shape, endpoint=endpoint, model=prov.model_id,
-                       api_key=api_key, poster=poster, timeout=conn.request_timeout_s)
+    return {"shape": shape, "endpoint": endpoint, "api_key": api_key}
+
+
+def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secret=None):
+    """Construct the configured GRADE/scheme AI rater, or **None when AI is off**."""
+    c = resolve_ai_connection(config, resolve_secret=resolve_secret)
+    if c is None:
+        return None
+    return HttpAiRater(shape=c["shape"], endpoint=c["endpoint"],
+                       model=config.ai_provenance.model_id, api_key=c["api_key"],
+                       poster=poster, timeout=config.ai_connection.request_timeout_s)
 
 
 # --- local model discovery (Ollama) ------------------------------------------
