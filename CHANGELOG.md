@@ -4,7 +4,46 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
-## Unreleased
+## 0.18.0 — stale-bond & contradiction warnings, Word↔claims bridge, submission-packet methods, executable blinded AI rater (2026-06-17)
+
+- **Stale-bond warning — evidence assessments are flagged when the claim text changes.**
+  A claim-support rating / final decision is a bond formed against a specific wording; each
+  is stamped (once, at first write) with its `claim_text_hash`. When the claim is later
+  revised, the current hash no longer matches and the bond is surfaced as **stale** —
+  advisory, never auto-invalidated. New `claims/bonds.py` (`claim_bond_status`), a read-only
+  `claim_bond_status` agent tool, a claim-level banner + per-candidate tag + an inline ⚠ in
+  the panel, and `accept_revision` now records the `from_hash`/`to_hash` transition in the
+  audit chain. Locked by `tests/test_claim_bonds.py`.
+
+- **Polarity "may contradict" cue surfaced in the review card.** The engine's polarity
+  guard (a contradicting passage is never returned as support) now drives a live, inspectable
+  panel hint: `claim_lexical_check` also returns `contradiction` / `polarity_cue` /
+  `opposing_quote`, and the card shows a "⚠ may contradict" tag with the negation cue and the
+  opposing sentence — shown only after the blind rating, never a verdict.
+
+- **Word → claims handoff — copy a pre-filled `run_claim_tests` prompt.** After importing a
+  `.docx`, the import-review modal gains a **Copy claim-tests prompt** button that hands over
+  the exact `run_claim_tests` choreography with the imported manuscript already embedded
+  (`POST /api/claim-tests-prompt`; `tools.claim_tests_prompt`), closing the .docx → claims
+  loop. The panel still never calls an AI itself — it only prepares the prompt to paste.
+
+- **Submission-ready methods statement in the review packet.** The packet now includes
+  `methods.md`: the `docs/REPORTING.md` human → AI → adjudication paragraph auto-filled with
+  the ledger's real numbers (version, model provenance, blinding order, comparable pairs,
+  raw agreement, Cohen's κ). Honest by construction — unpinned provenance and absent
+  dual-ratings render as `unset` / `n/a`, never invented. New `report/methods.py`.
+
+- **Interactive blinded fill tool for the claim-check ledger (`validation/claimcheck/fill_ledger.py`).**
+  Replaces hand-editing JSONL for step 2 of the measurement workflow: `rater1` / `rater2`
+  blinded passes (claim + passage only — never the status, the LLM, or the other rater),
+  `adjudicate` (reveals both raters), `status`, and `score`. Validates the relation
+  vocabulary, verifies each pair's `record_hash`, atomic rewrite, saves after every answer.
+  Locked by `tests/test_fill_ledger.py`.
+
+- **Epistemic Risk Score + the `overstated` verdict (2026-06-16).** A derived, advisory,
+  non-compensatory per-manuscript triage score (fatal-floor), plus the `overstated` support
+  value for the most common citation-integrity failure — the cited paper supports a *weaker*
+  claim than the one made (overclaim).
 
 - **Word in/out — the `.docx` bridge (optional `docx` extra).** Adds **Export Word** (`render_docx`
   builds the report as a .docx — headings, counts table, per-claim sections, scope footer;
