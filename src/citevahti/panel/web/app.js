@@ -160,9 +160,35 @@ const TEST_CHECK_LABELS = {
 };
 const TEST_BADGE = { pass: "PASS", fail: "FAIL", skip: "SKIP" };
 
+/* ---------- modal a11y ----------
+ * Every overlay goes through modalShell()/closeModalEl() so it announces as a
+ * dialog, moves focus inside on open, and restores focus to the opener on close.
+ * Escape + a Tab focus-trap are handled in the global keydown listener. */
+let _modalReturnFocus = null;
+function modalShell(id) {
+  let box = document.getElementById(id);
+  if (!box) {
+    box = document.createElement("div");
+    box.id = id;
+    box.className = "modal";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    box.tabIndex = -1;
+    document.body.appendChild(box);
+  }
+  _modalReturnFocus = document.activeElement;          // restore on close
+  setTimeout(() => { try { box.focus(); } catch {} }, 0);
+  return box;
+}
+function closeModalEl(box) {
+  if (!box) return;
+  box.remove();
+  const back = _modalReturnFocus; _modalReturnFocus = null;
+  if (back && back.focus) { try { back.focus(); } catch {} }
+}
+
 async function runTests(online) {
-  let box = $("#testModal");
-  if (!box) { box = document.createElement("div"); box.id = "testModal"; box.className = "modal"; document.body.appendChild(box); }
+  const box = modalShell("testModal");
   box.innerHTML = `<div class="modal-card"><div class="note">Running unit tests${online ? " — verifying citations online (this can take a moment)…" : "…"}</div></div>`;
   try {
     const s = await api("POST", "/api/test-suite", { online: !!online, manuscript_id: state.activeMs || null });
@@ -199,7 +225,7 @@ function renderTestResults(box, s) {
       ${s.online ? "" : `<button class="btn ghost" data-test-online="1">Also verify citations online</button>`}
       <button class="btn primary" data-test-close="1">Done</button></div></div>`;
 }
-function closeTests() { const b = $("#testModal"); if (b) b.remove(); }
+function closeTests() { closeModalEl($("#testModal")); }
 
 /* ---------- de-identified warehouse + Atlas contribution (download-only) ---- */
 function downloadJson(obj, filename) {
@@ -211,8 +237,7 @@ function downloadJson(obj, filename) {
   URL.revokeObjectURL(url);
 }
 async function openWarehouse() {
-  let box = $("#whModal");
-  if (!box) { box = document.createElement("div"); box.id = "whModal"; box.className = "modal"; document.body.appendChild(box); }
+  const box = modalShell("whModal");
   box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
   try { renderWarehouse(box, await api("GET", "/api/warehouse")); }
   catch (e) { box.innerHTML = `<div class="modal-card"><div class="err">${esc(e.message)}</div>
@@ -276,7 +301,7 @@ async function whAction(act) {
     }
   } catch (e) { alert(e.message); }
 }
-function closeWarehouse() { state.lastBundle = null; const b = $("#whModal"); if (b) b.remove(); }
+function closeWarehouse() { state.lastBundle = null; closeModalEl($("#whModal")); }
 
 /* ---------- AI second opinion settings ----------
  * Privacy-first. Most users drive CiteVahti through an assistant over MCP, which
@@ -284,8 +309,7 @@ function closeWarehouse() { state.lastBundle = null; const b = $("#whModal"); if
  * framed first and the off/local/api modes are for CiteVahti's OWN call. The API
  * key is NEVER entered here: it lives in the keychain/env (we only show presence). */
 async function openAiSettings() {
-  let box = $("#aiModal");
-  if (!box) { box = document.createElement("div"); box.id = "aiModal"; box.className = "modal"; document.body.appendChild(box); }
+  const box = modalShell("aiModal");
   box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
   try {
     const cfg = await api("GET", "/api/ai-config");
@@ -356,7 +380,7 @@ async function aiConfigure(patch) {
     renderAiSettings($("#aiModal"), cfg, models, suggested);
   } catch (e) { alert(e.message); }
 }
-function closeAiSettings() { const b = $("#aiModal"); if (b) b.remove(); }
+function closeAiSettings() { closeModalEl($("#aiModal")); }
 // CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
 function cssEscape(s) {
   return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
@@ -436,7 +460,8 @@ function renderConns() {
   const canWrite = (state.health && state.health.can_write || []).length > 0;
   const pubmedOk = HEALTHY.includes(conns.pubmed_ncbi) || HEALTHY.includes(conns.ncbi_api_key);
   const chip = (key, label, ok) =>
-    `<span class="conn ${ok ? "ok" : "off"}" data-connect="${key}"><span class="led"></span>${label}${ok ? "" : " — connect"}</span>`;
+    `<button type="button" class="conn ${ok ? "ok" : "off"}" data-connect="${key}"
+       aria-label="${esc(label)} — ${ok ? "connected" : "connect"}"><span class="led"></span>${label}${ok ? "" : " — connect"}</button>`;
   $("#conns").innerHTML = chip("zotero", "Zotero", canWrite) + chip("pubmed", "PubMed", pubmedOk);
 }
 
@@ -458,12 +483,7 @@ function renderMsBar() {
 
 /* ---------- folder picker: click through the filesystem, no path typing ---- */
 async function openBrowse(path) {
-  let box = $("#browseModal");
-  if (!box) {
-    box = document.createElement("div");
-    box.id = "browseModal"; box.className = "modal";
-    document.body.appendChild(box);
-  }
+  const box = modalShell("browseModal");
   box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
   try {
     const r = await api("POST", "/api/fs/browse", { path: path || null });
@@ -482,7 +502,7 @@ async function openBrowse(path) {
   } catch (e) { box.innerHTML = `<div class="modal-card"><div class="err">${esc(e.message)}</div>
     <div class="modal-foot"><button class="btn ghost" data-browse-close="1">Close</button></div></div>`; }
 }
-function closeBrowse() { const b = $("#browseModal"); if (b) b.remove(); }
+function closeBrowse() { closeModalEl($("#browseModal")); }
 async function useBrowseFolder(dir) {
   try { await api("POST", "/api/manuscripts/bind", { dir }); closeBrowse(); await loadManuscripts(); }
   catch (e) { alert(e.message); }
@@ -1443,6 +1463,27 @@ $("#theme").addEventListener("click", () => {
   syncThemeLabel();
 });
 document.addEventListener("keydown", (e) => {
+  // modal-first: Escape dismisses the open dialog; Tab is trapped inside it
+  const openModal = document.querySelector(".modal");
+  if (openModal) {
+    if (e.key === "Escape") {
+      const close = { whModal: closeWarehouse, aiModal: closeAiSettings,
+                      browseModal: closeBrowse, testModal: closeTests }[openModal.id];
+      (close || (() => closeModalEl(openModal)))();
+      return e.preventDefault();
+    }
+    if (e.key === "Tab") {
+      const f = [...openModal.querySelectorAll(
+        'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+        .filter((el) => !el.disabled && el.offsetParent !== null);
+      if (f.length) {
+        const first = f[0], last = f[f.length - 1];
+        if (document.activeElement === openModal) { first.focus(); return e.preventDefault(); }
+        if (e.shiftKey && document.activeElement === first) { last.focus(); return e.preventDefault(); }
+        if (!e.shiftKey && document.activeElement === last) { first.focus(); return e.preventDefault(); }
+      }
+    }
+  }
   if (e.target.matches("input, textarea, select")) return;
   // a focused claim span is role="button": Enter/Space must activate it (intrinsic
   // button behaviour for keyboard users — works even when shortcuts are turned off).
