@@ -6,6 +6,15 @@ previous one.
 
 ## Unreleased
 
+- **Word in/out — the `.docx` bridge (optional `docx` extra).** Adds **Export Word** (`render_docx`
+  builds the report as a .docx — headings, counts table, per-claim sections, scope footer;
+  `POST /api/report/docx` writes it under `exports/`) and **Import Word** (`docx_to_markdown`
+  converts an uploaded .docx manuscript to Markdown via `POST /api/manuscripts/import-docx`; the
+  panel shows the conversion in a review modal, then saves through the existing paste flow so the
+  human reviews before it lands). Both behind the `python-docx`-only `docx` extra
+  (`pip install 'citevahti[docx]'`) — absent, they raise a clear install hint, like `keyring`. The
+  ⎙ Export dialog gains Word + Import buttons. CI now installs `[docx]`; tests skip without it.
+
 - **Export menu (Markdown · PDF · review packet) — bridging to the Word world.** The header
   ⎙ Export button opens a dialog with: **Markdown** (the existing report download), **PDF**
   (the report rendered as a print-ready standalone HTML via the new `render_html`, opened for

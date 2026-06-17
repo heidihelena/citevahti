@@ -464,6 +464,12 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "POST" and path == "/api/report/packet":
             return 200, engine.export_review_packet(root=root)
 
+        if method == "POST" and path == "/api/report/docx":
+            return 200, engine.export_report_docx(root=root)
+
+        if method == "POST" and path == "/api/manuscripts/import-docx":
+            return 200, engine.import_manuscript_docx(_req(body, "docx_base64"), root=root)
+
         # ---- the manuscript "unit test" suite (each claim is a test case) ----
         # Offline by default (instant, structural); online verifies citations are
         # real + not retracted. Optionally scoped to one manuscript.

@@ -981,6 +981,40 @@ def export_review_packet(output_path: Optional[str] = None, *, root: Optional[st
     return {"output_file": out, "claim_count": rep.total, "members": members}
 
 
+def export_report_docx(output_path: Optional[str] = None, *, root: Optional[str] = None) -> dict:
+    """Export the report as a Word .docx (needs the optional 'docx' extra; raises a clear
+    error otherwise). Local file under exports/; nothing is transmitted."""
+    import os
+
+    from .report import render_docx
+    store = _open_store(root)
+    rep = claim_report(root=root)
+    data = render_docx(rep)          # RuntimeError with install hint if python-docx is absent
+    stamp = (rep.generated_at or "report").replace(":", "-").replace(".", "-")[:19]
+    out = output_path or str(store.dir / "exports" / f"citation-integrity-report-{stamp}.docx")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, "wb") as f:
+        f.write(data)
+    return {"output_file": out, "claim_count": rep.total}
+
+
+def import_manuscript_docx(docx_base64: str, *, root: Optional[str] = None) -> dict:
+    """Convert an uploaded .docx manuscript to Markdown for the paste → review flow
+    (needs the 'docx' extra). Returns the text only — the human reviews and saves it."""
+    import base64
+    import binascii
+
+    from .report import docx_to_markdown
+    try:
+        data = base64.b64decode(docx_base64 or "", validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("import payload is not valid base64") from exc
+    if not data:
+        raise ValueError("no .docx data provided")
+    md = docx_to_markdown(data)      # RuntimeError with install hint if python-docx is absent
+    return {"markdown": md, "lines": md.count("\n")}
+
+
 def warehouse_purge(*, root: Optional[str] = None):
     """Erase the validation warehouse (consent withdrawal)."""
     from .warehouse import ValidationWarehouseService

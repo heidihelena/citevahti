@@ -65,3 +65,44 @@ def test_review_packet_zips_report_and_trail(tmp_path):
         assert z.read("citation-integrity-report.html").decode().startswith("<!DOCTYPE html>")
         # the structured trail carries the claim + provenance
         assert "LDCT reduces lung-cancer mortality." in z.read("claims.json").decode()
+
+
+# ---- Word (.docx) bridge — needs the optional 'docx' extra -----------------
+def test_render_docx_contains_the_claim(tmp_path):
+    import pytest
+    docx = pytest.importorskip("docx")          # skip cleanly without the extra
+    from io import BytesIO
+
+    from citevahti.report import render_docx
+    s, _ = _store(tmp_path)
+    rep = ClaimReportService(s).report()
+    data = render_docx(rep)
+    assert isinstance(data, bytes) and data[:2] == b"PK"   # a .docx is a zip
+    doc = docx.Document(BytesIO(data))
+    text = "\n".join(p.text for p in doc.paragraphs)
+    assert "LDCT reduces lung-cancer mortality." in (text + "".join(
+        c.text for t in doc.tables for r in t.rows for c in r.cells))
+
+
+def test_export_report_docx_writes_a_file(tmp_path):
+    import pytest
+    pytest.importorskip("docx")
+    _store(tmp_path)
+    res = engine.export_report_docx(root=str(tmp_path))
+    assert res["claim_count"] == 1 and res["output_file"].endswith(".docx")
+    assert zipfile.is_zipfile(res["output_file"])
+
+
+def test_docx_import_round_trips_to_markdown(tmp_path):
+    import pytest
+    docx = pytest.importorskip("docx")
+    import base64
+    from io import BytesIO
+
+    d = docx.Document()
+    d.add_heading("My Manuscript", level=1)
+    d.add_paragraph("LDCT reduces lung-cancer mortality in high-risk adults.")
+    buf = BytesIO(); d.save(buf)
+    out = engine.import_manuscript_docx(base64.b64encode(buf.getvalue()).decode())
+    assert out["markdown"].startswith("# My Manuscript")
+    assert "LDCT reduces lung-cancer mortality" in out["markdown"]
