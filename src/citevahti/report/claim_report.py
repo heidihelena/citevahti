@@ -10,10 +10,11 @@ from __future__ import annotations
 
 from typing import Optional
 
+from ..claims.bonds import bond_status
 from ..schemas.report import (STATE_CODE, ClaimEvidence, ClaimReport,
                               ClaimReportRow, ReportProvenance)
 from ..state.store import StateError
-from ..util import utc_now_iso
+from ..util import claim_text_hash, utc_now_iso
 
 RETRACTION_SOURCE = ("OpenAlex is_retracted, matched by DOI/PMID only — "
                      "items without a DOI or PMID are not checked")
@@ -68,6 +69,7 @@ class ClaimReportService:
 
     def _row(self, claim, ratings_idx) -> ClaimReportRow:
         cands = self._candidates(claim.claim_id)
+        current_hash = claim_text_hash(claim.claim_text)
         evidence, has_accept, has_review, decided = [], False, False, 0
         for c in cands:
             dec = self._decision_for(c.candidate_id)
@@ -91,6 +93,12 @@ class ClaimReportService:
             fit = human.fit if (human and human_v is not None) else None
             quote = next((p.quote for p in human.source_passages), None) \
                 if (human and human_v is not None) else None
+            # A bond is stale if its rating OR its decision was formed against an
+            # older claim wording (claim revised since). Advisory; nothing changes.
+            stale = ((rating is not None
+                      and bond_status(rating.claim_text_hash, current_hash) == "stale")
+                     or (dec is not None
+                         and bond_status(dec.claim_text_hash, current_hash) == "stale"))
             evidence.append(ClaimEvidence(
                 candidate_id=c.candidate_id,
                 decision_id=(dec.decision_id if dec else None),
@@ -100,7 +108,7 @@ class ClaimReportService:
                 final_decision=(dec.final_decision if dec else None),
                 agreement=(dec.agreement_status if dec else None),
                 fit=fit, fit_total=_fit_total(fit) if fit else None, excerpt=quote,
-                retracted=c.retracted))
+                retracted=c.retracted, stale=stale))
 
         untestable = getattr(claim, "untestable_reason", None)
         if has_accept:
@@ -122,6 +130,7 @@ class ClaimReportService:
             candidate_count=len(cands),
             accepted_count=sum(1 for e in evidence if e.final_decision in _ACCEPTING),
             evidence=evidence,
+            has_stale_bonds=any(e.stale for e in evidence),
             proposed_revision=claim.proposed_revision,
             proposed_revision_by=claim.proposed_revision_by,
             untestable_reason=untestable)

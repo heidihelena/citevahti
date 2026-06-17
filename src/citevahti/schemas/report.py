@@ -58,6 +58,8 @@ class ClaimEvidence(BaseModel):
     excerpt: Optional[str] = None             # verbatim quote from the human's source passage
     retracted: Optional[bool] = None          # True = flagged by the retraction scan;
                                               # None = not flagged (which includes "not checked")
+    stale: bool = False                       # True = the rating/decision was formed against an
+                                              # older claim wording (claim revised since) — re-check
 
 
 class ClaimReportRow(BaseModel):
@@ -74,6 +76,7 @@ class ClaimReportRow(BaseModel):
     proposed_revision: Optional[str] = None        # pending rewrite, shown as a diff
     proposed_revision_by: Optional[str] = None      # "ai" | "human" | "imported"
     untestable_reason: Optional[str] = None         # why the source is out of indexed scope
+    has_stale_bonds: bool = False                   # any evidence formed against an older wording
 
 
 class ReportProvenance(BaseModel):

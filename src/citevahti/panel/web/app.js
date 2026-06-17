@@ -652,7 +652,11 @@ function renderDoc() {
     // an accepted claim is a cited passage: tag it so copying carries the citation
     const ref = st.cite ? citeOf(st.cite) : "";
     const cite = ref ? ` data-citation="${esc(ref)}"` : "";
-    return `<span class="claim ${cls}${active}" data-claim="${esc(seg.claim_id)}"${cite} tabindex="0" role="button" aria-label="${esc("claim " + aria + ": " + seg.text)}">${esc(seg.text)}<span class="code" aria-hidden="true">${esc(code)}</span></span>`;
+    // advisory: an assessment predates the current wording — flag it inline
+    const stale = st.has_stale_bonds
+      ? `<span class="stalemark" aria-hidden="true" title="Reworded since assessed — re-check">⚠</span>` : "";
+    const ariaStale = st.has_stale_bonds ? " (reworded since assessed)" : "";
+    return `<span class="claim ${cls}${active}" data-claim="${esc(seg.claim_id)}"${cite} tabindex="0" role="button" aria-label="${esc("claim " + aria + ariaStale + ": " + seg.text)}">${esc(seg.text)}<span class="code" aria-hidden="true">${esc(code)}</span>${stale}</span>`;
   }).join("");
   doc.innerHTML = html;
   if (v.mode === "reconstructed") {
@@ -787,9 +791,14 @@ function renderCard() {
  * regardless of the rate/decide phase. Writes to the .md when the document is
  * open (previewed + undoable); otherwise saves the revision to the ledger. */
 function claimLineBlock(claim) {
+  // Advisory, non-blocking: an evidence assessment was formed against an older
+  // wording of this claim. Nothing is invalidated — the human re-checks.
+  const stale = claim.has_stale_bonds
+    ? `<div class="stalewarn" title="A rating or decision was made against a previous wording of this claim">⚠ Claim reworded since it was assessed — re-check the evidence below.</div>`
+    : "";
   return `<div class="lbl">Claim · ${esc(claim.claim_type || "")}
       <button class="chip-btn tiny" data-act="edit-claim" title="Reword this claim after reading the evidence">✏ Edit claim</button></div>
-    <div class="claimline">“${esc(claim.claim_text)}”</div>
+    <div class="claimline">“${esc(claim.claim_text)}”</div>${stale}
     <div id="claimEdit"></div>`;
 }
 
@@ -864,7 +873,15 @@ async function runLexCheck() {
     if (!r.available) { box.innerHTML = `<div class="note">No abstract text to check against.</div>`; return; }
     const tag = r.status === "terms_present"
       ? `<span class="tag ok">terms present</span>` : `<span class="tag nodoi">key terms missing</span>`;
-    box.innerHTML = `<div class="checks">${tag}<span class="fittag">coverage ${Math.round(r.coverage * 100)}%</span></div>`
+    const conflictTag = r.contradiction ? `<span class="tag stale">⚠ may contradict</span>` : "";
+    // a deterministic, inspectable "may contradict" hint — shows the negation cue
+    // that flipped polarity and the opposing sentence; advisory, never a verdict
+    const conflict = r.contradiction
+      ? `<div class="polconflict">⚠ A passage may contradict the claim${r.polarity_cue ? ` — negation cue: <strong>“${esc(r.polarity_cue)}”</strong>` : ""}. Review before deciding.`
+        + (r.opposing_quote ? `<div class="note">“${esc(r.opposing_quote)}”</div>` : "") + `</div>`
+      : "";
+    box.innerHTML = `<div class="checks">${tag}${conflictTag}<span class="fittag">coverage ${Math.round(r.coverage * 100)}%</span></div>`
+      + conflict
       + (r.missing.length ? `<div class="lbl">Not in the abstract</div><div class="note">${esc(r.missing.join(", "))}</div>` : "")
       + (r.present.length ? `<div class="lbl">Present</div><div class="note">${esc(r.present.join(", "))}</div>` : "");
   } catch (e) { box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
@@ -938,6 +955,7 @@ function candidateTags(cand) {
   if (!cand) return "";
   const t = [];
   if (cand.retracted) t.push(`<span class="tag retracted">⚠ RETRACTED</span>`);
+  if (cand.stale_bond) t.push(`<span class="tag stale" title="This paper was assessed against an older wording of the claim — re-check">⚠ claim reworded since</span>`);
   if (cand.already_in_zotero) t.push(`<span class="tag inzot">✓ in Zotero</span>`);
   t.push(cand.doi ? `<span class="tag ok">DOI ✓</span>` : `<span class="tag nodoi">no DOI</span>`);
   return `<div class="ctags">${t.join("")}

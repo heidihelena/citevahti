@@ -53,4 +53,7 @@ def test_hash_is_lowercase_hex_sha256():
 def test_warehouse_uses_the_shared_normalizer():
     # the warehouse must hash via the shared spec, not its own private rule
     from citevahti import warehouse
-    assert warehouse._norm_claim is normalize_claim_text
+    from citevahti.util import claim_text_hash
+    assert warehouse._claim_text_hash is claim_text_hash
+    # and the shared helper is exactly sha256(normalize) — one definition, no drift
+    assert claim_text_hash("Foo  BAR") == sha256_hex(normalize_claim_text("Foo  BAR"))

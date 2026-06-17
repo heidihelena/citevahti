@@ -207,3 +207,11 @@ def get_provenance(decision_id: str, *, root: Optional[str] = None) -> dict:
         "final_decision": dec.final_decision, "agreement": dec.agreement_status,
         "transaction_id": txn_id, "undo_available": txn_id is not None,
     }
+
+
+def claim_bond_status(claim_id: str, *, root: Optional[str] = None) -> dict:
+    """Read-only: is this claim's evidence assessment still in sync with its text?
+
+    After a claim is revised, ratings/decisions formed against the old wording are
+    flagged ``stale`` — a checkable advisory to re-verify, nothing is invalidated."""
+    return _t.claim_bond_status(claim_id, root=root)

@@ -42,4 +42,8 @@ class FinalDecision(BaseModel):
     decision_reason: Optional[str] = None
     created_at: Optional[str] = None
     provenance: Optional[Provenance] = None
+    # The claim_text_hash this decision was made against, stamped once at first
+    # write. After a claim revision, current hash != this → the decision is stale
+    # (made on the previous wording). Optional/legacy-safe. See claims/bonds.py.
+    claim_text_hash: Optional[str] = None
     audit_event_id: Optional[str] = None

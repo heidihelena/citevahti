@@ -87,4 +87,9 @@ class ClaimSupportRating(BaseModel):
     comparison: Comparison = Field(default_factory=Comparison)
     adjudication: Adjudication = Field(default_factory=Adjudication)
     blinding: Blinding = Field(default_factory=Blinding)
+    # The claim_text_hash this rating was formed against, stamped once at first
+    # write. When the claim is later revised, current hash != this → the bond is
+    # stale (the rating predates the wording). Optional/legacy-safe: a record
+    # without it reads as 'unknown', never silently 'current'. See claims/bonds.py.
+    claim_text_hash: Optional[str] = None
     audit_event_id: Optional[str] = None

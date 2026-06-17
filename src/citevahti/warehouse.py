@@ -15,8 +15,8 @@ import uuid
 from typing import Optional
 
 from .schemas.validation_record import ValidationRecord, WarehouseReport
-from .util import normalize_claim_text as _norm_claim
-from .util import sha256_hex, utc_now_iso
+from .util import claim_text_hash as _claim_text_hash
+from .util import utc_now_iso
 
 
 class ValidationWarehouseService:
@@ -79,10 +79,9 @@ class ValidationWarehouseService:
         ai = rating.ai_rating if rating else None
         fit = (human.fit if human else (ai.fit if ai else None))
 
-        norm = _norm_claim(claim.claim_text)
         record = ValidationRecord(
             record_id=f"vr-{uuid.uuid4().hex[:12]}", created_at=utc_now_iso(),
-            claim_type=claim.claim_type, claim_text_hash=sha256_hex(norm),
+            claim_type=claim.claim_type, claim_text_hash=_claim_text_hash(claim.claim_text),
             claim_text=(claim.claim_text if self.cfg.include_claim_text else None),
             domain=self.cfg.domain or claim.claim_type,
             pmid=candidate.pmid, doi=candidate.doi, study_type=None,
