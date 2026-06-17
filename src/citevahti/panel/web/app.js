@@ -159,11 +159,69 @@ function openExportModal() {
     <div class="actions" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
       <button class="btn ghost" data-act="export-md">⬇ Markdown (.md)</button>
       <button class="btn ghost" data-act="export-pdf">⎙ PDF — print / Save as PDF</button>
+      <button class="btn ghost" data-act="export-word">📄 Word (.docx)</button>
       <button class="btn primary" data-act="export-packet">⛁ Review packet (.zip)</button>
     </div>
+    <div class="lbl" style="margin-top:12px">Bring a manuscript in</div>
+    <div class="actions" style="margin-top:4px"><button class="btn ghost" data-act="import-word">📄 Import Word (.docx) → review</button></div>
+    <div class="note dim" style="margin-top:6px">Word in/out needs the <span class="mono">docx</span> extra
+      (<span class="mono">pip install 'citevahti[docx]'</span>) — you'll get a clear note if it's missing.</div>
     <div class="modal-foot"><button class="btn ghost" data-export-close="1">Done</button></div></div>`;
 }
 function closeExportModal() { closeModalEl($("#exportModal")); }
+
+async function exportDocx() {
+  try {
+    const r = await api("POST", "/api/report/docx", {});
+    closeExportModal();
+    setAgentLine(`Word report saved (${r.claim_count} claim(s)) → ${esc(r.output_file)}`);
+    alert(`Word report saved (${r.claim_count} claim(s)):\n${r.output_file}`);
+  } catch (e) { alert(e.message); }   // surfaces the "install citevahti[docx]" hint if absent
+}
+
+function importWord() {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".docx";
+  inp.onchange = async () => {
+    const file = inp.files && inp.files[0]; if (!file) return;
+    try {
+      const dataUrl = await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error("could not read the file"));
+        fr.readAsDataURL(file);
+      });
+      const b64 = String(dataUrl).split(",", 2)[1] || "";
+      const r = await api("POST", "/api/manuscripts/import-docx", { docx_base64: b64 });
+      openImportReview(file.name.replace(/\.docx$/i, "") + ".md", r.markdown || "");
+    } catch (e) { alert(e.message); }
+  };
+  inp.click();
+}
+
+function openImportReview(filename, markdown) {
+  closeExportModal();
+  const box = modalShell("importModal");
+  box.innerHTML = `<div class="modal-card">
+    <div class="modal-head"><b>Import Word → review</b><button class="chip-btn" data-import-close="1">✕</button></div>
+    <div class="note">Converted from .docx to Markdown. Review it, then save — claim extraction runs in your chat client afterwards.</div>
+    <div class="lbl">Filename</div><input id="imName" type="text" value="${esc(filename)}" />
+    <div class="lbl">Manuscript (Markdown)</div>
+    <textarea id="imBody" class="revbox" style="min-height:220px">${esc(markdown)}</textarea>
+    <div class="modal-foot"><button class="btn primary" data-import-save="1">Save document</button>
+      <button class="btn ghost" data-import-close="1">Cancel</button></div></div>`;
+}
+function closeImportModal() { closeModalEl($("#importModal")); }
+async function saveImported() {
+  const filename = (($("#imName") || {}).value || "").trim();
+  const content = ($("#imBody") || {}).value || "";
+  if (!filename) { ($("#imName") || {}).focus && $("#imName").focus(); return; }
+  try {
+    const r = await api("POST", "/api/manuscripts/paste", { filename, content });
+    closeImportModal();
+    await loadManuscripts();
+    setAgentLine(`Imported ${esc(r.filename)} — ${esc(r.next_prompt || "extract claims next")}`);
+  } catch (e) { alert(e.message); }
+}
 
 async function exportPdf() {
   try {
@@ -1461,6 +1519,8 @@ document.addEventListener("click", (e) => {
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
   if (e.target.closest("[data-connect-close]")) return void closeConnectModal();
   if (e.target.closest("[data-export-close]")) return void closeExportModal();
+  if (e.target.closest("[data-import-close]")) return void closeImportModal();
+  if (e.target.closest("[data-import-save]")) return void saveImported();
   const cs = e.target.closest("[data-connect-submit]"); if (cs) return void submitConnect(cs.dataset.connectSubmit);
   const ms = e.target.closest("[data-ms]"); if (ms) return void loadManuscript(ms.dataset.ms).then(renderMsBar);
   if (e.target.id === "bindBtn") return void bindFolder();
@@ -1494,6 +1554,7 @@ document.addEventListener("click", (e) => {
      docundo: docUndo, unlink: unlinkCandidate, gonext: goToNextClaim, exportreport: exportReport,
      "run-ai": runAiSecondOpinion,
      "export-md": exportReport, "export-pdf": exportPdf, "export-packet": exportPacket,
+     "export-word": exportDocx, "import-word": importWord,
      next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
@@ -1557,7 +1618,8 @@ document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       const close = { whModal: closeWarehouse, aiModal: closeAiSettings,
                       browseModal: closeBrowse, testModal: closeTests,
-                      connectModal: closeConnectModal, exportModal: closeExportModal }[openModal.id];
+                      connectModal: closeConnectModal, exportModal: closeExportModal,
+                      importModal: closeImportModal }[openModal.id];
       (close || (() => closeModalEl(openModal)))();
       return e.preventDefault();
     }

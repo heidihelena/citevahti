@@ -29,6 +29,7 @@ mcp = ["mcp>=1.27.2"]
 dev = ["pytest>=9.1.0"]
 keyring = ["keyring>=25.7.0"]   # OS-native secret store for onboarding (system_keyring backend)
 timestamp = ["asn1crypto>=1.5.1"]   # RFC 3161 timestamping of the audit head (issue #42); opt-in
+docx = ["python-docx>=1.1.0"]   # Word export + Word import (the researcher's .docx world); opt-in
 
 [project.scripts]
 citevahti = "citevahti.cli:main"
