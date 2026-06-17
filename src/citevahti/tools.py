@@ -833,6 +833,16 @@ def reject_revision(claim_id: str, *, root: Optional[str] = None):
     return ClaimService(_open_store(root)).reject_revision(claim_id)
 
 
+def claim_bond_status(claim_id: str, *, root: Optional[str] = None):
+    """Report whether a claim's evidence assessments are stale after a revision.
+
+    Returns the bond freshness for the claim — which claim-support ratings /
+    decisions were formed against an older wording (``stale``) and so should be
+    re-checked. Advisory only; nothing is invalidated."""
+    from .claims.bonds import claim_bond_status as _status
+    return _status(_open_store(root), claim_id)
+
+
 def link_candidates(claim_id: str, intake_batch_id: str, record_ids: Optional[list] = None, *,
                     root: Optional[str] = None):
     """Link staged intake hits to a claim as candidates (ADR-0001 step 2). No Zotero write."""

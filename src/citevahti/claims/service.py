@@ -13,7 +13,7 @@ from typing import Optional
 from .. import __version__
 from ..schemas.claim import Claim
 from ..schemas.common import Provenance
-from ..util import config_hash, sha256_hex, utc_now_iso
+from ..util import claim_text_hash, config_hash, sha256_hex, utc_now_iso
 
 
 class ClaimService:
@@ -91,9 +91,13 @@ class ClaimService:
             raise ValueError(
                 "proposed revision changed since it was previewed; refresh and review the latest diff")
         old, new = claim.claim_text, claim.proposed_revision
+        # Record the hash transition: existing claim-support ratings / decisions
+        # stamped with from_hash are now stale (claims/bonds.py surfaces this).
         self.store.audit.append("claim.revised",
                                 {"claim_id": claim_id, "from_len": len(old),
-                                 "to_len": len(new), "by": claim.proposed_revision_by})
+                                 "to_len": len(new), "by": claim.proposed_revision_by,
+                                 "from_hash": claim_text_hash(old),
+                                 "to_hash": claim_text_hash(new)})
         claim.claim_text = new
         claim.proposed_revision = None
         claim.proposed_revision_by = None

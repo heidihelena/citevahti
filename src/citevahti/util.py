@@ -66,6 +66,15 @@ def normalize_claim_text(text: str) -> str:
     return s
 
 
+def claim_text_hash(text: str) -> str:
+    """The shared cross-tool ``claim_text_hash`` = sha256 over the normalized text.
+
+    One definition so CiteVahti, MatchVahti and the corpus blind index agree
+    byte-for-byte (see ``normalize_claim_text`` and docs/CLAIM_NORMALIZATION.md).
+    """
+    return sha256_hex(normalize_claim_text(text))
+
+
 def config_hash(value: Any) -> str:
     """SHA-256 over canonicalized JSON of the relevant config subset."""
     return sha256_hex(canonical_json(value))

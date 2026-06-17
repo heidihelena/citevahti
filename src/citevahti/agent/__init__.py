@@ -27,6 +27,7 @@ TOOLS = {
     "commit_write": tools.commit_write,
     "undo": tools.undo,
     "get_provenance": tools.get_provenance,
+    "claim_bond_status": tools.claim_bond_status,
 }
 
 # fail fast at import if the surface ever drifts from the allow-list

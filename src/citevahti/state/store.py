@@ -314,6 +314,21 @@ class CiteVahtiStore:
                                        {"claim_id": claim_id, "candidate_id": candidate_id,
                                         "remaining": len(cc.candidates)})
 
+    # ---- claim ↔ evidence "bond" provenance ------------------------------
+    def _stamp_claim_text_hash(self, record) -> None:
+        """Stamp the claim_text_hash a rating/decision was formed against — once,
+        at first write. Later, a claim revision makes the current hash differ from
+        this, which is how a *stale bond* is detected (claims/bonds.py). Best-effort:
+        if the claim file is gone we leave it None ('unknown'), never guess."""
+        if getattr(record, "claim_text_hash", None):
+            return
+        from ..util import claim_text_hash
+        try:
+            claim = self.load_claim(record.claim_id)
+        except StateError:
+            return
+        record.claim_text_hash = claim_text_hash(claim.claim_text)
+
     # ---- claim-support ratings (ADR-0001, step 3) ------------------------
     def claim_support_dir(self) -> Path:
         return self.dir / "claim_support"
@@ -328,7 +343,13 @@ class CiteVahtiStore:
         validate_claim_support_record(record)
         path = self.claim_support_dir() / f"{record.rating_id}.json"
         if path.exists():
-            assert_support_human_unchanged(self.load_support_rating(record.rating_id), record)
+            existing = self.load_support_rating(record.rating_id)
+            assert_support_human_unchanged(existing, record)
+            # Stamp-once: a re-save (e.g. adjudication) keeps the hash of the text
+            # the bond was first formed against, so a later revision still reads stale.
+            if not record.claim_text_hash and existing.claim_text_hash:
+                record.claim_text_hash = existing.claim_text_hash
+        self._stamp_claim_text_hash(record)
         entry = self.audit.append(
             "claim_support.save",
             {"rating_id": record.rating_id, "claim_id": record.claim_id,
@@ -364,6 +385,7 @@ class CiteVahtiStore:
         from ..validators.decision import validate_final_decision
 
         validate_final_decision(record)
+        self._stamp_claim_text_hash(record)
         entry = self.audit.append(
             "decision.final",
             {"decision_id": record.decision_id, "claim_id": record.claim_id,

@@ -26,6 +26,7 @@ ALLOWED_AGENT_TOOLS = (
     "commit_write",              # writes ONLY the approved payload (token-bound)
     "undo",                      # reverse a committed write
     "get_provenance",            # read the "why is this here?" chain
+    "claim_bond_status",         # read-only: flag evidence assessments stale after a claim revision
 )
 
 # Capabilities an agent must NEVER have. Asserted against the surface in tests.
