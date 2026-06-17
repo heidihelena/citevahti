@@ -873,7 +873,15 @@ async function runLexCheck() {
     if (!r.available) { box.innerHTML = `<div class="note">No abstract text to check against.</div>`; return; }
     const tag = r.status === "terms_present"
       ? `<span class="tag ok">terms present</span>` : `<span class="tag nodoi">key terms missing</span>`;
-    box.innerHTML = `<div class="checks">${tag}<span class="fittag">coverage ${Math.round(r.coverage * 100)}%</span></div>`
+    const conflictTag = r.contradiction ? `<span class="tag stale">⚠ may contradict</span>` : "";
+    // a deterministic, inspectable "may contradict" hint — shows the negation cue
+    // that flipped polarity and the opposing sentence; advisory, never a verdict
+    const conflict = r.contradiction
+      ? `<div class="polconflict">⚠ A passage may contradict the claim${r.polarity_cue ? ` — negation cue: <strong>“${esc(r.polarity_cue)}”</strong>` : ""}. Review before deciding.`
+        + (r.opposing_quote ? `<div class="note">“${esc(r.opposing_quote)}”</div>` : "") + `</div>`
+      : "";
+    box.innerHTML = `<div class="checks">${tag}${conflictTag}<span class="fittag">coverage ${Math.round(r.coverage * 100)}%</span></div>`
+      + conflict
       + (r.missing.length ? `<div class="lbl">Not in the abstract</div><div class="note">${esc(r.missing.join(", "))}</div>` : "")
       + (r.present.length ? `<div class="lbl">Present</div><div class="note">${esc(r.present.join(", "))}</div>` : "");
   } catch (e) { box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }

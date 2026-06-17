@@ -402,18 +402,28 @@ def claim_lexical_check(claim_text: str, text: str) -> dict:
 
     NEVER asserts truth — only whether the claim's key terms appear in the text. The
     panel shows it AFTER the human's blind rating so it can't bias it."""
-    from .retrieval.text import content_tokens, coverage_score
+    from .retrieval.text import (content_tokens, coverage_score, negation_cue,
+                                 polarity_conflict, segment_sentences)
     claim_terms = content_tokens(claim_text or "")
     if not claim_terms or not (text or "").strip():
         return {"available": False}
     text_terms = content_tokens(text)
     cov = coverage_score(claim_text, text)
+    # Direction guard (same rule as claim_check): a sentence can overlap the claim's
+    # terms yet assert the OPPOSITE polarity ("did not reduce" vs "reduced"). Surface
+    # it as an inspectable "may contradict" cue — never a verdict, never hidden.
+    opposing = next((s for _a, _b, s in segment_sentences(text)
+                     if polarity_conflict(claim_text, s)), None)
+    cue = (negation_cue(opposing) or negation_cue(claim_text)) if opposing else None
     return {
         "available": True,
         "coverage": round(cov, 2),
         "status": "terms_present" if cov >= 0.5 else "terms_missing",
         "present": sorted(t for t in claim_terms if t in text_terms),
         "missing": sorted(t for t in claim_terms if t not in text_terms),
+        "contradiction": opposing is not None,
+        "polarity_cue": cue,
+        "opposing_quote": opposing,
     }
 
 
