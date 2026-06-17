@@ -41,6 +41,23 @@ to do — no command to remember.
 
 ![A "what's next" banner above the manuscript names the next action and takes you there.](docs/screenshots/00-next-step.png)
 
+### Update to a new version
+
+For a clean update — uninstall, clear the cached wheel, then reinstall:
+
+```bash
+pip uninstall -y citevahti
+pip cache remove citevahti
+pip install "citevahti[mcp]"
+pip show citevahti          # confirm the new version
+```
+
+Or in one line: `pip install --no-cache-dir --upgrade "citevahti[mcp]"`.
+
+Your review data in `.citevahti/` is **not** touched by this — updating only replaces the
+program. On Claude Desktop, download the newest `citevahti.mcpb` and double-click it to
+replace the old extension.
+
 ## The workflow
 
 1. Paste or open a manuscript.
