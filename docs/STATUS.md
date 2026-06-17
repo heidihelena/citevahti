@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.16.0 — the inline reviewer is the default, self-sufficient panel
+## Status: v0.17.0 — the inline reviewer is the default, self-sufficient panel
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
@@ -15,7 +15,9 @@ action-first **Rate → Reveal → Decide → Write** card, and enough built in 
 whole loop without the chat — find evidence (PubMed / OpenAlex / Semantic Scholar /
 your Zotero library), add claims, connect Zotero (paste or OAuth), backfill DOIs, scan
 for retractions, open a reference's PDF in Zotero, revise the `.md`, and read a per-claim
-audit trail. The AI second rating still comes only from your chat client over MCP.
+audit trail. The AI second rating can come from your MCP assistant (Claude Desktop / ChatGPT /
+Codex), a local model (Ollama / LM Studio), or your own API key — and every mode stays blinded
+until your human rating exists.
 
 **`citevahti start`** launches the whole workspace at once — panel + browser + MCP
 server — and doubles as the one line in your chat client's MCP config. You drive the
