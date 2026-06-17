@@ -821,6 +821,24 @@ def test_claim_check_endpoint_uses_candidate_abstract(tmp_path, monkeypatch):
     assert status == 200 and payload["available"] is True and "coverage" in payload
 
 
+def test_claim_tests_prompt_engine_prefills_manuscript():
+    # the Word→claims handoff: the ready-to-paste run_claim_tests prompt, with the
+    # imported text embedded and the blinding invariants intact
+    r = engine.claim_tests_prompt("Statins reduce cardiovascular mortality.")
+    assert r["name"] == "run_claim_tests"
+    assert "Statins reduce cardiovascular mortality." in r["prompt"]
+    assert "MANUSCRIPT IS THE CODE" in r["prompt"]              # the real choreography
+    empty = engine.claim_tests_prompt("")
+    assert "--- Manuscript to test ---" not in empty["prompt"]  # nothing embedded when blank
+
+
+def test_claim_tests_prompt_endpoint(tmp_path):
+    status, payload = dispatch(str(tmp_path), "POST", "/api/claim-tests-prompt",
+                               {"manuscript": "Drug X improves survival."})
+    assert status == 200 and payload["name"] == "run_claim_tests"
+    assert "Drug X improves survival." in payload["prompt"]
+
+
 def test_error_responses_have_stable_code_and_remediation(tmp_path):
     # uninitialised ledger -> ValueError -> stable {error, code, message, remediation}
     status, payload = dispatch(str(tmp_path), "GET", "/api/claims", None)

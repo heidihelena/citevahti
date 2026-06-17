@@ -478,6 +478,11 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "POST" and path == "/api/manuscripts/import-docx":
             return 200, engine.import_manuscript_docx(_req(body, "docx_base64"), root=root)
 
+        # the ready-to-paste run_claim_tests choreography, pre-filled with the
+        # imported/pasted manuscript — closes the .docx → claims handoff into chat
+        if method == "POST" and path == "/api/claim-tests-prompt":
+            return 200, engine.claim_tests_prompt(body.get("manuscript") or "")
+
         # ---- the manuscript "unit test" suite (each claim is a test case) ----
         # Offline by default (instant, structural); online verifies citations are
         # real + not retracted. Optionally scoped to one manuscript.
