@@ -876,7 +876,18 @@ def support_commit_human(rating_id: str, value: str, *, fit=None, rationale: Opt
 
 def support_run_ai(rating_id: str, task_type: str = "assess", *, root: Optional[str] = None,
                    rater=None):
-    """Blind advisory AI claim-support rating (needs a pinned model + a rater)."""
+    """Blind advisory AI claim-support rating (needs a pinned model + a rater).
+
+    With no rater injected, build one from config: ``off`` -> a clear error (the MCP
+    assistant submits the rating instead), ``local`` / ``api`` -> the configured model.
+    """
+    if rater is None:
+        from .claims import build_support_ai_rater
+        rater = build_support_ai_rater(_open_store(root).load_config())
+        if rater is None:
+            raise ValueError(
+                "AI is off — set the AI mode to 'local' or 'api' in the panel (✦ AI), "
+                "or have your assistant submit the rating over MCP.")
     return _support_engine(root, rater).support_run_ai(rating_id, task_type)
 
 

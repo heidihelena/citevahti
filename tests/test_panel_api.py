@@ -1107,3 +1107,34 @@ def test_ai_local_models_shape(tmp_path):
     assert status == 200
     assert isinstance(payload["models"], list)            # [] when Ollama isn't running
     assert isinstance(payload["suggested"], str) and payload["suggested"]  # always a suggestion
+
+
+def test_run_ai_off_mode_is_a_clear_error(tmp_path):
+    # default mode is off -> CiteVahti's own call is unavailable; the MCP path is unchanged
+    store, claim_id, cand_id = _setup(tmp_path)
+    root = str(tmp_path)
+    _, started = dispatch(root, "POST", "/api/ratings/start",
+                          {"claim_id": claim_id, "candidate_id": cand_id})
+    status, payload = dispatch(root, "POST", f"/api/ratings/{started['rating_id']}/run-ai", {})
+    assert status == 400 and "AI is off" in payload.get("message", "")
+
+
+def test_run_ai_local_records_blind(tmp_path):
+    # mode=local + a fake transport: CiteVahti runs its own blinded second opinion
+    store, claim_id, cand_id = _setup(tmp_path)
+    cfg = store.load_config()
+    cfg.ai_connection.mode = "local"
+    store.save_config(cfg)
+    from citevahti.claims import ClaimSupportEngine, build_support_ai_rater
+
+    class _Poster:
+        def post_json(self, url, headers, payload, timeout):
+            return {"choices": [{"message": {"content": '{"value":"contradicts","abstained":false}'}}]}
+
+    rater = build_support_ai_rater(cfg, poster=_Poster())
+    eng = ClaimSupportEngine(store, rater=rater, config=cfg)
+    rec0 = eng.support_start(claim_id, cand_id)
+    rec = eng.support_run_ai(rec0.rating_id)
+    assert rec.ai_rating is not None and rec.ai_rating.value == "contradicts"
+    # blinded by construction: the AI never saw a human value (none exists yet)
+    assert rec.human_rating is None and rec.blinding.independent is True
