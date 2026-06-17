@@ -449,6 +449,7 @@ a.doi:hover { text-decoration: underline; }
 .ai-cfg { border: 1px solid var(--zs-line); border-radius: 8px; padding: 10px 11px; margin: 4px 0 8px;
   background: var(--zs-surface); display: flex; flex-direction: column; gap: 7px; }
 .ai-cfg select, .ai-cfg input[type=text] { width: 100%; box-sizing: border-box; }
+.getai { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0 4px; }
 .wh-toggle { display: flex; gap: 9px; align-items: flex-start; padding: 9px 10px; margin: 6px 0;
   border: 1px solid var(--zs-line); border-radius: 8px; background: var(--zs-surface); cursor: pointer; }
 .wh-toggle.dim { opacity: .55; }

@@ -883,6 +883,11 @@ function decideBlock(cand) {
   const decBtns = DECISIONS.map(([v, l, g]) => `<button class="btn ghost" data-decide="${v}">${l} <span class="hk">[${g}]</span></button>`).join("");
   const adj = (cmp === "discordant" && !r.final_value)
     ? `<div class="note">You and the AI disagree — your decision adjudicates; the reason is audited.</div>` : "";
+  // No AI second opinion yet → offer CiteVahti's own (local/api) run. Blinded:
+  // the human rating is already locked. The MCP assistant can also provide it.
+  const getAi = r.ai ? "" : `<div class="getai">
+    <button class="btn ghost" data-act="run-ai" title="Ask CiteVahti's configured local/external model for a blinded second opinion">✦ Get AI second opinion</button>
+    <span class="note dim">Optional. Or your assistant provides it over MCP. Configure a model in ✦ AI.</span></div>`;
   return `<div class="next"><div class="ask">Reveal &amp; decide</div>
     <div class="why">Your blind rating is in. Here is the AI second rating.</div>
     <div class="compare">
@@ -890,6 +895,7 @@ function decideBlock(cand) {
       <div class="col"><div class="who">AI (2nd)</div><div class="val">${esc(SUP_LABEL[r.ai] || r.ai || "—")}</div></div>
     </div>
     ${cmp ? `<span class="verdict-tag ${cmp}">${esc(cmp)}</span>` : ""}
+    ${getAi}
     <div class="lbl">Record the verdict</div>
     <div class="decrow"><input type="text" id="decReason" placeholder="reason (recorded in the audit trail)" /></div>
     <div class="actions">${decBtns}</div>${adj}</div>`;
@@ -1045,6 +1051,17 @@ async function rate(value) {
     await api("POST", `/api/ratings/${encodeURIComponent(rid)}/human`, { value, fit: gatherFit() });
     await selectClaim(state.activeClaim);
   } catch (e) { showErr(e.message); }
+}
+async function runAiSecondOpinion() {
+  const cand = activeCand(); if (!cand) return;
+  try {
+    const rid = await ensureRatingId(cand);
+    await api("POST", `/api/ratings/${encodeURIComponent(rid)}/run-ai`, {});
+    await selectClaim(state.activeClaim);   // reload → the AI value reveals (human is already in)
+  } catch (e) {
+    // off-mode (or no model) → point to the AI settings, don't dead-end
+    showErr(e.message);
+  }
 }
 async function recordDecision(v) {
   const cand = activeCand(); if (!cand || !cand.rating) return;
@@ -1368,6 +1385,7 @@ document.addEventListener("click", (e) => {
      zpreview, zcommit, zcancel: () => { resetWrite(); renderCard(); },
      zundo, docpreview: () => docPreview(act.dataset.kind), doccommit: docCommit, doccancel: () => { resetWrite(); renderCard(); },
      docundo: docUndo, unlink: unlinkCandidate, gonext: goToNextClaim, exportreport: exportReport,
+     "run-ai": runAiSecondOpinion,
      next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
