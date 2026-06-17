@@ -12,7 +12,8 @@ part of the test suite:
     playwright install chromium
     PYTHONPATH=src python3 docs/demo/capture_screenshots.py
 
-Writes 01-review-surface.png, 02-legend.png, 03-first-run.png into docs/screenshots/.
+Writes 01-review-surface, 02-legend, 03-first-run, 04-rate-reveal-decide-write,
+06-ai-settings, and 07-report-export PNGs into docs/screenshots/.
 Captured at device_scale_factor=3 to roughly match the existing retina PNGs. Target a
 specific claim card with `--focus <claim_id>` (otherwise the first claim is opened).
 """
@@ -67,6 +68,19 @@ def _rate_phase_claim(root: Path) -> str | None:
         c = store.load_claim(cid)
         if c.claim_text.startswith("A single patient leaflet") and store.candidates_exist(cid):
             return cid
+    return None
+
+
+def _decided_claim(root: Path) -> str | None:
+    """A demo claim carried all the way to a recorded verdict — opening it shows the
+    stepper with Rate/Reveal/Decide complete (shot 4, the core interaction)."""
+    from citevahti.state import CiteVahtiStore
+    store = CiteVahtiStore(root)
+    decided = {d.replace("dec-", "") for d in store.list_decisions()}
+    for cid in store.list_claims():
+        if store.candidates_exist(cid):
+            if any(c.candidate_id in decided for c in store.load_candidates(cid).candidates):
+                return cid
     return None
 
 
@@ -139,6 +153,31 @@ def main() -> None:
             # 3. first run on an empty ledger — the paste-a-manuscript box
             _shoot(page, f"{empty_base}/?theme=light", "textarea",
                    out / "03-first-run.png")
+            # 4. the Rate → Reveal → Decide → Write stepper — the right-hand card,
+            #    cropped, on a claim carried to a verdict (the core interaction)
+            decided = _decided_claim(demo)
+            decided_q = f"&focus={decided}" if decided else ""
+            page.goto(f"{demo_base}/?theme=light{decided_q}", wait_until="networkidle")
+            if not decided:
+                page.wait_for_selector(".claim", timeout=5000); page.click(".claim")
+            page.wait_for_selector(".stepper", timeout=5000)
+            page.wait_for_timeout(400)
+            page.locator("#card").screenshot(path=str(out / "04-rate-reveal-decide-write.png"))
+            print(f"wrote {out / '04-rate-reveal-decide-write.png'}")
+            # 6. AI second-opinion settings — Off / Local AI / My API key
+            page.goto(f"{demo_base}/?theme=light", wait_until="networkidle")
+            page.click("#aiSettings")
+            page.wait_for_selector("#aiModal .modal-card", timeout=5000)
+            page.wait_for_timeout(400)
+            page.locator("#aiModal .modal-card").screenshot(path=str(out / "06-ai-settings.png"))
+            print(f"wrote {out / '06-ai-settings.png'}")
+            # 7. the citation-integrity report export
+            page.goto(f"{demo_base}/?theme=light", wait_until="networkidle")
+            page.click("#report")
+            page.wait_for_selector("#exportModal .modal-card", timeout=5000)
+            page.wait_for_timeout(400)
+            page.locator("#exportModal .modal-card").screenshot(path=str(out / "07-report-export.png"))
+            print(f"wrote {out / '07-report-export.png'}")
             browser.close()
     finally:
         for proc in procs:
