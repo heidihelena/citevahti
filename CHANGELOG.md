@@ -6,6 +6,18 @@ previous one.
 
 ## Unreleased
 
+- **Panel AI settings (✦ AI) — MCP-first, all modes selectable.** A panel modal to configure the
+  AI second opinion. Leads with the truth that **most users need no setup**: when you drive
+  CiteVahti through an assistant over MCP (Cowork / Claude), it already submits the blinded second
+  opinion (`submit_ai_support_rating`) — paid by your assistant subscription. The selectable modes
+  govern CiteVahti's *own* call: **Off** (human-only / MCP), **Local AI** (Ollama — a model picker
+  populated from `ollama list`, Qwen-first, with the digest auto-pinned to `ai_provenance` for
+  audit; the workhorse for high-volume screening), **My API key** (external provider; the key lives
+  in the keychain/env and is **never entered in or sent through the panel** — only its presence is
+  shown). New routes `GET/POST /api/ai-config` and `GET /api/ai/local-models`. "You rate first —
+  the AI is a blinded second opinion" throughout. Route tests in `tests/test_panel_api.py`;
+  verified end-to-end against a live panel + local Ollama.
+
 - **Real AI rater backend — three modes (Off · Local AI · My API key), privacy-first.** The
   `AiRater` seam shipped only a `FakeAiRater`; now there is a real, optional, **blinded**
   `HttpAiRater` over an OpenAI-compatible or Anthropic chat endpoint, plus `build_ai_rater(config)`
