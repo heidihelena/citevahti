@@ -12,7 +12,14 @@ import json
 import pytest
 
 from citevahti.credentials import AI_API_KEY
-from citevahti.rating import HttpAiRater, build_ai_rater
+from citevahti.rating import (
+    DEFAULT_LOCAL_MODEL,
+    HttpAiRater,
+    build_ai_rater,
+    list_ollama_models,
+    ollama_model_snapshot,
+    suggest_local_model,
+)
 from citevahti.schemas.config import Config
 from citevahti.schemas.rating import Subject
 
@@ -131,3 +138,36 @@ def test_build_api_requires_a_key():
 def test_build_local_rejects_remote_http():
     with pytest.raises(ValueError):
         build_ai_rater(_cfg("local", endpoint="http://192.168.1.5:11434/v1/chat/completions"))
+
+
+# ---- local model discovery (Ollama) -----------------------------------------
+_ENDPOINT = "http://localhost:11434/v1/chat/completions"
+_TAGS = {"models": [
+    {"name": "llama3.1:8b", "digest": "sha256:aaa"},
+    {"name": "qwen2.5:7b", "digest": "sha256:bbb"},
+]}
+
+
+def test_list_and_suggest_prefers_qwen_among_installed():
+    models = list_ollama_models(_ENDPOINT, fetch=lambda url: _TAGS)
+    assert {m["name"] for m in models} == {"llama3.1:8b", "qwen2.5:7b"}
+    # claim verification is extraction work -> qwen wins when it's on the machine
+    assert suggest_local_model(models) == "qwen2.5:7b"
+
+
+def test_suggest_falls_back_to_first_installed_then_default():
+    only_phi = [{"name": "phi3:mini", "digest": "sha256:ccc"}]
+    assert suggest_local_model(only_phi) == "phi3:mini"      # the model on the machine wins
+    assert suggest_local_model([]) == DEFAULT_LOCAL_MODEL    # nothing installed -> a sane name
+
+
+def test_snapshot_returns_installed_digest():
+    snap = ollama_model_snapshot(_ENDPOINT, "qwen2.5:7b", fetch=lambda url: _TAGS)
+    assert snap == "sha256:bbb"                              # auto-pinnable provenance
+    assert ollama_model_snapshot(_ENDPOINT, "not-installed", fetch=lambda url: _TAGS) is None
+
+
+def test_list_degrades_when_ollama_unreachable():
+    def boom(url):
+        raise RuntimeError("connection refused")
+    assert list_ollama_models(_ENDPOINT, fetch=boom) == []   # never crash when Ollama is down

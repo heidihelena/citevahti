@@ -220,3 +220,62 @@ def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secre
         raise ValueError("api mode needs an AI key (set CITEVAHTI_AI_API_KEY or store it)")
     return HttpAiRater(shape=shape, endpoint=endpoint, model=prov.model_id,
                        api_key=api_key, poster=poster, timeout=conn.request_timeout_s)
+
+
+# --- local model discovery (Ollama) ------------------------------------------
+# Claim verification is term-extraction / word-mining work; Qwen tends to beat
+# llama3.1 at it, so it leads the preference order. But the model actually on the
+# machine wins: we offer what `ollama list` reports and only fall back to a name.
+PREFERRED_LOCAL_MODELS = ("qwen2.5", "qwen2", "llama3.1")
+DEFAULT_LOCAL_MODEL = PREFERRED_LOCAL_MODELS[0]
+
+
+def _ollama_base(endpoint: str) -> str:
+    """The Ollama root (…:11434) from a chat endpoint (…/v1/chat/completions)."""
+    u = urlparse(endpoint or _OLLAMA_DEFAULT)
+    return f"{u.scheme}://{u.netloc}"
+
+
+def _httpx_get_json(url: str, timeout: float = 5.0) -> dict:
+    import httpx
+    resp = httpx.get(url, timeout=timeout)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def list_ollama_models(endpoint: str = _OLLAMA_DEFAULT, *, fetch=None) -> list[dict]:
+    """Installed Ollama models as ``[{name, digest}]`` (empty list if unreachable).
+
+    ``fetch(url) -> dict`` is injectable for tests; defaults to a short httpx GET.
+    """
+    fetch = fetch or _httpx_get_json
+    try:
+        data = fetch(_ollama_base(endpoint) + "/api/tags")
+    except Exception:  # noqa: BLE001 (Ollama not running / no network) — degrade to empty
+        return []
+    out = []
+    for m in (data.get("models") or []):
+        name = m.get("name") or m.get("model")
+        if name:
+            out.append({"name": name, "digest": m.get("digest")})
+    return out
+
+
+def suggest_local_model(models: list[dict]) -> str:
+    """Pick the model to offer: a preferred extraction model if installed, else the
+    first installed one, else the default name (so the UI always has a suggestion)."""
+    names = [m["name"] for m in models]
+    for pref in PREFERRED_LOCAL_MODELS:
+        for n in names:
+            if n == pref or n.split(":")[0] == pref:
+                return n
+    return names[0] if names else DEFAULT_LOCAL_MODEL
+
+
+def ollama_model_snapshot(endpoint: str, model: str, *, fetch=None) -> Optional[str]:
+    """The installed model's digest — pinned into ``ai_provenance.model_snapshot`` so a
+    local model is auditable just like a cloud one. None if it isn't installed."""
+    for m in list_ollama_models(endpoint, fetch=fetch):
+        if m["name"] == model or m["name"].split(":")[0] == model.split(":")[0]:
+            return m.get("digest")
+    return None
