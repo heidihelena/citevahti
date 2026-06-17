@@ -52,6 +52,27 @@ def test_token_invalid_if_payload_changes(tmp_path):
     assert res.error_code == "payload_changed_token_invalid"
 
 
+def test_token_binds_structured_metadata(tmp_path):
+    # intake push keeps the full paper metadata in `structured` (not `payload`); a change
+    # there between preview and commit must invalidate the token, or the committed write
+    # would differ from what the human approved.
+    from citevahti.schemas.writeback import WriteOperation
+    from citevahti.writeback.layer import WriteLayer
+    store = CiteVahtiStore(tmp_path)
+    store.init()
+    layer = WriteLayer(store, FakeWriteBackend())
+    op = WriteOperation(kind="tag_add", targets=["K1"], payload={"tags": ["x"]},
+                        proposed_changes=["+x"], structured={"title": "Paper A", "year": "2011"})
+    # unchanged structured still commits — the binding doesn't break a normal write
+    ok = layer.apply(op, layer.preview(op).confirm_token)
+    assert ok.status == "applied"
+    # structured changed after preview -> token rejected
+    token = layer.preview(op).confirm_token
+    changed = op.model_copy(update={"structured": {"title": "Paper B", "year": "2011"}})
+    res = layer.apply(changed, token)
+    assert res.error_code == "payload_changed_token_invalid"
+
+
 def test_token_is_one_use(tmp_path):
     s, _, _ = svc(tmp_path)
     diff = s.tag_add(_refs(["K1"]), ["x"])
