@@ -32,6 +32,7 @@ from typing import Optional
 from .. import agent
 from .. import tools as engine
 from .. import workflow
+from ..claims.bonds import claim_bond_status
 from . import manuscript as M
 from . import prefs
 
@@ -202,7 +203,8 @@ def _row_claim(r) -> dict:
 
 def _claim_state(r) -> dict:
     out = {"state": r.state, "code": r.code.strip(),
-           "candidate_count": r.candidate_count, "accepted_count": r.accepted_count}
+           "candidate_count": r.candidate_count, "accepted_count": r.accepted_count,
+           "has_stale_bonds": r.has_stale_bonds}
     cite = _accepted_cite(r)
     if cite:
         out["cite"] = cite          # accepted candidate's identifiers → citation-on-copy
@@ -340,6 +342,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                 cands = []
             evidence = _evidence_index(root, claim_id)
             written = _written_candidates(root, claim_id)   # committed, not-undone Zotero writes
+            # Bond freshness per candidate: an assessment formed against an older
+            # claim wording (claim revised since) is flagged so the human re-checks.
+            bonds = claim_bond_status(store, claim_id)
+            stale_cands = {b["candidate_id"] for b in bonds["bonds"] if b["status"] == "stale"}
             cand_views = []
             for c in cands:
                 view = _candidate_card(c)
@@ -347,6 +353,7 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                 view["rating"] = blinded_rating_view(rec) if rec else None
                 ev = evidence.get(c.candidate_id)
                 view["evidence"] = ev
+                view["stale_bond"] = c.candidate_id in stale_cands
                 # the workflow phase is computed in ONE place (workflow.candidate_step);
                 # surfaces render it rather than re-deriving the rate→decide→write rules.
                 view["step"] = workflow.candidate_step(
@@ -360,7 +367,8 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                                    "claim_type": claim.claim_type,
                                    "manuscript_location": claim.manuscript_location,
                                    "extracted_by": claim.extracted_by,
-                                   "proposed_revision": claim.proposed_revision},
+                                   "proposed_revision": claim.proposed_revision,
+                                   "has_stale_bonds": bonds["has_stale_bonds"]},
                          "candidates": cand_views}
 
         m = re.fullmatch(r"/api/ratings/([^/]+)", path)

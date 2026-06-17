@@ -24,7 +24,9 @@ from typing import Optional
 from ..util import claim_text_hash
 
 
-def _status(rated_hash: Optional[str], current_hash: str) -> str:
+def bond_status(rated_hash: Optional[str], current_hash: str) -> str:
+    """One bond's freshness: the single source of truth, shared by the report row
+    (manuscript list) and the per-claim detail card so they can never disagree."""
     if not rated_hash:
         return "unknown"
     return "current" if rated_hash == current_hash else "stale"
@@ -46,7 +48,8 @@ def claim_bond_status(store, claim_id: str) -> dict:
         if rec.claim_id != claim_id:
             continue
         bonds.append({"kind": "support_rating", "id": rec.rating_id,
-                      "status": _status(rec.claim_text_hash, current_hash),
+                      "candidate_id": rec.candidate_id,
+                      "status": bond_status(rec.claim_text_hash, current_hash),
                       "rated_hash": rec.claim_text_hash})
 
     for did in store.list_decisions():
@@ -54,7 +57,8 @@ def claim_bond_status(store, claim_id: str) -> dict:
         if rec.claim_id != claim_id:
             continue
         bonds.append({"kind": "decision", "id": rec.decision_id,
-                      "status": _status(rec.claim_text_hash, current_hash),
+                      "candidate_id": rec.candidate_id,
+                      "status": bond_status(rec.claim_text_hash, current_hash),
                       "rated_hash": rec.claim_text_hash})
 
     stale = sum(1 for b in bonds if b["status"] == "stale")

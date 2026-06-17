@@ -76,7 +76,7 @@ def test_support_rating_is_stamped_and_current(tmp_path):
     status = claim_bond_status(store, claim_id)
     assert status["has_stale_bonds"] is False
     assert status["bonds"] == [
-        {"kind": "support_rating", "id": rid, "status": "current",
+        {"kind": "support_rating", "id": rid, "candidate_id": cand_id, "status": "current",
          "rated_hash": rec.claim_text_hash}]
 
 
@@ -137,6 +137,35 @@ def test_unstamped_legacy_bond_is_unknown_not_current(tmp_path):
     assert status["has_stale_bonds"] is False     # never silently 'current'...
     assert status["unknown_count"] == 1
     assert status["bonds"][0]["status"] == "unknown"
+
+
+# ---- report surface: row + evidence carry the stale flag (manuscript list) --
+def test_report_row_flags_stale_after_revision(tmp_path):
+    from citevahti.report import ClaimReportService
+    store, claim_id, cand_id = _setup(tmp_path)
+    _rate(store, claim_id, cand_id, "directly_supports", ai="directly_supports")
+    row = next(r for r in ClaimReportService(store).report().rows if r.claim_id == claim_id)
+    assert row.has_stale_bonds is False and row.evidence[0].stale is False
+    ClaimService(store).propose_revision(claim_id, "Reworded claim.")
+    ClaimService(store).accept_revision(claim_id)
+    row = next(r for r in ClaimReportService(store).report().rows if r.claim_id == claim_id)
+    assert row.has_stale_bonds is True and row.evidence[0].stale is True
+
+
+# ---- panel detail surface: per-candidate badge + claim-level flag -----------
+def test_panel_detail_surfaces_stale_bond(tmp_path):
+    from citevahti.panel import dispatch
+    store, claim_id, cand_id = _setup(tmp_path)
+    _rate(store, claim_id, cand_id, "directly_supports", ai="directly_supports")
+    root = str(tmp_path)
+    _st, body = dispatch(root, "GET", f"/api/claims/{claim_id}", None)
+    assert body["claim"]["has_stale_bonds"] is False
+    assert body["candidates"][0]["stale_bond"] is False
+    ClaimService(store).propose_revision(claim_id, "Reworded claim.")
+    ClaimService(store).accept_revision(claim_id)
+    _st, body = dispatch(root, "GET", f"/api/claims/{claim_id}", None)
+    assert body["claim"]["has_stale_bonds"] is True
+    assert body["candidates"][0]["stale_bond"] is True
 
 
 # ---- agent surface: read-only, advisory ------------------------------------
