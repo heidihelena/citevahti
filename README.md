@@ -70,6 +70,11 @@ choose a CiteVahti folder, then ask: *"Run claim tests on my manuscript using Ci
 - **Linux** — `citevahti-<version>-linux-x64.mcpb`
 - **macOS** (Apple Silicon) — `citevahti-<version>-macos-arm64.mcpb` (signed + notarized)
 
+> **First open on macOS** may show a one-time security prompt — the `.mcpb` is a zip, which
+> macOS can't pre-stamp even though the app inside is signed and notarized. If it appears:
+> **right-click the file → Open**, or **System Settings → Privacy & Security → "Open Anyway"**.
+> Once allowed, it installs and runs normally.
+
 ### Terminal
 
 ```bash
