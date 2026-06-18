@@ -382,6 +382,21 @@ function renderWarehouse(box, st) {
     <div class="note">Build a de-identified bundle to <b>download</b>. Nothing is transmitted — there is
       no upload from here. Composed vs decomposed and case are normalized so your claim hashes match
       across tools (spec v1).</div>
+    <details class="context"><summary>What contributing means — privacy</summary><div class="body">
+      <p class="note"><b>De-identified, not anonymous.</b> A contribution carries your pseudonymous
+        contributor id + consent record, and per judgment a <b>keyed claim index</b> (not the text),
+        the <b>public</b> PMID/DOI, study type, and the ratings. The contributor id and consent ledger
+        are <b>personal data</b> — we say "de-identified", never "anonymous".</p>
+      <p class="note"><b>Full claim text + evidence snippet</b> ride along only under the separate
+        opt-in above. <b>Never contribute</b> patient-identifiable data, confidential registry data,
+        or substantial copyrighted full text.</p>
+      <p class="note"><b>Your control:</b> preview the exact payload before anything leaves; every
+        contribution is <b>revocable</b>. Aggregate views expose an edge only at <b>≥ 5 independent
+        contributors</b>. The actual send + commercial-use opt-in happen at the contribution step,
+        governed by the notice.</p>
+      <p class="note"><a href="https://github.com/heidihelena/citevahti/blob/main/docs/CONTRIBUTOR_PRIVACY.md"
+        target="_blank" rel="noopener">Read the full privacy notice ↗</a> · controller: Vahtian — privacy@vahtian.com</p>
+    </div></details>
     <div class="actions">
       <button class="btn primary" data-wh="preview" ${on && st.record_count ? "" : "disabled"}>Preview bundle</button>
       ${bundle ? `<button class="btn ghost" data-wh="download">⬇ Download bundle (${bundle.count})</button>` : ""}</div>
