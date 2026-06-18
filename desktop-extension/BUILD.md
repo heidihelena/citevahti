@@ -51,6 +51,30 @@ run under `env -i` (no PATH, no Python) — self-contained.
 > no-Python claim without building, attach `dist/citevahti.mcpb` to a GitHub Release (mark it
 > arm64 + un-notarized).
 
+## Signing macOS in CI (GitHub Actions)
+
+`sign-notarize.sh` is the **local** path (keychain profile). To have every release build a
+signed + notarized macOS `.mcpb` automatically, the `macos` job in
+[`desktop-extension-build.yml`](../.github/workflows/desktop-extension-build.yml) does the same
+in CI — gated on six repo secrets (Settings → Secrets and variables → Actions). You already hold
+the Developer ID (`Developer ID Application: Heidi Andersen (FZQ347J9NX)`); CI just needs it as
+secrets:
+
+| Secret | How to get it |
+|---|---|
+| `MACOS_CERT_P12_BASE64` | Keychain Access → export the Developer ID Application cert as `.p12`, then `base64 -i cert.p12 \| pbcopy` |
+| `MACOS_CERT_PASSWORD` | the password you set on that `.p12` export |
+| `MACOS_SIGN_IDENTITY` | `Developer ID Application: Heidi Andersen (FZQ347J9NX)` |
+| `MACOS_NOTARY_KEY_P8` | App Store Connect → Users and Access → Integrations → Keys → create an API key; paste the `.p8` contents |
+| `MACOS_NOTARY_KEY_ID` | the key id shown next to that key |
+| `MACOS_NOTARY_ISSUER` | the Issuer ID on the Keys page |
+
+Until the secrets exist the `macos` job builds an **unsigned** bundle as a CI artifact only
+(never attached to a release). Once they're set, every published release — and a manual
+`workflow_dispatch` with `release_tag: vX.Y.Z` to backfill an existing one — attaches
+`citevahti-<version>-macos-arm64.mcpb`, signed + notarized. (A `.mcpb` zip can't be stapled, so
+Gatekeeper verifies the ticket online on first launch — fine for connected machines.)
+
 ## TODO before distribution
 - [x] Route B binary built for **mac arm64** (`server.type: binary`, no Python required). ⚠️ arm64
       only — Intel Macs + Windows/Linux each need their own `build-binary.sh` run on that platform.
