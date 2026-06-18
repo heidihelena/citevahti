@@ -20,6 +20,44 @@ recorded in an auditable local ledger.
 - Write to Zotero only after preview and confirmation.
 - Export a citation-integrity report for methods, review, or audit.
 
+## Build an evidence map you can use again
+
+**Stop losing evidence work after each project.** Most evidence checks disappear after one
+manuscript, one review, or one grant deadline. CiteVahti turns them into something reusable.
+
+Every claim you assess is saved to your own evidence map. Next time you work on the same
+topic you don't start from zero: pull back earlier judgments, see which evidence you already
+checked, and spot where the literature is still thin, contradictory, or overclaimed. You're
+not filling someone else's database — you're building a **private research asset** that gets
+more useful each time you use it.
+
+**What you get immediately**
+
+- **Less repeated work** — reuse past claim–evidence judgments in later searches, reviews,
+  manuscripts, and replies to reviewers.
+- **A clearer view of your own coverage** — which claim areas, study types, and evidence gaps
+  you have already worked through.
+- **A memory layer for evidence work** — assessments stay tied to the public study
+  identifiers, ratings, and agreement status instead of being buried in notes, PDFs, or
+  spreadsheets.
+- **Control before sharing** — your evidence map stays on your machine; contribution is a
+  separate opt-in step, and you preview the exact payload before anything is sent.
+
+**What changes when others contribute.** When enough researchers assess overlapping claims,
+CiteVahti can show where your judgments align with the field, where they diverge, and where
+your expertise is rare. These comparisons appear only when there is enough independent
+overlap — thin data stays hidden. The shared corpus is built from **de-identified**
+contributions, never from manuscripts, search histories, patient data, registry data, or
+private project identifiers.
+
+**Why contribute.** Contributing is not a donation of free labour: it lets your local
+evidence work join a larger evidence map while you keep control of what you send. If you opt
+in to commercial use, your contributions may also support aggregate evidence products — but
+only as de-identified, group-level outputs. Your individual judgments are never sold, shown,
+or shared as individual data.
+
+[How your data is handled →](docs/CONTRIBUTOR_PRIVACY.md)
+
 ## Start here
 
 ### No terminal — Claude Desktop
