@@ -41,11 +41,9 @@ was an earlier, narrower scope.)
 
 ## Positioning
 
-CiteVahti is free and local-first for researchers, and Vahtian sells paid infrastructure
-to organizations that need auditable citation integrity at publication scale. The open
-Apache-2.0 core never paywalls a researcher's ability to verify their own manuscript; the
-hosted layer (ADR-0003) serves organizations with citation-risk exposure — publishers,
-guideline groups, institutions, and medical-communications teams.
+CiteVahti is free, local-first, and built for researchers who cite: it checks whether each
+manuscript claim is actually supported by the paper cited for it, with a blinded,
+human-first rating workflow and an auditable local ledger.
 
 ## Run unit tests on your manuscript
 
@@ -73,9 +71,8 @@ evidence corpus is a separate, active opt-in with its own
 
 ## Beta
 
-CiteVahti is currently in beta and free to use for testing, research feedback, and early
-development. Pricing for hosted and advanced features may be introduced later. A free
-local/community version is intended to remain available.
+CiteVahti is in beta and free to use. Local-first: your manuscript and ratings stay on your
+device unless you choose to use an external AI model.
 
 ## Direction: the citation-integrity ledger (ADR-0001)
 
