@@ -287,6 +287,12 @@ def test_live_server_serves_panel_and_health_offline(tmp_path):
             assert ico.status_code == 200
             assert ico.headers["content-type"] == "image/svg+xml"
             assert "<svg" in ico.text
+        # and an apple-touch-icon PNG for iOS home screen / bookmarks
+        assert 'rel="apple-touch-icon"' in page.text and "apple-touch-icon.png" in page.text
+        touch = httpx.get(base + "/apple-touch-icon.png", timeout=5)
+        assert touch.status_code == 200
+        assert touch.headers["content-type"] == "image/png"
+        assert touch.content[:8] == b"\x89PNG\r\n\x1a\n"   # real PNG bytes
         claims = httpx.get(base + "/api/claims", timeout=5)
         assert claims.status_code == 200
     finally:

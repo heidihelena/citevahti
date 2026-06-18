@@ -40,11 +40,14 @@ WEB_DIR = Path(__file__).parent / "web"
 _STATIC = {"/": "index.html", "/index.html": "index.html",
            "/app.js": "app.js", "/styles.css": "styles.css",
            "/favicon.svg": "favicon.svg",
-           "/favicon.ico": "favicon.svg"}  # browsers auto-request /favicon.ico; serve the SVG
+           "/favicon.ico": "favicon.svg",  # browsers auto-request /favicon.ico; serve the SVG
+           "/apple-touch-icon.png": "apple-touch-icon.png",  # iOS home screen / bookmarks
+           "/apple-touch-icon-precomposed.png": "apple-touch-icon.png"}  # older iOS variant
 _CONTENT_TYPE = {".html": "text/html; charset=utf-8",
                  ".js": "text/javascript; charset=utf-8",
                  ".css": "text/css; charset=utf-8",
-                 ".svg": "image/svg+xml"}
+                 ".svg": "image/svg+xml",
+                 ".png": "image/png"}
 
 
 # ---- blinding ---------------------------------------------------------------
