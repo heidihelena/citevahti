@@ -226,6 +226,20 @@ async function copyClaimTestsPrompt() {
     if (out) out.innerHTML = `✓ Copied the <b>${esc(r.name || "run_claim_tests")}</b> prompt — paste it into your chat client to start the review.`;
   } catch (e) { if (out) out.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
+/* Layer-0 topic screening (ADR-0008): hand the reviewer the exact screen_topic prompt for
+ * a topic, ready to paste into chat. The assistant proposes candidate claims + nearby
+ * evidence (leads, not verdicts) and hands off to run_claim_tests; the panel never calls an
+ * AI itself. The choreography text is built server-side — one source of truth. */
+async function copyScreenTopicPrompt() {
+  const out = $("#screenResult");
+  const topic = (($("#screenTopic") || {}).value || "").trim();
+  if (!topic) { if (out) out.innerHTML = `<span class="err">Type a topic first.</span>`; return; }
+  try {
+    const r = await api("POST", "/api/topic-screen-prompt", { topic });
+    await copyText(r.prompt || "");
+    if (out) out.innerHTML = `✓ Copied the <b>${esc(r.name || "screen_topic")}</b> prompt — paste it into your chat client to screen this topic.`;
+  } catch (e) { if (out) out.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
 async function copyText(text) {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) return await navigator.clipboard.writeText(text);
@@ -1522,6 +1536,15 @@ async function renderFirstRun() {
       <div id="pasteResult"></div>
     </div>
     <div class="panel-box">
+      <div class="lbl">…or screen a topic</div>
+      <p class="note">No manuscript yet? Hand your chat client a screening prompt for a topic — it
+      proposes candidate claims to assess and nearby evidence. <b>Leads, not verdicts</b>; you
+      still rate each one first. The panel never calls an AI itself.</p>
+      <input id="screenTopic" type="text" placeholder="e.g. low-dose CT screening in heavy smokers" />
+      <div class="actions"><button class="btn primary" id="screenTopicBtn" title="Copy the screen_topic prompt to paste into your chat client">⧉ Copy screen-topic prompt</button></div>
+      <div id="screenResult" class="note"></div>
+    </div>
+    <div class="panel-box">
       <div class="lbl">…or add claims directly</div>
       <p class="note">From your chat client run the <b>run_claim_tests</b> prompt, or use the CLI:
       <br><code>citevahti claim-add --text "…" --type interpretation</code></p>
@@ -1593,6 +1616,7 @@ document.addEventListener("click", (e) => {
   const wh = e.target.closest("[data-wh]"); if (wh) return void whAction(wh.dataset.wh);
   if (e.target.closest("[data-ai-close]")) return void closeAiSettings();
   if (e.target.id === "pasteSave") return void savePastedManuscript();
+  if (e.target.id === "screenTopicBtn") return void copyScreenTopicPrompt();
   if (e.target.id === "addClaim") return void toggleAddClaim();
   const sp = e.target.closest("[data-claim]"); if (sp) return void selectClaim(sp.dataset.claim);
   const cp = e.target.closest("[data-cand]"); if (cp) { state.candIdx = +cp.dataset.cand; resetWrite(); return renderCard(); }

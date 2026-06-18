@@ -111,3 +111,51 @@ def run_claim_tests_prompt(manuscript: str = "") -> str:
 # Backwards-compatible alias for the 0.9.0 name.
 def review_manuscript_prompt(manuscript: str = "") -> str:
     return run_claim_tests_prompt(manuscript)
+
+
+# ---- Layer-0 topic screening (ADR-0008) -------------------------------------
+SCREEN_TOPIC_PROMPT_NAME = "screen_topic"
+SCREEN_TOPIC_PROMPT_DESCRIPTION = (
+    "Layer-0 screening: turn a research topic into candidate claims worth testing plus "
+    "nearby candidate evidence — leads, never verdicts. The human still rates each claim "
+    "first; screening only proposes and stages, it decides nothing."
+)
+
+
+def screen_topic_prompt(topic: str = "") -> str:
+    """Return the Layer-0 screening choreography (ADR-0008).
+
+    Screening produces LEADS, not verdicts: the assistant proposes candidate claims and
+    nearby candidate evidence on a topic, then hands off to ``run_claim_tests`` where the
+    blinded, human-first review takes over. It records no rating and decides nothing — the
+    same safety contract as the claim-tests flow, asserted by tests.
+    """
+    body = (
+        "You are running CiteVahti's LAYER-0 TOPIC SCREENING from this chat. Screening "
+        "produces LEADS, NOT VERDICTS: you propose candidate claims worth testing and "
+        "nearby candidate evidence, and the human still rates every claim first in the "
+        "localhost side panel. You are a blinded, advisory second rater only; you decide "
+        "nothing here.\n\n"
+        "Screen the topic, then hand off to the claim-tests flow — do not skip or reorder:\n\n"
+        "1. Take the research topic below. If none is given, ask for it. Keep it tight — "
+        "one topic, the kind a manuscript section or a guideline statement would cover.\n"
+        "2. Propose a SHORT list of candidate scientific claims a careful author might make "
+        "on this topic — the assertions worth checking. Present them explicitly as leads to "
+        "assess, NOT as established facts, and let the human choose which to keep.\n"
+        "3. For each kept claim, find candidate (nearby) evidence with `pubmed_search` (the "
+        "exact query is preserved; each hit reports its Zotero dedupe status). These are "
+        "candidates, never citations yet.\n"
+        "4. Register the claims the human keeps with `propose_claim` (flagged ai-extracted; "
+        "the human confirms — you never confirm a claim for them), then attach the chosen "
+        "hits with `link_candidates`.\n"
+        "5. HAND OFF to `run_claim_tests`: from here the normal blinded review applies — the "
+        "human rates each claim IN THE SIDE PANEL first (call `open_review_panel` if it may "
+        "not be open), you submit your rating only AFTER theirs is recorded, and every Zotero "
+        "write is previewed, confirmed, and undoable. Do NOT state, hint at, or imply a "
+        "support rating during screening.\n\n"
+        "Invariant: screening only proposes leads and stages candidates. It records no rating "
+        "and makes no decision; the human rates first, exactly as in run_claim_tests."
+    )
+    if topic.strip():
+        body += "\n\n--- Topic to screen ---\n" + topic.strip()
+    return body

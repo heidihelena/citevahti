@@ -25,6 +25,21 @@ def test_canonical_name_and_deprecated_alias():
     assert prompts.review_manuscript_prompt() == prompts.run_claim_tests_prompt()
 
 
+def test_screen_topic_prompt_screens_into_claim_tests_without_deciding():
+    # Layer-0 screening (ADR-0008) proposes leads and hands off to run_claim_tests; it
+    # must NOT rate or decide, and the human still rates first (the same safety contract)
+    assert prompts.SCREEN_TOPIC_PROMPT_NAME == "screen_topic"
+    assert prompts.SCREEN_TOPIC_PROMPT_DESCRIPTION
+    t = prompts.screen_topic_prompt()
+    low = t.lower()
+    assert "leads, not verdicts" in low
+    assert "run_claim_tests" in t                       # hands off to the blinded review
+    assert "propose_claim" in t and "pubmed_search" in t  # proposes claims + nearby evidence
+    assert "records no rating and makes no decision" in low
+    # screening never submits an AI rating or writes — that is run_claim_tests' job
+    assert "submit_ai_support_rating" not in t and "commit_write" not in t
+
+
 def test_prompt_preserves_human_first_then_ai_then_preview_then_commit():
     t = prompts.run_claim_tests_prompt()
     i_human = t.index("rate this claim against its candidate IN")
