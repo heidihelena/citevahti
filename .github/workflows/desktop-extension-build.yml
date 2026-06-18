@@ -164,7 +164,22 @@ jobs:
           CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
         run: |
           KP="actions-$RANDOM"
-          echo "$CERT_P12_BASE64" | base64 --decode > /tmp/cert.p12
+          # decode via python: tolerant of line-wrapped base64 and identical across
+          # BSD/GNU base64, with a clear error if the secret isn't valid base64.
+          python3 - <<'PY'
+          import base64, os, sys
+          raw = "".join(os.environ["CERT_P12_BASE64"].split())
+          try:
+              data = base64.b64decode(raw, validate=True)
+          except Exception as e:
+              sys.exit(f"::error::MACOS_CERT_P12_BASE64 is not valid base64 ({e}). "
+                       "Re-export the Developer ID cert as .p12, then run "
+                       "`base64 -i cert.p12 | pbcopy` and paste the WHOLE output as the secret.")
+          if not data:
+              sys.exit("::error::decoded .p12 is empty.")
+          open("/tmp/cert.p12", "wb").write(data)
+          print(f"decoded {len(data)} bytes")
+          PY
           security create-keychain -p "$KP" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "$KP" build.keychain
