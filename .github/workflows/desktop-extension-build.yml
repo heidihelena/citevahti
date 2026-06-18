@@ -223,18 +223,29 @@ jobs:
           KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
         run: |
-          # MACOS_NOTARY_KEY_P8 is the base64 of the App Store Connect .p8 (PEM newlines
-          # can't survive pasting raw → notarytool reports invalidP8). Decode it the same
-          # tolerant way as the cert.
+          # Accept MACOS_NOTARY_KEY_P8 in ANY form a paste might produce — raw PEM (with or
+          # without intact newlines) or base64 of the .p8 — and rebuild a clean .p8, so a
+          # mangled paste can't cause invalidP8 / invalidPrivateKeyContents.
           python3 - <<'PY'
-          import base64, os, sys
-          raw = "".join(os.environ["KEY_P8"].split())
+          import base64, os, re, sys, textwrap
+          val = os.environ["KEY_P8"].strip()
           try:
-              data = base64.b64decode(raw, validate=True)
+              if "PRIVATE KEY" in val:                       # raw PEM (maybe single-lined)
+                  body = "".join(re.sub(r"-----[^-]*-----", "", val).split())
+                  der = base64.b64decode(body)               # the DER key bytes
+              else:                                          # base64 of the whole .p8 file
+                  der = base64.b64decode("".join(val.split()), validate=True)
+                  inner = der.decode("ascii", "ignore")
+                  if "PRIVATE KEY" in inner:                 # it decoded to a PEM file → take its body
+                      der = base64.b64decode("".join(re.sub(r"-----[^-]*-----", "", inner).split()))
           except Exception as e:
-              sys.exit(f"::error::MACOS_NOTARY_KEY_P8 is not valid base64 ({e}). "
-                       "Set it to: base64 -i AuthKey_XXXXXXXX.p8 | pbcopy")
-          open("/tmp/AuthKey.p8", "wb").write(data)
+              sys.exit(f"::error::MACOS_NOTARY_KEY_P8 could not be parsed ({e}) — paste the .p8 "
+                       "contents, or `base64 -i AuthKey_XXXX.p8 | pbcopy`.")
+          pem = ("-----BEGIN PRIVATE KEY-----\n"
+                 + "\n".join(textwrap.wrap(base64.b64encode(der).decode(), 64))
+                 + "\n-----END PRIVATE KEY-----\n")
+          open("/tmp/AuthKey.p8", "w").write(pem)
+          print("rebuilt AuthKey.p8")
           PY
           # a .mcpb (zip) cannot be stapled; Gatekeeper checks the notarization ticket online
           xcrun notarytool submit "out/${{ steps.ver.outputs.asset }}" \
