@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="CiteVahti">
+  <title>CiteVahti</title>
+  <!-- the [··] mark — same geometry as the panel header (app.js drawLogos), with
+       fixed brand colours so it renders standalone in a browser tab. -->
+  <g fill="#6B4E9E">
+    <rect x="12" y="14" width="6" height="36"/><rect x="12" y="14" width="15" height="6"/><rect x="12" y="44" width="15" height="6"/>
+    <rect x="46" y="14" width="6" height="36"/><rect x="37" y="14" width="15" height="6"/><rect x="37" y="44" width="15" height="6"/>
+  </g>
+  <g fill="#8B6FC9">
+    <path d="M24 28 L29 24 L31 32 L26 35 Z"/><path d="M40 28 L35 24 L33 32 L38 35 Z"/>
+  </g>
+</svg>

@@ -279,6 +279,20 @@ def test_live_server_serves_panel_and_health_offline(tmp_path):
         assert page.status_code == 200 and "CiteVahti" in page.text
         # the beta/pricing notice ships in the panel so onboarding users always see it
         assert "beta" in page.text.lower() and "free to use" in page.text.lower()
+        # the app has a favicon: the page links it, and both /favicon.svg and the
+        # browser-default /favicon.ico resolve to the brand mark (SVG)
+        assert 'rel="icon"' in page.text and "favicon.svg" in page.text
+        for path in ("/favicon.svg", "/favicon.ico"):
+            ico = httpx.get(base + path, timeout=5)
+            assert ico.status_code == 200
+            assert ico.headers["content-type"] == "image/svg+xml"
+            assert "<svg" in ico.text
+        # and an apple-touch-icon PNG for iOS home screen / bookmarks
+        assert 'rel="apple-touch-icon"' in page.text and "apple-touch-icon.png" in page.text
+        touch = httpx.get(base + "/apple-touch-icon.png", timeout=5)
+        assert touch.status_code == 200
+        assert touch.headers["content-type"] == "image/png"
+        assert touch.content[:8] == b"\x89PNG\r\n\x1a\n"   # real PNG bytes
         claims = httpx.get(base + "/api/claims", timeout=5)
         assert claims.status_code == 200
     finally:
