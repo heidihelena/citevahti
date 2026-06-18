@@ -20,6 +20,7 @@ If you use **Claude Desktop**, you don't need a terminal:
 
 1. Download the CiteVahti extension **for your computer** from the [latest release](https://github.com/heidihelena/citevahti/releases/latest) — `citevahti-<version>-macos-arm64.mcpb` (Apple Silicon, signed + notarized), `…-windows-x64.mcpb`, or `…-linux-x64.mcpb`.
 2. Double-click it. Claude Desktop installs it and asks once for a folder to keep your work in.
+   - *macOS first open:* if you see a one-time security prompt (the `.mcpb` is a zip macOS can't pre-stamp, even though the app inside is signed + notarized), **right-click → Open**, or allow it in **System Settings → Privacy & Security → "Open Anyway"**.
 3. In the chat, type **`run_claim_tests`** and paste a paragraph of your manuscript.
 
 The assistant finds candidate papers and opens the rating panel in your browser when it's
