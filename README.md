@@ -68,7 +68,7 @@ choose a CiteVahti folder, then ask: *"Run claim tests on my manuscript using Ci
 
 - **Windows** — `citevahti-<version>-windows-x64.mcpb`
 - **Linux** — `citevahti-<version>-linux-x64.mcpb`
-- **macOS** — the one-click bundle isn't published yet; use the Terminal route below for now.
+- **macOS** (Apple Silicon) — `citevahti-<version>-macos-arm64.mcpb` (signed + notarized)
 
 ### Terminal
 
