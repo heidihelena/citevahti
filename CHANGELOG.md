@@ -4,7 +4,39 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
-## Unreleased
+## 0.19.0 — evidence confidence tiers, the organized panel, topic screening, the GDPR contributor notice, and the panel app icon (2026-06-18)
+
+- **Organized-panel "X of N support" aggregate (ADR-0008, the review/guideline tier).** Brings
+  systematic-review and guideline panels onto the spine as ORCHESTRATION, not new core:
+  `support_start` + `support_commit_human` already record one rating per (claim, candidate, rater)
+  keyed by `committed_by`. New `claims/panel.py` (`panel_summary` / `claim_panel_summary` /
+  `tier_of`) reads them into "how many of N independent human reviewers support a claim", the
+  value distribution, raw inter-rater agreement, and the ADR-0008 tier (**1 individual · 2–7
+  review · 8+ guideline**). The AI is never a panel member (only human ratings counted, so N is
+  never inflated); `overstated` is an overclaim, not support; raters dedup by `committed_by`.
+  `tools.support_panel` + CLI `claim-support-panel`. Locked by `tests/test_support_panel.py`.
+
+- **Layer-0 "Screen a topic" button (ADR-0008).** The panel's empty state gains a topic-screening
+  entry point: it copies a ready-to-paste `screen_topic` prompt; the assistant then proposes
+  candidate claims + nearby candidate evidence (leads, not verdicts) and hands off to
+  `run_claim_tests`, where the blinded human-first review takes over. `tools.topic_screen_prompt`
+  + `POST /api/topic-screen-prompt`; the panel never calls an AI itself (ADR-0007).
+
+- **ADR-0008 — evidence confidence tiers (the contributor-count ladder).** Fixes the epistemic
+  architecture: confidence scales with the count of *independent* assessors of the same claim
+  (joined on `claim_text_hash`). Layer 0 screening · 1 individual · 2 review · 3 guideline,
+  realized two ways — organized panel ("X of N") and pooled corpus (where the **≥5 floor is the
+  individual→review boundary**, so k-anonymity and the epistemic floor coincide).
+
+- **Full GDPR contributor privacy notice + Atlas-contribution disclosure.** `docs/CONTRIBUTOR_PRIVACY.md`
+  becomes the complete notice — controller + privacy@vahtian.com, three independent unticked
+  opt-ins, what a contribution carries / what you must not contribute, de-identified-not-anonymous,
+  recipients + the ≥5 aggregate floor, retention, full "your control", GDPR rights + the Finnish
+  supervisory authority, and the purpose/legal-basis. The panel's "Contribute to Atlas" gains a
+  matching disclosure block; CiteVahti stays download-only.
+
+- **README: the "reusable evidence map" value proposition** + the business framing dropped from
+  `docs/STATUS.md` to match the README's plain "Free beta, local-first".
 
 - **Panel app icon.** The review panel now ships a favicon — the brand `[··]` mark — so the
   browser tab, bookmarks, history, and a desktop install show the CiteVahti icon instead of a
