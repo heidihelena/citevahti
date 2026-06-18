@@ -65,7 +65,7 @@ secrets:
 | `MACOS_CERT_P12_BASE64` | Keychain Access → export the Developer ID Application cert as `.p12`, then `base64 -i cert.p12 \| pbcopy` |
 | `MACOS_CERT_PASSWORD` | the password you set on that `.p12` export |
 | `MACOS_SIGN_IDENTITY` | `Developer ID Application: Heidi Andersen (FZQ347J9NX)` |
-| `MACOS_NOTARY_KEY_P8` | App Store Connect → Users and Access → Integrations → Keys → create an API key; paste the `.p8` contents |
+| `MACOS_NOTARY_KEY_P8` | App Store Connect → Users and Access → Integrations → Keys → create an API key; download the `.p8`, then **base64 it** (PEM newlines don't survive a raw paste → `invalidP8`): `base64 -i AuthKey_XXXXXXXX.p8 \| pbcopy` |
 | `MACOS_NOTARY_KEY_ID` | the key id shown next to that key |
 | `MACOS_NOTARY_ISSUER` | the Issuer ID on the Keys page |
 
