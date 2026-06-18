@@ -559,6 +559,35 @@ def _cmd_support_show(args) -> int:
     return rc
 
 
+def _print_panel(p, indent: str = "") -> None:
+    dist = ", ".join(f"{n}× {v}" for v, n in sorted(p["distribution"].items(), key=lambda kv: -kv[1]))
+    agree = f"{int(p['raw_agreement'] * 100)}%" if p.get("raw_agreement") is not None else "n/a"
+    print(f"{indent}{p['headline']}  ·  {p['tier']}-level  ·  agreement {agree}")
+    if dist:
+        print(f"{indent}  {dist}")
+
+
+def _cmd_support_panel(args) -> int:
+    from . import tools
+    res, rc = _safe(lambda: tools.support_panel(
+        args.claim_id, getattr(args, "candidate_id", None), root=args.root))
+    if not res:
+        return rc
+    if getattr(args, "json", False):
+        _emit_json(res)
+        return rc
+    if args.candidate_id:
+        _print_panel(res)
+    else:
+        print(f"claim {res['claim_id']} — {res['tier']}-level (widest panel)")
+        if not res["candidates"]:
+            print("  (no human ratings yet — a panel needs ≥1 named rater per claim)")
+        for p in res["candidates"]:
+            print(f"  candidate {p['candidate_id']}:")
+            _print_panel(p, indent="    ")
+    return rc
+
+
 def _cmd_claim_decide(args) -> int:
     from . import tools
     rec, rc = _safe(lambda: tools.decide(
@@ -1526,6 +1555,13 @@ def main(argv: list[str] | None = None) -> int:
     csw.add_argument("--rating-id", required=True)
     csw.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     csw.set_defaults(func=_cmd_support_show)
+
+    csp = sub.add_parser("claim-support-panel",
+                         help="organized-panel 'X of N support' aggregate (ADR-0008, read-only)")
+    csp.add_argument("--claim-id", required=True)
+    csp.add_argument("--candidate-id", help="summarize one pair; omit for the whole claim")
+    csp.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
+    csp.set_defaults(func=_cmd_support_panel)
 
     from .schemas.decision import FINAL_DECISIONS
     cdc = sub.add_parser("claim-decide",

@@ -894,6 +894,18 @@ def support_commit_human(rating_id: str, value: str, *, fit=None, rationale: Opt
         rating_id, value, fit=fit, rationale=rationale, committed_by=committed_by)
 
 
+def support_panel(claim_id: str, candidate_id: Optional[str] = None, *, root: Optional[str] = None):
+    """Organized-panel "X of N support" aggregate (ADR-0008): how many of N independent human
+    reviewers support a claim, the value distribution, raw agreement, and the confidence tier
+    (1 individual · 2–7 review · 8+ guideline). Reads existing human ratings — no new rating,
+    no decision. With ``candidate_id`` it summarizes that pair; without, the whole claim."""
+    from .claims.panel import claim_panel_summary, panel_summary
+    store = _open_store(root)
+    if candidate_id:
+        return panel_summary(store, claim_id, candidate_id)
+    return claim_panel_summary(store, claim_id)
+
+
 def support_run_ai(rating_id: str, task_type: str = "assess", *, root: Optional[str] = None,
                    rater=None):
     """Blind advisory AI claim-support rating (needs a pinned model + a rater).
