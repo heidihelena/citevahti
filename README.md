@@ -62,10 +62,13 @@ or shared as individual data.
 
 ### No terminal — Claude Desktop
 
-Download `citevahti.mcpb` from the [latest release](https://github.com/heidihelena/citevahti/releases),
-double-click it, choose a CiteVahti folder, then ask:
+Download the CiteVahti extension **for your computer** from the
+[latest release](https://github.com/heidihelena/citevahti/releases/latest), double-click it,
+choose a CiteVahti folder, then ask: *"Run claim tests on my manuscript using CiteVahti."*
 
-> Run claim tests on my manuscript using CiteVahti.
+- **Windows** — `citevahti-<version>-windows-x64.mcpb`
+- **Linux** — `citevahti-<version>-linux-x64.mcpb`
+- **macOS** — the one-click bundle isn't published yet; use the Terminal route below for now.
 
 ### Terminal
 
@@ -93,8 +96,8 @@ pip show citevahti          # confirm the new version
 Or in one line: `pip install --no-cache-dir --upgrade "citevahti[mcp]"`.
 
 Your review data in `.citevahti/` is **not** touched by this — updating only replaces the
-program. On Claude Desktop, download the newest `citevahti.mcpb` and double-click it to
-replace the old extension.
+program. On Claude Desktop, download the newest extension for your platform and double-click
+it to replace the old one.
 
 ## The workflow
 
