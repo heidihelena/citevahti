@@ -8,15 +8,24 @@
  * back to the browser. */
 
 const SUPPORT = [
-  ["directly_supports", "Directly supports"],
-  ["partially_supports", "Partially supports"],
-  ["indirectly_supports", "Indirectly supports"],
-  ["overstated", "Overstated"],            // the paper supports a weaker claim than the one made
-  ["does_not_support", "Does not support"],
-  ["contradicts", "Contradicts"],
-  ["unclear", "Unclear"],
+  ["directly_supports", "Directly supports", "the paper directly supports this claim"],
+  ["partially_supports", "Partially supports", "the paper supports part of this claim"],
+  ["indirectly_supports", "Indirectly supports", "the paper supports this claim only indirectly"],
+  ["overstated", "Overstated", "the paper supports a weaker version of this claim"],
+  ["does_not_support", "Does not support", "the paper does not support this claim"],
+  ["contradicts", "Contradicts", "the paper contradicts this claim"],
+  ["unclear", "Unclear", "the paper's support for this claim is genuinely unclear"],
 ];
 const SUP_LABEL = Object.fromEntries(SUPPORT.map(([v, l]) => [v, l]));
+const SUP_DEF = Object.fromEntries(SUPPORT.map(([v, , d]) => [v, d]));
+// Human-readable claim-type labels; the enum is stored, only the label is shown.
+const CLAIM_TYPE_LABEL = {
+  effectiveness: "Treatment effect", diagnostic_accuracy: "Diagnostic accuracy",
+  prognosis: "Prognosis", risk_factor: "Risk factor", mechanism: "Mechanism",
+  background: "Background claim", guideline_recommendation: "Guideline recommendation",
+  implementation: "Implementation", other: "Other",
+};
+const claimTypeLabel = (t) => CLAIM_TYPE_LABEL[t] || t || "";
 const DECISIONS = [
   ["accept", "Accept", "oo"],
   ["accepted_with_caution", "Caution", "o"],
@@ -381,9 +390,9 @@ function renderWarehouse(box, st) {
   const on = !!st.enabled, text = !!st.include_claim_text;
   const bundle = state.lastBundle;
   box.innerHTML = `<div class="modal-card wh">
-    <div class="modal-head"><b>De-identified warehouse</b><button class="chip-btn" data-wh-close="1">✕</button></div>
-    <div class="note">A local, opt-in record of your claim-test work — claim <b>hash</b> (not text), public
-      PMID/DOI, and the ratings. Off by default. Nothing here is uploaded anywhere.</div>
+    <div class="modal-head"><b>Local evidence map</b> <span class="note dim">— nothing uploaded</span><button class="chip-btn" data-wh-close="1">✕</button></div>
+    <div class="note">A local, opt-in, de-identified record of your claim-test work — claim <b>hash</b> (not text),
+      public PMID/DOI, and the ratings. Off by default. Nothing here is uploaded anywhere.</div>
     <label class="wh-toggle"><input type="checkbox" id="whEnabled" ${on ? "checked" : ""}>
       <span><b>Collect de-identified records</b> — ${st.record_count} stored</span></label>
     <label class="wh-toggle${on ? "" : " dim"}"><input type="checkbox" id="whText" ${text ? "checked" : ""} ${on ? "" : "disabled"}>
@@ -670,7 +679,7 @@ function toggleAddClaim() {
     <div class="lbl">New claim ${state.activeMs ? "in " + esc(state.activeMs) : ""}</div>
     <textarea id="newClaimText" class="revbox" placeholder="claim text — or select a sentence in the manuscript first">${esc(sel)}</textarea>
     <div class="row">
-      <select id="newClaimType">${CLAIM_TYPES.map((t) => `<option>${t}</option>`).join("")}</select>
+      <select id="newClaimType">${CLAIM_TYPES.map((t) => `<option value="${t}">${claimTypeLabel(t)}</option>`).join("")}</select>
       <button class="btn primary" data-act="save-claim">Add claim</button>
       <button class="btn ghost" data-act="cancel-claim">Cancel</button>
     </div></div>`;
@@ -849,7 +858,7 @@ function claimLineBlock(claim) {
   const stale = claim.has_stale_bonds
     ? `<div class="stalewarn" title="A rating or decision was made against a previous wording of this claim">⚠ Claim reworded since it was assessed — re-check the evidence below.</div>`
     : "";
-  return `<div class="lbl">Claim · ${esc(claim.claim_type || "")}
+  return `<div class="lbl">Claim · ${esc(claimTypeLabel(claim.claim_type))}
       <button class="chip-btn tiny" data-act="edit-claim" title="Reword this claim after reading the evidence">✏ Edit claim</button></div>
     <div class="claimline">“${esc(claim.claim_text)}”</div>${stale}
     <div id="claimEdit"></div>`;
@@ -1044,9 +1053,9 @@ function finderMore() {
 
 function rateBlock(cand) {
   const r = cand.rating;
-  const btns = SUPPORT.map(([v, l], i) => {
+  const btns = SUPPORT.map(([v, l, d], i) => {
     const chosen = r && r.human === v ? " chosen" : "";
-    return `<button class="rate-btn${chosen}" data-rate="${v}"><span class="hk">${i + 1}</span>${l}</button>`;
+    return `<button class="rate-btn${chosen}" data-rate="${v}" title="${esc(d)}"><span class="hk">${i + 1}</span>${l}</button>`;
   }).join("");
   const opts = `<option value="">– not scored</option>` +
     FIT_SCORES.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
@@ -1059,9 +1068,11 @@ function rateBlock(cand) {
     <div class="fitrow">` +
     PICO.map(([k, lab, help]) => `<label class="fitlab" title="${esc(help)}">${lab}
       <select data-fit="${k}" aria-label="${esc(help)}">${opts}</select></label>`).join("") + `</div></div>`;
+  const defs = `<details class="fithelp"><summary>What the ratings mean</summary><div class="body">` +
+    SUPPORT.map(([, l, d]) => `<div><b>${l}</b> — ${esc(d)}</div>`).join("") + `</div></details>`;
   return `<div class="next"><div class="ask">Your blind support rating</div>
     <div class="why">Press <kbd>1</kbd>–<kbd>7</kbd> or click. The AI second rating stays hidden until yours is recorded.</div>
-    <div class="rates">${btns}</div>${fit}</div>`;
+    <div class="rates">${btns}</div>${defs}${fit}</div>`;
 }
 
 function decideBlock(cand) {
@@ -1075,7 +1086,7 @@ function decideBlock(cand) {
   const getAi = r.ai ? "" : `<div class="getai">
     <button class="btn ghost" data-act="run-ai" title="Ask CiteVahti's configured local/external model for a blinded second opinion">✦ Get AI second opinion</button>
     <span class="note dim">Optional. Or your assistant provides it over MCP. Configure a model in ✦ AI.</span></div>`;
-  return `<div class="next"><div class="ask">Reveal &amp; decide</div>
+  return `<div class="next"><div class="ask">${r.ai ? "Reveal &amp; decide" : "Decide now, or get an AI second opinion"}</div>
     <div class="why">${r.ai
       ? "Your blind rating is in. Here is the AI second opinion."
       : "Your blind rating is in. No AI second opinion has been recorded yet — decide on yours, or get one below."}</div>
@@ -1466,7 +1477,7 @@ async function doSearch() {
         <div class="ractions">
           <button class="btn ghost" data-link="${esc(h.record_id)}">Link to claim</button>
           ${inLib ? `<span class="note">already saved</span>`
-                  : `<button class="btn ghost" data-zsave="${esc(h.record_id)}" title="Add this paper to your Zotero library">＋ Save to Zotero</button>`}
+                  : `<button class="btn ghost" data-zsave="${esc(h.record_id)}" title="Adds this paper to your Zotero library — it does NOT mark the claim supported (rate and decide for that)">＋ Add paper to Zotero</button>`}
         </div></div>`;
     }).join("");
   } catch (e) { if (box) box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }

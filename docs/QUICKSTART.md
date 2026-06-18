@@ -18,7 +18,7 @@ Zotero. Every command is something you **copy and paste** — nothing to memoris
 
 If you use **Claude Desktop**, you don't need a terminal:
 
-1. Download **`citevahti.mcpb`** from the [latest release](https://github.com/heidihelena/citevahti/releases/latest).
+1. Download the CiteVahti extension **for your computer** from the [latest release](https://github.com/heidihelena/citevahti/releases/latest) — `citevahti-<version>-windows-x64.mcpb` or `…-linux-x64.mcpb`. *(A macOS one-click bundle isn't published yet — use the terminal route below for now.)*
 2. Double-click it. Claude Desktop installs it and asks once for a folder to keep your work in.
 3. In the chat, type **`run_claim_tests`** and paste a paragraph of your manuscript.
 
