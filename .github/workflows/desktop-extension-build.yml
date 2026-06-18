@@ -223,7 +223,19 @@ jobs:
           KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
         run: |
-          echo "$KEY_P8" > /tmp/AuthKey.p8
+          # MACOS_NOTARY_KEY_P8 is the base64 of the App Store Connect .p8 (PEM newlines
+          # can't survive pasting raw → notarytool reports invalidP8). Decode it the same
+          # tolerant way as the cert.
+          python3 - <<'PY'
+          import base64, os, sys
+          raw = "".join(os.environ["KEY_P8"].split())
+          try:
+              data = base64.b64decode(raw, validate=True)
+          except Exception as e:
+              sys.exit(f"::error::MACOS_NOTARY_KEY_P8 is not valid base64 ({e}). "
+                       "Set it to: base64 -i AuthKey_XXXXXXXX.p8 | pbcopy")
+          open("/tmp/AuthKey.p8", "wb").write(data)
+          PY
           # a .mcpb (zip) cannot be stapled; Gatekeeper checks the notarization ticket online
           xcrun notarytool submit "out/${{ steps.ver.outputs.asset }}" \
             --key /tmp/AuthKey.p8 --key-id "$KEY_ID" --issuer "$ISSUER" --wait
