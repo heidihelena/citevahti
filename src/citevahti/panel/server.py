@@ -489,6 +489,11 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "POST" and path == "/api/claim-tests-prompt":
             return 200, engine.claim_tests_prompt(body.get("manuscript") or "")
 
+        # the ready-to-paste screen_topic choreography (ADR-0008, Layer 0) — turns a topic
+        # into candidate claims + nearby evidence to paste into chat (leads, not verdicts)
+        if method == "POST" and path == "/api/topic-screen-prompt":
+            return 200, engine.topic_screen_prompt(body.get("topic") or "")
+
         # ---- the manuscript "unit test" suite (each claim is a test case) ----
         # Offline by default (instant, structural); online verifies citations are
         # real + not retracted. Optionally scoped to one manuscript.

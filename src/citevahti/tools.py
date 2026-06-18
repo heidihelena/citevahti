@@ -1048,6 +1048,16 @@ def claim_tests_prompt(manuscript: str = "") -> dict:
     return {"name": CLAIM_TEST_PROMPT_NAME, "prompt": run_claim_tests_prompt(manuscript or "")}
 
 
+def topic_screen_prompt(topic: str = "") -> dict:
+    """The ready-to-paste ``screen_topic`` choreography (ADR-0008, Layer 0), optionally
+    pre-filled with a topic. The panel's "Screen a topic" button hands the reviewer this
+    prompt to paste into their chat client; the assistant then proposes candidate claims +
+    nearby evidence (leads, not verdicts) and hands off to ``run_claim_tests``. The panel
+    never calls an AI itself (ADR-0007); the choreography text lives in ``agent.prompts``."""
+    from .agent.prompts import SCREEN_TOPIC_PROMPT_NAME, screen_topic_prompt
+    return {"name": SCREEN_TOPIC_PROMPT_NAME, "prompt": screen_topic_prompt(topic or "")}
+
+
 def warehouse_purge(*, root: Optional[str] = None):
     """Erase the validation warehouse (consent withdrawal)."""
     from .warehouse import ValidationWarehouseService
