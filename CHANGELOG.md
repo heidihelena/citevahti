@@ -4,6 +4,16 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## Unreleased
+
+- **Panel app icon.** The review panel now ships a favicon — the brand `[··]` mark — so the
+  browser tab, bookmarks, history, and a desktop install show the CiteVahti icon instead of a
+  generic one. `favicon.svg` (vector, matches the header mark) plus a 180×180
+  `apple-touch-icon.png` (the `.mcpb` icon's navy style) for the iOS home screen; `make-icon.py`
+  now renders both the bundle icon and the panel icon from one source. The static handler serves
+  `/favicon.svg`, `/favicon.ico`, and `/apple-touch-icon.png`; `index.html` links them and adds a
+  `theme-color`. Both assets ship in the wheel.
+
 ## 0.18.0 — stale-bond & contradiction warnings, Word↔claims bridge, submission-packet methods, executable blinded AI rater (2026-06-17)
 
 - **Stale-bond warning — evidence assessments are flagged when the claim text changes.**
