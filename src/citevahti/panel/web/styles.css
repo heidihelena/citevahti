@@ -61,6 +61,19 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
   text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
 .chip-btn { font: inherit; cursor: pointer; border: 1px solid var(--zs-line);
   background: var(--zs-surface-2); color: var(--zs-ink); border-radius: 7px; padding: 5px 9px; }
+
+/* inline notification bar (replaces blocking alert()s) — states what / why / next action */
+.notifybar { position: sticky; top: 0; z-index: 60; padding: 8px 16px; background: transparent; }
+.notifybar[hidden] { display: none; }
+.toast { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid; font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+.toast .toast-msg { flex: 1; }
+.toast.error { color: var(--zs-delete-text); background: var(--zs-delete-bg); border-color: var(--zs-delete-border); }
+.toast.ok { color: var(--zs-partial-text); background: var(--zs-partial-bg); border-color: var(--zs-partial-border); }
+.toast .toast-btn { flex: none; }
+.toast .toast-x { flex: none; cursor: pointer; border: none; background: transparent; color: inherit;
+  font: 600 13px/1 ui-monospace, Menlo, monospace; padding: 4px 6px; opacity: .7; }
+.toast .toast-x:hover { opacity: 1; }
 /* the one primary header action (Run unit tests) — the only filled chip, for hierarchy */
 .chip-btn.primary { color: var(--zs-brand-contrast); background: var(--zs-brand); border-color: var(--zs-brand); }
 .chip-btn.primary:hover { background: var(--zs-brand-strong); border-color: var(--zs-brand-strong); }
@@ -76,6 +89,19 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
   box-shadow: 0 8px 24px rgba(0,0,0,.14); min-width: 190px; }
 .menu-pop .chip-btn { width: 100%; text-align: left; border: 1px solid transparent; background: transparent; }
 .menu-pop .chip-btn:hover { background: var(--zs-surface-2); }
+
+/* inline notification (replaces blocking alert()): fixed just below the header */
+.notifybar { position: fixed; top: 56px; left: 50%; transform: translateX(-50%); z-index: 100;
+  width: min(560px, calc(100vw - 32px)); }
+.notifybar[hidden] { display: none; }
+.toast { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.16); font-size: 13px; }
+.toast.error { color: var(--zs-delete-text); background: var(--zs-delete-bg); border: 1px solid var(--zs-delete-border); }
+.toast.ok { color: var(--zs-partial-text); background: var(--zs-partial-bg); border: 1px solid var(--zs-partial-border); }
+.toast-msg { flex: 1; word-break: break-word; }
+.toast-btn { white-space: nowrap; }
+.toast-x { background: none; border: 0; cursor: pointer; font: inherit; font-size: 14px; color: inherit; opacity: .7; padding: 2px 4px; }
+.toast-x:hover { opacity: 1; }
 
 /* audit-chain integrity badge */
 .auditbadge { font: 600 11px/1 ui-monospace, Menlo, monospace; padding: 4px 8px; border-radius: 999px;
