@@ -1022,6 +1022,11 @@ function printAudit() {
 function candidateTags(cand) {
   if (!cand) return "";
   const t = [];
+  // organized-panel consensus (ADR-0008) — shown when 2+ independent reviewers rated this pair
+  if (cand.panel) {
+    const ag = cand.panel.raw_agreement != null ? `${Math.round(cand.panel.raw_agreement * 100)}% agree` : "";
+    t.push(`<span class="tag panel" title="${cand.panel.n_raters} independent reviewers${ag ? " · " + ag : ""}">👥 ${esc(cand.panel.headline)} · ${esc(cand.panel.tier)}-level</span>`);
+  }
   if (cand.retracted) t.push(`<span class="tag retracted">⚠ RETRACTED</span>`);
   if (cand.stale_bond) t.push(`<span class="tag stale" title="This paper was assessed against an older wording of the claim — re-check">⚠ claim reworded since</span>`);
   if (cand.already_in_zotero) t.push(`<span class="tag inzot">✓ in Zotero</span>`);

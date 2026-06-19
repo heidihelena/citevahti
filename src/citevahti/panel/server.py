@@ -33,6 +33,7 @@ from .. import agent
 from .. import tools as engine
 from .. import workflow
 from ..claims.bonds import claim_bond_status
+from ..claims.panel import panel_summary
 from . import manuscript as M
 from . import prefs
 
@@ -368,6 +369,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                     has_ai_rating=bool(rec and rec.ai_rating is not None),
                     has_decision=bool(ev and ev.get("decision_id")),
                     written=c.candidate_id in written)
+                # Organized-panel "X of N support" (ADR-0008) — only when 2+ independent
+                # human reviewers rated this pair, so a single-rater claim shows no badge.
+                ps = panel_summary(store, claim_id, c.candidate_id)
+                view["panel"] = ps if ps["n_raters"] >= 2 else None
                 cand_views.append(view)
             return 200, {"claim": {"claim_id": claim.claim_id, "claim_text": claim.claim_text,
                                    "claim_type": claim.claim_type,
