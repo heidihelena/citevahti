@@ -1222,3 +1222,22 @@ def test_run_ai_local_records_blind(tmp_path):
     assert rec.ai_rating is not None and rec.ai_rating.value == "contradicts"
     # blinded by construction: the AI never saw a human value (none exists yet)
     assert rec.human_rating is None and rec.blinding.independent is True
+
+
+def test_claim_detail_carries_panel_x_of_n(tmp_path):
+    # the organized-panel "X of N support" badge (ADR-0008): the claim-detail endpoint
+    # surfaces it per candidate once 2+ independent reviewers have rated the pair
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store)
+    # single rater first -> no panel badge yet
+    rec = eng.support_start(claim_id, cand_id, rating_set_id="panel")
+    eng.support_commit_human(rec.rating_id, "directly_supports", committed_by="r1")
+    _, one = dispatch(str(tmp_path), "GET", f"/api/claims/{claim_id}", None)
+    assert one["candidates"][0]["panel"] is None
+    # a second independent rater -> review-level "1 of 2 support"
+    rec2 = eng.support_start(claim_id, cand_id, rating_set_id="panel")
+    eng.support_commit_human(rec2.rating_id, "does_not_support", committed_by="r2")
+    _, two = dispatch(str(tmp_path), "GET", f"/api/claims/{claim_id}", None)
+    panel = two["candidates"][0]["panel"]
+    assert panel and panel["n_raters"] == 2
+    assert panel["headline"] == "1 of 2 support" and panel["tier"] == "review"

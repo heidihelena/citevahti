@@ -322,6 +322,8 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .tag.nodoi { color: var(--zs-delete-text); border-color: var(--zs-delete-border); background: var(--zs-delete-bg); }
 .tag.retracted { color: var(--zs-brand-contrast); background: var(--zs-delete-border); border-color: var(--zs-delete-border); }
 .tag.stale { color: var(--zs-partial-text); background: var(--zs-partial-bg); border-color: var(--zs-partial-border); }
+/* organized-panel "X of N support" consensus badge (ADR-0008) */
+.tag.panel { color: var(--zs-brand-contrast); background: var(--zs-brand); border-color: var(--zs-brand); }
 
 /* advisory: an evidence assessment predates the current claim wording */
 .stalewarn { margin: 6px 0 2px; padding: 6px 9px; border-radius: 6px; font-size: 12px;
