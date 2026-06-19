@@ -111,9 +111,23 @@ def test_both_prompts_registered_over_stdio(tmp_path):
                 names = {p.name for p in listed.prompts}
                 assert prompts.CLAIM_TEST_PROMPT_NAME in names
                 assert prompts.REVIEW_PROMPT_NAME in names      # deprecated alias still works
+                assert prompts.SCREEN_TOPIC_PROMPT_NAME in names  # Layer-0 screening (ADR-0008)
                 got = await session.get_prompt(prompts.CLAIM_TEST_PROMPT_NAME, {})
                 text = " ".join(
                     m.content.text for m in got.messages if hasattr(m.content, "text"))
                 assert "side panel" in text and "submit_ai_support_rating" in text
 
     anyio.run(run)
+
+
+def test_desktop_manifests_list_the_same_prompts_as_the_server():
+    # the .mcpb manifests must advertise every prompt the server registers, or a
+    # Claude Desktop user can't discover it (screen_topic was the gap)
+    import json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "desktop-extension"
+    expected = {prompts.CLAIM_TEST_PROMPT_NAME, prompts.SCREEN_TOPIC_PROMPT_NAME}
+    for name in ("manifest.json", "manifest.binary.json"):
+        m = json.loads((root / name).read_text())
+        listed = {p["name"] for p in m.get("prompts", [])}
+        assert expected <= listed, f"{name} is missing prompts: {expected - listed}"

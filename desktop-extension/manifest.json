@@ -40,6 +40,11 @@
       "name": "run_claim_tests",
       "description": "Run the blinded claim-by-claim citation review over your manuscript.",
       "text": "Run claim tests on my manuscript using CiteVahti."
+    },
+    {
+      "name": "screen_topic",
+      "description": "Layer-0 screening: turn a topic into candidate claims + nearby evidence (leads, not verdicts), then hand off to run_claim_tests.",
+      "text": "Screen a topic with CiteVahti and propose candidate claims to assess."
     }
   ],
   "compatibility": {
