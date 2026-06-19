@@ -1715,9 +1715,10 @@ $("#theme").addEventListener("click", () => {
 });
 // "⋯ Tools" dropdown: close once an action runs, on outside-click, or on Escape
 (() => {
-  const tm = $("#toolsmenu"); if (!tm) return;
-  tm.querySelector(".menu-pop").addEventListener("click", () => tm.removeAttribute("open"));
-  document.addEventListener("click", (e) => { if (tm.open && !tm.contains(e.target)) tm.removeAttribute("open"); });
+  const tm = $("#toolsmenu"); if (!tm || !tm.querySelector) return;
+  const pop = tm.querySelector(".menu-pop");
+  if (pop && pop.addEventListener) pop.addEventListener("click", () => tm.removeAttribute("open"));
+  document.addEventListener("click", (e) => { if (tm.open && tm.contains && !tm.contains(e.target)) tm.removeAttribute("open"); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && tm.open) tm.removeAttribute("open"); });
 })();
 document.addEventListener("keydown", (e) => {
