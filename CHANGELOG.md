@@ -4,6 +4,38 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.20.0 — macOS one-click install, the UX adoption pass, and release provenance (2026-06-19)
+
+- **macOS desktop install (signed + notarized, built in CI).** Releases now ship a
+  `citevahti-<version>-macos-arm64.mcpb` alongside Windows and Linux — built on `macos-latest`,
+  codesigned with the Developer ID (hardened runtime + entitlements) and notarized via
+  notarytool, gated on repo secrets (an unsigned macOS download is blocked by Gatekeeper). The
+  install cards point at the per-platform asset, and the docs note the one-time first-open
+  Gatekeeper prompt (a `.mcpb` is a zip macOS can't staple). `make-icon.py` renders both the
+  bundle icon and the panel app icon from one source.
+
+- **UX adoption pass — the panel reads as one calm next action, not an expert cockpit.**
+  - *Header decluttered:* four visible actions — **Run unit tests** (the one primary chip),
+    **Export**, **AI**, **?** — with DOIs / Library / Retractions / Evidence map / Reload / Theme
+    in a **⋯ Tools** dropdown (native `<details>`, no new component).
+  - *One-path first run:* **Start your review** (1 add manuscript → 2 extract claims → 3 review
+    first claim); screen-a-topic and add-claims collapse behind "I don't have a manuscript yet";
+    the wrong-ledger recovery (your work may be in another ledger → one-click Switch) stays prominent.
+  - *Legend teaches manuscript-mark STATES* (`[oo]` accepted · `[o]` needs support · `[r]` review
+    needed · `[d]` decided · `[u]` untestable · `[··]` pending), separate from the card's decision
+    actions — fixing the same-letter, different-meaning confusion.
+  - *Conditional stepper:* `Rate → Decide → Write` with no AI, `Rate → AI second opinion → Decide
+    → Write` when one exists — so "Reveal" never looks done when nothing was revealed.
+  - *Inline notifications* with a **Retry** replace blocking `alert()`s; the server's remediation
+    makes them state what happened, why, and the next action. The evidence map leads with
+    "Stored on this computer. Nothing uploaded."
+
+- **Release provenance.** Manual `workflow_dispatch` desktop builds now checkout the exact
+  `release_tag`, so a `.mcpb` attached to `vX.Y.Z` is built from `vX.Y.Z` — wheel, source archive,
+  and desktop extension agree. The Layer-0 **`screen_topic`** prompt is now registered on the MCP
+  server and listed in both desktop manifests (Claude Desktop can invoke it), with a test that the
+  manifests advertise every server-registered prompt.
+
 ## 0.19.0 — evidence confidence tiers, the organized panel, topic screening, the GDPR contributor notice, and the panel app icon (2026-06-18)
 
 - **Organized-panel "X of N support" aggregate (ADR-0008, the review/guideline tier).** Brings
