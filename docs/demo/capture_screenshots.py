@@ -144,6 +144,9 @@ def main() -> None:
             browser = p.chromium.launch()
             ctx = browser.new_context(viewport=VIEWPORT, device_scale_factor=SCALE)
             page = ctx.new_page()
+            # 0. the "what's next" banner over the manuscript (no claim focused)
+            _shoot(page, f"{demo_base}/?theme=light", "#nextstep:not([hidden])",
+                   out / "00-next-step.png")
             # 1. review surface — the blind Rate card open over the manuscript, light mode
             _shoot(page, f"{demo_base}/?theme=light{focus_q}", ".stepper",
                    out / "01-review-surface.png", click_first_claim=not focus, focus=focus)
