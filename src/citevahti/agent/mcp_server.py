@@ -14,7 +14,10 @@ from .prompts import (
     CLAIM_TEST_PROMPT_NAME,
     REVIEW_PROMPT_DESCRIPTION,
     REVIEW_PROMPT_NAME,
+    SCREEN_TOPIC_PROMPT_DESCRIPTION,
+    SCREEN_TOPIC_PROMPT_NAME,
     run_claim_tests_prompt,
+    screen_topic_prompt,
 )
 
 
@@ -38,6 +41,12 @@ def build_server(name: str = "citevahti", *, root: str = "."):
     @server.prompt(name=CLAIM_TEST_PROMPT_NAME, description=CLAIM_TEST_PROMPT_DESCRIPTION)
     def run_claim_tests(manuscript: str = "") -> str:
         return run_claim_tests_prompt(manuscript)
+
+    # Layer-0 topic screening (ADR-0008): propose candidate claims + nearby evidence for a
+    # topic (leads, not verdicts), then hand off to run_claim_tests. Same blinded contract.
+    @server.prompt(name=SCREEN_TOPIC_PROMPT_NAME, description=SCREEN_TOPIC_PROMPT_DESCRIPTION)
+    def screen_topic(topic: str = "") -> str:
+        return screen_topic_prompt(topic)
 
     # Deprecated alias kept for clients that connected via 0.9.0 (same workflow).
     @server.prompt(name=REVIEW_PROMPT_NAME, description=REVIEW_PROMPT_DESCRIPTION)

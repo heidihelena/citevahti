@@ -55,6 +55,12 @@ jobs:
         working-directory: desktop-extension
     steps:
       - uses: actions/checkout@v6
+        with:
+          # build from the EXACT tag on a manual backfill, so a .mcpb attached to vX.Y.Z
+          # is built from vX.Y.Z (not from later main). On a release event github.ref is
+          # already the tag. (Provenance: the wheel, the source archive, and the desktop
+          # extension must represent the same commit.)
+          ref: ${{ inputs.release_tag != '' && inputs.release_tag || github.ref }}
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
@@ -125,6 +131,8 @@ jobs:
         working-directory: desktop-extension
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag != '' && inputs.release_tag || github.ref }}   # build from the exact tag on backfill
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
