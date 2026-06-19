@@ -153,7 +153,7 @@ async function exportReport() {
     const intact = r.audit_intact === false ? "⚠ audit chain BROKEN"
       : r.audit_intact ? `audit chain intact ✓ (${r.audit_entries} entries)` : "";
     setAgentLine(`Report saved — generated ${esc(r.generated_at || "now")}${intact ? " · " + intact : ""}.`);
-  } catch (e) { alert(e.message); }
+  } catch (e) { notify(e.message); }
 }
 
 /* ---------- export menu: Markdown · PDF (print) · review packet (.zip) ----------
@@ -184,8 +184,8 @@ async function exportDocx() {
     const r = await api("POST", "/api/report/docx", {});
     closeExportModal();
     setAgentLine(`Word report saved (${r.claim_count} claim(s)) → ${esc(r.output_file)}`);
-    alert(`Word report saved (${r.claim_count} claim(s)):\n${r.output_file}`);
-  } catch (e) { alert(e.message); }   // surfaces the "install citevahti[docx]" hint if absent
+    notify(`Word report saved (${r.claim_count} claim(s)): ${r.output_file}`, { kind: "ok" });
+  } catch (e) { notify(e.message); }   // surfaces the "install citevahti[docx]" hint if absent
 }
 
 function importWord() {
@@ -202,7 +202,7 @@ function importWord() {
       const b64 = String(dataUrl).split(",", 2)[1] || "";
       const r = await api("POST", "/api/manuscripts/import-docx", { docx_base64: b64 });
       openImportReview(file.name.replace(/\.docx$/i, "") + ".md", r.markdown || "");
-    } catch (e) { alert(e.message); }
+    } catch (e) { notify(e.message); }
   };
   inp.click();
 }
@@ -267,26 +267,26 @@ async function saveImported() {
     closeImportModal();
     await loadManuscripts();
     setAgentLine(`Imported ${esc(r.filename)} — ${esc(r.next_prompt || "extract claims next")}`);
-  } catch (e) { alert(e.message); }
+  } catch (e) { notify(e.message); }
 }
 
 async function exportPdf() {
   try {
     const r = await api("GET", "/api/report");
     const w = window.open("", "_blank");
-    if (!w) { alert("Allow pop-ups to print the report to PDF, or use Markdown export."); return; }
+    if (!w) { notify("Allow pop-ups to print the report to PDF, or use Markdown export."); return; }
     w.document.write(r.html || "<p>(empty report)</p>");
     w.document.close(); w.focus();
     setTimeout(() => { try { w.print(); } catch {} }, 350);   // render, then open the print dialog
-  } catch (e) { alert(e.message); }
+  } catch (e) { notify(e.message); }
 }
 async function exportPacket() {
   try {
     const r = await api("POST", "/api/report/packet", {});
     closeExportModal();
     setAgentLine(`Review packet saved (${r.claim_count} claim(s)) → ${esc(r.output_file)}`);
-    alert(`Review packet saved (${r.claim_count} claim(s)):\n${r.output_file}\n\nContains: ${r.members.join(", ")}`);
-  } catch (e) { alert(e.message); }
+    notify(`Review packet saved (${r.claim_count} claim(s)): ${r.output_file}`, { kind: "ok" });
+  } catch (e) { notify(e.message); }
 }
 
 function setAgentLine(html) {
@@ -433,14 +433,14 @@ function renderWarehouse(box, st) {
 async function whConfigure(patch) {
   try { const st = await api("POST", "/api/warehouse/configure", patch);
     state.lastBundle = null; renderWarehouse($("#whModal"), st); }
-  catch (e) { alert(e.message); }
+  catch (e) { notify(e.message); }
 }
 async function whAction(act) {
   const box = $("#whModal");
   try {
     if (act === "export") {
       const r = await api("POST", "/api/warehouse/export", {});
-      alert(`Exported ${r.record_count} record(s) to:\n${r.output_file}`);
+      notify(`Exported ${r.record_count} record(s) to ${r.output_file}`, { kind: "ok" });
     } else if (act === "purge") {
       if (!confirm("Erase the local warehouse? This withdraws every de-identified record.")) return;
       await api("POST", "/api/warehouse/purge", {}); state.lastBundle = null;
@@ -453,11 +453,11 @@ async function whAction(act) {
       if (state.lastBundle) downloadJson(state.lastBundle, `${state.lastBundle.contribution_id}.json`);
     } else if (act === "revoke") {
       const id = (($("#whRevokeId") || {}).value || "").trim();
-      if (!id) { alert("Paste the contribution_id to revoke."); return; }
+      if (!id) { notify("Paste the contribution_id to revoke."); return; }
       const req = await api("POST", "/api/atlas/revoke", { contribution_id: id });
       downloadJson(req, `revocation-${id}.json`);
     }
-  } catch (e) { alert(e.message); }
+  } catch (e) { notify(e.message); }
 }
 function closeWarehouse() { state.lastBundle = null; closeModalEl($("#whModal")); }
 
@@ -536,7 +536,7 @@ async function aiConfigure(patch) {
       state.aiModels = models; state.aiSuggested = suggested;
     }
     renderAiSettings($("#aiModal"), cfg, models, suggested);
-  } catch (e) { alert(e.message); }
+  } catch (e) { notify(e.message); }
 }
 function closeAiSettings() { closeModalEl($("#aiModal")); }
 // CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
@@ -663,7 +663,7 @@ async function openBrowse(path) {
 function closeBrowse() { closeModalEl($("#browseModal")); }
 async function useBrowseFolder(dir) {
   try { await api("POST", "/api/manuscripts/bind", { dir }); closeBrowse(); await loadManuscripts(); }
-  catch (e) { alert(e.message); }
+  catch (e) { notify(e.message); }
 }
 
 const CLAIM_TYPES = ["effectiveness", "diagnostic_accuracy", "prognosis", "risk_factor",
@@ -688,14 +688,14 @@ function toggleAddClaim() {
 async function saveClaim() {
   const text = (($("#newClaimText") || {}).value || "").trim();
   const type = ($("#newClaimType") || {}).value || "other";
-  if (!text) { alert("enter the claim text first"); return; }
+  if (!text) { notify("Enter the claim text first."); return; }
   try {
     const r = await api("POST", "/api/claims", { claim_text: text, claim_type: type,
       manuscript_id: state.activeMs, manuscript_location: state.activeMs });
     $("#addClaimBox").innerHTML = "";
     await loadManuscripts();
     if (r.claim_id) await selectClaim(r.claim_id);
-  } catch (e) { alert("Add claim failed: " + e.message); }
+  } catch (e) { notify("Add claim failed: " + e.message); }
 }
 
 /* ---------- manuscript document ---------- */
@@ -1033,12 +1033,12 @@ async function openInZotero(cand) {
   if (!cand) return;
   try {
     const r = await api("POST", "/api/zotero/locate", { doi: cand.doi, title: cand.title, pmid: cand.pmid });
-    if (!r.found) { alert("This reference isn't in your Zotero library yet."); return; }
+    if (!r.found) { notify("This reference isn't in your Zotero library yet."); return; }
     // trigger the zotero:// handler without navigating the panel away
     const a = document.createElement("a");
     a.href = `zotero://open-pdf/library/items/${r.key}`;
     a.click();
-  } catch (e) { alert("Open in Zotero failed: " + e.message); }
+  } catch (e) { notify("Open in Zotero failed: " + e.message); }
 }
 
 /* find evidence: search PubMed or the Zotero library, then link a result as a
@@ -1249,6 +1249,26 @@ function renderAgent(ph, claim, cand) {
 function resetWrite() { state.pendingZtoken = null; state.previewNote = ""; state.pendingDocToken = null; }
 function showErr(m) { const e = $("#cardErr"); if (e) { e.textContent = m; e.scrollIntoView({ block: "nearest" }); } }
 
+/* Inline, dismissible notification — replaces blocking alert()s. The server's error
+ * payload already carries a plain "next action" remediation (api() appends it to the
+ * message), so an error toast states what happened, why, and what to do — with an
+ * optional Retry. `kind: "ok"` auto-dismisses; errors stay until dismissed/retried. */
+function clearNotify() { const b = $("#notify"); if (b) { clearTimeout(b._t); b.hidden = true; b.innerHTML = ""; } }
+function notify(msg, opts = {}) {
+  const box = $("#notify"); if (!box) { return; }     // headless/fallback
+  const kind = opts.kind === "ok" ? "ok" : "error";
+  box.innerHTML = `<div class="toast ${kind}">
+    <span class="toast-msg">${esc(msg)}</span>
+    ${opts.retry ? `<button class="btn ghost toast-btn" data-toast-retry="1">Retry</button>` : ""}
+    <button class="toast-x" data-toast-close="1" aria-label="Dismiss" title="Dismiss">✕</button></div>`;
+  box.hidden = false;
+  const retry = box.querySelector("[data-toast-retry]");
+  if (retry) retry.onclick = () => { clearNotify(); opts.retry(); };
+  box.querySelector("[data-toast-close]").onclick = clearNotify;
+  clearTimeout(box._t);
+  if (kind === "ok") box._t = setTimeout(clearNotify, 5000);
+}
+
 async function ensureRatingId(cand) {
   if (cand.rating && cand.rating.rating_id) return cand.rating.rating_id;
   const r = await api("POST", "/api/ratings/start", { claim_id: state.activeClaim, candidate_id: cand.candidate_id });
@@ -1409,10 +1429,10 @@ async function _applyConnect(which, payload) {
     renderConns();
     const canWrite = (state.health && state.health.can_write || []).length > 0;
     if (which === "zotero" && !canWrite)
-      alert("Zotero key accepted but no write access detected — check the key has write permission to your library.");
+      notify("Zotero key accepted but no write access detected — check the key has write permission to your library.");
     if (state.activeClaim) renderCard();
   } catch (e) {
-    alert("Connect " + which + " failed: " + e.message);   // surface the real reason
+    notify("Connect " + which + " failed: " + e.message);   // surface the real reason
   }
 }
 
@@ -1460,7 +1480,7 @@ async function connectOAuth() {
       const ok = (state.health && state.health.can_write || []).length > 0;
       if (ok || tries > 40) { clearInterval(iv); if (ok && state.activeClaim) renderCard(); }
     }, 2000);
-  } catch (e) { alert("Zotero OAuth: " + e.message); }
+  } catch (e) { notify("Zotero OAuth: " + e.message); }
 }
 
 async function doSearch() {
@@ -1694,10 +1714,10 @@ $("#legendBtn").addEventListener("click", () => {
 async function maintenance(path, label, fmt) {
   try {
     const r = await api("POST", path, {});
-    alert(fmt(r));
+    notify(fmt(r), { kind: "ok" });
     await loadManuscripts();
     if (state.activeClaim) await selectClaim(state.activeClaim);
-  } catch (e) { alert(`${label} failed: ${e.message}`); }
+  } catch (e) { notify(`${label} failed: ${e.message}`, { retry: () => maintenance(path, label, fmt) }); }
 }
 $("#resolveDois").addEventListener("click", () =>
   maintenance("/api/candidates/resolve-dois", "Resolve DOIs",
@@ -1807,10 +1827,10 @@ async function bindFolder() {
   const dir = ($("#bindDir") || {}).value || "";
   if (!dir.trim()) return;
   try { await api("POST", "/api/manuscripts/bind", { dir: dir.trim() }); await loadManuscripts(); }
-  catch (e) { alert(e.message); }
+  catch (e) { notify(e.message); }
 }
 async function switchRoot(root) {
-  try { await api("POST", "/api/root", { root }); location.reload(); } catch (e) { alert(e.message); }
+  try { await api("POST", "/api/root", { root }); location.reload(); } catch (e) { notify(e.message); }
 }
 
 function drawLogos() {
