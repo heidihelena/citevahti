@@ -390,9 +390,9 @@ function renderWarehouse(box, st) {
   const on = !!st.enabled, text = !!st.include_claim_text;
   const bundle = state.lastBundle;
   box.innerHTML = `<div class="modal-card wh">
-    <div class="modal-head"><b>Local evidence map</b> <span class="note dim">— nothing uploaded</span><button class="chip-btn" data-wh-close="1">✕</button></div>
-    <div class="note">A local, opt-in, de-identified record of your claim-test work — claim <b>hash</b> (not text),
-      public PMID/DOI, and the ratings. Off by default. Nothing here is uploaded anywhere.</div>
+    <div class="modal-head"><b>Local evidence map</b><button class="chip-btn" data-wh-close="1">✕</button></div>
+    <div class="note"><b>Stored on this computer. Nothing uploaded.</b> An opt-in, de-identified record of your
+      claim-test work — claim <b>hash</b> (not text), public PMID/DOI, and the ratings. Off by default.</div>
     <label class="wh-toggle"><input type="checkbox" id="whEnabled" ${on ? "checked" : ""}>
       <span><b>Collect de-identified records</b> — ${st.record_count} stored</span></label>
     <label class="wh-toggle${on ? "" : " dim"}"><input type="checkbox" id="whText" ${text ? "checked" : ""} ${on ? "" : "disabled"}>
@@ -710,7 +710,7 @@ function renderDoc() {
     const cls = decided ? (STATE_CLASS[st.code] || "pending") : "pending";
     const code = decided && st.code ? `[${st.code.padEnd(2)}]` : "[··]";
     const active = seg.claim_id === state.activeClaim ? " active" : "";
-    const aria = decided ? ({ oo: "accepted", o: "accept with caution", r: "needs review", d: "rejected" }[st.code] || "decided") : "pending";
+    const aria = decided ? ({ oo: "accepted", o: "needs support", r: "review needed", d: "decided", u: "untestable" }[st.code] || "decided") : "pending";
     // an accepted claim is a cited passage: tag it so copying carries the citation
     const ref = st.cite ? citeOf(st.cite) : "";
     const cite = ref ? ` data-citation="${esc(ref)}"` : "";
@@ -805,9 +805,15 @@ function phaseOf(cand) {
   return (cand && cand.step && cand.step.phase) || "rate";
 }
 
-function stepper(active) {
-  const steps = [["rate", "Rate"], ["reveal", "Reveal"], ["decide", "Decide"], ["write", "Write"]];
-  const idx = { rate: 0, reveal: 1, decide: 2, write: 3, done: 4 }[active];
+function stepper(active, hasAi) {
+  // Conditional: the "AI second opinion" step only appears when an AI rating exists,
+  // so the stepper never shows a "Reveal" step as done when nothing was revealed.
+  const steps = hasAi
+    ? [["rate", "Rate"], ["reveal", "AI second opinion"], ["decide", "Decide"], ["write", "Write"]]
+    : [["rate", "Rate"], ["decide", "Decide"], ["write", "Write"]];
+  const order = steps.map(([k]) => k);
+  let idx = active === "done" ? steps.length : order.indexOf(active);
+  if (idx === -1) idx = 0;          // 'reveal' is not a real phase; fall back to the start
   return `<div class="stepper">` + steps.map(([k, label], i) => {
     const cls = i < idx ? "done" : i === idx ? "current" : "";
     const arrow = i < steps.length - 1 ? `<span class="arrow"></span>` : "";
@@ -843,7 +849,7 @@ function renderCard() {
     ? `<div class="removerow"><button class="btn ghost" data-act="unlink"
         title="Unlink this paper from the claim (keeps the claim and audit trail)">✕ Remove paper <span class="hk">⇧D</span></button></div>`
     : "";
-  card.innerHTML = stepper(ph) + claimLineBlock(claim) +
+  card.innerHTML = stepper(ph, !!(cand && cand.rating && cand.rating.ai_present)) + claimLineBlock(claim) +
     picker + candidateTags(cand) + removeRow + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr"></div>`;
   renderAgent(ph, claim, cand);
 }

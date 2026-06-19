@@ -265,6 +265,7 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .legchip.r  { color: var(--zs-revise-text); border-color: var(--zs-revise-border); background: var(--zs-revise-bg); }
 .legchip.d  { color: var(--zs-delete-text); border-color: var(--zs-delete-border); background: var(--zs-delete-bg); }
 .legchip.pend { color: var(--zs-brand); border-color: var(--zs-brand); background: var(--zs-mark); }
+.legchip.u  { color: var(--zs-muted); border-color: var(--zs-line); background: var(--zs-surface-2); }
 
 /* add-claim form (above the manuscript) */
 .addclaim { border: 1px solid var(--zs-brand); border-radius: 12px; padding: 12px; margin-bottom: 14px; background: var(--zs-brand-bg); }
