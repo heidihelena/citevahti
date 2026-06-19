@@ -44,13 +44,14 @@
           <div class="nextstep" id="nextstep" role="status" aria-live="polite" hidden></div>
           <div class="msbar" id="msbar"></div>
           <div class="legend" id="legend" role="region" aria-label="Legend" hidden>
-            <div class="lbl">What the marks mean</div>
-            <div class="legrow"><span class="legchip oo">[oo]</span> <b>Accept</b> — the source supports the claim.</div>
-            <div class="legrow"><span class="legchip o">[o ]</span> <b>Caution</b> — it supports the claim, but indirectly or partially.</div>
-            <div class="legrow"><span class="legchip r">[r ]</span> <b>Needs review</b> — not enough evidence was checked, or the raters disagree.</div>
-            <div class="legrow"><span class="legchip d">[d ]</span> <b>Reject</b> — the source does not support, or contradicts, the claim.</div>
+            <div class="lbl">Manuscript marks — a claim's status</div>
+            <div class="legrow"><span class="legchip oo">[oo]</span> <b>Accepted</b> — has an accepted, supporting citation.</div>
+            <div class="legrow"><span class="legchip o">[o ]</span> <b>Needs support</b> — no accepted supporting evidence yet.</div>
+            <div class="legrow"><span class="legchip r">[r ]</span> <b>Review needed</b> — raters disagree, or it's flagged for a second review.</div>
+            <div class="legrow"><span class="legchip d">[d ]</span> <b>Decided</b> — every candidate settled, none accepted.</div>
+            <div class="legrow"><span class="legchip u">[u ]</span> <b>Untestable</b> — the cited source is outside the indexed literature.</div>
             <div class="legrow"><span class="legchip pend">[··]</span> <b>Pending</b> — not yet rated/decided.</div>
-            <div class="note"><b>Unsupported</b> means the source appears not to support the claim; <b>unverified / needs review</b> means CiteVahti could not check enough evidence; <b>contradicts</b> means it argues against it.</div>
+            <div class="note">In the review card you pick a <b>decision</b> — <b>Accept</b> · <b>Caution</b> · <b>Needs review</b> · <b>Reject</b> — and that sets the claim's mark above.</div>
             <div class="note">CiteVahti checks whether a claim is supported by its source — <b>not</b> whether the claim is true or clinically valid.</div>
 
             <div class="lbl" style="margin-top:12px">Keyboard shortcuts</div>
@@ -59,9 +60,8 @@
             <div class="legrow"><kbd>Enter</kbd> do the highlighted next step (preview / confirm / next)</div>
             <div class="note">Shortcuts never fire while you're typing in a box. Writing a lot?
               <label class="hkoff"><input type="checkbox" id="hkToggle" /> turn shortcuts off</label> — your typing is never affected either way.</div>
-            <div class="note beta-note"><b>Beta.</b> CiteVahti is currently in beta and free to use for
-              testing, research feedback, and early development. Pricing for hosted and advanced
-              features may be introduced later. A free local/community version is intended to remain available.</div>
+            <div class="note beta-note"><b>Beta.</b> CiteVahti is in beta and free to use. Local-first:
+              your manuscript and ratings stay on your device unless you choose to use an external AI model.</div>
           </div>
           <div id="addClaimBox"></div>
           <div id="doc" class="doc"></div>
