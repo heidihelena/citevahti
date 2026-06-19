@@ -1536,41 +1536,44 @@ async function renderFirstRun() {
     `<div class="ledrow"><span class="path">${esc(l.root)}</span><span class="n">${l.claims} claims</span>
       ${l.root !== state.ctx.root && l.claims > 0 ? `<button class="btn ghost" data-switch="${esc(l.root)}">Switch here</button>` : (l.root === state.ctx.root ? `<span class="note">active</span>` : "")}</div>`).join("");
   $("#split").innerHTML = `<div class="firstrun">
-    <div class="beta-banner"><b>CiteVahti is in beta — free to use.</b> Free for testing, research
-      feedback, and early development. Pricing for hosted and advanced features may be introduced
-      later; a free local/community version is intended to remain available.</div>
-    <h2>No claims in this ledger yet</h2>
-    <p class="note">Active ledger: <b>${esc(state.ctx.root)}</b> — it has no claims. ${others.length ? "Another ledger does:" : ""}</p>
-    <div class="panel-box">${rows || '<div class="note">No other ledgers found.</div>'}</div>
+    <div class="beta-banner"><b>CiteVahti is in beta — free to use.</b> Local-first: your manuscript
+      and ratings stay on your device unless you choose to use an external AI model.</div>
+    <h2>Start your review</h2>
+    <p class="note"><b>1.</b> Add your manuscript → <b>2.</b> extract claims (in your chat client) →
+      <b>3.</b> review the first claim. The panel never calls an AI itself.</p>
+    ${others.length ? `<div class="panel-box wrong-ledger">
+      <div class="lbl">Looking for earlier work?</div>
+      <p class="note">This ledger (<b>${esc(state.ctx.root)}</b>) is empty — your claims may be in another ledger:</p>
+      ${rows}</div>` : ""}
     <div class="panel-box">
-      <div class="lbl">Start from a manuscript</div>
-      <p class="note">Paste your manuscript Markdown — CiteVahti saves it and remembers
-      where it lives. Claim extraction runs in your chat client (the panel never calls an AI),
-      so you'll get the exact prompt to paste there next.</p>
+      <div class="lbl">1 · Add your manuscript</div>
+      <p class="note">Paste your manuscript Markdown — CiteVahti saves it and remembers where it lives.
+      You'll get the exact prompt to paste into your chat client to extract claims next.</p>
       <input id="pasteName" type="text" placeholder="filename, e.g. my-draft.md" />
       <textarea id="pasteBody" class="revbox" placeholder="# Title&#10;&#10;Paste your Markdown here…"></textarea>
       <div class="actions"><button class="btn primary" id="pasteSave">Save my document</button></div>
       <div id="pasteResult"></div>
     </div>
-    <div class="panel-box">
-      <div class="lbl">…or screen a topic</div>
-      <p class="note">No manuscript yet? Hand your chat client a screening prompt for a topic — it
-      proposes candidate claims to assess and nearby evidence. <b>Leads, not verdicts</b>; you
-      still rate each one first. The panel never calls an AI itself.</p>
-      <input id="screenTopic" type="text" placeholder="e.g. low-dose CT screening in heavy smokers" />
-      <div class="actions"><button class="btn primary" id="screenTopicBtn" title="Copy the screen_topic prompt to paste into your chat client">⧉ Copy screen-topic prompt</button></div>
-      <div id="screenResult" class="note"></div>
-    </div>
-    <div class="panel-box">
-      <div class="lbl">…or add claims directly</div>
-      <p class="note">From your chat client run the <b>run_claim_tests</b> prompt, or use the CLI:
-      <br><code>citevahti claim-add --text "…" --type interpretation</code></p>
-      <div class="lbl">Connect sources</div>
-      <div class="actions">
-        <button class="btn ghost" data-connect="zotero">Connect Zotero</button>
-        <button class="btn ghost" data-connect="pubmed">Connect PubMed</button>
+    <details class="firstrun-more">
+      <summary>I don't have a manuscript yet</summary>
+      <div class="panel-box">
+        <div class="lbl">Screen a topic</div>
+        <p class="note">Hand your chat client a screening prompt for a topic — it proposes candidate
+        claims to assess and nearby evidence. <b>Leads, not verdicts</b>; you still rate each one first.</p>
+        <input id="screenTopic" type="text" placeholder="e.g. low-dose CT screening in heavy smokers" />
+        <div class="actions"><button class="btn ghost" id="screenTopicBtn" title="Copy the screen_topic prompt to paste into your chat client">⧉ Copy screen-topic prompt</button></div>
+        <div id="screenResult" class="note"></div>
       </div>
-    </div></div>`;
+      <div class="panel-box">
+        <div class="lbl">Add claims directly · connect sources</div>
+        <p class="note">From your chat client run the <b>run_claim_tests</b> prompt, or use the CLI:
+        <br><code>citevahti claim-add --text "…" --type interpretation</code></p>
+        <div class="actions">
+          <button class="btn ghost" data-connect="zotero">Connect Zotero</button>
+          <button class="btn ghost" data-connect="pubmed">Connect PubMed</button>
+        </div>
+      </div>
+    </details></div>`;
 }
 
 async function savePastedManuscript() {
@@ -1710,6 +1713,13 @@ $("#theme").addEventListener("click", () => {
   try { localStorage.setItem("cv-theme", dark ? "dark" : "light"); } catch { /* private mode */ }
   syncThemeLabel();
 });
+// "⋯ Tools" dropdown: close once an action runs, on outside-click, or on Escape
+(() => {
+  const tm = $("#toolsmenu"); if (!tm) return;
+  tm.querySelector(".menu-pop").addEventListener("click", () => tm.removeAttribute("open"));
+  document.addEventListener("click", (e) => { if (tm.open && !tm.contains(e.target)) tm.removeAttribute("open"); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && tm.open) tm.removeAttribute("open"); });
+})();
 document.addEventListener("keydown", (e) => {
   // modal-first: Escape dismisses the open dialog; Tab is trapped inside it
   const openModal = document.querySelector(".modal");
