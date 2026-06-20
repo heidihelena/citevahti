@@ -830,29 +830,38 @@ def _cmd_claim_commit(args) -> int:
 
 
 def _cmd_cite_export(args) -> int:
-    from pathlib import Path
-
     from . import tools
+    from .report.citation_export import write_outputs
     res, rc = _safe(lambda: tools.cite_export(args.manuscript, root=args.root))
     if not res:
         return rc
     if getattr(args, "json", False):
         print(res.model_dump_json(indent=2))
         return 0
-    src = Path(args.manuscript)
-    out = Path(args.out) if args.out else (src if args.in_place else src.with_suffix(".cited.md"))
-    bib = Path(args.bib) if args.bib else src.with_name("references.bib")
-    out.write_text(res.annotated_markdown, encoding="utf-8")
-    print(f"cited {res.injected} accepted claim(s); {res.skipped} skipped.")
-    print(f"  manuscript   → {out}")
-    if res.bibtex:
-        bib.write_text(res.bibtex, encoding="utf-8")
-        print(f"  bibliography → {bib} ({res.bibtex.count('@article')} reference(s))")
+    info = write_outputs(res, args.manuscript, out=args.out, bib=args.bib,
+                         in_place=args.in_place, make_docx=getattr(args, "docx", False),
+                         allow_pandoc_download=getattr(args, "docx", False))
+    bbt = sum(1 for e in res.entries if e.key_source == "bbt")
+    tail = f"; {bbt} matched your Zotero citekeys" if bbt else ""
+    print(f"cited {res.injected} accepted claim(s); {res.skipped} skipped{tail}.")
+    print(f"  manuscript   → {info['markdown_path']}")
+    if info["bib_path"]:
+        print(f"  bibliography → {info['bib_path']} ({res.bibtex.count('@article')} reference(s))")
     for w in res.warnings:
         print(f"  ⚠ {w}")
-    if res.bibtex:
+    st = info["docx_status"]
+    if st == "ok":
+        print(f"  Word         → {info['docx_path']}")
+    elif st and st.startswith("pandoc_fetch_failed"):
+        print("  ⚠ couldn't fetch Pandoc (offline?). The .md + .bib are ready; convert later with:")
+        print(f"    pandoc {info['markdown_path']} --citeproc "
+              f"--bibliography={info['bib_path']} -o manuscript.docx")
+    elif st and st != "no_citations":
+        print(f"  ⚠ Word export unavailable ({st}).")
+    if not getattr(args, "docx", False) and info["bib_path"]:
         print("\nConvert to Word with live citations + a bibliography:")
-        print(f"  pandoc {out} --citeproc --bibliography={bib} -o manuscript.docx")
+        print(f"  pandoc {info['markdown_path']} --citeproc "
+              f"--bibliography={info['bib_path']} -o manuscript.docx")
     return 0
 
 
@@ -1668,6 +1677,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="write the bibliography here (default: references.bib beside the manuscript)")
     ce.add_argument("--in-place", action="store_true",
                     help="overwrite the manuscript with the annotated version")
+    ce.add_argument("--docx", action="store_true",
+                    help="also produce a Word .docx with live citations (needs Pandoc on PATH)")
     ce.add_argument("--json", action="store_true", help="emit the full result as JSON (for tooling)")
     ce.set_defaults(func=_cmd_cite_export)
 
