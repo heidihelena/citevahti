@@ -1165,6 +1165,22 @@ def get_transaction(transaction_id: str, *, root: Optional[str] = None):
     return _transaction_service(root).get(transaction_id)
 
 
+def cite_export(manuscript_path: str, *, claim_ids: Optional[list[str]] = None,
+                root: Optional[str] = None):
+    """Cite-stable export: embed a durable ``[@citekey]`` after each ACCEPTED claim
+    in the manuscript Markdown and build a matching ``references.bib``.
+
+    The embedded key is the citation's portable form — plain text that survives
+    copy-paste and a Pandoc Markdown→Word conversion. Read-only over the ledger;
+    returns the annotated text + bibliography (the caller writes the files).
+    """
+    from pathlib import Path
+
+    from .report.citation_export import CitationExportService
+    md = Path(manuscript_path).read_text(encoding="utf-8")
+    return CitationExportService(_open_store(root)).export(md, claim_ids=claim_ids)
+
+
 # ---- citation-integrity report (the 4-state "test results") --------------
 def claim_report(*, claim_ids: Optional[list] = None, root: Optional[str] = None):
     """Run citation-integrity tests over the project's claims (read-only 4-state report)."""
