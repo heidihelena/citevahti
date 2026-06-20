@@ -213,9 +213,9 @@ function openImportReview(filename, markdown) {
   box.innerHTML = `<div class="modal-card">
     <div class="modal-head"><b>Import Word → review</b><button class="chip-btn" data-import-close="1">✕</button></div>
     <div class="note">Converted from .docx to Markdown. Review it, then save — claim extraction runs in your chat client afterwards.</div>
-    <div class="lbl">Filename</div><input id="imName" type="text" value="${esc(filename)}" />
+    <div class="lbl">Filename</div><input id="imName" type="text" aria-label="Filename" value="${esc(filename)}" />
     <div class="lbl">Manuscript (Markdown)</div>
-    <textarea id="imBody" class="revbox" style="min-height:220px">${esc(markdown)}</textarea>
+    <textarea id="imBody" class="revbox" aria-label="Manuscript (Markdown)" style="min-height:220px">${esc(markdown)}</textarea>
     <div class="modal-foot"><button class="btn primary" data-import-save="1">Save document</button>
       <button class="btn" data-import-prompt="1" title="Copy the run_claim_tests prompt (with this text) to paste into your chat client">⧉ Copy claim-tests prompt</button>
       <button class="btn ghost" data-import-close="1">Cancel</button></div>
@@ -426,7 +426,7 @@ function renderWarehouse(box, st) {
     ${bundle ? `<div class="note ok" id="whBundleNote"><b>${esc(bundle.contribution_id)}</b> · ${bundle.count} record(s) · ${esc(bundle.sensitivity)}
       · sha256 ${esc(String(bundle.content_hash).slice(0, 12))}…<br>${esc(bundle.consent_receipt.egress)}</div>` : ""}
     <details class="context"><summary>Revoke a contribution</summary><div class="body">
-      <input id="whRevokeId" type="text" placeholder="contribution_id (contrib_…)" />
+      <input id="whRevokeId" type="text" aria-label="Contribution id to revoke" placeholder="contribution_id (contrib_…)" />
       <div class="actions"><button class="btn ghost" data-wh="revoke">Download revocation</button></div></div></details>
     <div class="modal-foot"><button class="btn primary" data-wh-close="1">Done</button></div></div>`;
 }
@@ -497,7 +497,7 @@ function renderAiSettings(box, cfg, models, suggested) {
       ${(!known && cfg.model_id && !cfg.model_id.startsWith("PENDING")) ? `<option value="${esc(cfg.model_id)}" selected>${esc(cfg.model_id)} (configured)</option>` : ""}
       ${(!models.length && suggested) ? `<option value="${esc(suggested)}" selected>${esc(suggested)}</option>` : ""}
     </select>
-    <input id="aiEndpoint" type="text" placeholder="http://localhost:11434/v1/chat/completions" value="${esc(cfg.endpoint || "")}">
+    <input id="aiEndpoint" type="text" aria-label="Local AI endpoint URL" placeholder="http://localhost:11434/v1/chat/completions" value="${esc(cfg.endpoint || "")}">
     <div class="note">${cfg.model_pinned ? `Pinned for audit: <b>${esc(cfg.model_snapshot)}</b> ✓` : `Pick a model to pin it (the Ollama digest is recorded automatically).`}</div>
   </div>`;
   const apiCfg = m !== "api" ? "" : `<div class="ai-cfg">
@@ -505,8 +505,8 @@ function renderAiSettings(box, cfg, models, suggested) {
     <select id="aiProvider">
       <option value="anthropic" ${cfg.provider === "anthropic" ? "selected" : ""}>Anthropic</option>
       <option value="openai" ${cfg.provider !== "anthropic" ? "selected" : ""}>OpenAI-compatible</option></select>
-    <input id="aiModelId" type="text" placeholder="model id (e.g. claude-…, gpt-…)" value="${esc(cfg.model_id && !cfg.model_id.startsWith("PENDING") ? cfg.model_id : "")}">
-    <input id="aiEndpoint" type="text" placeholder="https://… (https only)" value="${esc(cfg.endpoint || "")}">
+    <input id="aiModelId" type="text" aria-label="Model id" placeholder="model id (e.g. claude-…, gpt-…)" value="${esc(cfg.model_id && !cfg.model_id.startsWith("PENDING") ? cfg.model_id : "")}">
+    <input id="aiEndpoint" type="text" aria-label="API endpoint URL (https only)" placeholder="https://… (https only)" value="${esc(cfg.endpoint || "")}">
     <div class="note ${cfg.api_key_present ? "ok" : "warn"}">${cfg.api_key_present
       ? "API key: configured (in your keychain / env)."
       : "API key not set — store <b>CITEVAHTI_AI_API_KEY</b> in your env or keychain. The key is never saved in config or sent through this panel."}</div>
@@ -633,7 +633,7 @@ function renderMsBar() {
   const dir = state.ctx.manuscripts_dir || "";
   const bind = `<span class="bind"><button class="chip-btn" id="addClaim">＋ Claim</button>
     <button class="chip-btn primary-chip" id="browseBtn" title="Choose the folder your manuscript file is in — no typing">📁 Open my document…</button>
-    <input id="bindDir" type="text" placeholder="…or paste a folder path" value="${esc(dir)}" />
+    <input id="bindDir" type="text" aria-label="Ledger folder path" placeholder="…or paste a folder path" value="${esc(dir)}" />
     <button class="chip-btn" id="bindBtn" title="Use the pasted path">Use path</button></span>`;
   $("#msbar").innerHTML = switcher + bind;
   const name = $("#msName"); if (name) name.textContent = state.activeMs || "manuscript";
@@ -677,7 +677,7 @@ function toggleAddClaim() {
   const sel = (window.getSelection && String(window.getSelection())) || "";
   box.innerHTML = `<div class="addclaim">
     <div class="lbl">New claim ${state.activeMs ? "in " + esc(state.activeMs) : ""}</div>
-    <textarea id="newClaimText" class="revbox" placeholder="claim text — or select a sentence in the manuscript first">${esc(sel)}</textarea>
+    <textarea id="newClaimText" class="revbox" aria-label="Claim text" placeholder="claim text — or select a sentence in the manuscript first">${esc(sel)}</textarea>
     <div class="row">
       <select id="newClaimType">${CLAIM_TYPES.map((t) => `<option value="${t}">${claimTypeLabel(t)}</option>`).join("")}</select>
       <button class="btn primary" data-act="save-claim">Add claim</button>
@@ -876,7 +876,7 @@ function toggleEditClaim() {
   const claim = state.claim && state.claim.claim; if (!claim) return;
   state.pendingDocToken = null;
   const resolved = state.view && state.view.mode === "file";
-  const ta = `<textarea id="editClaimText" class="revbox">${esc(claim.claim_text)}</textarea>`;
+  const ta = `<textarea id="editClaimText" class="revbox" aria-label="Edit claim text">${esc(claim.claim_text)}</textarea>`;
   const note = resolved
     ? `<div class="note">CiteVahti backs up the manuscript file first and the edit is undoable.</div>`
     : `<div class="note">Your document isn't open, so this saves the new wording to your ledger (recorded as a revision). Open your document to also update the manuscript file.</div>`;
@@ -1051,7 +1051,7 @@ async function openInZotero(cand) {
 function searchBlock() {
   return `<div class="finder">
     <div class="row">
-      <input type="text" id="searchQ" placeholder="search terms…" />
+      <input type="text" id="searchQ" aria-label="Search terms" placeholder="search terms…" />
       <select id="searchSrc"><option value="pubmed">PubMed</option><option value="openalex">OpenAlex</option><option value="semanticscholar">Semantic Scholar</option><option value="zotero">Zotero library</option></select>
       <button class="btn primary" data-act="search">Search</button>
     </div>
@@ -1108,7 +1108,7 @@ function decideBlock(cand) {
     ${cmp ? `<span class="verdict-tag ${cmp}">${esc(cmp)}</span>` : ""}
     ${getAi}
     <div class="lbl">Record the verdict</div>
-    <div class="decrow"><input type="text" id="decReason" placeholder="reason (recorded in the audit trail)" /></div>
+    <div class="decrow"><input type="text" id="decReason" aria-label="Decision reason — recorded in the audit trail" placeholder="reason (recorded in the audit trail)" /></div>
     <div class="actions">${decBtns}</div>${adj}</div>`;
 }
 
@@ -1137,7 +1137,7 @@ function writeBlock(claim, cand) {
           <div class="actions"><button class="btn primary" data-act="connect-zotero-oauth">Connect with Zotero (OAuth)</button></div>
           <div class="note">Opens Zotero in a tab; authorize and you're connected — no key to copy.</div>
           <div class="lbl" style="margin-top:10px">— or paste a key —</div>
-          <input id="zoteroKey" type="password" placeholder="Zotero API key (write access)" />
+          <input id="zoteroKey" type="password" aria-label="Zotero API key with write access" placeholder="Zotero API key (write access)" />
           <div class="actions"><button class="btn ghost" data-act="connect-zotero">Use this key</button>
             <a class="btn ghost" href="https://www.zotero.org/settings/keys/new" target="_blank" rel="noopener">Get a key</a></div>
           <div class="note">Either way the key is stored in your OS keychain — it never returns to this page.</div></div></div>`;
@@ -1169,7 +1169,7 @@ function writeBlock(claim, cand) {
     }
     // revise: an editable box pre-filled with the current wording (or a pending proposal)
     const editor = kind === "revise" && !state.pendingDocToken
-      ? `<div class="lbl">New wording</div><textarea id="revText" class="revbox">${esc(claim.proposed_revision || claim.claim_text)}</textarea>` : "";
+      ? `<div class="lbl">New wording</div><textarea id="revText" class="revbox" aria-label="New wording">${esc(claim.proposed_revision || claim.claim_text)}</textarea>` : "";
     let body;
     if (!state.pendingDocToken) {
       body = `<div class="actions"><button class="btn primary" data-act="docpreview" data-kind="${kind}">Preview ${kind} <span class="hk">↵</span></button></div>`;
@@ -1262,6 +1262,9 @@ function clearNotify() { const b = $("#notify"); if (b) { clearTimeout(b._t); b.
 function notify(msg, opts = {}) {
   const box = $("#notify"); if (!box) { return; }     // headless/fallback
   const kind = opts.kind === "ok" ? "ok" : "error";
+  // success is informational — announce politely; errors interrupt (assertive).
+  box.setAttribute("role", kind === "ok" ? "status" : "alert");
+  box.setAttribute("aria-live", kind === "ok" ? "polite" : "assertive");
   box.innerHTML = `<div class="toast ${kind}">
     <span class="toast-msg">${esc(msg)}</span>
     ${opts.retry ? `<button class="btn ghost toast-btn" data-toast-retry="1">Retry</button>` : ""}
@@ -1448,12 +1451,12 @@ function openConnectModal(which) {
     <div class="modal-head"><b>Connect ${isZ ? "Zotero" : "PubMed (NCBI)"}</b><button class="chip-btn" data-connect-close="1">✕</button></div>
     ${isZ
       ? `<div class="lbl">Zotero API key — write access</div>
-         <input id="cmKey" type="password" autocomplete="off" spellcheck="false" placeholder="Zotero API key" />
+         <input id="cmKey" type="password" autocomplete="off" spellcheck="false" aria-label="Zotero API key with write access" placeholder="Zotero API key" />
          <div class="actions" style="margin-top:8px"><a class="btn ghost" href="https://www.zotero.org/settings/keys/new" target="_blank" rel="noopener">Get a key ↗</a></div>`
       : `<div class="lbl">Contact email — required by NCBI</div>
-         <input id="cmEmail" type="email" autocomplete="off" spellcheck="false" placeholder="you@institution.edu" />
+         <input id="cmEmail" type="email" autocomplete="off" spellcheck="false" aria-label="Contact email — required by NCBI" placeholder="you@institution.edu" />
          <div class="lbl" style="margin-top:10px">NCBI API key — optional, raises your rate limit</div>
-         <input id="cmKey" type="password" autocomplete="off" spellcheck="false" placeholder="optional" />`}
+         <input id="cmKey" type="password" autocomplete="off" spellcheck="false" aria-label="NCBI API key — optional" placeholder="optional" />`}
     <div class="note ok">Stored in your OS keychain. Never written to the ledger.</div>
     <div class="modal-foot"><button class="btn primary" data-connect-submit="${which}">Connect</button>
       <button class="btn ghost" data-connect-close="1">Cancel</button></div></div>`;
@@ -1574,8 +1577,8 @@ async function renderFirstRun() {
       <div class="lbl">1 · Add your manuscript</div>
       <p class="note">Paste your manuscript Markdown — CiteVahti saves it and remembers where it lives.
       You'll get the exact prompt to paste into your chat client to extract claims next.</p>
-      <input id="pasteName" type="text" placeholder="filename, e.g. my-draft.md" />
-      <textarea id="pasteBody" class="revbox" placeholder="# Title&#10;&#10;Paste your Markdown here…"></textarea>
+      <input id="pasteName" type="text" aria-label="Manuscript filename" placeholder="filename, e.g. my-draft.md" />
+      <textarea id="pasteBody" class="revbox" aria-label="Manuscript Markdown" placeholder="# Title&#10;&#10;Paste your Markdown here…"></textarea>
       <div class="actions"><button class="btn primary" id="pasteSave">Save my document</button></div>
       <div id="pasteResult"></div>
     </div>
@@ -1585,7 +1588,7 @@ async function renderFirstRun() {
         <div class="lbl">Screen a topic</div>
         <p class="note">Hand your chat client a screening prompt for a topic — it proposes candidate
         claims to assess and nearby evidence. <b>Leads, not verdicts</b>; you still rate each one first.</p>
-        <input id="screenTopic" type="text" placeholder="e.g. low-dose CT screening in heavy smokers" />
+        <input id="screenTopic" type="text" aria-label="Topic to screen" placeholder="e.g. low-dose CT screening in heavy smokers" />
         <div class="actions"><button class="btn ghost" id="screenTopicBtn" title="Copy the screen_topic prompt to paste into your chat client">⧉ Copy screen-topic prompt</button></div>
         <div id="screenResult" class="note"></div>
       </div>
