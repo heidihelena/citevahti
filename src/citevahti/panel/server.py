@@ -591,6 +591,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             prefs.set_manuscripts_dir(root, mdir)
             return 200, {"ok": True, "manuscripts_dir": prefs.get_manuscripts_dir(root)}
 
+        # is Pandoc ready (without downloading)? — lets the UI warn before a first-run fetch
+        if method == "GET" and path == "/api/pandoc/status":
+            return 200, engine.pandoc_status()
+
         # one-click cite-stable export: embed [@citekey] for accepted claims into the
         # bound .md + write references.bib beside it (and a .docx if Pandoc is present).
         if method == "POST" and path == "/api/manuscripts/cite-export":
