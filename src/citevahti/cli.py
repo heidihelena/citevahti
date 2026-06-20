@@ -829,6 +829,33 @@ def _cmd_claim_commit(args) -> int:
     return rc
 
 
+def _cmd_cite_export(args) -> int:
+    from pathlib import Path
+
+    from . import tools
+    res, rc = _safe(lambda: tools.cite_export(args.manuscript, root=args.root))
+    if not res:
+        return rc
+    if getattr(args, "json", False):
+        print(res.model_dump_json(indent=2))
+        return 0
+    src = Path(args.manuscript)
+    out = Path(args.out) if args.out else (src if args.in_place else src.with_suffix(".cited.md"))
+    bib = Path(args.bib) if args.bib else src.with_name("references.bib")
+    out.write_text(res.annotated_markdown, encoding="utf-8")
+    print(f"cited {res.injected} accepted claim(s); {res.skipped} skipped.")
+    print(f"  manuscript   → {out}")
+    if res.bibtex:
+        bib.write_text(res.bibtex, encoding="utf-8")
+        print(f"  bibliography → {bib} ({res.bibtex.count('@article')} reference(s))")
+    for w in res.warnings:
+        print(f"  ⚠ {w}")
+    if res.bibtex:
+        print("\nConvert to Word with live citations + a bibliography:")
+        print(f"  pandoc {out} --citeproc --bibliography={bib} -o manuscript.docx")
+    return 0
+
+
 def _cmd_txn_list(args) -> int:
     from . import tools
     txns = tools.list_transactions(root=args.root)
@@ -1631,6 +1658,18 @@ def main(argv: list[str] | None = None) -> int:
                      help="override a dedupe_unverified refusal when Zotero search is unavailable")
     ccm.add_argument("--json", action="store_true", help="emit the diff/transaction as JSON (for tooling)")
     ccm.set_defaults(func=_cmd_claim_commit)
+
+    ce = sub.add_parser("cite-export",
+                        help="embed [@citekey] for accepted claims into the .md + write references.bib")
+    ce.add_argument("--manuscript", required=True, help="path to the manuscript .md")
+    ce.add_argument("--out", default=None,
+                    help="write the annotated markdown here (default: <name>.cited.md)")
+    ce.add_argument("--bib", default=None,
+                    help="write the bibliography here (default: references.bib beside the manuscript)")
+    ce.add_argument("--in-place", action="store_true",
+                    help="overwrite the manuscript with the annotated version")
+    ce.add_argument("--json", action="store_true", help="emit the full result as JSON (for tooling)")
+    ce.set_defaults(func=_cmd_cite_export)
 
     txl = sub.add_parser("txn-list", help="list Zotero write transactions (read-only)")
     txl.set_defaults(func=_cmd_txn_list)
