@@ -157,6 +157,38 @@ def test_intake_push_skips_write_target_duplicate(tmp_path):
     assert diff.structured["skipped"][0]["reason"] == "already_on_write_target"
 
 
+# ---- Sev-4b: intake_push must not treat "dedupe could not be checked" as clean ----
+def test_intake_push_dry_run_warns_when_dedupe_unverified(tmp_path):
+    store = _intake_with(tmp_path, [
+        IntakeHit(record_id="pmid:1", pmid="1", doi="10.1/a", title="Maybe a dup", dedupe_status="new"),
+    ])
+    diff = WritebackService(store, _NoCheck()).intake_push("b1", dry_run=True)
+    assert any("dedupe unverified" in w for w in diff.warnings)
+    # still previewed so the human sees what *would* be created -- just flagged, not hidden
+    assert [c["record_id"] for c in diff.structured["create"]] == ["pmid:1"]
+
+
+def test_intake_push_confirmed_refuses_unverified_dedupe(tmp_path):
+    store = _intake_with(tmp_path, [
+        IntakeHit(record_id="pmid:1", pmid="1", doi="10.1/a", title="Maybe a dup", dedupe_status="new"),
+    ])
+    svc = WritebackService(store, _NoCheck())
+    diff = svc.intake_push("b1", dry_run=True)
+    res = svc.intake_push("b1", dry_run=False, confirm_token=diff.confirm_token)
+    assert res.applied is False and res.error_code == "dedupe_unverified"
+
+
+def test_intake_push_unverified_proceeds_with_explicit_override(tmp_path):
+    store = _intake_with(tmp_path, [
+        IntakeHit(record_id="pmid:1", pmid="1", doi="10.1/a", title="Maybe a dup", dedupe_status="new"),
+    ])
+    svc = WritebackService(store, _NoCheck())
+    diff = svc.intake_push("b1", dry_run=True, allow_unverified_dedupe=True)
+    res = svc.intake_push("b1", dry_run=False, confirm_token=diff.confirm_token,
+                          allow_unverified_dedupe=True)
+    assert res.applied is True
+
+
 # ---- WebApi find_existing search (offline) ---------------------------------
 class _SearchHttp:
     def __init__(self, items):
