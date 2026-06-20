@@ -1215,6 +1215,14 @@ def cite_export_manuscript(manuscript_path: str, *, make_docx: bool = False,
             "minted_keys": sum(1 for e in result.entries if e.key_source == "minted")}
 
 
+def pandoc_status():
+    """Whether Pandoc is available WITHOUT triggering a download (on PATH or a copy
+    fetched earlier). Lets the panel warn before the one-time first-run fetch."""
+    from .report.citation_export import _resolve_pandoc
+    path, err = _resolve_pandoc(allow_download=False)
+    return {"available": err is None, "path": path}
+
+
 # ---- citation-integrity report (the 4-state "test results") --------------
 def claim_report(*, claim_ids: Optional[list] = None, root: Optional[str] = None):
     """Run citation-integrity tests over the project's claims (read-only 4-state report)."""

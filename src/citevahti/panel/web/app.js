@@ -1274,7 +1274,8 @@ function notify(msg, opts = {}) {
   if (retry) retry.onclick = () => { clearNotify(); opts.retry(); };
   box.querySelector("[data-toast-close]").onclick = clearNotify;
   clearTimeout(box._t);
-  if (kind === "ok") box._t = setTimeout(clearNotify, 5000);
+  // sticky toasts stay until the next notify()/clearNotify() (e.g. a long Pandoc fetch)
+  if (kind === "ok" && !opts.sticky) box._t = setTimeout(clearNotify, 5000);
 }
 
 async function ensureRatingId(cand) {
@@ -1743,6 +1744,12 @@ async function citeExport() {
     return;
   }
   try {
+    // Warn before the one-time Pandoc fetch — the request below blocks while it downloads.
+    const ps = await api("GET", "/api/pandoc/status").catch(() => ({ available: true }));
+    if (!ps.available) {
+      notify("Downloading Pandoc (one-time, ~100 MB) to build the Word file — this can take a "
+             + "minute. The .md + .bib are written either way.", { kind: "ok", sticky: true });
+    }
     const r = await api("POST", "/api/manuscripts/cite-export",
                         { manuscript_id: state.activeMs, docx: true });
     let msg = `Cited ${r.injected} accepted claim(s)`

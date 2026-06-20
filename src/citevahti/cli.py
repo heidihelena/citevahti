@@ -838,6 +838,8 @@ def _cmd_cite_export(args) -> int:
     if getattr(args, "json", False):
         print(res.model_dump_json(indent=2))
         return 0
+    if getattr(args, "docx", False) and not tools.pandoc_status().get("available"):
+        print("fetching Pandoc (one-time, ~100 MB) to build the Word file…", file=sys.stderr)
     info = write_outputs(res, args.manuscript, out=args.out, bib=args.bib,
                          in_place=args.in_place, make_docx=getattr(args, "docx", False),
                          allow_pandoc_download=getattr(args, "docx", False))
