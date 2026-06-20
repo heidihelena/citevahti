@@ -84,11 +84,18 @@ def _decided_claim(root: Path) -> str | None:
     return None
 
 
-def _start_panel(root: Path, port: int) -> subprocess.Popen:
+def _start_panel(root: Path, port: int, home: Path) -> subprocess.Popen:
     import os
+    # Isolate HOME so ledger discovery (~/.citevahti, ~/Documents/CiteVahti/.citevahti)
+    # can never pick up the developer's REAL ledgers — those would leak a username and
+    # paths into the first-run screenshot. With an empty sandbox HOME the empty ledger
+    # has no "other ledgers" to offer, so the recovery panel isn't rendered at all.
+    home.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "PYTHONPATH": str(SRC), "HOME": str(home),
+           "USERPROFILE": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
     proc = subprocess.Popen(
         [sys.executable, "-m", "citevahti.panel.server", "--root", str(root), "--port", str(port)],
-        env={**os.environ, "PYTHONPATH": str(SRC)},
+        env=env, cwd=str(home),       # cwd too, so ./.citevahti can't match a real ledger
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     base = f"http://127.0.0.1:{port}"
     for _ in range(100):  # ~10s
@@ -135,7 +142,9 @@ def main() -> None:
         _build_ledger(demo, empty=False)
         _build_ledger(empty, empty=True)
         demo_port, empty_port = _free_port(), _free_port()
-        procs += [_start_panel(demo, demo_port), _start_panel(empty, empty_port)]
+        sandbox_home = tmp / "home"      # empty HOME → ledger discovery finds nothing real
+        procs += [_start_panel(demo, demo_port, sandbox_home),
+                  _start_panel(empty, empty_port, sandbox_home)]
         demo_base, empty_base = f"http://127.0.0.1:{demo_port}", f"http://127.0.0.1:{empty_port}"
         focus = args.focus or _rate_phase_claim(demo)
         focus_q = f"&focus={focus}" if focus else ""
