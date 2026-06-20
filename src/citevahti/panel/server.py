@@ -591,6 +591,18 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             prefs.set_manuscripts_dir(root, mdir)
             return 200, {"ok": True, "manuscripts_dir": prefs.get_manuscripts_dir(root)}
 
+        # one-click cite-stable export: embed [@citekey] for accepted claims into the
+        # bound .md + write references.bib beside it (and a .docx if Pandoc is present).
+        if method == "POST" and path == "/api/manuscripts/cite-export":
+            mid = _req(body, "manuscript_id")
+            p = M.resolve_path(prefs.get_manuscripts_dir(root), mid)
+            if p is None:
+                return 400, {"error": "manuscript_not_resolved", "code": "manuscript_not_resolved",
+                             "message": "bind the manuscript's folder first so CiteVahti can "
+                                        "write the cited copy beside it"}
+            return 200, engine.cite_export_manuscript(
+                str(p), make_docx=bool(body.get("docx", True)), root=root)
+
         # loopback-only folder browser: lets the user click through their filesystem
         # to pick a manuscripts folder instead of hand-typing a path (the no-terminal
         # constraint). Read-only listing of sub-directories + manuscript-file counts.

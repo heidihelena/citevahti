@@ -71,6 +71,7 @@ class CitationEntry(BaseModel):
     citekey: Optional[str] = None
     # injected | already_present | not_located | stale | no_identifier
     status: str
+    key_source: Optional[str] = None          # "bbt" (the user's own key) | "minted"
     pmid: Optional[str] = None
     doi: Optional[str] = None
 
@@ -113,7 +114,8 @@ class CitationExportService:
             return md, "already_present"
         return md[:end] + " " + marker + md[end:], "injected"
 
-    def export(self, markdown: str, claim_ids: Optional[list[str]] = None) -> CitationExport:
+    def export(self, markdown: str, claim_ids: Optional[list[str]] = None,
+               citekey_source=None) -> CitationExport:
         report = ClaimReportService(self.store).report(claim_ids)
         md = markdown
         entries: list[CitationEntry] = []
@@ -134,7 +136,11 @@ class CitationExportService:
                                 "citation was accepted (stale bond); re-accept to refresh it.")
                 continue
             ev = fresh[0]
-            citekey = mint_citekey(ev.pmid, ev.doi)
+            # Prefer the paper's OWN Better BibTeX citekey (so [@key] matches the user's
+            # Zotero library); fall back to a minted PMID/DOI key — never guessing.
+            bbt_key = citekey_source.citekey_for(ev.pmid, ev.doi) if citekey_source else None
+            citekey = bbt_key or mint_citekey(ev.pmid, ev.doi)
+            key_source = "bbt" if bbt_key else "minted"
             if not citekey:
                 entries.append(CitationEntry(claim_id=row.claim_id, candidate_id=ev.candidate_id,
                                              status="no_identifier", pmid=ev.pmid, doi=ev.doi))
@@ -143,7 +149,8 @@ class CitationExportService:
                 continue
             md, status = self._inject(md, row.claim_text, f"[@{citekey}]")
             entries.append(CitationEntry(claim_id=row.claim_id, candidate_id=ev.candidate_id,
-                                         citekey=citekey, status=status, pmid=ev.pmid, doi=ev.doi))
+                                         citekey=citekey, status=status, key_source=key_source,
+                                         pmid=ev.pmid, doi=ev.doi))
             if status == "not_located":
                 warnings.append(f"{row.claim_id}: claim text not found in the manuscript (was the "
                                 f".md edited?); [@{citekey}] not inserted.")
@@ -159,3 +166,78 @@ class CitationExportService:
             bibtex=("\n\n".join(bib.values()) + "\n") if bib else "",
             entries=entries, injected=injected, skipped=len(entries) - injected,
             warnings=warnings)
+
+
+class BbtCitekeySource:
+    """Resolve a paper's OWN Better BibTeX citekey, so the embedded ``[@key]`` matches
+    the user's Zotero library (and their normal BBT auto-export ``.bib``).
+
+    Returns ``None`` when BBT is unreachable or can't confirm a single matching item —
+    the caller then mints a key, never guessing. Talks to the Better BibTeX plugin's
+    JSON-RPC; it does NOT require the FullVahti add-on.
+    """
+
+    def __init__(self, bbt) -> None:
+        self.bbt = bbt
+
+    def citekey_for(self, pmid, doi) -> Optional[str]:
+        from ..bbt.client import BbtError, BbtUnavailable, _extract_citekey
+        from ..intake.dedupe import normalize_doi, normalize_pmid
+        np, nd = normalize_pmid(pmid), normalize_doi(doi)
+        for term in filter(None, [doi, pmid]):
+            try:
+                items = self.bbt.jsonrpc("item.search", [term])
+            except (BbtUnavailable, BbtError):
+                return None
+            matches = []
+            for it in (items if isinstance(items, list) else []):
+                if not isinstance(it, dict):
+                    continue
+                ck = _extract_citekey(it)
+                if not ck:
+                    continue
+                it_doi = normalize_doi(it.get("DOI") or it.get("doi"))
+                extra = str(it.get("extra") or "")
+                pmid_hit = np and bool(re.search(rf"PMID:\s*{re.escape(np)}\b", extra))
+                if (nd and it_doi == nd) or pmid_hit:
+                    matches.append(ck)
+            uniq = list(dict.fromkeys(matches))
+            if len(uniq) == 1:          # exactly one confirmed item -> safe to use its key
+                return uniq[0]
+        return None
+
+
+def write_outputs(result: CitationExport, manuscript_path, *, out=None, bib=None,
+                  in_place: bool = False, make_docx: bool = False) -> dict:
+    """Write the annotated markdown + ``references.bib`` beside the manuscript, and —
+    when Pandoc is on PATH — a ``.docx`` with live citations + a bibliography. Pandoc
+    is optional: without it you still get the portable ``.md`` + ``.bib`` pair."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    src = Path(manuscript_path)
+    md_path = Path(out) if out else (src if in_place else src.with_suffix(".cited.md"))
+    bib_path = Path(bib) if bib else src.with_name("references.bib")
+    md_path.write_text(result.annotated_markdown, encoding="utf-8")
+    info = {"markdown_path": str(md_path), "bib_path": None,
+            "docx_path": None, "docx_status": None}
+    if result.bibtex:
+        bib_path.write_text(result.bibtex, encoding="utf-8")
+        info["bib_path"] = str(bib_path)
+    if make_docx:
+        if not result.bibtex:
+            info["docx_status"] = "no_citations"
+        elif not shutil.which("pandoc"):
+            info["docx_status"] = "pandoc_not_found"
+        else:
+            docx_path = md_path.with_suffix(".docx")
+            try:
+                subprocess.run(["pandoc", str(md_path), "--citeproc",
+                                f"--bibliography={bib_path}", "-o", str(docx_path)],
+                               check=True, capture_output=True)
+                info["docx_path"] = str(docx_path)
+                info["docx_status"] = "ok"
+            except subprocess.CalledProcessError as exc:
+                info["docx_status"] = "pandoc_failed: " + (exc.stderr or b"").decode()[:200]
+    return info

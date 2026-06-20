@@ -1736,6 +1736,26 @@ $("#recheckLib").addEventListener("click", () =>
 $("#scanRetractions").addEventListener("click", () =>
   maintenance("/api/candidates/scan-retractions", "Scan retractions",
               (r) => `Checked ${r.checked || 0} candidate(s); ${r.flagged || 0} flagged as RETRACTED.`));
+async function citeExport() {
+  if (!state.activeMs) { notify("Open a manuscript first."); return; }
+  if (!(state.view && state.view.mode === "file")) {
+    notify("Bind the manuscript's folder first so CiteVahti can write the cited copy beside it.");
+    return;
+  }
+  try {
+    const r = await api("POST", "/api/manuscripts/cite-export",
+                        { manuscript_id: state.activeMs, docx: true });
+    let msg = `Cited ${r.injected} accepted claim(s)`
+      + (r.skipped ? `, ${r.skipped} skipped` : "")
+      + (r.bbt_keys ? ` · ${r.bbt_keys} matched your Zotero citekeys` : "")
+      + `. Wrote ${r.markdown_path}` + (r.bib_path ? " + references.bib" : "")
+      + (r.docx_status === "ok" ? " + .docx"
+         : r.docx_status === "pandoc_not_found" ? " (install Pandoc for the .docx)" : "");
+    notify(msg, { kind: "ok" });
+    (r.warnings || []).forEach((w) => console.warn("cite-export:", w));
+  } catch (e) { notify("Cite-stable export failed: " + e.message, { retry: () => citeExport() }); }
+}
+$("#citeExport").addEventListener("click", citeExport);
 $("#theme").addEventListener("click", () => {
   const dark = document.documentElement.classList.toggle("zs-dark");
   try { localStorage.setItem("cv-theme", dark ? "dark" : "light"); } catch { /* private mode */ }

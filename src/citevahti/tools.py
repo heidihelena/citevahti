@@ -1165,20 +1165,52 @@ def get_transaction(transaction_id: str, *, root: Optional[str] = None):
     return _transaction_service(root).get(transaction_id)
 
 
+def _bbt_citekey_source(store):
+    """A BbtCitekeySource over the configured Better BibTeX endpoint, or None. The
+    source itself degrades to None per-lookup when BBT is unreachable, so callers
+    fall back to minted keys without erroring."""
+    try:
+        from .bbt.client import BbtClient
+        from .probe.client import HttpxClient
+        from .report.citation_export import BbtCitekeySource
+        endpoints = store.load_config().endpoints
+        return BbtCitekeySource(BbtClient(HttpxClient(), endpoints))
+    except Exception:  # noqa: BLE001 (BBT is best-effort; minted keys are the fallback)
+        return None
+
+
 def cite_export(manuscript_path: str, *, claim_ids: Optional[list[str]] = None,
                 root: Optional[str] = None):
     """Cite-stable export: embed a durable ``[@citekey]`` after each ACCEPTED claim
     in the manuscript Markdown and build a matching ``references.bib``.
 
-    The embedded key is the citation's portable form — plain text that survives
-    copy-paste and a Pandoc Markdown→Word conversion. Read-only over the ledger;
-    returns the annotated text + bibliography (the caller writes the files).
+    Prefers the paper's OWN Better BibTeX citekey (so ``[@key]`` matches the user's
+    Zotero), minting a PMID/DOI key only when BBT can't confirm one. The embedded key
+    is the citation's portable form — plain text that survives copy-paste and a Pandoc
+    Markdown→Word conversion. Read-only over the ledger; returns the annotated text +
+    bibliography (the caller writes the files).
     """
     from pathlib import Path
 
     from .report.citation_export import CitationExportService
+    store = _open_store(root)
     md = Path(manuscript_path).read_text(encoding="utf-8")
-    return CitationExportService(_open_store(root)).export(md, claim_ids=claim_ids)
+    return CitationExportService(store).export(
+        md, claim_ids=claim_ids, citekey_source=_bbt_citekey_source(store))
+
+
+def cite_export_manuscript(manuscript_path: str, *, make_docx: bool = False,
+                           root: Optional[str] = None):
+    """Run cite-export over a manuscript FILE and write ``<name>.cited.md`` +
+    ``references.bib`` beside it (and a ``.docx`` when Pandoc is available). Returns
+    the written paths, counts, key sources, and any warnings — for the panel button."""
+    from .report.citation_export import write_outputs
+    result = cite_export(manuscript_path, root=root)
+    info = write_outputs(result, manuscript_path, make_docx=make_docx)
+    return {**info, "injected": result.injected, "skipped": result.skipped,
+            "warnings": result.warnings,
+            "bbt_keys": sum(1 for e in result.entries if e.key_source == "bbt"),
+            "minted_keys": sum(1 for e in result.entries if e.key_source == "minted")}
 
 
 # ---- citation-integrity report (the 4-state "test results") --------------

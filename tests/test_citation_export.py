@@ -119,6 +119,48 @@ def test_claim_text_absent_from_manuscript_warns_and_skips(tmp_path):
     assert any("not found in the manuscript" in w for w in res.warnings)
 
 
+class _FakeBbt:
+    """Stands in for the Better BibTeX JSON-RPC client (item.search)."""
+
+    def __init__(self, items):
+        self.items = items
+
+    def jsonrpc(self, method, params):
+        return self.items
+
+
+def test_bbt_keyed_mode_uses_the_users_own_citekey(tmp_path):
+    from citevahti.report.citation_export import BbtCitekeySource
+    store, _ = _store_with_accepted(tmp_path)
+    src = BbtCitekeySource(_FakeBbt([
+        {"citekey": "andersen2011nlst", "DOI": "10.1056/NEJMoa1102873"}]))
+    res = CitationExportService(store).export(CLAIM, citekey_source=src)
+    assert "[@andersen2011nlst]" in res.annotated_markdown      # the user's key, not minted
+    assert res.entries[0].key_source == "bbt"
+    assert "@article{andersen2011nlst," in res.bibtex
+
+
+def test_bbt_no_confirmed_match_falls_back_to_minted(tmp_path):
+    from citevahti.report.citation_export import BbtCitekeySource
+    store, _ = _store_with_accepted(tmp_path)
+    src = BbtCitekeySource(_FakeBbt([]))                         # BBT confirms nothing
+    res = CitationExportService(store).export(CLAIM, citekey_source=src)
+    assert "[@pmid21714641]" in res.annotated_markdown
+    assert res.entries[0].key_source == "minted"
+
+
+def test_write_outputs_writes_md_and_bib(tmp_path):
+    from citevahti.report.citation_export import write_outputs
+    store, _ = _store_with_accepted(tmp_path)
+    ms = tmp_path / "draft.md"
+    ms.write_text(f"Intro. {CLAIM} End.")
+    res = CitationExportService(store).export(ms.read_text())
+    info = write_outputs(res, str(ms), make_docx=True)
+    assert (tmp_path / "draft.cited.md").exists()
+    assert (tmp_path / "references.bib").exists() and info["bib_path"]
+    assert info["docx_status"] is not None        # attempted (ok / pandoc_not_found / failed)
+
+
 def test_reworded_claim_is_not_silently_cited(tmp_path):
     # The honesty differentiator: a citation accepted against the OLD wording must not
     # silently follow the claim after it's reworded (stale bond).
