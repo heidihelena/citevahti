@@ -117,18 +117,20 @@ class WebApiWriteBackend:
         return {"backend": "web_api", "deleted_keys": deleted, "deleted": len(deleted),
                 "skipped": skipped}
 
-    def find_existing(self, pmid, doi):
-        """Item keys in the Web-API library matching pmid/doi (the WRITE target).
+    def find_existing(self, pmid, doi, library: str = "personal"):
+        """Item keys in the WRITE-target library matching pmid/doi.
 
-        Catches duplicates the local Zotero API can't see yet (Web-API-created
-        items not synced locally). Returns [] if verified absent, or None if the
-        search could not run (so callers degrade honestly instead of blocking).
+        Searches the SAME library the write will target (personal or group:<id>) --
+        not always personal -- so group writes are deduped against the group. Catches
+        duplicates the local Zotero API can't see yet (Web-API-created items not synced
+        locally). Returns [] if verified absent, or None if the search could not run
+        (so callers degrade honestly instead of blocking).
         """
         from ..intake.dedupe import normalize_doi, normalize_pmid
         np, nd = normalize_pmid(pmid), normalize_doi(doi)
         if not (np or nd):
             return []
-        base = f"{self.base}/{self._library_path('personal')}/items"
+        base = f"{self.base}/{self._library_path(library)}/items"
         keys: list[str] = []
         for term in filter(None, [doi, pmid]):
             try:

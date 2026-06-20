@@ -20,7 +20,7 @@ from .. import (
     PENDING_MODEL_SNAPSHOT,
     SCHEMA_VERSION,
 )
-from .common import LibrarySelector
+from .common import GroupLibrary, LibrarySelector
 from .frame import Level, SchemeKind, SchemeUnit
 
 
@@ -206,6 +206,20 @@ class Config(BaseModel):
     timestamp: TimestampConfig = Field(default_factory=TimestampConfig)
     # where secrets live; config NEVER stores the secret values themselves
     secrets_backend: Literal["system_keyring", "env"] = "system_keyring"
+
+    def resolved_default_library(self) -> str:
+        """The configured default write target as the writeback selector STRING
+        ('personal' | 'all' | 'group:<id>') that the write layer (``_library_path``)
+        understands. Bridges the typed ``default_library`` selector to that form, and
+        keeps the target library distinct from the Zotero account user id.
+        """
+        sel = self.default_library
+        if isinstance(sel, GroupLibrary):
+            return f"group:{sel.group_id}"
+        if sel == "group":          # bare 'group' needs an id -> the configured group library
+            gid = self.zotero.library_id if self.zotero.library_type == "group" else None
+            return f"group:{gid}" if gid else "personal"
+        return sel                  # "personal" | "all"
 
     @staticmethod
     def default() -> "Config":

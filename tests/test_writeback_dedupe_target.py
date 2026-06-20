@@ -157,18 +157,85 @@ def test_intake_push_skips_write_target_duplicate(tmp_path):
     assert diff.structured["skipped"][0]["reason"] == "already_on_write_target"
 
 
+# ---- Sev-4b: intake_push must not treat "dedupe could not be checked" as clean ----
+def test_intake_push_dry_run_warns_when_dedupe_unverified(tmp_path):
+    store = _intake_with(tmp_path, [
+        IntakeHit(record_id="pmid:1", pmid="1", doi="10.1/a", title="Maybe a dup", dedupe_status="new"),
+    ])
+    diff = WritebackService(store, _NoCheck()).intake_push("b1", dry_run=True)
+    assert any("dedupe unverified" in w for w in diff.warnings)
+    # still previewed so the human sees what *would* be created -- just flagged, not hidden
+    assert [c["record_id"] for c in diff.structured["create"]] == ["pmid:1"]
+
+
+def test_intake_push_confirmed_refuses_unverified_dedupe(tmp_path):
+    store = _intake_with(tmp_path, [
+        IntakeHit(record_id="pmid:1", pmid="1", doi="10.1/a", title="Maybe a dup", dedupe_status="new"),
+    ])
+    svc = WritebackService(store, _NoCheck())
+    diff = svc.intake_push("b1", dry_run=True)
+    res = svc.intake_push("b1", dry_run=False, confirm_token=diff.confirm_token)
+    assert res.applied is False and res.error_code == "dedupe_unverified"
+
+
+def test_intake_push_unverified_proceeds_with_explicit_override(tmp_path):
+    store = _intake_with(tmp_path, [
+        IntakeHit(record_id="pmid:1", pmid="1", doi="10.1/a", title="Maybe a dup", dedupe_status="new"),
+    ])
+    svc = WritebackService(store, _NoCheck())
+    diff = svc.intake_push("b1", dry_run=True, allow_unverified_dedupe=True)
+    res = svc.intake_push("b1", dry_run=False, confirm_token=diff.confirm_token,
+                          allow_unverified_dedupe=True)
+    assert res.applied is True
+
+
 # ---- WebApi find_existing search (offline) ---------------------------------
 class _SearchHttp:
     def __init__(self, items):
         self.items = items
         self.gets = []
+        self.urls = []
 
     def get(self, url, headers=None, params=None):
+        self.urls.append(url)
         self.gets.append(params)
         return HttpResponse(200, _json=self.items)
 
     def post(self, *a, **k):
         raise AssertionError("find_existing must not POST")
+
+
+def test_webapi_find_existing_searches_the_target_library():
+    # Sev-3: dedupe must search the SAME library the write targets, not always personal.
+    http = _SearchHttp([])
+    be = WebApiWriteBackend(http, api_key="k", user_id="123")
+    be.find_existing("21714641", None, library="group:99")
+    assert any("/groups/99/items" in u for u in http.urls)
+    http.urls.clear()
+    be.find_existing("21714641", None, library="personal")
+    assert any("/users/123/items" in u for u in http.urls)
+
+
+class _LibCapture(FakeWriteBackend):
+    """Records the library each find_existing search and apply targeted."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.find_libs = []
+
+    def find_existing(self, pmid, doi, library="personal"):
+        self.find_libs.append(library)
+        return super().find_existing(pmid, doi, library=library)
+
+
+def test_validated_write_targets_and_dedupes_the_group_library(tmp_path):
+    # Sev-2/3: a group commit must dedupe against AND write to the group.
+    store, decision_id = _accepted(tmp_path)
+    be = _LibCapture()
+    txn = _commit(TransactionService(store, be), decision_id, library="group:99")
+    assert txn.status == "committed"
+    assert be.find_libs and all(lib == "group:99" for lib in be.find_libs)
+    assert be.applied[-1].library == "group:99"
 
 
 def test_webapi_find_existing_matches_doi_and_pmid():

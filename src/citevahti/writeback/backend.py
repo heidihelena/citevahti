@@ -40,7 +40,7 @@ class WriteBackend(Protocol):
     # Returns item keys already in the WRITE TARGET matching pmid/doi, [] if none,
     # or None if existence could not be checked. Used to catch duplicates across
     # the local-Zotero / Web-API sync boundary before a write.
-    def find_existing(self, pmid, doi) -> "Optional[list[str]]": ...
+    def find_existing(self, pmid, doi, library: str = "personal") -> "Optional[list[str]]": ...
 
 
 class UnavailableBackend:
@@ -65,7 +65,7 @@ class UnavailableBackend:
     def undo(self, undo_snapshot: dict) -> dict:
         raise WriteUnavailable(self.reason)
 
-    def find_existing(self, pmid, doi):
+    def find_existing(self, pmid, doi, library: str = "personal"):
         return None        # an unconfigured backend cannot check the write target
 
 
@@ -95,7 +95,7 @@ class FakeWriteBackend:
     def supports(self, kind: str) -> bool:
         return True
 
-    def find_existing(self, pmid, doi):
+    def find_existing(self, pmid, doi, library: str = "personal"):
         from ..intake.dedupe import normalize_doi, normalize_pmid
         keys = []
         np, nd = normalize_pmid(pmid), normalize_doi(doi)
@@ -136,7 +136,10 @@ def make_backend(config) -> WriteBackend:
         except Exception:  # noqa: BLE001 (keyring missing)
             cred_store = None
         api_key = resolve_secret(ZOTERO_WRITE_KEY, cred_store)
-        user_id = (config.zotero.library_id or config.zotero.user_id or wb.web_api_user_id
+        # The Zotero ACCOUNT user id (addresses users/<id>) -- NEVER a group library id.
+        # Group libraries are targeted per-op via library='group:<id>' (see _library_path
+        # / Config.resolved_default_library), so library_id must not leak in here.
+        user_id = (config.zotero.user_id or wb.web_api_user_id
                    or os.environ.get("ZOTERO_USER_ID"))
         if not api_key or not user_id:
             # Missing credentials -> unavailable. We do NOT fall back to anything.

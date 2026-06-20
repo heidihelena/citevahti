@@ -105,7 +105,8 @@ class WritebackService:
     def intake_push(self, intake_batch_id: str, record_ids: Optional[list[str]] = None,
                     collection_key: Optional[str] = None, library="personal",
                     dry_run: bool = True, confirm_token: Optional[str] = None,
-                    allow_review_required: bool = False):
+                    allow_review_required: bool = False,
+                    allow_unverified_dedupe: bool = False):
         rec = self.store.load_intake(intake_batch_id)
         # hard block: never write from a batch whose query was flagged for review
         # (e.g. malformed/translated PubMed syntax) without an explicit override.
@@ -121,7 +122,8 @@ class WritebackService:
             wanted = set(record_ids)
             hits = [h for h in hits if h.record_id in wanted]
         find_existing = getattr(self.backend, "find_existing", None)
-        create, skipped = [], []
+        can_check = callable(find_existing) and getattr(self.backend, "available", False)
+        create, skipped, unverified = [], [], []
         for h in hits:
             in_lib = (self.dedupe_index.contains(h.pmid, h.doi) is True) if self.dedupe_index else False
             # intake_push must enforce the same rules as the validated path: never
@@ -133,15 +135,33 @@ class WritebackService:
                 skipped.append({"record_id": h.record_id, "reason": "no_identifier"})
             elif h.dedupe_status == "already_in_library" or in_lib:
                 skipped.append({"record_id": h.record_id, "reason": "already_in_library"})
-            elif callable(find_existing) and getattr(self.backend, "available", False) \
-                    and (find_existing(h.pmid, h.doi) or []):
-                skipped.append({"record_id": h.record_id, "reason": "already_on_write_target"})
             else:
-                # full metadata in `structured` (not hashed into the token payload) so
-                # a live backend can build complete Zotero items.
+                # find_existing: a list of keys -> already present; [] -> verified absent;
+                # None -> could-not-check. Treat None HONESTLY (not as "clean"), matching
+                # commit_for_decision -- an unreachable search must not pass as no-duplicate.
+                try:
+                    hit = find_existing(h.pmid, h.doi, library=library) if can_check else []
+                except Exception:  # noqa: BLE001 (a dedupe failure must never crash the write)
+                    hit = None
+                if hit:
+                    skipped.append({"record_id": h.record_id, "reason": "already_on_write_target"})
+                    continue
+                if hit is None:
+                    unverified.append(h.record_id)
+                # full metadata in `structured` (hashed into the confirm token by
+                # _payload_hash) so a live backend can build complete Zotero items.
                 create.append({"record_id": h.record_id, "doi": h.doi, "pmid": h.pmid,
                                "title": h.title, "authors": h.authors, "journal": h.journal,
                                "year": h.year, "publication_date": h.publication_date})
+        # Honest dedupe degrade: a CONFIRMED write refuses if any record's dedupe could
+        # not be verified, unless explicitly overridden (parallels commit_for_decision).
+        if unverified and not dry_run and not allow_unverified_dedupe:
+            return WriteResult(
+                kind="intake_push", library=str(library), applied=False, status="failed",
+                error_code="dedupe_unverified",
+                remediation=(f"could not confirm {len(unverified)} record(s) aren't already on the "
+                             "write target (Zotero search unavailable); re-run when reachable, or "
+                             "pass allow_unverified_dedupe to override"))
         op = WriteOperation(
             kind="intake_push", library=str(library), targets=[],
             payload={"batch_id": intake_batch_id, "collection_key": collection_key,
@@ -150,6 +170,11 @@ class WritebackService:
                               "(duplicate / no-identifier / already present)"],
             structured={"create": create, "skipped": skipped, "collection_key": collection_key})
         result = self._run(op, dry_run, confirm_token)
+        if unverified and getattr(result, "warnings", None) is not None:
+            result.warnings.append(
+                f"dedupe unverified for {len(unverified)} record(s): the Zotero search was "
+                "unavailable, so they could already exist on the write target. A confirmed "
+                "write needs allow_unverified_dedupe to proceed.")
         # A committed staging write gets a transaction + undo path too (labelled
         # validated=False — it carries no claim/decision, unlike a validated write).
         if not dry_run and getattr(result, "applied", False):

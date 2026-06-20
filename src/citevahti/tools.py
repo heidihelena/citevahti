@@ -1131,14 +1131,20 @@ def _transaction_service(root):
 
 
 def commit_decision(decision_id: str, *, collection_key: Optional[str] = None,
-                    library: str = "personal", dry_run: bool = True,
+                    library: Optional[str] = None, dry_run: bool = True,
                     confirm_token: Optional[str] = None, allow_unverified_dedupe: bool = False,
                     root: Optional[str] = None):
     """Validated, decision-gated Zotero write (preview by default). Enforces the §6 chain.
 
     A confirmed write (``dry_run=False``) REQUIRES ``confirm_token`` from a prior
     preview — agent-facing callers cannot one-call write without that approval step.
+
+    ``library`` is a writeback selector string ('personal' | 'all' | 'group:<id>').
+    When omitted it falls back to the configured default (``Config.default_library``),
+    so a group-library user writes to their group without passing it every time.
     """
+    if library is None:
+        library = _open_store(root).load_config().resolved_default_library()
     return _transaction_service(root).commit_for_decision(
         decision_id, collection_key=collection_key, library=library, dry_run=dry_run,
         confirm_token=confirm_token, allow_unverified_dedupe=allow_unverified_dedupe)

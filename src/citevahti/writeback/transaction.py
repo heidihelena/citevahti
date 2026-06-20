@@ -50,20 +50,22 @@ class TransactionService:
                 return c
         raise TransactionError(f"candidate {candidate_id!r} not linked to claim {claim_id!r}")
 
-    def _find_existing(self, pmid, doi):
-        """Keys already in the write target, or `[]` (verified absent), or `None`
-        (could-not-check — the write target was queryable but the search failed).
+    def _find_existing(self, pmid, doi, library: str = "personal"):
+        """Keys already in the write target LIBRARY, or `[]` (verified absent), or
+        `None` (could-not-check — the write target was queryable but the search failed).
 
-        A legacy/no-capability or unavailable backend returns `[]`: the write
-        itself will fail (or is a non-target backend), so we don't double-flag.
-        An available backend that genuinely can't verify returns `None`, which the
-        caller treats as `dedupe_unverified` (refuse unless explicitly overridden).
+        Searches the same library the write targets (personal or group:<id>) so group
+        writes are deduped against the group, not personal. A legacy/no-capability or
+        unavailable backend returns `[]`: the write itself will fail (or is a non-target
+        backend), so we don't double-flag. An available backend that genuinely can't
+        verify returns `None`, which the caller treats as `dedupe_unverified` (refuse
+        unless explicitly overridden).
         """
         fn = getattr(self.backend, "find_existing", None)
         if not callable(fn) or not getattr(self.backend, "available", False):
             return []
         try:
-            return fn(pmid, doi)          # None | [] | [keys]
+            return fn(pmid, doi, library=library)     # None | [] | [keys]
         except Exception:  # noqa: BLE001 (a dedupe-check failure must never crash the write path)
             return None
 
@@ -101,7 +103,7 @@ class TransactionService:
 
         # cross-boundary dedupe: re-check the WRITE TARGET (Web API), not just the
         # local library, so a Web-API-created item not yet synced locally is caught.
-        existing = self._find_existing(candidate.pmid, candidate.doi)
+        existing = self._find_existing(candidate.pmid, candidate.doi, library)
 
         metadata = self._metadata(candidate)
         op = WriteOperation(
