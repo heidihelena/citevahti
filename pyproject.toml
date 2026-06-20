@@ -17,6 +17,9 @@ authors = [{ name = "Vahtian" }]
 dependencies = [
     "pydantic>=2.13.4",
     "httpx>=0.28.1",
+    # small pure-Python wrapper; the ~100MB Pandoc binary is fetched on first Word
+    # export (no-terminal "first-run fetch"), never bundled. See report/citation_export.
+    "pypandoc>=1.13",
 ]
 
 [project.urls]

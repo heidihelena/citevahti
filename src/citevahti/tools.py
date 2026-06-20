@@ -1206,7 +1206,9 @@ def cite_export_manuscript(manuscript_path: str, *, make_docx: bool = False,
     the written paths, counts, key sources, and any warnings — for the panel button."""
     from .report.citation_export import write_outputs
     result = cite_export(manuscript_path, root=root)
-    info = write_outputs(result, manuscript_path, make_docx=make_docx)
+    # user-initiated (button) → allow the one-time Pandoc fetch for the .docx
+    info = write_outputs(result, manuscript_path, make_docx=make_docx,
+                         allow_pandoc_download=make_docx)
     return {**info, "injected": result.injected, "skipped": result.skipped,
             "warnings": result.warnings,
             "bbt_keys": sum(1 for e in result.entries if e.key_source == "bbt"),

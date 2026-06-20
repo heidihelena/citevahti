@@ -1749,8 +1749,9 @@ async function citeExport() {
       + (r.skipped ? `, ${r.skipped} skipped` : "")
       + (r.bbt_keys ? ` · ${r.bbt_keys} matched your Zotero citekeys` : "")
       + `. Wrote ${r.markdown_path}` + (r.bib_path ? " + references.bib" : "")
-      + (r.docx_status === "ok" ? " + .docx"
-         : r.docx_status === "pandoc_not_found" ? " (install Pandoc for the .docx)" : "");
+      + (r.docx_status === "ok" ? " + Word .docx"
+         : r.docx_status && r.docx_status !== "no_citations"
+           ? " (Word export unavailable — the .md + .bib are ready to convert)" : "");
     notify(msg, { kind: "ok" });
     (r.warnings || []).forEach((w) => console.warn("cite-export:", w));
   } catch (e) { notify("Cite-stable export failed: " + e.message, { retry: () => citeExport() }); }

@@ -207,12 +207,42 @@ class BbtCitekeySource:
         return None
 
 
-def write_outputs(result: CitationExport, manuscript_path, *, out=None, bib=None,
-                  in_place: bool = False, make_docx: bool = False) -> dict:
-    """Write the annotated markdown + ``references.bib`` beside the manuscript, and —
-    when Pandoc is on PATH — a ``.docx`` with live citations + a bibliography. Pandoc
-    is optional: without it you still get the portable ``.md`` + ``.bib`` pair."""
+def _resolve_pandoc(allow_download: bool):
+    """``(pandoc_path, error)``. System PATH first; else, when ``allow_download`` is
+    set, fetch the Pandoc binary ONCE via pypandoc into the user data dir — the
+    no-terminal "first-run fetch". Never downloads unless explicitly allowed (keeps
+    offline tests/CI offline)."""
     import shutil
+
+    sys_pandoc = shutil.which("pandoc")
+    if sys_pandoc:
+        return sys_pandoc, None
+    try:
+        import pypandoc
+    except ImportError:
+        return None, "pandoc_unavailable"          # pypandoc not installed at all
+    try:
+        return pypandoc.get_pandoc_path(), None     # a previously-fetched copy
+    except OSError:
+        pass
+    if not allow_download:
+        return None, "pandoc_not_found"
+    try:
+        pypandoc.download_pandoc()                   # one-time ~100MB into the user dir
+        return pypandoc.get_pandoc_path(), None
+    except Exception as exc:  # noqa: BLE001 (offline / disk / mirror — degrade honestly)
+        return None, "pandoc_fetch_failed: " + str(exc)[:160]
+
+
+def write_outputs(result: CitationExport, manuscript_path, *, out=None, bib=None,
+                  in_place: bool = False, make_docx: bool = False,
+                  allow_pandoc_download: bool = False) -> dict:
+    """Write the annotated markdown + ``references.bib`` beside the manuscript, and —
+    when Pandoc is available — a ``.docx`` with live citations + a bibliography.
+
+    Pandoc is resolved from PATH, else fetched once via pypandoc when
+    ``allow_pandoc_download`` is set. Without it you still get the portable
+    ``.md`` + ``.bib`` pair; the ``.docx`` is best-effort."""
     import subprocess
     from pathlib import Path
 
@@ -228,16 +258,18 @@ def write_outputs(result: CitationExport, manuscript_path, *, out=None, bib=None
     if make_docx:
         if not result.bibtex:
             info["docx_status"] = "no_citations"
-        elif not shutil.which("pandoc"):
-            info["docx_status"] = "pandoc_not_found"
         else:
-            docx_path = md_path.with_suffix(".docx")
-            try:
-                subprocess.run(["pandoc", str(md_path), "--citeproc",
-                                f"--bibliography={bib_path}", "-o", str(docx_path)],
-                               check=True, capture_output=True)
-                info["docx_path"] = str(docx_path)
-                info["docx_status"] = "ok"
-            except subprocess.CalledProcessError as exc:
-                info["docx_status"] = "pandoc_failed: " + (exc.stderr or b"").decode()[:200]
+            pandoc, err = _resolve_pandoc(allow_pandoc_download)
+            if err:
+                info["docx_status"] = err
+            else:
+                docx_path = md_path.with_suffix(".docx")
+                try:
+                    subprocess.run([pandoc, str(md_path), "--citeproc",
+                                    f"--bibliography={bib_path}", "-o", str(docx_path)],
+                                   check=True, capture_output=True)
+                    info["docx_path"] = str(docx_path)
+                    info["docx_status"] = "ok"
+                except subprocess.CalledProcessError as exc:
+                    info["docx_status"] = "pandoc_failed: " + (exc.stderr or b"").decode()[:160]
     return info
