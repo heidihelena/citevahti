@@ -123,6 +123,19 @@ def test_make_backend_disabled_is_unavailable():
     assert isinstance(make_backend(Config.default()), UnavailableBackend)
 
 
+def test_make_backend_user_id_is_account_not_group_library(monkeypatch):
+    # Sev-2: the Web-API user id must be the ACCOUNT id (users/<id>), never a group
+    # library id. A group target is addressed via default_library=group:<id>, so a
+    # group library_id must not leak in as the user id.
+    monkeypatch.setenv("CITEVAHTI_ZOTERO_WRITE_KEY", "k")
+    cfg = _web_cfg()
+    cfg.zotero.user_id = "12345"            # the account
+    cfg.zotero.library_type = "group"
+    cfg.zotero.library_id = "99999"         # a GROUP id — must NOT become the user id
+    backend = make_backend(cfg)
+    assert backend.user_id == "12345"       # account id, not the group id
+
+
 # ---- integration through the guarded WriteLayer ----------------------------
 def _store_with_intake(tmp_path):
     store = CiteVahtiStore(tmp_path)

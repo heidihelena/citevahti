@@ -71,11 +71,23 @@ class OnboardingService:
             cfg.zotero.user_id = zotero_user_id
             report.config_updated.append("zotero.user_id")
         cfg.zotero.library_type = zotero_library_type  # "user" | "group"
+        # library_id = the ADDRESSED library (personal library == account user id, or the
+        # group id). It is NOT the Web-API account user id used to build users/<id>; see
+        # web_api_user_id below. Validating the write key reuses it (group when grouping).
         lib_id = zotero_library_id or zotero_user_id
         if lib_id:
             cfg.zotero.library_id = lib_id
-            cfg.writeback.web_api_user_id = lib_id     # back-compat for the web_api backend
-            report.config_updated += ["zotero.library_id", "writeback.web_api_user_id"]
+            report.config_updated.append("zotero.library_id")
+        # web_api_user_id addresses users/<id> -> it must be the ACCOUNT user id, never a
+        # group id. A group target is expressed via default_library=group:<id> instead, so
+        # personal-path ops can't accidentally build /users/<group-id>.
+        if zotero_user_id:
+            cfg.writeback.web_api_user_id = zotero_user_id
+            report.config_updated.append("writeback.web_api_user_id")
+        if zotero_library_type == "group" and zotero_library_id:
+            from .schemas.common import GroupLibrary
+            cfg.default_library = GroupLibrary(group_id=zotero_library_id)
+            report.config_updated.append("default_library")
         if default_collection_key:
             cfg.zotero.default_collection_key = default_collection_key
             cfg.writeback.default_collection_key = default_collection_key

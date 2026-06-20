@@ -55,7 +55,7 @@ class FullVahtiWriteBackend:
         # FullVahti writes tags onto existing items; it does NOT create items.
         return kind in _SUPPORTED_KINDS
 
-    def find_existing(self, pmid, doi):
+    def find_existing(self, pmid, doi, library: str = "personal"):
         # tag writes target existing item keys, not new items — no dedupe to do here.
         return None
 

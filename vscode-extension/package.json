@@ -77,6 +77,11 @@
           "type": "string",
           "default": "",
           "description": "Zotero collection key to write verified references into (optional)."
+        },
+        "citevahti.library": {
+          "type": "string",
+          "default": "",
+          "description": "Zotero write target: 'personal' or 'group:<id>'. Leave empty to use the library configured at onboarding."
         }
       }
     }

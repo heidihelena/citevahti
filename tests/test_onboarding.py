@@ -39,6 +39,19 @@ def test_non_secrets_written_to_config(tmp_path):
     assert cfg.zotero.user_id == "123456" and cfg.zotero.library_id == "123456"
     assert cfg.zotero.default_collection_key == "T7XK7MJH"
     assert cfg.writeback.web_api_user_id == "123456"
+    assert cfg.resolved_default_library() == "personal"     # user library -> personal
+
+
+def test_group_onboarding_targets_group_keeps_account_user_id(tmp_path):
+    # Sev-2: onboarding a GROUP must NOT store the group id as the account user id;
+    # it sets default_library=group:<id> instead, so users/<id> stays the account.
+    s, store = svc(tmp_path, validators=OkValidators())
+    s.onboard(zotero_user_id="123456", zotero_library_id="98765",
+              zotero_library_type="group", zotero_write_key=SECRET)
+    cfg = store.load_config()
+    assert cfg.writeback.web_api_user_id == "123456"        # account id, not the group
+    assert cfg.zotero.library_id == "98765"
+    assert cfg.resolved_default_library() == "group:98765"  # the group is the write target
 
 
 def test_secret_stored_in_store_not_config(tmp_path):

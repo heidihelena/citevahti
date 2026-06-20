@@ -764,7 +764,8 @@ def _cmd_claim_commit(args) -> int:
         allow = getattr(args, "allow_unverified_dedupe", False)
         if not token:
             diff, rc = _safe(lambda: tools.commit_decision(
-                args.decision_id, collection_key=args.collection_key, dry_run=True, root=args.root))
+                args.decision_id, collection_key=args.collection_key, library=getattr(args, "library", None),
+                dry_run=True, root=args.root))
             if not diff:
                 return rc
             token = getattr(diff, "confirm_token", "") or ""
@@ -800,8 +801,8 @@ def _cmd_claim_commit(args) -> int:
                 print("aborted — nothing was written.")
                 return 1
         out, rc = _safe(lambda: tools.commit_decision(
-            args.decision_id, collection_key=args.collection_key, dry_run=False,
-            confirm_token=token, allow_unverified_dedupe=allow, root=args.root))
+            args.decision_id, collection_key=args.collection_key, library=getattr(args, "library", None),
+            dry_run=False, confirm_token=token, allow_unverified_dedupe=allow, root=args.root))
         if out and getattr(args, "json", False):
             print(out.model_dump_json(indent=2))
             return 0 if out.status == "committed" else 1
@@ -813,7 +814,8 @@ def _cmd_claim_commit(args) -> int:
                 return 1
         return rc
     diff, rc = _safe(lambda: tools.commit_decision(
-        args.decision_id, collection_key=args.collection_key, dry_run=True, root=args.root))
+        args.decision_id, collection_key=args.collection_key, library=getattr(args, "library", None),
+        dry_run=True, root=args.root))
     if diff and getattr(args, "json", False):
         print(diff.model_dump_json(indent=2))
         return rc
@@ -1620,6 +1622,8 @@ def main(argv: list[str] | None = None) -> int:
                          help="decision-gated Zotero write for an accepted decision (dry-run default)")
     ccm.add_argument("--decision-id", required=True)
     ccm.add_argument("--collection-key", default=None)
+    ccm.add_argument("--library", default=None,
+                     help="write target: personal | group:<id> (default: the configured library)")
     ccm.add_argument("--commit", action="store_true", help="actually write (default is dry-run)")
     ccm.add_argument("--confirm-token", default=None,
                      help="approval token from a prior preview (else the CLI previews first)")

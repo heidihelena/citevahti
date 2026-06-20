@@ -474,11 +474,19 @@ function collectionKey(): string | undefined {
   return vscode.workspace.getConfiguration("citevahti").get<string>("collectionKey") || undefined;
 }
 
+// Optional write target: "personal" or "group:<id>". Empty -> the CLI uses the
+// library configured at onboarding (Config.default_library).
+function library(): string | undefined {
+  return vscode.workspace.getConfiguration("citevahti").get<string>("library") || undefined;
+}
+
 // Preview the decision-gated write, confirm, then commit. Never a silent write.
 async function commit(decisionId: string) {
   const args = ["claim-commit", "--decision-id", decisionId, "--json"];
   const coll = collectionKey();
   if (coll) args.push("--collection-key", coll);
+  const lib = library();
+  if (lib) args.push("--library", lib);
   const prev = await runCli(args);
   let diff: any;
   try { diff = JSON.parse(prev.stdout); }
@@ -497,8 +505,9 @@ async function commit(decisionId: string) {
   const changes = (diff.proposed_changes || []).join("\n");
   const warns = (diff.warnings || []).join("\n");
   const target = diff.structured?.collection_key || coll || "(no collection key configured)";
+  const lib2 = diff.library || lib || "personal";
   const ok = await vscode.window.showWarningMessage(
-    `Add to Zotero?\n\nCollection: ${target}\n\n${changes}${warns ? "\n\n⚠ " + warns : ""}`,
+    `Add to Zotero?\n\nLibrary: ${lib2}\nCollection: ${target}\n\n${changes}${warns ? "\n\n⚠ " + warns : ""}`,
     { modal: true }, "Add to Zotero");
   if (ok !== "Add to Zotero") return;
   await doCommit(decisionId, false, diff.confirm_token);
@@ -508,6 +517,8 @@ async function doCommit(decisionId: string, override: boolean, confirmToken: str
   const args = ["claim-commit", "--decision-id", decisionId, "--commit", "--json"];
   const coll = collectionKey();
   if (coll) args.push("--collection-key", coll);
+  const lib = library();
+  if (lib) args.push("--library", lib);
   args.push("--confirm-token", confirmToken);
   if (override) args.push("--allow-unverified-dedupe");
   const { stdout } = await runCli(args);

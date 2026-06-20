@@ -194,13 +194,48 @@ class _SearchHttp:
     def __init__(self, items):
         self.items = items
         self.gets = []
+        self.urls = []
 
     def get(self, url, headers=None, params=None):
+        self.urls.append(url)
         self.gets.append(params)
         return HttpResponse(200, _json=self.items)
 
     def post(self, *a, **k):
         raise AssertionError("find_existing must not POST")
+
+
+def test_webapi_find_existing_searches_the_target_library():
+    # Sev-3: dedupe must search the SAME library the write targets, not always personal.
+    http = _SearchHttp([])
+    be = WebApiWriteBackend(http, api_key="k", user_id="123")
+    be.find_existing("21714641", None, library="group:99")
+    assert any("/groups/99/items" in u for u in http.urls)
+    http.urls.clear()
+    be.find_existing("21714641", None, library="personal")
+    assert any("/users/123/items" in u for u in http.urls)
+
+
+class _LibCapture(FakeWriteBackend):
+    """Records the library each find_existing search and apply targeted."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.find_libs = []
+
+    def find_existing(self, pmid, doi, library="personal"):
+        self.find_libs.append(library)
+        return super().find_existing(pmid, doi, library=library)
+
+
+def test_validated_write_targets_and_dedupes_the_group_library(tmp_path):
+    # Sev-2/3: a group commit must dedupe against AND write to the group.
+    store, decision_id = _accepted(tmp_path)
+    be = _LibCapture()
+    txn = _commit(TransactionService(store, be), decision_id, library="group:99")
+    assert txn.status == "committed"
+    assert be.find_libs and all(lib == "group:99" for lib in be.find_libs)
+    assert be.applied[-1].library == "group:99"
 
 
 def test_webapi_find_existing_matches_doi_and_pmid():
