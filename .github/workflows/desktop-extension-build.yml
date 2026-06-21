@@ -54,7 +54,7 @@ jobs:
         shell: bash
         working-directory: desktop-extension
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # build from the EXACT tag on a manual backfill, so a .mcpb attached to vX.Y.Z
           # is built from vX.Y.Z (not from later main). On a release event github.ref is
@@ -141,7 +141,7 @@ jobs:
         shell: bash
         working-directory: desktop-extension
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_tag != '' && inputs.release_tag || github.ref }}   # build from the exact tag on backfill
       - uses: actions/setup-python@v6
