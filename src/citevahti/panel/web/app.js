@@ -678,6 +678,7 @@ function toggleAddClaim() {
   box.innerHTML = `<div class="addclaim">
     <div class="lbl">New claim ${state.activeMs ? "in " + esc(state.activeMs) : ""}</div>
     <textarea id="newClaimText" class="revbox" aria-label="Claim text" placeholder="claim text — or select a sentence in the manuscript first">${esc(sel)}</textarea>
+    <div class="note">Keep it <b>atomic</b> — one population · one intervention · one outcome · one support question. Split compound sentences into separate claims.</div>
     <div class="row">
       <select id="newClaimType">${CLAIM_TYPES.map((t) => `<option value="${t}">${claimTypeLabel(t)}</option>`).join("")}</select>
       <button class="btn primary" data-act="save-claim">Add claim</button>

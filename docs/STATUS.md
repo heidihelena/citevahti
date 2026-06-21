@@ -5,12 +5,15 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.20.0 — the inline reviewer is the default, self-sufficient panel
+## Status: v0.21.0 — cite-stable export, group libraries, and a zero-setup demo
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
-de-identified warehouse), hash-chain audited, with 600+ offline tests. The loopback
-panel is now the **inline manuscript reviewer**: claims highlighted in place, an
+de-identified warehouse), hash-chain audited, with 800+ offline tests. New in 0.21.0:
+**cite-stable export** (durable `[@citekey]` + `references.bib` → Word via Pandoc,
+preferring your own Better BibTeX keys), **safe group-library** writes/dedupe, and a
+zero-setup **`citevahti demo`** (synthetic ledger + panel, no Zotero/AI/network). The
+loopback panel is the **inline manuscript reviewer**: claims highlighted in place, an
 action-first **Rate → Reveal → Decide → Write** card, and enough built in to run the
 whole loop without the chat — find evidence (PubMed / OpenAlex / Semantic Scholar /
 your Zotero library), add claims, connect Zotero (paste or OAuth), backfill DOIs, scan

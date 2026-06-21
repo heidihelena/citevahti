@@ -171,6 +171,38 @@ def _cmd_run(args) -> int:
     return start(root, port=args.port, open_browser=not args.no_browser)
 
 
+_DEMO_DIR = "~/CiteVahti-demo"
+
+
+def _cmd_demo(args) -> int:
+    """Zero-setup 3-minute demo: build a synthetic ledger and open the panel.
+
+    No Zotero, no MCP, no AI, no network — just the real Rate → Reveal → Decide
+    loop on an invented manuscript, so a first-timer can see the tool work."""
+    import shutil
+    from pathlib import Path
+
+    from .demo import build
+    from .start import start
+
+    root = Path(args.dir).expanduser()
+    is_default = args.dir == _DEMO_DIR
+    if (root / ".citevahti").exists():
+        if is_default:
+            shutil.rmtree(root)            # our own disposable demo dir — rebuild fresh
+        else:
+            print(f"{root} already holds a ledger; pick an empty --dir for the demo.")
+            return 1
+    summary = build(root)
+    print(f"Built a demo ledger at {summary['root']}")
+    print(f"  manuscript: {summary['manuscript']}")
+    print(f"  claims:     {summary['claims']} ({summary['decided']} decided, "
+          f"{summary['pending']} awaiting your rating)\n")
+    print("Opening the review panel — try claim #4 (it's staged for YOUR blind rating). "
+          "Nothing here is real; delete the folder when you're done.\n")
+    return start(str(root), port=args.port, open_browser=not args.no_browser)
+
+
 def _cmd_resume(args) -> int:
     """Resume where you left off: name the next pending action, then open the panel
     (its 'what's next' banner routes you straight to the claim)."""
@@ -1448,6 +1480,15 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("--no-browser", action="store_true",
                         help="don't open a browser window for the panel")
         sp.set_defaults(func=fn)
+
+    dm = sub.add_parser("demo",
+                        help="zero-setup 3-minute demo: synthetic ledger + panel (no Zotero/AI)")
+    dm.add_argument("--dir", default=_DEMO_DIR,
+                    help=f"where to build the demo ledger (default {_DEMO_DIR}; rebuilt each run)")
+    dm.add_argument("--port", type=int, default=8765, help="panel port (default 8765, loopback)")
+    dm.add_argument("--no-browser", action="store_true",
+                    help="build the demo but don't open a browser")
+    dm.set_defaults(func=_cmd_demo)
 
     ms = sub.add_parser("mcp-serve", help="serve the constrained agent tools over MCP")
     ms.set_defaults(func=_cmd_mcp_serve)
