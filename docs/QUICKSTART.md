@@ -14,6 +14,35 @@ Zotero. Every command is something you **copy and paste** — nothing to memoris
 
 ---
 
+## Choose your path
+
+| I want to… | Go to |
+|---|---|
+| **Just see it work** (3 min, nothing real) | [See it work in 3 minutes](#see-it-work-in-3-minutes) |
+| **Check my manuscript, no terminal** | [The easiest path (Claude Desktop)](#the-easiest-path-no-terminal-at-all-claude-desktop) |
+| **Use Zotero** for verified write-back | the terminal route below + connect Zotero |
+| **Use a local / private AI** second opinion | the terminal route below + AI settings |
+| **Audit / export / report** for a supervisor or journal | [REPORTING.md](REPORTING.md) |
+
+New here? Skim the **[known limitations](KNOWN_LIMITATIONS.md)** and how to keep
+claims testable in **[writing good claims](WRITING_GOOD_CLAIMS.md)**. The companion
+tools (FullVahti, MatchVahti) are optional — ignore them until the core flow feels
+natural.
+
+## See it work in 3 minutes
+
+The fastest way to understand CiteVahti is to watch it run on an invented example —
+**no Zotero, no AI, no network, nothing of yours touched**:
+
+- **Claude Desktop:** install the extension (below), then type `run_claim_tests` and
+  paste any paragraph.
+- **Have the terminal?** `pip install "citevahti[mcp]"`, then `citevahti demo` — it
+  builds a synthetic ledger and opens the panel showing every claim state
+  (accepted · caution · needs-review · **awaiting your blind rating** · rejected).
+  Delete the `~/CiteVahti-demo` folder when you're done.
+
+---
+
 ## The easiest path: no terminal at all (Claude Desktop)
 
 If you use **Claude Desktop**, you don't need a terminal:

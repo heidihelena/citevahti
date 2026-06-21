@@ -4,6 +4,35 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.21.0 — cite-stable export, group libraries, and the zero-setup demo (2026-06-20)
+
+- **Cite-stable export — citations that survive copy-paste and Word.** A new
+  `citevahti cite-export` (and a one-click **⎘ Cite-stable export** panel button)
+  embeds a durable `[@citekey]` after each accepted claim in your Markdown and writes
+  a matching `references.bib`, then can produce a `.docx` with live citations + a
+  bibliography via Pandoc. Prefers your **own Better BibTeX citekeys** (so keys match
+  your Zotero), minting a PMID/DOI key only as an honest fallback. Pandoc is fetched
+  once at runtime (pypandoc) — never bundled — with a "Downloading Pandoc…" notice.
+  It never cites a **stale bond** (a claim reworded after acceptance) or an
+  identifier-less paper.
+- **Group-library writes, done safely (review findings #2/#3).** `claim-commit
+  --library personal|group:<id>` and a `citevahti.library` VS Code setting; the
+  Zotero **account** user id is now kept separate from the target library (no more
+  `/users/<group-id>`), and duplicate checks search the library the write targets.
+- **`intake_push` dedupe honesty (#4).** When the Zotero search can't run, a
+  confirmed staging write now refuses (`dedupe_unverified`) instead of silently
+  risking duplicates — matching the validated path.
+- **Zero-setup `citevahti demo`.** Builds a synthetic ledger + manuscript and opens
+  the panel showing every claim state — no Zotero, MCP, AI, or network — so a
+  first-timer can see the Rate → Reveal → Decide loop in three minutes.
+- **Trust docs.** `KNOWN_LIMITATIONS.md`, `WRITING_GOOD_CLAIMS.md` (keep claims
+  atomic), `SBOM.md` (lean dependency posture + how to regenerate/audit), and a
+  "choose your path" router in the Quickstart.
+- **Accessibility.** WCAG 2.1 AA pass on the panel (input labels, menu roles,
+  status vs alert).
+- Scrubbed personal paths from the first-run screenshot; the capture tool now runs
+  with an isolated HOME so ledger discovery can't leak real paths.
+
 ## 0.20.0 — macOS one-click install, the UX adoption pass, and release provenance (2026-06-19)
 
 - **macOS desktop install (signed + notarized, built in CI).** Releases now ship a
