@@ -4,6 +4,15 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.22.1 — triage in the panel (2026-06-23)
+
+- **The panel now leads with a "⚠ what needs you" banner.** Above the manuscript it
+  shows *"N of M claim(s) worth your attention · K clean · risk X/100 — review these
+  first"*, worst-first, each row naming the reason; clicking a row jumps straight to that
+  claim's review card. So the panel-living researcher sees the few that matter instead of
+  scrolling every claim. Read-only (`GET /api/triage`); hidden when nothing needs attention.
+  Completes the triage front door across all three surfaces (CLI · chat · panel).
+
 ## 0.22.0 — risk-first triage: "review the few, not all" (2026-06-22)
 
 - **`citevahti triage` — the friendly front door.** Instead of asking you to review

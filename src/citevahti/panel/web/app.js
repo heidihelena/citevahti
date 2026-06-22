@@ -605,6 +605,25 @@ async function loadManuscript(id) {
   state.view = await api("GET", `/api/manuscript/${encodeURIComponent(id)}`);
   $("#msName").textContent = id;
   renderDoc(); renderProgress();
+  loadTriage();   // surface "what needs you", worst-first (fire-and-forget)
+}
+
+// Risk-first triage banner: review the few that matter, not every claim. Each row jumps
+// to that claim's review card. Read-only; hidden when nothing needs attention.
+async function loadTriage() {
+  const bar = $("#triagebar"); if (!bar) return;
+  let t;
+  try { t = await api("GET", "/api/triage"); } catch { bar.hidden = true; return; }
+  if (!t || !t.needs_attention) { bar.hidden = true; return; }
+  const rows = (t.items || []).slice(0, 6).map((it) =>
+    `<button type="button" class="trow" data-triage-claim="${esc(it.claim_id)}" title="${esc(it.action)}">
+       ${it.fatal ? '<span class="tfatal" aria-hidden="true">‼</span> ' : ""}<span class="treason">${esc(it.reason)}</span>
+       <span class="tclaim">${esc((it.claim_text || "").slice(0, 72))}</span></button>`).join("");
+  bar.innerHTML = `<div class="tlbl">⚠ ${t.needs_attention} of ${t.total} claim(s) worth your attention
+      <span class="tdim">· ${t.clean} clean · risk ${t.score}/100</span> — review these first:</div>${rows}`;
+  bar.hidden = false;
+  bar.querySelectorAll("[data-triage-claim]").forEach((b) =>
+    b.addEventListener("click", () => selectClaim(b.dataset.triageClaim)));
 }
 
 /* ---------- header ---------- */
