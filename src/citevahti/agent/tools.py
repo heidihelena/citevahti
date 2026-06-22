@@ -61,8 +61,12 @@ def verify_claims(*, root: Optional[str] = None) -> dict:
 
 
 def pubmed_search(query: str, *, max_results: int = 20, root: Optional[str] = None) -> dict:
-    """Staged PubMed search. Exact query preserved; results are not citations."""
-    rec = _t.literature_search(query, max_results=max_results, root=root)
+    """Staged PubMed search. Exact query preserved; results are not citations.
+
+    Fetches abstracts so candidates carry the text the support judgment needs — a
+    title alone leaves both the human and the blinded AI unable to rate (they abstain).
+    """
+    rec = _t.literature_search(query, max_results=max_results, include_abstracts=True, root=root)
     return {
         "batch_id": rec.batch_id, "status": rec.status, "exact_query": rec.exact_query,
         "query_translation": rec.query_translation, "total_matched": rec.total_count,
