@@ -14,19 +14,31 @@ from .. import tools as _t
 
 
 # ---- bootstrap -------------------------------------------------------------
-def init(*, root: Optional[str] = None) -> dict:
-    """Create the project ledger (``.citevahti/config.json``) if it doesn't exist.
+def init(*, model_id: Optional[str] = None, model_snapshot: Optional[str] = None,
+         root: Optional[str] = None) -> dict:
+    """Create the project ledger (``.citevahti/config.json``) if it doesn't exist, and
+    optionally PIN the agent's model so AI-extracting tools (``propose_claim`` /
+    ``propose_revision``) can run.
 
-    Run this FIRST — every other tool needs the ledger. Idempotent: safe to call
-    again. Reports the resolved root + config path so it's clear WHERE the ledger
-    lives (it is the server's bound root, not the caller's working directory)."""
+    Run this FIRST — every other tool needs the ledger. Idempotent. Pass ``model_id``
+    (your own model, e.g. ``"claude-opus-4-8"``) to record provenance; the snapshot
+    defaults to the model id when not given. Reports the resolved root + config path so
+    it's clear WHERE the ledger lives (the server's bound root, not the caller's cwd)."""
     from ..state import CiteVahtiStore
     store = CiteVahtiStore(root or ".")
     already = store.exists()
     if not already:
         store.init()
+    pinned = None
+    if model_id:
+        cfg = store.load_config()
+        cfg.ai_provenance.model_id = model_id
+        cfg.ai_provenance.model_snapshot = model_snapshot or model_id
+        store.save_config(cfg)
+        pinned = cfg.ai_provenance.model_id
     return {"status": "already_initialized" if already else "initialized",
-            "root": str(store.dir.parent), "config_path": str(store.config_path)}
+            "root": str(store.dir.parent), "config_path": str(store.config_path),
+            "model_pinned": pinned}
 
 
 # ---- read-only -------------------------------------------------------------
@@ -102,7 +114,8 @@ def propose_claim(text: str, claim_type: str = "other", *,
     model = CiteVahtiStore(root or ".").load_config().ai_provenance.model_id
     if "PENDING" in (model or ""):
         return {"error": "model_not_pinned",
-                "message": "configure ai_provenance (the agent's model) before proposing claims"}
+                "message": "pin the agent's model first — call init(model_id='<your model>') "
+                           "(or set it in the panel's ✦ AI settings) before proposing claims"}
     c = _t.add_claim(text, claim_type, manuscript_location=manuscript_location,
                      extracted_by="ai", extraction_model=model, root=root)
     return {"claim_id": c.claim_id, "claim_type": c.claim_type,
@@ -116,7 +129,8 @@ def propose_revision(claim_id: str, new_text: str, *, root: Optional[str] = None
     model = CiteVahtiStore(root or ".").load_config().ai_provenance.model_id
     if "PENDING" in (model or ""):
         return {"error": "model_not_pinned",
-                "message": "configure ai_provenance (the agent's model) before proposing revisions"}
+                "message": "pin the agent's model first — call init(model_id='<your model>') "
+                           "(or set it in the panel's ✦ AI settings) before proposing revisions"}
     try:
         c = _t.propose_revision(claim_id, new_text, extracted_by="ai",
                                 extraction_model=model, root=root)

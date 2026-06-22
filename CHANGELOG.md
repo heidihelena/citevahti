@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.21.3 — agent can pin its model; deterministic MCP root (2026-06-22)
+
+- **`init` can pin the agent's model.** After `init`, AI-extracting tools
+  (`propose_claim` / `propose_revision`) were gated on a pinned provenance model —
+  but a pure agent flow had no way to set one (only the panel ✦ AI did), so an
+  agent-driven validation stalled right after init. `init(model_id="…")` now pins
+  the model (snapshot defaults to the model id) in the same bootstrap call, and the
+  `model_not_pinned` error names that fix.
+- **Deterministic MCP root.** `citevahti-mcp` now resolves its root as `--root` →
+  `$CITEVAHTI_ROOT` → cwd, to an **absolute** path, and **logs it on startup**
+  (stderr) — so `init` and every tool agree on one ledger location regardless of the
+  launch directory.
+
 ## 0.21.2 — agent `init`, a working AI second opinion, optional decision reason (2026-06-22)
 
 - **Fix: the MCP/agent surface couldn't initialize.** Every tool needs the ledger,
