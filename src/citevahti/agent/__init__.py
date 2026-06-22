@@ -17,6 +17,7 @@ TOOLS = {
     "init": tools.init,                  # create the ledger — every other tool needs it first
     "status": tools.status,
     "triage": tools.triage,              # risk-first "what needs you" — review the few, not all
+    "check_paragraph": tools.check_paragraph,  # everyday in-writing loop: vetted / needs-attention / new
 
     "open_review_panel": tools.open_review_panel,
     "verify_claims": tools.verify_claims,

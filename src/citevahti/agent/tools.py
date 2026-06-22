@@ -54,6 +54,18 @@ def triage(*, root: Optional[str] = None) -> dict:
                        "fatal": it.fatal} for it in t.items]}
 
 
+def check_paragraph(text: str, *, root: Optional[str] = None) -> dict:
+    """Check-a-paragraph: paste a snippet the user just wrote and report, per sentence,
+    which claims they've already VETTED, which NEED ATTENTION (with why + next action),
+    and which are NEW/untracked. Read-only, no AI — the everyday in-the-writing loop.
+    Offer to add + review the new ones; lead them to the ones needing attention."""
+    t = _t.check_paragraph(text, root=root)
+    return {"total": t.total, "reviewed": t.reviewed, "attention": t.attention, "new": t.new,
+            "sentences": [{"text": s.text, "status": s.status, "claim_id": s.claim_id,
+                           "state": s.state, "reason": s.reason, "action": s.action}
+                          for s in t.sentences]}
+
+
 def status(*, root: Optional[str] = None) -> dict:
     from ..capabilities import CapabilityStatusService
     from ..probe import HttpxClient

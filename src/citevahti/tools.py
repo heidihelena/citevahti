@@ -1264,6 +1264,14 @@ def triage(*, root: Optional[str] = None):
     return _triage(report)
 
 
+def check_paragraph(text: str, *, root: Optional[str] = None):
+    """Check-a-paragraph: for a snippet you just wrote, which sentences map to claims
+    you've already vetted, which need attention, and which are new/untracked. Read-only,
+    no AI — the everyday in-the-writing loop. Returns a per-sentence status + tally."""
+    from .report.paragraph import check_paragraph as _check
+    return _check(_open_store(root), text or "")
+
+
 # ---- the manuscript "unit test" suite ---------------------------------------
 # CiteVahti's core metaphor: each claim is a test case. A claim PASSES when it is
 # backed by accepted, supporting evidence whose citation is identifiable (and,
