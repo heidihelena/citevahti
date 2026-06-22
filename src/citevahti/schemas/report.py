@@ -77,6 +77,8 @@ class ClaimReportRow(BaseModel):
     proposed_revision_by: Optional[str] = None      # "ai" | "human" | "imported"
     untestable_reason: Optional[str] = None         # why the source is out of indexed scope
     has_stale_bonds: bool = False                   # any evidence formed against an older wording
+    inconsistent: bool = False                      # a decision disagrees with its rating (edited outside CiteVahti)
+    inconsistency: Optional[str] = None             # the first inconsistency message, if any
 
 
 class ReportProvenance(BaseModel):
@@ -103,3 +105,6 @@ class ClaimReport(BaseModel):
     counts: dict = Field(default_factory=dict)   # state -> count
     rows: list[ClaimReportRow] = Field(default_factory=list)
     provenance: Optional[ReportProvenance] = None
+    # ledger-integrity warnings (e.g. a decision edited outside CiteVahti). Non-empty
+    # means at least one claim's state can't be trusted until the ledger is repaired.
+    warnings: list[str] = Field(default_factory=list)

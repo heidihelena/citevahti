@@ -4,6 +4,26 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.21.4 — P0: tamper-resistant decision state (2026-06-22)
+
+- **Security (P0): a decision file edited outside CiteVahti could make an unsupported
+  claim read as accepted.** Manually flipping `.citevahti/decisions/*.json`
+  `final_decision` from `reject` to `accept` (on a `does_not_support` rating) made the
+  claim show **accepted**, passed `test`, and produced a Zotero **write preview** — while
+  `verify-audit` still reported the chain intact (the hash chain covers the LOG, not the
+  materialized state). Found by external QA, reproduced on PyPI 0.21.3.
+  - The report / `test` / write paths now **revalidate every decision against its rating
+    on use** (`decision_inconsistency`): an inconsistent decision is **not counted as
+    accepted**, the claim is flagged (`row.inconsistent` + a report-level warning), the
+    **write is refused** (no preview, no Zotero write), and the manuscript test **fails
+    loudly** with a `ledger_integrity` check. Catches both flipping `final_decision` alone
+    (internal check) and flipping it together with `final_support_status` (rating
+    cross-check).
+  - **`verify-audit` upgraded** to a full integrity check: it now also validates that
+    every decision file agrees with its rating, and exits non-zero on any inconsistency
+    ("…edited outside CiteVahti; reports and writes are blocked until the ledger is
+    repaired").
+
 ## 0.21.3 — agent can pin its model; deterministic MCP root (2026-06-22)
 
 - **`init` can pin the agent's model.** After `init`, AI-extracting tools
