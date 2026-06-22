@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Privacy or security concern
+    url: mailto:privacy@vahtian.com
+    about: Email us directly for anything sensitive — please do NOT open a public issue.
+  - name: 📖 What CiteVahti does & doesn't do
+    url: https://github.com/heidihelena/citevahti/blob/main/docs/KNOWN_LIMITATIONS.md
+    about: Check the known limitations before filing — it may already be expected behavior.
+  - name: 🚀 Quickstart
+    url: https://github.com/heidihelena/citevahti/blob/main/docs/QUICKSTART.md
+    about: New here? Start with the 3-minute demo and the quickstart.

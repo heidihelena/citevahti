@@ -1,0 +1,49 @@
+name: 🐞 Bug report
+description: Something didn't work — a crash, a wrong result, a broken install or panel.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make CiteVahti reliable. Please don't paste anything confidential
+        from your manuscript — a short paraphrase is fine.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: I clicked “Run unit tests” and the panel showed…
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. citevahti demo
+        2. open claim #4
+        3. …
+  - type: dropdown
+    id: surface
+    attributes:
+      label: How are you running CiteVahti?
+      options:
+        - Claude Desktop extension (.mcpb)
+        - pip install + panel
+        - VS Code extension
+        - MCP / chat client
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version & OS
+      description: "Run `pip show citevahti` for the version (or the .mcpb filename)."
+      placeholder: "citevahti 0.21.0 · macOS 15 (Apple Silicon)"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Any error text?
+      description: Paste the error or remediation message shown (no manuscript text, please).
+      render: shell

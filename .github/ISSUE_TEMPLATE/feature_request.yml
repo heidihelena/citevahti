@@ -1,0 +1,28 @@
+name: 💡 Feature request
+description: Suggest an improvement to the workflow, panel, export, or integrations.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task or frustration — not just the proposed solution.
+      placeholder: When I finish reviewing, I want to…
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: dropdown
+    id: who
+    attributes:
+      label: Who are you?
+      description: Helps us weigh it against the roadmap.
+      options:
+        - PhD student / early researcher
+        - Established researcher / author
+        - Systematic reviewer
+        - Supervisor / editor / research-integrity
+        - Developer
+        - Other

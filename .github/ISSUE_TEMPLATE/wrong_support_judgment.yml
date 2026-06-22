@@ -1,0 +1,42 @@
+name: ⚖️ Wrong support judgment
+description: CiteVahti (or its AI second opinion) mis-read whether a source supports a claim.
+labels: ["support-judgment"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        CiteVahti records *your* judgment and never claims a paper supports a claim on its
+        own — but if the **AI second opinion**, the **PICO/support cue**, or the **candidate
+        matching** got it wrong, that's exactly what we want to learn from. Paraphrase if the
+        claim text is unpublished.
+  - type: textarea
+    id: claim
+    attributes:
+      label: The claim (paraphrased is fine)
+      placeholder: Low-dose CT screening reduces lung-cancer mortality…
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: The cited source (DOI or PMID)
+      placeholder: "10.1056/NEJMoa1102873  /  PMID 21714641"
+  - type: dropdown
+    id: what-was-wrong
+    attributes:
+      label: What was wrong?
+      options:
+        - AI second opinion was incorrect
+        - Support/contradiction cue was misleading
+        - Wrong candidate paper was matched
+        - Claim wasn't atomic and the judgment was ambiguous
+        - Retraction/dedupe was wrong
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should it have shown, and why?
+    validations:
+      required: true
