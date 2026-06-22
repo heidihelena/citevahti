@@ -198,7 +198,22 @@ with timestamps and comparison status so the order is auditable, not assumed.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Reporting in your methods section](docs/REPORTING.md)
 - [Status & capabilities](docs/STATUS.md)
+- [Known limitations](docs/KNOWN_LIMITATIONS.md)
+- [Writing good (atomic) claims](docs/WRITING_GOOD_CLAIMS.md)
 - [Contributor privacy](docs/CONTRIBUTOR_PRIVACY.md)
+- [Dependencies / SBOM](docs/SBOM.md)
+
+## Feedback & support
+
+CiteVahti is a free beta and your feedback shapes it.
+
+- **Found a bug, or a citation judged wrong?** Open an issue — there are quick forms for
+  [a bug](https://github.com/heidihelena/citevahti/issues/new?template=bug_report.yml) and for
+  [a wrong support judgment](https://github.com/heidihelena/citevahti/issues/new?template=wrong_support_judgment.yml).
+- **Have an idea?** [Request a feature](https://github.com/heidihelena/citevahti/issues/new?template=feature_request.yml).
+- **Anything private or security-related?** Email **privacy@vahtian.com** — please don't open a public issue.
+
+New here? Try `citevahti demo` (or the [3-minute path](docs/QUICKSTART.md)) first.
 
 ## Companion: FullVahti
 
