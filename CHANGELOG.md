@@ -4,6 +4,18 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.21.5 — stable ledger root (fixes "config not found" under the desktop app) (2026-06-22)
+
+- **Fix: the MCP server resolved `.citevahti/` relative to its launch directory.** The
+  desktop app starts `mcp-serve` with an arbitrary cwd (often `/`), so even after
+  `citevahti init` (run from home → `~/.citevahti`) every tool returned "config not
+  found" — it was looking in the wrong place. The default root is now a **stable**
+  location: `$CITEVAHTI_ROOT` if set, else the **home** directory (`~/.citevahti`) — never
+  cwd. The CLI and the MCP server share one resolver, so `init` and `mcp-serve` agree from
+  any directory, with no `--root` hand-editing of `~/.claude.json`. Pass `--root` for a
+  per-project ledger.
+- `citevahti --version` and `python -m citevahti` now work (basic install verification).
+
 ## 0.21.4 — P0: tamper-resistant decision state (2026-06-22)
 
 - **Security (P0): a decision file edited outside CiteVahti could make an unsupported

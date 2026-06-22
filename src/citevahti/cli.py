@@ -11,7 +11,9 @@ import argparse
 import sys
 from pathlib import Path
 
+from . import __version__
 from .probe import HttpxClient, run_probes
+from .rootcfg import default_root
 from .state import CiteVahtiStore
 
 
@@ -1479,8 +1481,11 @@ def _cmd_onboard(args) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="citevahti")
-    parser.add_argument("--root", default=str(Path.cwd()),
-                        help="project root containing .citevahti/ (default: cwd)")
+    # Stable default ($CITEVAHTI_ROOT or home), NOT cwd — so `citevahti init` and the
+    # desktop-launched MCP server resolve the SAME ledger regardless of working directory.
+    parser.add_argument("--root", default=default_root(),
+                        help="project root containing .citevahti/ (default: $CITEVAHTI_ROOT or your home folder)")
+    parser.add_argument("--version", action="version", version=f"citevahti {__version__}")
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name, fn in (("init", _cmd_init), ("probe", _cmd_probe),
                      ("verify-audit", _cmd_verify_audit), ("status", _cmd_status),
