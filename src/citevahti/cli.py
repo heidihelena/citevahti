@@ -50,10 +50,29 @@ def _cmd_probe(args) -> int:
 
 
 def _cmd_verify_audit(args) -> int:
+    from .claims.decisions import decision_inconsistency
     store = CiteVahtiStore(args.root)
     intact = store.audit.verify()
     print(f"audit chain intact: {intact} ({len(store.audit.entries())} entries)")
-    return 0 if intact else 2
+    # Materialized-state integrity: the hash chain only covers the LOG. Also check that
+    # every decision FILE still agrees with its support rating — catches a decision edited
+    # outside CiteVahti (e.g. final_decision flipped to 'accept') that the chain misses.
+    bad = []
+    for did in store.list_decisions():
+        try:
+            msg = decision_inconsistency(store, store.load_decision(did))
+        except Exception as exc:  # noqa: BLE001
+            msg = f"decision file unreadable: {exc}"
+        if msg:
+            bad.append((did, msg))
+    if bad:
+        print(f"decision state: {len(bad)} INCONSISTENT decision(s) — edited outside CiteVahti:")
+        for did, msg in bad:
+            print(f"  ⚠ {did}: {msg}")
+        print("Reports and writes are blocked for affected claims until the ledger is repaired.")
+    else:
+        print("decision state: all decisions consistent with their ratings")
+    return 0 if (intact and not bad) else 2
 
 
 def _cmd_status(args) -> int:

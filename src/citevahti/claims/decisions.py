@@ -86,3 +86,33 @@ class DecisionService:
             if rec.claim_id == claim_id:
                 out.append(rec)
         return out
+
+
+def decision_inconsistency(store, decision) -> Optional[str]:
+    """A human message if a loaded ``FinalDecision`` is internally inconsistent OR
+    disagrees with its support rating — i.e. the ledger was edited outside CiteVahti —
+    else ``None``.
+
+    The report / write / test paths call this so a tampered decision file cannot read
+    as a clean ``accept`` while the audit-log chain still validates (that chain only
+    covers the LOG, not the materialized state). Catches the two file-edit attacks:
+    flipping ``final_decision`` (internal check) and flipping both that and
+    ``final_support_status`` (rating cross-check).
+    """
+    from ..validators.decision import DecisionError, validate_final_decision
+    try:
+        validate_final_decision(decision)                       # internal: accept needs support
+    except DecisionError as exc:
+        return str(exc)
+    if decision.rating_id:                                      # cross-check against the rating
+        try:
+            rating = store.load_support_rating(decision.rating_id)
+        except Exception:  # noqa: BLE001
+            return f"references a missing/unloadable rating {decision.rating_id!r}"
+        derived, _agreement, resolved = DecisionService._derive(rating)
+        if (decision.final_support_status or None) != (derived or None):
+            return (f"final_support_status {decision.final_support_status!r} disagrees with the "
+                    f"support rating's resolved value {derived!r}")
+        if decision.final_decision in ("accept", "accepted_with_caution") and not resolved:
+            return "accept rests on a support rating that is not resolved"
+    return None

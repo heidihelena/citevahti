@@ -1272,6 +1272,13 @@ def _evaluate_claim_tests(row, online: bool) -> dict:
                 "manuscript_location": row.manuscript_location,
                 "status": status, "checks": checks}
 
+    # FAIL (loudly): a decision was edited outside CiteVahti — the ledger state can't be
+    # trusted. Never a silent skip; the citation integrity of this claim is unknown.
+    if getattr(row, "inconsistent", False):
+        add("ledger_integrity", "fail",
+            "ledger state is inconsistent with the audit trail (edited outside CiteVahti): "
+            + (row.inconsistency or "decision disagrees with its rating"))
+        return result("fail")
     # SKIP: explicitly out of indexed scope (book/grey lit) — not a failure.
     if row.state == "untestable":
         add("in_scope", "skip", row.untestable_reason or "cited source is out of indexed-literature scope")

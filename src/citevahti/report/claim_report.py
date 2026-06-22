@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..claims.bonds import bond_status
+from ..claims.decisions import decision_inconsistency
 from ..schemas.report import (STATE_CODE, ClaimEvidence, ClaimReport,
                               ClaimReportRow, ReportProvenance)
 from ..state.store import StateError
@@ -71,15 +72,22 @@ class ClaimReportService:
         cands = self._candidates(claim.claim_id)
         current_hash = claim_text_hash(claim.claim_text)
         evidence, has_accept, has_review, decided = [], False, False, 0
+        inconsistency = None
         for c in cands:
             dec = self._decision_for(c.candidate_id)
             rating = ratings_idx.get((claim.claim_id, c.candidate_id))
-            if dec is not None:
+            # A decision is only trusted if it is consistent with its rating. A file edited
+            # outside CiteVahti (e.g. final_decision flipped to 'accept' on a does_not_support
+            # rating) must NOT read as accepted just because the audit-log chain still validates.
+            dec_bad = decision_inconsistency(self.store, dec) if dec is not None else None
+            if dec is not None and dec_bad is None:
                 decided += 1
                 if dec.final_decision in _ACCEPTING:
                     has_accept = True
                 if dec.final_decision == "needs_second_review":
                     has_review = True
+            elif dec_bad is not None and inconsistency is None:
+                inconsistency = f"{c.candidate_id}: {dec_bad}"
             if self._unresolved_discordance(rating):
                 has_review = True
             human = rating.human_rating if (rating and rating.human_rating) else None
@@ -105,8 +113,9 @@ class ClaimReportService:
                 rating_id=(rating.rating_id if rating else None),
                 pmid=c.pmid, doi=c.doi, title=c.title, support_status=support,
                 human_support=human_v, ai_support=ai_blinded,
-                final_decision=(dec.final_decision if dec else None),
-                agreement=(dec.agreement_status if dec else None),
+                # an inconsistent (edited) decision is not surfaced as a real verdict
+                final_decision=(dec.final_decision if (dec and not dec_bad) else None),
+                agreement=(dec.agreement_status if (dec and not dec_bad) else None),
                 fit=fit, fit_total=_fit_total(fit) if fit else None, excerpt=quote,
                 retracted=c.retracted, stale=stale))
 
@@ -131,6 +140,7 @@ class ClaimReportService:
             accepted_count=sum(1 for e in evidence if e.final_decision in _ACCEPTING),
             evidence=evidence,
             has_stale_bonds=any(e.stale for e in evidence),
+            inconsistent=bool(inconsistency), inconsistency=inconsistency,
             proposed_revision=claim.proposed_revision,
             proposed_revision_by=claim.proposed_revision_by,
             untestable_reason=untestable)
@@ -161,5 +171,13 @@ class ClaimReportService:
                                  "decision_recorded", "untestable")}
         for r in rows:
             counts[r.state] += 1
+        warnings = []
+        bad = [r for r in rows if r.inconsistent]
+        if bad:
+            warnings.append(
+                f"Ledger state is inconsistent with the audit trail for {len(bad)} claim(s) — this "
+                "project may have been edited outside CiteVahti. Those claims are NOT counted as "
+                "accepted and writes are blocked until the ledger is repaired. "
+                + "; ".join(f"{r.claim_id} ({r.inconsistency})" for r in bad))
         return ClaimReport(generated_at=utc_now_iso(), total=len(rows), counts=counts,
-                           rows=rows, provenance=self._provenance())
+                           rows=rows, provenance=self._provenance(), warnings=warnings)

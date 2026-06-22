@@ -91,6 +91,17 @@ class TransactionService:
                             confirm_token: Optional[str] = None,
                             allow_unverified_dedupe: bool = False):
         decision = self.store.load_decision(decision_id)
+        # Integrity gate: never preview or write from a decision that disagrees with its
+        # rating (the ledger was edited outside CiteVahti). The audit-log chain can still
+        # validate while a single decision file lies — block here so a tampered 'accept'
+        # cannot produce a Zotero write.
+        from ..claims.decisions import decision_inconsistency
+        bad = decision_inconsistency(self.store, decision)
+        if bad:
+            raise TransactionError(
+                "Ledger state is inconsistent with the audit trail (a decision was edited "
+                f"outside CiteVahti): {bad}. Reports and writes are blocked until the ledger "
+                "is repaired.")
         if decision.final_decision not in _WRITABLE_DECISIONS:
             raise TransactionError(
                 f"decision {decision_id!r} is {decision.final_decision!r}; only "
