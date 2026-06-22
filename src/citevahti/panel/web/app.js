@@ -1107,7 +1107,7 @@ function decideBlock(cand) {
     ${cmp ? `<span class="verdict-tag ${cmp}">${esc(cmp)}</span>` : ""}
     ${getAi}
     <div class="lbl">Record the verdict</div>
-    <div class="decrow"><input type="text" id="decReason" aria-label="Decision reason — recorded in the audit trail" placeholder="reason (recorded in the audit trail)" /></div>
+    <div class="decrow"><input type="text" id="decReason" aria-label="Decision reason (optional — recorded in the audit trail)" placeholder="reason — optional; a sensible default is recorded if blank" /></div>
     <div class="actions">${decBtns}</div>${adj}</div>`;
 }
 
@@ -1306,18 +1306,22 @@ async function runAiSecondOpinion() {
     showErr(e.message);
   }
 }
+const DECISION_REASON = {
+  accept: "Accepted — the cited source supports the claim",
+  accepted_with_caution: "Accepted with caution — partially supported",
+  needs_second_review: "Flagged for a second review",
+  reject: "Rejected — the cited source does not support the claim",
+};
 async function recordDecision(v) {
   const cand = activeCand(); if (!cand || !cand.rating) return;
   const field = $("#decReason");
-  const reason = (field && field.value || "").trim();
-  if (!reason) {                                  // flag the field IN PLACE — not a hidden error at the card foot
-    if (field) { field.classList.add("need"); field.placeholder = "reason required — recorded in the audit trail"; field.focus(); }
-    return;
-  }
+  // Reason is OPTIONAL — if you don't type one, a sensible default is recorded so the
+  // audit trail stays meaningful without making you type on every decision.
+  const reason = (field && field.value || "").trim() || (DECISION_REASON[v] || ("Decision: " + v));
   if (field) field.classList.remove("need");
   try {
     await api("POST", "/api/decisions", { claim_id: state.activeClaim, candidate_id: cand.candidate_id,
-      final_decision: v, decision_reason: reason.trim(), rating_id: cand.rating.rating_id });
+      final_decision: v, decision_reason: reason, rating_id: cand.rating.rating_id });
     await loadManuscript(state.activeMs);   // refresh span colour
     await selectClaim(state.activeClaim);
     loadAudit();                            // a decision appended an audit entry

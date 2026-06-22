@@ -35,6 +35,19 @@ SUPPORT_VALUES = (
     "unclear",
 )
 
+# Plain-language definitions of each support value — the single source the AI prompt
+# (and any human-facing copy) should use, so the controlled vocabulary is applied the
+# same way everywhere.
+SUPPORT_DEFINITIONS = {
+    "directly_supports": "the paper's findings directly support this exact claim",
+    "partially_supports": "the paper supports part of the claim but not all of it",
+    "indirectly_supports": "the paper supports the claim only indirectly (related population, surrogate outcome, or inference)",
+    "overstated": "the paper supports a WEAKER version of the claim — the claim overstates the evidence (broader population, stronger effect, or an extra outcome)",
+    "does_not_support": "the paper is on-topic but does not actually support this claim",
+    "contradicts": "the paper's findings argue against this claim",
+    "unclear": "the available text genuinely does not let you decide",
+}
+
 # PICO + claim fit, each 0 (poor) / 1 (partial) / 2 (good).
 FIT_FIELDS = ("population_fit", "intervention_fit", "outcome_fit", "claim_fit")
 

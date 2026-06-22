@@ -913,14 +913,36 @@ def support_run_ai(rating_id: str, task_type: str = "assess", *, root: Optional[
     With no rater injected, build one from config: ``off`` -> a clear error (the MCP
     assistant submits the rating instead), ``local`` / ``api`` -> the configured model.
     """
+    store = _open_store(root)
     if rater is None:
         from .claims import build_support_ai_rater
-        rater = build_support_ai_rater(_open_store(root).load_config())
+        rater = build_support_ai_rater(store.load_config())
         if rater is None:
             raise ValueError(
                 "AI is off — set the AI mode to 'local' or 'api' in the panel (✦ AI), "
                 "or have your assistant submit the rating over MCP.")
+    _backfill_abstract(store, rating_id, root)   # a title alone -> the AI can only abstain
     return _support_engine(root, rater).support_run_ai(rating_id, task_type)
+
+
+def _backfill_abstract(store, rating_id: str, root: Optional[str]) -> None:
+    """Best-effort: if the candidate has a PMID but no abstract, fetch + save it so the
+    AI (and the human) have the text the support judgment needs. Offline/failure: leave
+    it as-is and let the rater abstain honestly."""
+    try:
+        rec = store.load_support_rating(rating_id)
+        cc = store.load_candidates(rec.claim_id)
+        cand = next((c for c in cc.candidates if c.candidate_id == rec.candidate_id), None)
+        if cand is None or getattr(cand, "abstract", None) or not getattr(cand, "pmid", None):
+            return
+        hits = _pubmed_provider(root).fetch_records([cand.pmid], include_abstracts=True)
+        abstract = next((getattr(h, "abstract", None) for h in hits
+                         if getattr(h, "abstract", None)), None)
+        if abstract:
+            cand.abstract = abstract
+            store.save_candidates(cc)
+    except Exception:  # noqa: BLE001 (enrichment is best-effort; never block the rating)
+        pass
 
 
 def support_compare(rating_id: str, *, root: Optional[str] = None):
