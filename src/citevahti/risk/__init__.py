@@ -1,5 +1,6 @@
 """Epistemic Risk Score — derived, advisory, read-only manuscript triage."""
 
 from .score import score_report
+from .triage import triage
 
-__all__ = ["score_report"]
+__all__ = ["score_report", "triage"]

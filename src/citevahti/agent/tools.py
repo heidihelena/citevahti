@@ -42,6 +42,18 @@ def init(*, model_id: Optional[str] = None, model_snapshot: Optional[str] = None
 
 
 # ---- read-only -------------------------------------------------------------
+def triage(*, root: Optional[str] = None) -> dict:
+    """Risk-first triage: the few claims worth attention NOW, worst-first, each with the
+    reason + the next action. Read-only. The friendly entry point — present these instead
+    of asking the human to review every claim ("review these 3, not all 84")."""
+    t = _t.triage(root=root)
+    return {"total": t.total, "needs_attention": t.needs_attention, "clean": t.clean,
+            "score": t.score, "band": t.band,
+            "items": [{"claim_id": it.claim_id, "claim_text": it.claim_text, "state": it.state,
+                       "reason": it.reason, "action": it.action, "risk": it.risk,
+                       "fatal": it.fatal} for it in t.items]}
+
+
 def status(*, root: Optional[str] = None) -> dict:
     from ..capabilities import CapabilityStatusService
     from ..probe import HttpxClient

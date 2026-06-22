@@ -16,6 +16,8 @@ from .policy import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, assert_sa
 TOOLS = {
     "init": tools.init,                  # create the ledger — every other tool needs it first
     "status": tools.status,
+    "triage": tools.triage,              # risk-first "what needs you" — review the few, not all
+
     "open_review_panel": tools.open_review_panel,
     "verify_claims": tools.verify_claims,
     "pubmed_search": tools.pubmed_search,

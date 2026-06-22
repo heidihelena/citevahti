@@ -707,6 +707,28 @@ def _cmd_test(args) -> int:
     return 1 if (suite["failed"] or online_errors) else 0
 
 
+def _cmd_triage(args) -> int:
+    """Risk-first triage — the few claims worth your attention now, worst-first."""
+    from . import tools
+
+    t = tools.triage(root=args.root)
+    if getattr(args, "json", False):
+        print(t.model_dump_json(indent=2))
+        return 0
+    if t.needs_attention == 0:
+        print(f"Nothing needs you right now — {t.clean} claim(s) clean. "
+              f"(Risk {t.score}/100, {t.band}.)")
+        return 0
+    print(f"{t.needs_attention} of {t.total} claim(s) worth your attention "
+          f"({t.clean} clean · risk {t.score}/100, {t.band}). Worst first:\n")
+    for i, it in enumerate(t.items, start=1):
+        flag = "‼ " if it.fatal else ""
+        print(f"{i}. {flag}{(it.claim_text or '')[:72]}")
+        print(f"     why : {it.reason}")
+        print(f"     do  : {it.action}\n")
+    return 0
+
+
 def _cmd_risk(args) -> int:
     """Epistemic Risk Score — derived, advisory manuscript triage (never a gate)."""
     from . import tools
@@ -1726,6 +1748,13 @@ def main(argv: list[str] | None = None) -> int:
                          help="Epistemic Risk Score — advisory /100 manuscript triage (read-only)")
     rsk.add_argument("--json", action="store_true", help="emit the full risk report as JSON")
     rsk.set_defaults(func=_cmd_risk)
+
+    # `triage` — the friendly front door: the few claims worth attention, worst-first,
+    # each with the reason + the next action. "Review these, not all of them."
+    trg = sub.add_parser("triage",
+                         help="the few claims worth your attention now, worst-first, with why + what to do")
+    trg.add_argument("--json", action="store_true", help="emit the full triage report as JSON")
+    trg.set_defaults(func=_cmd_triage)
 
     # `test` — run the manuscript "unit test" suite (each claim is a test case) and
     # exit non-zero on failures, so it can gate CI on a manuscript repo.
