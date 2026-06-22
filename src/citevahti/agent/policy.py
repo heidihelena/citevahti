@@ -15,6 +15,7 @@ from __future__ import annotations
 ALLOWED_AGENT_TOOLS = (
     "init",                      # create the project ledger (idempotent); every tool needs it
     "status",                    # read-only capability report
+    "triage",                    # read-only risk-first "what needs your attention" list
     "open_review_panel",         # bring up the human's loopback rating surface (no rating power)
     "verify_claims",             # read-only 4-state citation-integrity report
     "pubmed_search",             # staged, exact-query-preserving PubMed search

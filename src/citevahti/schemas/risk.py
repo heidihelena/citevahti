@@ -82,3 +82,30 @@ class EpistemicRiskReport(BaseModel):
         "floor; coverage-banded. Advisory triage only, not a pass/fail gate."
     )
     caveats: list[str] = Field(default_factory=list)
+
+
+class TriageItem(BaseModel):
+    """One claim that needs the researcher's attention, with the reason + next action."""
+
+    model_config = ConfigDict(extra="forbid")
+    claim_id: str
+    claim_text: Optional[str] = None
+    state: str
+    reason: str                          # plain-language WHY it needs attention
+    action: str                          # the concrete next step
+    risk: float = 0.0                    # 0..1 per-claim risk contribution (for ordering)
+    fatal: bool = False                  # a non-compensatory issue (e.g. retracted source)
+
+
+class TriageReport(BaseModel):
+    """Risk-first triage: the few claims worth attention, worst-first, + a clean count."""
+
+    model_config = ConfigDict(extra="forbid")
+    schema_version: str = SCHEMA_VERSION
+    generated_at: str
+    total: int = 0                       # all claims in scope
+    needs_attention: int = 0             # claims surfaced below
+    clean: int = 0                       # testable claims with nothing to do
+    score: int = 0                       # the advisory Epistemic Risk Score (0..100)
+    band: str = "low"
+    items: list[TriageItem] = Field(default_factory=list)

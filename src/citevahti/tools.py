@@ -1254,6 +1254,16 @@ def claim_report(*, claim_ids: Optional[list] = None, root: Optional[str] = None
     return ClaimReportService(_open_store(root)).report(claim_ids=claim_ids)
 
 
+def triage(*, root: Optional[str] = None):
+    """Risk-first triage: the few claims worth your attention right now, worst-first,
+    each with the reason and the next action. Read-only — the friendly front door to a
+    review (review these, not all of them)."""
+    from .report import ClaimReportService
+    from .risk import triage as _triage
+    report = ClaimReportService(_open_store(root)).report()
+    return _triage(report)
+
+
 # ---- the manuscript "unit test" suite ---------------------------------------
 # CiteVahti's core metaphor: each claim is a test case. A claim PASSES when it is
 # backed by accepted, supporting evidence whose citation is identifiable (and,

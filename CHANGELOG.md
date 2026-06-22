@@ -4,6 +4,20 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.22.0 — risk-first triage: "review the few, not all" (2026-06-22)
+
+- **`citevahti triage` — the friendly front door.** Instead of asking you to review
+  every claim, it surfaces only the few that need attention right now, **worst-first**,
+  each with a plain-language **reason** and a concrete **next action** — e.g. *"A
+  retracted paper sits behind this claim → replace the source", "Overstated → tighten
+  the wording, then accept", "Raters disagree → adjudicate", "No accepted support yet →
+  find evidence or revise"*. Built on the existing Epistemic Risk Score (`risk/triage.py`,
+  `TriageReport`); read-only, advisory.
+- **The chat agent leads with it.** New read-only `triage` MCP tool, and the
+  `run_claim_tests` choreography now ends by presenting the triage list and offering to
+  walk through the handful that matter — so a busy researcher fixes the 6 that could
+  embarrass them rather than re-reading all 84.
+
 ## 0.21.6 — P1 polish from external QA (2026-06-22)
 
 - **Human-only decisions need no `compare` step.** A human rating with no AI second
