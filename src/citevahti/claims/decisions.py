@@ -41,6 +41,11 @@ class DecisionService:
         # adjudication slipping an unrated pair into an accept.
         if adj.final_value is not None and rating.human_rating and rating.human_rating.locked:
             return adj.final_value, status, True
+        # Human-only: a human rating with no AI second opinion stands on its own. There is
+        # nothing to compare or adjudicate, so deciding does NOT require a `compare` step
+        # first (avoids a misleading "discordance" error when no AI ever rated).
+        if hv is not None and rating.ai_rating is None:
+            return hv, "human_only", True
         # no disagreement to resolve: the human value stands
         if status in ("concordant", "human_only", "ai_abstained") and hv is not None:
             return hv, status, True

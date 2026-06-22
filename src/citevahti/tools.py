@@ -918,9 +918,11 @@ def support_run_ai(rating_id: str, task_type: str = "assess", *, root: Optional[
         from .claims import build_support_ai_rater
         rater = build_support_ai_rater(store.load_config())
         if rater is None:
-            raise ValueError(
-                "AI is off — set the AI mode to 'local' or 'api' in the panel (✦ AI), "
-                "or have your assistant submit the rating over MCP.")
+            from .validators.errors import AIUnavailableError
+            raise AIUnavailableError(
+                "AI is off — the AI second opinion is optional. Continue human-only "
+                "(your rating decides), or turn it on: set 'local' or 'api' in the panel "
+                "(✦ AI), or have your MCP assistant submit the rating.")
     _backfill_abstract(store, rating_id, root)   # a title alone -> the AI can only abstain
     return _support_engine(root, rater).support_run_ai(rating_id, task_type)
 

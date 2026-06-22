@@ -15,6 +15,12 @@ class ModelNotPinnedError(ValidationError):
     code = "model_not_pinned"
 
 
+class AIUnavailableError(ValidationError):
+    """AI is off / no rater configured — a normal user state, not a crash."""
+
+    code = "ai_unavailable"
+
+
 class TaskNotAllowedError(ValidationError):
     """A task is not in the allowed rating/assist task set (Patch 2)."""
 
