@@ -480,6 +480,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                          "audit_entries": getattr(p, "audit_entries", None),
                          "audit_head": getattr(p, "audit_head_hash", None)}
 
+        # risk-first triage: the few claims worth attention now, worst-first (read-only).
+        if method == "GET" and path == "/api/triage":
+            return 200, engine.triage(root=root).model_dump()
+
         if method == "POST" and path == "/api/report/packet":
             return 200, engine.export_review_packet(root=root)
 

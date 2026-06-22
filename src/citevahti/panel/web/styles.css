@@ -521,3 +521,18 @@ a.doi:hover { text-decoration: underline; }
   background: var(--zs-delete-bg); border: 1px solid var(--zs-delete-border); border-radius: 5px;
   padding: 2px 6px; margin-left: 4px; white-space: nowrap; }
 .btn.ghost.danger { color: var(--zs-delete-text); border-color: var(--zs-delete-border); }
+
+/* ---- risk-first triage banner ("what needs you", worst-first) ---- */
+.triagebar { margin: 0 0 10px; padding: 10px 12px; border: 1px solid #E6C77A;
+  border-left: 3px solid #C98A00; border-radius: 9px; background: #FFF8E8; }
+.zs-dark .triagebar { background: #2A2310; border-color: #5A4300; }
+.triagebar .tlbl { font: 600 13px/1.4 inherit; color: var(--zs-ink); margin-bottom: 6px; }
+.triagebar .tdim { color: var(--zs-muted); font-weight: 400; }
+.triagebar .trow { display: block; width: 100%; text-align: left; cursor: pointer;
+  background: var(--zs-paper); border: 1px solid var(--zs-line); border-radius: 7px;
+  padding: 7px 9px; margin: 5px 0 0; font: inherit; color: var(--zs-ink); }
+.triagebar .trow:hover { border-color: var(--zs-brand); }
+.triagebar .trow:focus-visible { outline: 2px solid var(--zs-brand); outline-offset: 1px; }
+.triagebar .tfatal { color: #C24D7E; font-weight: 700; }
+.triagebar .treason { font-weight: 600; }
+.triagebar .tclaim { display: block; color: var(--zs-muted); font-size: 12.5px; margin-top: 2px; }
