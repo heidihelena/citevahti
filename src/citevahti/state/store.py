@@ -94,7 +94,9 @@ class CiteVahtiStore:
     # ---- config ----------------------------------------------------------
     def load_config(self) -> Config:
         if not self.config_path.exists():
-            raise StateError("config.json not found; run init() first")
+            raise StateError(
+                f"No CiteVahti ledger at {self.config_path.parent} yet — run the 'init' tool "
+                "(or `citevahti init` in a terminal) to create it, then retry.")
         return Config.model_validate_json(self.config_path.read_text(encoding="utf-8"))
 
     def save_config(self, config: Config) -> None:

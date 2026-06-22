@@ -4,6 +4,22 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.21.2 — agent `init`, a working AI second opinion, optional decision reason (2026-06-22)
+
+- **Fix: the MCP/agent surface couldn't initialize.** Every tool needs the ledger,
+  but `init` was not a registered tool — an agent (or any no-terminal client) hit a
+  dead-end where the error said "run init() first" with nothing to call. Added an
+  idempotent **`init` tool** that creates `.citevahti/config.json` and reports the
+  resolved root + config path (so it's clear *where* the ledger lives — the server's
+  bound root, not the caller's cwd). The "not found" error now names a real action
+  (`init` tool / `citevahti init`) and the path it checked.
+- **Fix: the AI second opinion always abstained** because claim candidates were staged
+  with titles only — the blinded rater (and the human) had no abstract to judge. The
+  MCP search now fetches abstracts, and an AI run **backfills** a missing abstract from
+  PubMed (and saves it). The support prompt also gained value definitions + PICO guidance.
+- **Decision reason is now optional** — a sensible default is recorded if you don't type
+  one, instead of blocking every decision.
+
 ## 0.21.1 — Word features work in the desktop app (no terminal) (2026-06-22)
 
 - **Fix: Word import / Word report failed in the `.mcpb` with a `pip install

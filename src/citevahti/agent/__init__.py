@@ -14,6 +14,7 @@ from .policy import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, assert_sa
 # The complete agent tool registry (name -> callable). MCP/function-calling
 # servers build directly from this; nothing outside it is reachable by an agent.
 TOOLS = {
+    "init": tools.init,                  # create the ledger — every other tool needs it first
     "status": tools.status,
     "open_review_panel": tools.open_review_panel,
     "verify_claims": tools.verify_claims,
