@@ -13,6 +13,7 @@ from __future__ import annotations
 # The ONLY tools exposed to an agent (MCP / function-calling). Anything not here
 # is unreachable by an agent.
 ALLOWED_AGENT_TOOLS = (
+    "init",                      # create the project ledger (idempotent); every tool needs it
     "status",                    # read-only capability report
     "open_review_panel",         # bring up the human's loopback rating surface (no rating power)
     "verify_claims",             # read-only 4-state citation-integrity report

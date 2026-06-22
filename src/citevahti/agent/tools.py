@@ -13,6 +13,22 @@ from typing import Optional
 from .. import tools as _t
 
 
+# ---- bootstrap -------------------------------------------------------------
+def init(*, root: Optional[str] = None) -> dict:
+    """Create the project ledger (``.citevahti/config.json``) if it doesn't exist.
+
+    Run this FIRST — every other tool needs the ledger. Idempotent: safe to call
+    again. Reports the resolved root + config path so it's clear WHERE the ledger
+    lives (it is the server's bound root, not the caller's working directory)."""
+    from ..state import CiteVahtiStore
+    store = CiteVahtiStore(root or ".")
+    already = store.exists()
+    if not already:
+        store.init()
+    return {"status": "already_initialized" if already else "initialized",
+            "root": str(store.dir.parent), "config_path": str(store.config_path)}
+
+
 # ---- read-only -------------------------------------------------------------
 def status(*, root: Optional[str] = None) -> dict:
     from ..capabilities import CapabilityStatusService
