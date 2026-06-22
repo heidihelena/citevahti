@@ -190,6 +190,19 @@ the manuscript was entered, and it is not a clinical or scientific oracle. Blind
 panel-enforced workflow (the AI value is withheld until you rate), recorded in the ledger
 with timestamps and comparison status so the order is auditable, not assumed.
 
+## Responsibility & disclosure
+
+CiteVahti is a **local-first citation-support audit tool for manuscript claims** — it
+helps authors test whether the cited evidence supports each claim before submission.
+
+Use of CiteVahti **does not certify** scientific truth, manuscript quality, publication
+suitability, or the absence of citation problems. It provides structured decision support
+and an audit trail; **final responsibility remains with the human author, reviewer,
+editor, or institution.** CiteVahti is developed by the author — any publication, review,
+teaching, or evaluation that uses it should **disclose the tool use and the developer
+relationship where relevant.** Ready-to-adapt disclosure text and the full statement are in
+[docs/DISCLOSURE.md](docs/DISCLOSURE.md).
+
 ## Documentation
 
 - [Quickstart](docs/QUICKSTART.md)
@@ -200,6 +213,7 @@ with timestamps and comparison status so the order is auditable, not assumed.
 - [Status & capabilities](docs/STATUS.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
 - [Writing good (atomic) claims](docs/WRITING_GOOD_CLAIMS.md)
+- [Responsibility, disclosure & conflict of interest](docs/DISCLOSURE.md)
 - [Contributor privacy](docs/CONTRIBUTOR_PRIVACY.md)
 - [Dependencies / SBOM](docs/SBOM.md)
 
