@@ -81,6 +81,7 @@ jobs:
             --collect-data mcp \
             --collect-submodules citevahti \
             --hidden-import pypandoc \
+            --hidden-import docx \
             --exclude-module mcp.cli \
             --exclude-module typer \
             server/pyi_entry.py
@@ -175,6 +176,7 @@ jobs:
             --collect-data mcp \
             --collect-submodules citevahti \
             --hidden-import pypandoc \
+            --hidden-import docx \
             --exclude-module mcp.cli \
             --exclude-module typer \
             server/pyi_entry.py

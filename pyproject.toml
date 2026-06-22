@@ -3,7 +3,7 @@
 # (product brand, a product of Vahtian). The earlier `zotsynth` package
 # alias and CLI shims were retired in the full rename.
 name = "citevahti"
-version = "0.21.0"
+version = "0.21.1"
 description = "CiteVahti — citation-integrity and provenance for research synthesis: a blinded human->AI->adjudication dual-rating workflow with decision-gated, undoable Zotero write-back (single-user, local-first; searches PubMed, OpenAlex, Semantic Scholar, Crossref)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,6 +20,9 @@ dependencies = [
     # small pure-Python wrapper; the ~100MB Pandoc binary is fetched on first Word
     # export (no-terminal "first-run fetch"), never bundled. See report/citation_export.
     "pypandoc>=1.13",
+    # Word import (.docx -> Markdown) + the integrity-report .docx. Core (not an
+    # extra) so these work in the no-terminal .mcpb, which can't `pip install`.
+    "python-docx>=1.1.0",
 ]
 
 [project.urls]
@@ -32,7 +35,7 @@ mcp = ["mcp>=1.27.2"]
 dev = ["pytest>=9.1.0"]
 keyring = ["keyring>=25.7.0"]   # OS-native secret store for onboarding (system_keyring backend)
 timestamp = ["asn1crypto>=1.5.1"]   # RFC 3161 timestamping of the audit head (issue #42); opt-in
-docx = ["python-docx>=1.1.0"]   # Word export + Word import (the researcher's .docx world); opt-in
+docx = []   # back-compat alias: python-docx is now a core dependency (Word features ship by default)
 
 [project.scripts]
 citevahti = "citevahti.cli:main"

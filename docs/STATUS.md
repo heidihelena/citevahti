@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.21.0 — cite-stable export, group libraries, and a zero-setup demo
+## Status: v0.21.1 — cite-stable export, group libraries, and a zero-setup demo
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

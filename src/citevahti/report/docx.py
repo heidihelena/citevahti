@@ -1,9 +1,9 @@
 """Word (.docx) bridge — the world researchers actually live in.
 
 Export the Citation-Integrity Report to .docx, and import a .docx manuscript back to
-Markdown so it can enter the normal paste → review flow. Needs the optional ``docx``
-extra (``pip install citevahti[docx]``); both functions raise a clear, actionable
-error when it is absent, so the core stays dependency-light.
+Markdown so it can enter the normal paste → review flow. Backed by ``python-docx``,
+which is a CORE dependency so Word features work out of the box — including in the
+no-terminal ``.mcpb``. The guard below is only a dead-man's switch for a broken install.
 """
 
 from __future__ import annotations
@@ -25,8 +25,9 @@ def _require_docx():
         import docx  # noqa: F401  (python-docx)
     except ImportError as exc:
         raise RuntimeError(
-            "Word (.docx) support needs the optional 'docx' extra — "
-            "install it with: pip install 'citevahti[docx]'") from exc
+            "Word (.docx) support needs python-docx, which ships with CiteVahti. "
+            "Your install looks incomplete — reinstall CiteVahti (or, from source, "
+            "pip install python-docx).") from exc
     from docx import Document
     return Document
 

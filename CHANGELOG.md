@@ -4,6 +4,16 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.21.1 — Word features work in the desktop app (no terminal) (2026-06-22)
+
+- **Fix: Word import / Word report failed in the `.mcpb` with a `pip install
+  citevahti[docx]` hint a no-terminal user can't act on.** `python-docx` is now a
+  **core dependency** (not the optional `docx` extra), and the desktop bundle
+  force-includes it, so Word import (`.docx → review`) and the integrity-report
+  `.docx` work out of the box in Claude Desktop. The `[docx]` extra is kept as an
+  empty back-compat alias. (Cite-stable export already worked — it uses Pandoc.)
+- Dropped the stale "needs the docx extra" note from the panel's Export dialog.
+
 ## 0.21.0 — cite-stable export, group libraries, and the zero-setup demo (2026-06-20)
 
 - **Cite-stable export — citations that survive copy-paste and Word.** A new

@@ -173,8 +173,6 @@ function openExportModal() {
     </div>
     <div class="lbl" style="margin-top:12px">Bring a manuscript in</div>
     <div class="actions" style="margin-top:4px"><button class="btn ghost" data-act="import-word">📄 Import Word (.docx) → review</button></div>
-    <div class="note dim" style="margin-top:6px">Word in/out needs the <span class="mono">docx</span> extra
-      (<span class="mono">pip install 'citevahti[docx]'</span>) — you'll get a clear note if it's missing.</div>
     <div class="modal-foot"><button class="btn ghost" data-export-close="1">Done</button></div></div>`;
 }
 function closeExportModal() { closeModalEl($("#exportModal")); }
