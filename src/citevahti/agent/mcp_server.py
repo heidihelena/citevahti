@@ -86,12 +86,22 @@ def build_server(name: str = "citevahti", *, root: str = "."):
 
 def main(argv=None) -> int:
     import argparse
+    import os
+    import sys
+    from pathlib import Path
 
     parser = argparse.ArgumentParser(prog="citevahti-mcp",
                                      description="Serve the constrained CiteVahti agent tools over MCP.")
-    parser.add_argument("--root", default=".", help="project root containing .citevahti/")
+    # Deterministic root: explicit --root, else $CITEVAHTI_ROOT, else cwd. Resolved to an
+    # absolute path so init and every tool agree regardless of the launch directory.
+    parser.add_argument("--root", default=os.environ.get("CITEVAHTI_ROOT") or ".",
+                        help="project root holding .citevahti/ (default: $CITEVAHTI_ROOT or cwd)")
     args = parser.parse_args(argv)
-    build_server(root=args.root).run()
+    root = str(Path(args.root).expanduser().resolve())
+    # stdout is the MCP protocol channel — startup diagnostics go to stderr.
+    print(f"citevahti-mcp: ledger root = {root} ({root}/.citevahti/config.json) — "
+          "run the 'init' tool first if it doesn't exist yet.", file=sys.stderr)
+    build_server(root=root).run()
     return 0
 
 

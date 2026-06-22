@@ -31,3 +31,16 @@ def test_init_creates_the_ledger_and_is_idempotent(tmp_path):
     again = tools.init(root=root)
     assert again["status"] == "already_initialized"             # idempotent
     assert again["config_path"] == out["config_path"]           # same resolved path (B2)
+
+
+def test_init_can_pin_the_agent_model_so_propose_claim_runs(tmp_path):
+    root = str(tmp_path)
+    # without a pinned model, an AI-extracting tool is gated...
+    tools.init(root=root)
+    assert tools.propose_claim("Sub-solid nodules ≥6 mm warrant CT follow-up.",
+                               root=root).get("error") == "model_not_pinned"
+    # ...so init lets the agent pin its own model in one call (B-followup)
+    out = tools.init(root=root, model_id="claude-opus-4-8")
+    assert out["model_pinned"] == "claude-opus-4-8"
+    res = tools.propose_claim("Sub-solid nodules ≥6 mm warrant CT follow-up.", root=root)
+    assert res.get("error") != "model_not_pinned"               # gate cleared
