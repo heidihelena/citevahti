@@ -157,6 +157,9 @@ def _cmd_doctor(args) -> int:
     snap = preflight_snapshot(args.root, HttpxClient())
     z, b = snap["zotero"], snap["better_bibtex"]
     print("CiteVahti — readiness check\n")
+    print(f"  version        : citevahti {__version__}  (docs/CHANGELOG describe THIS version;"
+          " if a guide shows other commands, it may be for a different release)")
+    print(f"  ledger root    : {Path(args.root).expanduser()}")
     print(f"  project ledger : {'ready' if snap['project_initialized'] else 'not created'}")
     print(f"  Zotero         : {'reachable' if z['reachable'] else 'not detected'}"
           + (f" (v{z['version']})" if z.get('version') else ""))
@@ -1487,11 +1490,18 @@ def main(argv: list[str] | None = None) -> int:
                         help="project root containing .citevahti/ (default: $CITEVAHTI_ROOT or your home folder)")
     parser.add_argument("--version", action="version", version=f"citevahti {__version__}")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name, fn in (("init", _cmd_init), ("probe", _cmd_probe),
-                     ("verify-audit", _cmd_verify_audit), ("status", _cmd_status),
-                     ("preflight", _cmd_preflight), ("doctor", _cmd_doctor),
-                     ("vocabulary", _cmd_vocabulary), ("agent-tools", _cmd_agent_tools)):
-        p = sub.add_parser(name)
+    for name, fn, helptext in (
+            ("init", _cmd_init,
+             "create the project ledger (.citevahti/config.json) at --root — run this first"),
+            ("probe", _cmd_probe, "probe Zotero / Better BibTeX / network capability"),
+            ("verify-audit", _cmd_verify_audit,
+             "recompute the hash-chained audit log and report whether it is intact (tamper check)"),
+            ("status", _cmd_status, "machine-readable capability + connection report"),
+            ("preflight", _cmd_preflight, "readiness snapshot for tooling (JSON-friendly)"),
+            ("doctor", _cmd_doctor, "plain-language readiness check + version + the next thing to do"),
+            ("vocabulary", _cmd_vocabulary, "print the verdicts / states / phases as JSON"),
+            ("agent-tools", _cmd_agent_tools, "list the constrained agent tool surface")):
+        p = sub.add_parser(name, help=helptext)
         p.set_defaults(func=fn)
 
     # start / run / resume all launch the workspace; run + resume add guided framing.
@@ -1514,7 +1524,12 @@ def main(argv: list[str] | None = None) -> int:
                     help="build the demo but don't open a browser")
     dm.set_defaults(func=_cmd_demo)
 
-    ms = sub.add_parser("mcp-serve", help="serve the constrained agent tools over MCP")
+    ms = sub.add_parser(
+        "mcp-serve", help="serve the constrained agent tools over MCP (stdio)",
+        description="Serve CiteVahti's constrained agent tools to an MCP client (e.g. Claude "
+                    "Desktop) over stdio. The ledger root is --root, else $CITEVAHTI_ROOT, else "
+                    "your home folder. Usually launched by the client, not by hand.",
+        epilog="example: citevahti --root ~/CiteVahti mcp-serve")
     ms.set_defaults(func=_cmd_mcp_serve)
 
     ts = sub.add_parser("timestamp",

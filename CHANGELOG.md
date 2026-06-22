@@ -4,6 +4,20 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.21.6 — P1 polish from external QA (2026-06-22)
+
+- **Human-only decisions need no `compare` step.** A human rating with no AI second
+  opinion now resolves on its own, so `claim-decide` works directly — no more
+  misleading "discordance has not been adjudicated" error when no AI ever rated.
+- **AI-off is a clean error, not a traceback.** `claim-support-run-ai` with AI off now
+  raises a typed `AIUnavailableError` (caught by the CLI) — "AI is off… continue
+  human-only, or turn it on" — instead of a Python stack trace.
+- **`citevahti doctor` shows the version + ledger root** and warns that docs describe
+  the running version (helps when a guide is from a different release).
+- **Better CLI help** for `init`, `verify-audit`, and `mcp-serve` (purpose + example).
+- **VS Code extension: `npm audit` clean** (0 vulnerabilities; refreshed the dev-only
+  `undici` transitive dependency).
+
 ## 0.21.5 — stable ledger root (fixes "config not found" under the desktop app) (2026-06-22)
 
 - **Fix: the MCP server resolved `.citevahti/` relative to its launch directory.** The
