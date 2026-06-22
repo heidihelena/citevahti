@@ -47,17 +47,25 @@ class HttpClaimSupportRater:
     # blinded: only the claim + the paper's own title/abstract are available here
     @staticmethod
     def _build_prompt(claim, candidate) -> str:
-        values = sorted(SUPPORT_VALUES)
+        from ..schemas.claim_support import SUPPORT_DEFINITIONS
         title = getattr(candidate, "title", None) or ""
         abstract = getattr(candidate, "abstract", None) or "(no abstract available)"
+        defs = "\n".join(f"  - {v}: {d}" for v, d in SUPPORT_DEFINITIONS.items())
         return "\n".join([
             "You are a BLINDED second rater for a citation-integrity tool.",
-            "Judge how the cited PAPER relates to the CLAIM — its support or contrast, NOT mere",
-            "topical relevance. 'overstated' = the paper supports a weaker claim than the one made.",
+            "Decide whether the cited PAPER supports the CLAIM, using ONLY the paper's title and",
+            "abstract below. Judge SUPPORT (does this evidence back this specific claim?), not mere",
+            "topical relevance. Check the claim's population, intervention/exposure, and outcome are",
+            "actually addressed by the paper — a mismatch on any of them means it is not full support.",
+            "",
             f'CLAIM: """{claim.claim_text}"""',
             f'PAPER (title + abstract): """{title}\n\n{abstract}"""',
-            f"Choose EXACTLY ONE support value from: {values}.",
-            "If the abstract is insufficient to judge, abstain.",
+            "",
+            "Choose EXACTLY ONE support value. Definitions:",
+            defs,
+            "",
+            "Use 'overstated' when the paper supports a weaker version of the claim.",
+            "If the title/abstract is genuinely insufficient to judge, set abstained=true.",
             'Reply with ONLY JSON: {"value":"<one value or null>","abstained":<bool>,'
             '"confidence":<0..1 or null>,"rationale":"<=25 words"}',
         ])
