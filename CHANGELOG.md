@@ -4,6 +4,18 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.23.0 — check-a-paragraph: the everyday in-writing loop (2026-06-23)
+
+- **`citevahti check-paragraph` (and a `check_paragraph` chat tool).** Paste a paragraph
+  you just wrote and instantly see, per sentence, which claims you've **already vetted**
+  (✓), which **need attention** (⚠ with the reason + next action), and which are **new /
+  untracked** (•). Read-only, **no AI, no network** — it matches each sentence to the
+  claims already in your ledger (exact normalized hash, then substring / token-overlap)
+  and reuses the risk triage. Turns CiteVahti from a final-pass tool into a daily writing
+  companion: "have I checked this?" while you write, not just before you submit.
+- The chat assistant can run it on a snippet ("check this paragraph") and lead you to the
+  ones needing attention, offering to add the new ones.
+
 ## 0.22.1 — triage in the panel (2026-06-23)
 
 - **The panel now leads with a "⚠ what needs you" banner.** Above the manuscript it

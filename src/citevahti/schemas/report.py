@@ -108,3 +108,27 @@ class ClaimReport(BaseModel):
     # ledger-integrity warnings (e.g. a decision edited outside CiteVahti). Non-empty
     # means at least one claim's state can't be trusted until the ledger is repaired.
     warnings: list[str] = Field(default_factory=list)
+
+
+class ParagraphSentence(BaseModel):
+    """One sentence of a pasted paragraph, matched (or not) to a tracked claim."""
+
+    model_config = ConfigDict(extra="forbid")
+    text: str
+    status: str                              # reviewed | attention | new
+    claim_id: Optional[str] = None           # the matched ledger claim, if any
+    state: Optional[str] = None              # its report state when matched
+    reason: Optional[str] = None             # why it needs attention (status == attention)
+    action: Optional[str] = None             # the next step (status == attention)
+
+
+class ParagraphCheck(BaseModel):
+    """Check-a-paragraph result: per-sentence status + a quick tally, for the
+    everyday in-the-writing loop (what have I vetted, what needs me, what's new)."""
+
+    model_config = ConfigDict(extra="forbid")
+    total: int = 0                           # claim-like sentences considered
+    reviewed: int = 0                        # matched a vetted claim, nothing to do
+    attention: int = 0                       # matched a claim that needs attention
+    new: int = 0                             # not tracked yet (new, or not a claim)
+    sentences: list[ParagraphSentence] = Field(default_factory=list)

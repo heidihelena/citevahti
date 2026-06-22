@@ -707,6 +707,36 @@ def _cmd_test(args) -> int:
     return 1 if (suite["failed"] or online_errors) else 0
 
 
+def _cmd_check_paragraph(args) -> int:
+    """Check-a-paragraph — paste what you just wrote; see what's vetted / needs you / new."""
+    from . import tools
+
+    text = args.text
+    if not text and args.path:
+        text = Path(args.path).expanduser().read_text(encoding="utf-8")
+    if not text and not sys.stdin.isatty():
+        text = sys.stdin.read()
+    if not text:
+        print("Paste a paragraph: --text \"…\", --path FILE, or pipe it via stdin.")
+        return 1
+    c, rc = _safe(lambda: tools.check_paragraph(text, root=args.root))
+    if not c:
+        return rc
+    if getattr(args, "json", False):
+        print(c.model_dump_json(indent=2))
+        return 0
+    print(f"{c.total} claim-like sentence(s): {c.reviewed} reviewed · "
+          f"{c.attention} need attention · {c.new} new\n")
+    icon = {"reviewed": "✓", "attention": "⚠", "new": "•"}
+    for s in c.sentences:
+        print(f"{icon.get(s.status, '?')} {s.text[:76]}")
+        if s.status == "attention":
+            print(f"     {s.reason}  →  {s.action}")
+        elif s.status == "new":
+            print("     new — not tracked yet; add it to check it.")
+    return 0
+
+
 def _cmd_triage(args) -> int:
     """Risk-first triage — the few claims worth your attention now, worst-first."""
     from . import tools
@@ -1755,6 +1785,15 @@ def main(argv: list[str] | None = None) -> int:
                          help="the few claims worth your attention now, worst-first, with why + what to do")
     trg.add_argument("--json", action="store_true", help="emit the full triage report as JSON")
     trg.set_defaults(func=_cmd_triage)
+
+    # `check-paragraph` — the everyday in-writing loop: paste a snippet, see which of its
+    # sentences map to vetted claims, which need attention, and which are new/untracked.
+    cp = sub.add_parser("check-paragraph",
+                        help="paste a paragraph you just wrote → which claims are vetted / need you / new")
+    cp.add_argument("--text", default=None, help="the paragraph text (else --path, else stdin)")
+    cp.add_argument("--path", default=None, help="read the paragraph from a file")
+    cp.add_argument("--json", action="store_true", help="emit the full result as JSON")
+    cp.set_defaults(func=_cmd_check_paragraph)
 
     # `test` — run the manuscript "unit test" suite (each claim is a test case) and
     # exit non-zero on failures, so it can gate CI on a manuscript repo.
