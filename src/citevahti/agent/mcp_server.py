@@ -86,16 +86,18 @@ def build_server(name: str = "citevahti", *, root: str = "."):
 
 def main(argv=None) -> int:
     import argparse
-    import os
     import sys
     from pathlib import Path
 
+    from ..rootcfg import default_root
+
     parser = argparse.ArgumentParser(prog="citevahti-mcp",
                                      description="Serve the constrained CiteVahti agent tools over MCP.")
-    # Deterministic root: explicit --root, else $CITEVAHTI_ROOT, else cwd. Resolved to an
-    # absolute path so init and every tool agree regardless of the launch directory.
-    parser.add_argument("--root", default=os.environ.get("CITEVAHTI_ROOT") or ".",
-                        help="project root holding .citevahti/ (default: $CITEVAHTI_ROOT or cwd)")
+    # STABLE root — explicit --root, else $CITEVAHTI_ROOT, else the home dir. NEVER cwd:
+    # the desktop app launches this server with an arbitrary cwd (often /), so a
+    # cwd-relative default would never find the ledger `citevahti init` created.
+    parser.add_argument("--root", default=default_root(),
+                        help="project root holding .citevahti/ (default: $CITEVAHTI_ROOT or your home folder)")
     args = parser.parse_args(argv)
     root = str(Path(args.root).expanduser().resolve())
     # stdout is the MCP protocol channel — startup diagnostics go to stderr.
