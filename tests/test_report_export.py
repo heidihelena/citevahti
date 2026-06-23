@@ -95,6 +95,7 @@ def test_methods_documents_llm_assisted_discovery_when_used(tmp_path):
     md = build_methods_markdown(s)
     assert "assistance of a large language model" in md
     assert "claude-opus-4-8" in md
+    assert "snapshot 2026-05-01" in md                          # reproducible: version pinned, not id-only
     assert "made no eligibility or inclusion decision" in md     # role bounded
     assert "is not automated screening" in md
     assert "1 was model-proposed" in md                          # honest count, verb agrees
