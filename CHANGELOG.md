@@ -4,6 +4,14 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.1 — name the discovery model's snapshot, not just its id (2026-06-23)
+
+- The PRISMA "how the literature was found" disclosure now names the discovery model's
+  **snapshot/version** alongside its id — e.g. *"(claude-opus-4-8, snapshot 2026-05-01)"* —
+  because a model id alone is not a reproducible disclosure. Honest as ever: when the
+  snapshot is not pinned it shows `(unset — pin ai_provenance.model_snapshot)`, never a
+  fabricated version.
+
 ## 0.24.0 — PRISMA: document the LLM in literature discovery (2026-06-23)
 
 - **`citevahti methods` (and a `methods` chat tool).** The submission-ready methods

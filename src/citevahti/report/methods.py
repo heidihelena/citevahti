@@ -74,7 +74,7 @@ def _discovery_stats(store) -> dict:
             "model": model}
 
 
-def _discovery_paragraph(store, ai_model_id) -> str:
+def _discovery_paragraph(store, ai_model_id, ai_model_snapshot=None) -> str:
     """The PRISMA-style identification disclosure: was an LLM in the discovery loop,
     and if so, exactly what did it do (propose leads) and not do (decide / rate)?"""
     s = _discovery_stats(store)
@@ -88,6 +88,10 @@ def _discovery_paragraph(store, ai_model_id) -> str:
             "identified claim(s). No large-language-model claim proposal was used. A human "
             "reviewer screened every candidate; no automated screening decision was made.")
     model = s["model"] or ai_model_id or "(model unset — pin ai_provenance.model_id)"
+    # Name the snapshot/version too when it is pinned — a model id alone is not a
+    # reproducible disclosure. Stays honest: omitted (not faked) when unset.
+    snap = _shown(ai_model_snapshot, unset_hint="pin ai_provenance.model_snapshot")
+    model = f"{model}, snapshot {snap}"
     was_were = "was" if s["ai_claims"] == 1 else "were"
     return (
         f"Candidate claims were identified with the assistance of a large language model "
@@ -133,7 +137,7 @@ def build_methods_markdown(store) -> str:
                      "you record dual ratings.")
     note_block = ("\n\n**Before you submit:**\n" + "\n".join(notes)) if notes else ""
 
-    discovery = _discovery_paragraph(store, prov.model_id)
+    discovery = _discovery_paragraph(store, prov.model_id, prov.model_snapshot)
 
     return (
         "# Methods statement (auto-filled)\n\n"
