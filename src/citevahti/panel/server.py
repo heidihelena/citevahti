@@ -574,10 +574,19 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             mdir = prefs.get_manuscripts_dir(root)
             groups = _manuscript_groups(root)
             out = []
+            seen = set()
             for mid, rows in groups.items():
                 resolved = M.resolve_path(mdir, mid) is not None
                 out.append({"manuscript_id": mid, "claim_count": len(rows),
                             "resolved": resolved})
+                seen.add(mid)
+            # Also surface documents that live in the bound folder but have no claims
+            # yet, so a manuscript you just ADDED is selectable instead of being hidden
+            # behind the one you've already worked on (the "always the stale one" trap).
+            for name in M.list_manuscript_files(mdir):
+                if name not in seen:
+                    out.append({"manuscript_id": name, "claim_count": 0, "resolved": True})
+                    seen.add(name)
             return 200, {"manuscripts_dir": mdir, "manuscripts": out}
 
         m = re.fullmatch(r"/api/manuscript/(.+)", path)

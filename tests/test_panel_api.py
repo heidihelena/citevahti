@@ -196,6 +196,30 @@ def test_claims_listing_offline(tmp_path):
     assert any(c["claim_id"] == claim_id for c in data["claims"])
 
 
+def test_manuscripts_lists_a_freshly_added_file_with_no_claims(tmp_path):
+    # The "always the stale one" bug: the manuscript list was built only from claims,
+    # so a document you just added (zero claims yet) was invisible and you kept seeing
+    # the one you'd already worked on. It must now appear from the bound folder.
+    from citevahti.panel import prefs
+
+    store, _claim_id, _cand_id = _setup(tmp_path)          # one claim → one claim-group
+    msdir = tmp_path / "papers"
+    msdir.mkdir()
+    (msdir / "brand_new_paper.md").write_text("A fresh manuscript with no claims yet.\n",
+                                              encoding="utf-8")
+    prefs.set_manuscripts_dir(str(tmp_path), str(msdir))
+
+    status, data = dispatch(str(tmp_path), "GET", "/api/manuscripts", None)
+    assert status == 200
+    ids = {m["manuscript_id"]: m for m in data["manuscripts"]}
+    assert "brand_new_paper.md" in ids                     # the freshly added file is selectable
+    assert ids["brand_new_paper.md"]["claim_count"] == 0
+    assert ids["brand_new_paper.md"]["resolved"] is True
+    # and selecting it opens the document (prose), not an error
+    status2, view = dispatch(str(tmp_path), "GET", "/api/manuscript/brand_new_paper.md", None)
+    assert status2 == 200 and view["mode"] == "file"
+
+
 def test_unlink_candidate_route_removes_the_paper(tmp_path):
     store, claim_id, cand_id = _setup(tmp_path)
     status, data = dispatch(str(tmp_path), "POST", "/api/candidates/unlink",

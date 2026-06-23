@@ -4,6 +4,20 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.3 — a manuscript you just added is selectable, not hidden behind the old one (2026-06-23)
+
+- **Fixed: adding a new manuscript and "always getting the stale one you've been working
+  with."** The panel's manuscript list was built *only from claims that already existed*,
+  so a document you just added (zero claims yet) was invisible — leaving only the
+  manuscript you'd already worked on. The list now also surfaces the `.md`/`.markdown`/
+  `.txt`/`.docx` files actually present in the bound manuscripts folder
+  (`manuscript.list_manuscript_files`), each selectable with a `0` claim count; selecting
+  one opens its real prose so you can start extracting claims.
+- **The just-added manuscript now becomes the active one.** Importing/pasting a document
+  focuses it instead of sticking to the previously open manuscript, and binding a folder
+  jumps to a manuscript that actually lives in it (`loadManuscripts(preferId)` in the
+  panel). Companion to the working-file-selection design note (ADR-0007/0002).
+
 ## 0.24.2 — methods statement states the abstract-vs-full-text evidence basis (2026-06-23)
 
 - The methods statement now reports the **evidence basis** of its ratings — borrowing

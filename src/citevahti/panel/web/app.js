@@ -263,7 +263,7 @@ async function saveImported() {
   try {
     const r = await api("POST", "/api/manuscripts/paste", { filename, content });
     closeImportModal();
-    await loadManuscripts();
+    await loadManuscripts(r.filename);   // focus the just-added manuscript, not the old one
     setAgentLine(`Imported ${esc(r.filename)} — ${esc(r.next_prompt || "extract claims next")}`);
   } catch (e) { notify(e.message); }
 }
@@ -591,11 +591,17 @@ function renderAuditBadge() {
   el.textContent = a.intact ? `⛓ audit ✓ ${a.entries}` : "⛓ audit ⚠ tampered";
 }
 
-async function loadManuscripts() {
+async function loadManuscripts(preferId) {
   const data = await api("GET", "/api/manuscripts");
   state.manuscripts = data.manuscripts || [];
   state.ctx.manuscripts_dir = data.manuscripts_dir;
-  state.activeMs = state.activeMs || (state.manuscripts[0] && state.manuscripts[0].manuscript_id);
+  // When a manuscript was just added/imported, focus IT — don't stick to the one
+  // already being worked on (the "I add another and always get the stale one" trap).
+  if (preferId && state.manuscripts.some((m) => m.manuscript_id === preferId)) {
+    state.activeMs = preferId;
+  } else {
+    state.activeMs = state.activeMs || (state.manuscripts[0] && state.manuscripts[0].manuscript_id);
+  }
   if (state.activeMs) await loadManuscript(state.activeMs);
   renderMsBar();
 }
@@ -679,8 +685,17 @@ async function openBrowse(path) {
 }
 function closeBrowse() { closeModalEl($("#browseModal")); }
 async function useBrowseFolder(dir) {
-  try { await api("POST", "/api/manuscripts/bind", { dir }); closeBrowse(); await loadManuscripts(); }
-  catch (e) { notify(e.message); }
+  try {
+    await api("POST", "/api/manuscripts/bind", { dir });
+    closeBrowse();
+    await loadManuscripts();
+    // binding a folder means "work on what's in here" — jump to a manuscript that
+    // actually lives in it, not the reconstructed-from-claims one you came from.
+    const inFolder = state.manuscripts.find((m) => m.resolved);
+    if (inFolder && inFolder.manuscript_id !== state.activeMs) {
+      await loadManuscript(inFolder.manuscript_id);
+    }
+  } catch (e) { notify(e.message); }
 }
 
 const CLAIM_TYPES = ["effectiveness", "diagnostic_accuracy", "prognosis", "risk_factor",
