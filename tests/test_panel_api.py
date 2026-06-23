@@ -240,6 +240,21 @@ def test_active_manuscript_is_remembered_across_reloads(tmp_path):
     assert gone["active"] is None                          # absent → not surfaced
 
 
+def test_claim_view_carries_its_manuscript_id_for_cross_manuscript_jump(tmp_path):
+    # A3: a triage row / deep-link can target a claim in another manuscript. The claim
+    # view must report which manuscript it belongs to (the same key the switcher groups
+    # by) so the panel can switch the document pane to it.
+    store, _claim_id, _cand_id = _setup(tmp_path)
+    c = engine.add_claim("Secondary outcome improved.", "effectiveness",
+                         manuscript_location="paper_b.md:L42", root=str(tmp_path))
+    status, data = dispatch(str(tmp_path), "GET", f"/api/claims/{c.claim_id}", None)
+    assert status == 200
+    assert data["claim"]["manuscript_id"] == "paper_b.md"        # file part of the location
+    # a claim with no location reports the unlocated bucket, never null
+    status2, data2 = dispatch(str(tmp_path), "GET", f"/api/claims/{_claim_id}", None)
+    assert data2["claim"]["manuscript_id"] == "(unlocated)"
+
+
 def test_unlink_candidate_route_removes_the_paper(tmp_path):
     store, claim_id, cand_id = _setup(tmp_path)
     status, data = dispatch(str(tmp_path), "POST", "/api/candidates/unlink",

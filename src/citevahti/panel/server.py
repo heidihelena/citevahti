@@ -377,6 +377,9 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, {"claim": {"claim_id": claim.claim_id, "claim_text": claim.claim_text,
                                    "claim_type": claim.claim_type,
                                    "manuscript_location": claim.manuscript_location,
+                                   # same key the switcher groups by, so the client can tell
+                                   # which manuscript this claim belongs to and switch to it
+                                   "manuscript_id": M.parse_location(claim.manuscript_location)[0] or "(unlocated)",
                                    "extracted_by": claim.extracted_by,
                                    "proposed_revision": claim.proposed_revision,
                                    "has_stale_bonds": bonds["has_stale_bonds"]},
