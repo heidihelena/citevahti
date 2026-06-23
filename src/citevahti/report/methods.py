@@ -74,6 +74,41 @@ def _discovery_stats(store) -> dict:
             "model": model}
 
 
+def _basis_stats(store) -> dict:
+    """How was support actually assessed — against a located full-text passage, or the
+    abstract the rater saw? A rating that carries a quoted passage (attachment + char
+    offsets) is full-text-anchored; one with no passages was assessed against the
+    candidate abstract. Derived from existing data — no schema change."""
+    from ..state import StateError
+
+    rated = anchored = 0
+    for rid in store.list_support_ratings():
+        try:
+            r = store.load_support_rating(rid)
+        except StateError:
+            continue
+        rated += 1
+        human = r.human_rating.source_passages if r.human_rating else []
+        ai = r.ai_rating.supporting_passages if r.ai_rating else []
+        if human or ai:
+            anchored += 1
+    return {"rated": rated, "anchored": anchored, "abstract_only": rated - anchored}
+
+
+def _basis_line(store) -> str:
+    """One honest sentence on the evidence basis — empty when nothing is rated yet."""
+    s = _basis_stats(store)
+    if s["rated"] == 0:
+        return ""
+    was_were = "was" if s["anchored"] == 1 else "were"
+    return (
+        f"**Evidence basis.** Of {s['rated']} rated claim–candidate pair(s), {s['anchored']} "
+        f"{was_were} assessed against at least one located full-text passage (a verbatim quote "
+        f"with attachment and character offsets) and {s['abstract_only']} against the candidate "
+        "abstract retrieved from PubMed. Abstract-only support is provisional — confirm such "
+        "claims against the full text before relying on the citation.")
+
+
 def _discovery_paragraph(store, ai_model_id, ai_model_snapshot=None) -> str:
     """The PRISMA-style identification disclosure: was an LLM in the discovery loop,
     and if so, exactly what did it do (propose leads) and not do (decide / rate)?"""
@@ -137,6 +172,8 @@ def build_methods_markdown(store) -> str:
                      "you record dual ratings.")
     note_block = ("\n\n**Before you submit:**\n" + "\n".join(notes)) if notes else ""
 
+    basis = _basis_line(store)
+    basis_block = (f"\n\n{basis}\n" if basis else "")
     discovery = _discovery_paragraph(store, prov.model_id, prov.model_snapshot)
 
     return (
@@ -144,7 +181,7 @@ def build_methods_markdown(store) -> str:
         "Paste into your manuscript's methods section and adapt. Numbers are this "
         "ledger's actual values; see `docs/REPORTING.md` for what each one means and "
         "the precise blinding wording.\n\n"
-        f"> {para}\n{note_block}\n\n"
+        f"> {para}\n{note_block}{basis_block}\n\n"
         "## How the literature was found (for PRISMA / systematic reviews)\n\n"
         "Paste under the *identification* step. This documents the role of any LLM in "
         "discovery — distinct from the human-only screening and rating above.\n\n"

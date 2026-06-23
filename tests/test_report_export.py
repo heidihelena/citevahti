@@ -101,6 +101,39 @@ def test_methods_documents_llm_assisted_discovery_when_used(tmp_path):
     assert "1 was model-proposed" in md                          # honest count, verb agrees
 
 
+def test_methods_states_abstract_vs_fulltext_evidence_basis(tmp_path):
+    # MatchVahti's "abstract-only, verify before citing" honesty, in CiteVahti's methods:
+    # a rating with no located passage is abstract-only; one with a quoted passage is
+    # full-text-anchored. Derived from existing data — no schema change.
+    from citevahti.claims import ClaimSupportEngine
+    from citevahti.report import build_methods_markdown
+    from citevahti.schemas.common import ItemRef, PassageRef
+    s, claim_id = _store(tmp_path)
+    eng = ClaimSupportEngine(s)
+    cand_id = s.load_candidates(claim_id).candidates[0].candidate_id
+    # one rating against the abstract only (no passages)
+    r1 = eng.support_start(claim_id, cand_id)
+    eng.support_commit_human(r1.rating_id, "partially_supports")
+    md = build_methods_markdown(s)
+    assert "**Evidence basis.**" in md
+    assert "1 against the candidate abstract" in md
+    assert "confirm such claims against the full text" in md      # the provisional caveat
+    # now anchor a full-text passage on a second pair → the count moves
+    c2 = ClaimService(s).add_claim("Screening cuts late-stage incidence.", "effectiveness")
+    from citevahti.claims import CandidateService
+    from citevahti.intake import IntakeService, StaticLibraryIndex
+    b2 = IntakeService(s, provider=_Provider([ProviderHit(pmid="2", doi="10.1/b", title="X")]),
+                       library_index=StaticLibraryIndex()).literature_search("q2", question_id="q2")
+    CandidateService(s).link_from_intake(c2.claim_id, b2.batch_id)
+    k2 = s.load_candidates(c2.claim_id).candidates[0].candidate_id
+    r2 = eng.support_start(c2.claim_id, k2)
+    passage = PassageRef(item=ItemRef(zotero_key="ABCD1234"), attachment_key="ATT1",
+                         page=4, char_start=1200, char_end=1320, quote="Late-stage incidence fell.")
+    eng.support_commit_human(r2.rating_id, "directly_supports", source_passages=[passage])
+    md2 = build_methods_markdown(s)
+    assert "Of 2 rated claim–candidate pair(s), 1 was assessed against at least one located full-text passage" in md2
+
+
 # ---- Word (.docx) bridge — needs the optional 'docx' extra -----------------
 def test_render_docx_contains_the_claim(tmp_path):
     import pytest
