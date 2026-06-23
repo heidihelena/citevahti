@@ -66,6 +66,15 @@ def check_paragraph(text: str, *, root: Optional[str] = None) -> dict:
                           for s in t.sentences]}
 
 
+def methods(*, root: Optional[str] = None) -> dict:
+    """Methods statement: the submission-ready methods paragraph auto-filled with this
+    ledger's real numbers, plus the PRISMA-style 'how the literature was found' disclosure
+    (whether an LLM was in the discovery loop, and that it only proposed leads — humans
+    made every screening and rating decision). Read-only. Offer this for systematic reviews
+    and pre-submission; it is the paste-ready methods + AI-use disclosure text."""
+    return {"markdown": _t.methods_statement(root=root)}
+
+
 def status(*, root: Optional[str] = None) -> dict:
     from ..capabilities import CapabilityStatusService
     from ..probe import HttpxClient

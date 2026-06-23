@@ -4,6 +4,24 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.0 — PRISMA: document the LLM in literature discovery (2026-06-23)
+
+- **`citevahti methods` (and a `methods` chat tool).** The submission-ready methods
+  paragraph — auto-filled with this ledger's real numbers — is now viewable directly,
+  not only as `methods.md` buried inside the review-packet `.zip`. Read-only; the same
+  honest, never-invented text as before (`n/a` for missing agreement/κ, `unset` for an
+  unpinned model).
+- **New: a PRISMA-style "how the literature was found" disclosure.** When an LLM was in
+  the discovery loop (topic screening / claim extraction via `screen_topic`), the methods
+  statement now documents it under the *identification* step: the model named, its role
+  bounded to **proposing leads** (it recorded no support rating and made **no eligibility
+  or inclusion decision**), the honest counts of model-proposed vs author-identified
+  claims and staged candidate references — and an explicit reminder to disclose the model
+  and date of use. When no LLM discovery was used, it says so plainly. This closes the gap
+  for systematic reviewers, who must disclose any AI assistance in study identification.
+- `screen_topic` now points the assistant at `methods` for the PRISMA disclosure after a
+  screening run, so the discovery step is documented rather than silent.
+
 ## 0.23.0 — check-a-paragraph: the everyday in-writing loop (2026-06-23)
 
 - **`citevahti check-paragraph` (and a `check_paragraph` chat tool).** Paste a paragraph

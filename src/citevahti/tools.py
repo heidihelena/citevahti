@@ -1016,6 +1016,15 @@ _PACKET_README = (
 )
 
 
+def methods_statement(*, root: Optional[str] = None) -> str:
+    """The submission-ready methods paragraph for *this* ledger, as Markdown — the same
+    text bundled into the review packet's ``methods.md``, but viewable directly so it can
+    be read or pasted without unzipping. Includes the PRISMA-style 'how the literature was
+    found' disclosure (whether an LLM was in the discovery loop). Read-only."""
+    from .report import build_methods_markdown
+    return build_methods_markdown(_open_store(root))
+
+
 def export_review_packet(output_path: Optional[str] = None, *, root: Optional[str] = None) -> dict:
     """Bundle the report (Markdown + print-ready HTML) + the structured evidence/audit
     trail into one local ``.zip`` for handing off. Stdlib only; nothing is transmitted."""

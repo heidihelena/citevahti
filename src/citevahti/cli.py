@@ -737,6 +737,21 @@ def _cmd_check_paragraph(args) -> int:
     return 0
 
 
+def _cmd_methods(args) -> int:
+    """Methods statement — the submission-ready paragraph + PRISMA discovery disclosure."""
+    from . import tools
+
+    md, rc = _safe(lambda: tools.methods_statement(root=args.root))
+    if md is None:
+        return rc
+    if args.output:
+        Path(args.output).expanduser().write_text(md, encoding="utf-8")
+        print(f"Wrote methods statement to {args.output}")
+    else:
+        print(md)
+    return 0
+
+
 def _cmd_triage(args) -> int:
     """Risk-first triage — the few claims worth your attention now, worst-first."""
     from . import tools
@@ -1785,6 +1800,13 @@ def main(argv: list[str] | None = None) -> int:
                          help="the few claims worth your attention now, worst-first, with why + what to do")
     trg.add_argument("--json", action="store_true", help="emit the full triage report as JSON")
     trg.set_defaults(func=_cmd_triage)
+
+    # `methods` — the submission-ready methods paragraph (auto-filled with this ledger's
+    # numbers) + the PRISMA-style "how the literature was found" disclosure. Read-only.
+    mth = sub.add_parser("methods",
+                         help="submission-ready methods paragraph + PRISMA discovery disclosure (read-only)")
+    mth.add_argument("--output", default=None, help="write to a file instead of stdout")
+    mth.set_defaults(func=_cmd_methods)
 
     # `check-paragraph` — the everyday in-writing loop: paste a snippet, see which of its
     # sentences map to vetted claims, which need attention, and which are new/untracked.

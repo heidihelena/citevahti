@@ -158,7 +158,11 @@ def screen_topic_prompt(topic: str = "") -> str:
         "write is previewed, confirmed, and undoable. Do NOT state, hint at, or imply a "
         "support rating during screening.\n\n"
         "Invariant: screening only proposes leads and stages candidates. It records no rating "
-        "and makes no decision; the human rates first, exactly as in run_claim_tests."
+        "and makes no decision; the human rates first, exactly as in run_claim_tests.\n\n"
+        "For a systematic review: because an LLM was in the discovery loop here, this step "
+        "must be disclosed. Offer `methods` — it returns a paste-ready PRISMA 'how the "
+        "literature was found' paragraph stating the model proposed leads only and humans "
+        "made every screening and inclusion decision."
     )
     if topic.strip():
         body += "\n\n--- Topic to screen ---\n" + topic.strip()
