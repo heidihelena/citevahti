@@ -220,6 +220,26 @@ def test_manuscripts_lists_a_freshly_added_file_with_no_claims(tmp_path):
     assert status2 == 200 and view["mode"] == "file"
 
 
+def test_active_manuscript_is_remembered_across_reloads(tmp_path):
+    # Completeness: opening a manuscript persists it as active, so a reload reopens IT
+    # instead of snapping back to the first (claims-heavy) entry.
+    store, _claim_id, _cand_id = _setup(tmp_path)
+    msdir = tmp_path / "papers"
+    msdir.mkdir()
+    (msdir / "paper_b.md").write_text("Second manuscript.\n", encoding="utf-8")
+    from citevahti.panel import prefs
+    prefs.set_manuscripts_dir(str(tmp_path), str(msdir))
+
+    _, before = dispatch(str(tmp_path), "GET", "/api/manuscripts", None)
+    assert before["active"] is None                       # nothing opened yet
+    dispatch(str(tmp_path), "GET", "/api/manuscript/paper_b.md", None)   # open it
+    _, after = dispatch(str(tmp_path), "GET", "/api/manuscripts", None)
+    assert after["active"] == "paper_b.md"                 # remembered as active
+    prefs.remember_manuscript(str(tmp_path), "deleted.md")
+    _, gone = dispatch(str(tmp_path), "GET", "/api/manuscripts", None)
+    assert gone["active"] is None                          # absent → not surfaced
+
+
 def test_unlink_candidate_route_removes_the_paper(tmp_path):
     store, claim_id, cand_id = _setup(tmp_path)
     status, data = dispatch(str(tmp_path), "POST", "/api/candidates/unlink",

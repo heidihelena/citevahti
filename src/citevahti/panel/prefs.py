@@ -61,6 +61,23 @@ def set_manuscripts_dir(root: str, manuscripts_dir: str) -> None:
     save_panel(root, data)
 
 
+def remember_manuscript(root: str, manuscript_id: Optional[str]) -> None:
+    """Record the manuscript being worked on, so a reload returns to it instead of
+    snapping back to the first (claims-heavy) one. Per-root; best-effort."""
+    if not manuscript_id:
+        return
+    try:
+        data = load_panel(root)
+        data["active_manuscript"] = manuscript_id
+        save_panel(root, data)
+    except OSError:
+        pass
+
+
+def recall_manuscript(root: str) -> Optional[str]:
+    return load_panel(root).get("active_manuscript")
+
+
 # ---- remembered root (global) ----------------------------------------------
 def remember_root(root: str) -> None:
     try:

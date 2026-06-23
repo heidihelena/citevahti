@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.4 — the panel reopens the manuscript you were on (2026-06-24)
+
+- **Completes the manuscript switcher.** The manuscript you open is now remembered
+  per-project (`panel.json` `active_manuscript`; `prefs.remember_manuscript` /
+  `recall_manuscript`), so a reload reopens *it* instead of snapping back to the first
+  (claims-heavy) entry. `/api/manuscripts` returns `active`; opening a manuscript records
+  it; a remembered manuscript that's no longer present is ignored. One precedence now
+  decides the working manuscript: just-added → open this session → last worked on →
+  first in list.
+- **Empty state.** When there are no claims and no documents in the bound folder, the
+  switcher says "No manuscript yet — open your document folder, or add a claim to begin"
+  instead of rendering a blank label.
+
 ## 0.24.3 — a manuscript you just added is selectable, not hidden behind the old one (2026-06-23)
 
 - **Fixed: adding a new manuscript and "always getting the stale one you've been working

@@ -595,13 +595,16 @@ async function loadManuscripts(preferId) {
   const data = await api("GET", "/api/manuscripts");
   state.manuscripts = data.manuscripts || [];
   state.ctx.manuscripts_dir = data.manuscripts_dir;
-  // When a manuscript was just added/imported, focus IT — don't stick to the one
-  // already being worked on (the "I add another and always get the stale one" trap).
-  if (preferId && state.manuscripts.some((m) => m.manuscript_id === preferId)) {
-    state.activeMs = preferId;
-  } else {
-    state.activeMs = state.activeMs || (state.manuscripts[0] && state.manuscripts[0].manuscript_id);
-  }
+  const has = (id) => id && state.manuscripts.some((m) => m.manuscript_id === id);
+  // One precedence for "what am I working on": a just-added/imported manuscript →
+  // the one already open this session → the one last worked on (persisted across
+  // reloads) → the first in the list. Closes the "reload snaps back to the stale one".
+  state.activeMs =
+    (has(preferId) && preferId) ||
+    (has(state.activeMs) && state.activeMs) ||
+    (has(data.active) && data.active) ||
+    (state.manuscripts[0] && state.manuscripts[0].manuscript_id) ||
+    null;
   if (state.activeMs) await loadManuscript(state.activeMs);
   renderMsBar();
 }
@@ -651,8 +654,12 @@ function renderMsBar() {
     `<button class="mspick${m.manuscript_id === state.activeMs ? " active" : ""}" data-ms="${esc(m.manuscript_id)}"
        title="${esc(m.manuscript_id)} — ${m.claim_count} claim(s) saved${m.resolved ? "" : "; original document not open yet"}">
       ${esc(m.manuscript_id)} <span class="n">${m.claim_count}</span>${m.resolved ? "" : ' <span class="needsdoc">⚠ document not open</span>'}</button>`).join("");
+  // empty state: no claims yet AND no documents in the bound folder — say so and point
+  // at the action, instead of rendering a blank label.
   const switcher = state.manuscripts.length
-    ? `<span class="msswitch"><span class="lbl">Manuscript</span>${picks}</span>` : "";
+    ? `<span class="msswitch"><span class="lbl">Manuscript</span>${picks}</span>`
+    : `<span class="msswitch empty"><span class="lbl">No manuscript yet</span>
+        <span class="mshint">Open your document folder, or add a claim to begin.</span></span>`;
   const dir = state.ctx.manuscripts_dir || "";
   const bind = `<span class="bind"><button class="chip-btn" id="addClaim">＋ Claim</button>
     <button class="chip-btn primary-chip" id="browseBtn" title="Choose the folder your manuscript file is in — no typing">📁 Open my document…</button>
