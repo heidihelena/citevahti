@@ -4,6 +4,18 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.2 — methods statement states the abstract-vs-full-text evidence basis (2026-06-23)
+
+- The methods statement now reports the **evidence basis** of its ratings — borrowing
+  MatchVahti-Lite's "capture first · verify before citing" honesty: *"Of N rated
+  claim–candidate pair(s), K were assessed against at least one located full-text passage
+  … and J against the candidate abstract retrieved from PubMed. Abstract-only support is
+  provisional — confirm such claims against the full text before relying on the citation."*
+- Derived from existing data, **no schema change**: a rating that carries a quoted
+  `PassageRef` (attachment + character offsets) is full-text-anchored; one with no passages
+  was assessed against the abstract the blinded rater saw. Honest by default — when the
+  whole ledger is abstract-only, it says so plainly (and most PubMed-only reviews are).
+
 ## 0.24.1 — name the discovery model's snapshot, not just its id (2026-06-23)
 
 - The PRISMA "how the literature was found" disclosure now names the discovery model's
