@@ -47,6 +47,62 @@ def _kappa_str(report) -> str:
     return "n/a (insufficient dual-rated pairs, or mixed schemes — see the agreement report)"
 
 
+def _discovery_stats(store) -> dict:
+    """What the ledger shows about how candidates were *found* — the identification
+    step a systematic review must disclose. Counts AI-proposed claims, staged
+    candidate papers, and the search batches that produced them."""
+    from ..state import StateError
+
+    claims = store.list_claims()
+    ai_claims = 0
+    model = None
+    candidates = 0
+    for cid in claims:
+        try:
+            c = store.load_claim(cid)
+        except StateError:
+            continue
+        if getattr(c, "extracted_by", "human") == "ai":
+            ai_claims += 1
+            model = model or getattr(c, "extraction_model", None)
+        try:
+            candidates += len(store.load_candidates(cid).candidates)
+        except StateError:
+            pass
+    return {"n_claims": len(claims), "ai_claims": ai_claims,
+            "candidates": candidates, "searches": len(store.list_intake()),
+            "model": model}
+
+
+def _discovery_paragraph(store, ai_model_id) -> str:
+    """The PRISMA-style identification disclosure: was an LLM in the discovery loop,
+    and if so, exactly what did it do (propose leads) and not do (decide / rate)?"""
+    s = _discovery_stats(store)
+    if s["candidates"] == 0 and s["ai_claims"] == 0:
+        return ("All claims and candidate references were identified by the authors; no "
+                "large-language-model literature discovery was used in this ledger.")
+    if s["ai_claims"] == 0:
+        return (
+            f"Candidate references ({s['candidates']} across {s['searches']} structured "
+            f"PubMed search(es)) were staged as leads for the {s['n_claims']} author-"
+            "identified claim(s). No large-language-model claim proposal was used. A human "
+            "reviewer screened every candidate; no automated screening decision was made.")
+    model = s["model"] or ai_model_id or "(model unset — pin ai_provenance.model_id)"
+    was_were = "was" if s["ai_claims"] == 1 else "were"
+    return (
+        f"Candidate claims were identified with the assistance of a large language model "
+        f"({model}) via CiteVahti's topic-screening and claim-extraction: the model "
+        f"proposed candidate claims and CiteVahti staged candidate references from PubMed "
+        f"as leads. Of {s['n_claims']} claim(s) under review, {s['ai_claims']} {was_were} "
+        f"model-proposed (the remainder author-identified), and {s['candidates']} candidate "
+        f"reference(s) were staged across {s['searches']} structured search(es). The model "
+        "recorded no support rating and made no eligibility or inclusion decision — every "
+        "inclusion decision and every support rating was made by a human reviewer (see the "
+        "rating statement above). This LLM-assisted discovery aids identification only and "
+        "is not automated screening; report it under the identification step of your PRISMA "
+        "flow and disclose the model and date of use.")
+
+
 def build_methods_markdown(store) -> str:
     """Return the filled methods paragraph (Markdown) for this ledger."""
     from ..export import AgreementReportService
@@ -77,10 +133,16 @@ def build_methods_markdown(store) -> str:
                      "you record dual ratings.")
     note_block = ("\n\n**Before you submit:**\n" + "\n".join(notes)) if notes else ""
 
+    discovery = _discovery_paragraph(store, prov.model_id)
+
     return (
         "# Methods statement (auto-filled)\n\n"
         "Paste into your manuscript's methods section and adapt. Numbers are this "
         "ledger's actual values; see `docs/REPORTING.md` for what each one means and "
         "the precise blinding wording.\n\n"
-        f"> {para}\n{note_block}\n"
+        f"> {para}\n{note_block}\n\n"
+        "## How the literature was found (for PRISMA / systematic reviews)\n\n"
+        "Paste under the *identification* step. This documents the role of any LLM in "
+        "discovery — distinct from the human-only screening and rating above.\n\n"
+        f"> {discovery}\n"
     )

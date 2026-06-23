@@ -79,6 +79,25 @@ def test_methods_statement_is_honest_about_missing_data(tmp_path):
     assert "Of 0 comparable human–AI pairs" in md
     assert "n/a" in md                                          # raw agreement / κ not fabricated
     assert "No comparable human–AI pairs yet" in md            # the before-you-submit note
+    # PRISMA identification disclosure: human-found claims + staged candidate refs,
+    # explicitly stating NO LLM claim proposal was used (honest by default).
+    assert "for PRISMA / systematic reviews" in md
+    assert "No large-language-model claim proposal was used." in md
+
+
+def test_methods_documents_llm_assisted_discovery_when_used(tmp_path):
+    # When the LLM proposed claims (extracted_by="ai"), the methods statement must
+    # disclose it under PRISMA identification — model named, role bounded to "leads".
+    from citevahti.report import build_methods_markdown
+    s, _ = _store(tmp_path)
+    ClaimService(s).add_claim("Adjuvant therapy improves DFS.", "effectiveness",
+                              extracted_by="ai", extraction_model="claude-opus-4-8")
+    md = build_methods_markdown(s)
+    assert "assistance of a large language model" in md
+    assert "claude-opus-4-8" in md
+    assert "made no eligibility or inclusion decision" in md     # role bounded
+    assert "is not automated screening" in md
+    assert "1 was model-proposed" in md                          # honest count, verb agrees
 
 
 # ---- Word (.docx) bridge — needs the optional 'docx' extra -----------------
