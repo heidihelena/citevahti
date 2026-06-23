@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.24.3 — a manuscript you just added is selectable (no more "stale one")
+## Status: v0.24.4 — the panel reopens the manuscript you were on
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

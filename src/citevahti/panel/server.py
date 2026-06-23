@@ -587,12 +587,18 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                 if name not in seen:
                     out.append({"manuscript_id": name, "claim_count": 0, "resolved": True})
                     seen.add(name)
-            return 200, {"manuscripts_dir": mdir, "manuscripts": out}
+            # the manuscript last worked on, so the client reopens it on reload instead
+            # of snapping to the first entry (only honoured if still in the list)
+            active = prefs.recall_manuscript(root)
+            if active not in seen:
+                active = None
+            return 200, {"manuscripts_dir": mdir, "manuscripts": out, "active": active}
 
         m = re.fullmatch(r"/api/manuscript/(.+)", path)
         if method == "GET" and m:
             mid = m.group(1)
             mdir = prefs.get_manuscripts_dir(root)
+            prefs.remember_manuscript(root, mid)   # opening it = now working on it
             rows = _manuscript_groups(root).get(mid, [])
             view = M.build_view(mid, [_row_claim(r) for r in rows], mdir)
             view["manuscripts_dir"] = mdir
