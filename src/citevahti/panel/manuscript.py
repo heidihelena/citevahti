@@ -36,6 +36,32 @@ def parse_location(manuscript_location: Optional[str]) -> tuple[Optional[str], O
     return m.group("file"), (int(line) if line else None)
 
 
+# Manuscript file types the panel can open. `.md`/`.markdown`/`.txt` render as prose;
+# `.docx` is offered so it can be sent through the Word→claims import.
+_MANUSCRIPT_SUFFIXES = (".md", ".markdown", ".txt", ".docx")
+
+
+def list_manuscript_files(manuscripts_dir: Optional[str]) -> list[str]:
+    """Manuscript basenames present in the bound folder (recursive), so a freshly
+    added document is selectable *before* it has any claims. Empty when no folder is
+    bound or it cannot be read — never raises. Skips dotfiles and the ledger dir."""
+    if not manuscripts_dir:
+        return []
+    base = Path(manuscripts_dir).expanduser()
+    if not base.is_dir():
+        return []
+    out: set[str] = set()
+    try:
+        for p in base.rglob("*"):
+            if (p.is_file() and not p.name.startswith(".")
+                    and ".citevahti" not in p.parts
+                    and p.suffix.lower() in _MANUSCRIPT_SUFFIXES):
+                out.add(p.name)
+    except OSError:
+        return []
+    return sorted(out)
+
+
 def resolve_path(manuscripts_dir: Optional[str], manuscript_id: Optional[str]) -> Optional[Path]:
     """Find ``manuscript_id`` (a basename) under the bound folder, recursively.
 
