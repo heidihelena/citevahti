@@ -3,8 +3,29 @@
 Companion to [ADR-0007](../adr/0007-local-web-app-and-http-surface.md) (local web
 app + HTTP surface) and [ADR-0002](../adr/0002-ui-delivery-and-review-layer.md)
 (UI delivery / review layer). This note captures *why choosing what to work on
-feels hard today* and four ideas to make it easy. It is a problem statement +
-options, not yet an accepted decision.
+feels hard today* and four ideas to make it easy. It began as a problem statement +
+options; the **Status** below records what was since implemented.
+
+## Status (implemented)
+
+The everyday symptom — *"I add another manuscript and always get the stale one"* — and
+the underlying unit mismatch were resolved across 0.24.3–0.24.7:
+
+- **Idea 3 (recent/openable manuscripts)** — shipped as the manuscript switcher fix: a
+  manuscript you *add* is now listed even before it has claims (0.24.3), and the panel
+  reopens the manuscript you were on across reloads (0.24.4, `panel.json
+  active_manuscript`). Plus jumping to a claim opens *its* manuscript (0.24.5).
+- **Idea 4 (one resolver across surfaces)** — shipped in 0.24.6 as a single
+  `rootcfg.resolve_root()`. **Correction to the diagnosis below:** the root fallback was
+  *already* partly unified — `rootcfg.default_root()` (`$CITEVAHTI_ROOT` → home) was
+  shared by the CLI and the MCP server since 0.21.5. The real divergence was **two
+  resolvers with different tails** (CLI/MCP → home vs the panel's
+  `prefs.resolve_default_root` → recents/cwd), and only the panel consulted the last-used
+  root. 0.24.6 reconciles them into one precedence: explicit `--root` → `$CITEVAHTI_ROOT`
+  → cwd-with-ledger → last-used root (with ledger) → home.
+- **Ideas 1 & 2 (document-first open / a project manifest)** — *not* implemented; still
+  the larger bets. The open question below (per-document vs folder-rooted ledger) remains
+  the right gate for them.
 
 ## The problem
 
@@ -43,6 +64,10 @@ own, but "what am I working on" is defined per-surface, so it feels slippery.
 - **A folder picker exists** — a loopback filesystem browser that counts `.md`
   files so the user can recognise "the folder with 3 manuscripts" without typing
   a path (`panel/server.py`).
+- **A shared root fallback already exists** — `rootcfg.default_root()`
+  (`$CITEVAHTI_ROOT` → home), used by both the CLI and the MCP server since 0.21.5.
+  Idea 4 below is therefore *reconcile the two resolvers*, not *build one from scratch*
+  (done in 0.24.6 — see Status).
 
 **Verdict:** roughly 70% model/architecture, 30% UX. The fix is to make the
 *manuscript* the thing you open, not the folder.
