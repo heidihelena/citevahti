@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.7 — a non-color design-token scale for the panel (2026-06-24)
+
+- **The panel now has spacing, radius, type, and elevation tokens (audit §B).** The CSS
+  had ~30 color tokens but *zero* for the rest — ~575 hardcoded `px`, 65 `border-radius`,
+  inline shadows. Added a scale extracted from the existing literals (values unchanged):
+  spacing (`--zs-space-2xs…2xl`), radius (`--zs-radius-xs…pill`), type (`--zs-text-2xs…lg`),
+  and elevation (`--zs-shadow-1/2/3`).
+- Migrated the bounded, property-anchored categories to the tokens: **all `box-shadow`s**,
+  **border-radius** (46 of 65; the off-scale 3/5/7/9 px left as literals), single-value
+  `gap`, and standalone `font-size`. Visual output is unchanged (verified in the panel);
+  this is an internal consistency pass so future styling has a vocabulary to reuse. The
+  remaining padding/margin literals can adopt the spacing scale incrementally.
+
 ## 0.24.6 — one shared root resolver across all surfaces (2026-06-24)
 
 - **The CLI, the MCP server, and the panel now resolve the project root the same way
