@@ -166,13 +166,17 @@ def test_both_prompts_registered_over_stdio(tmp_path):
 
 
 def test_desktop_manifests_list_the_same_prompts_as_the_server():
-    # the .mcpb manifests must advertise every prompt the server registers, or a
-    # Claude Desktop user can't discover it (screen_topic was the gap)
+    # the .mcpb manifests must advertise every CANONICAL prompt the server registers, or a
+    # Claude Desktop user can't discover it (check_paragraph + methods_statement were the gap
+    # — and this test's old hardcoded set didn't catch the drift). The deprecated 0.9.0 alias
+    # `review_manuscript` is intentionally NOT advertised.
     import json
     from pathlib import Path
     root = Path(__file__).resolve().parents[1] / "desktop-extension"
-    expected = {prompts.CLAIM_TEST_PROMPT_NAME, prompts.SCREEN_TOPIC_PROMPT_NAME}
+    expected = {prompts.CLAIM_TEST_PROMPT_NAME, prompts.SCREEN_TOPIC_PROMPT_NAME,
+                prompts.CHECK_PARAGRAPH_PROMPT_NAME, prompts.METHODS_PROMPT_NAME}
     for name in ("manifest.json", "manifest.binary.json"):
         m = json.loads((root / name).read_text())
         listed = {p["name"] for p in m.get("prompts", [])}
         assert expected <= listed, f"{name} is missing prompts: {expected - listed}"
+        assert prompts.REVIEW_PROMPT_NAME not in listed, "the deprecated alias should not be advertised"
