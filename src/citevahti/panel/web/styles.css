@@ -45,6 +45,14 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+/* drag-and-drop a manuscript anywhere on the window (browser + native desktop webview) */
+.dropzone-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  background: rgba(20, 16, 30, .45); }
+.dropzone-overlay[hidden] { display: none; }
+.dz-card { background: var(--zs-paper); color: var(--zs-ink); padding: 24px 32px;
+  border-radius: var(--zs-radius-lg); border: 2px dashed var(--zs-brand);
+  box-shadow: var(--zs-shadow-2); font: 600 16px/1.5 system-ui, sans-serif; text-align: center; }
+.dz-sub { display: block; margin-top: 6px; font: 400 12px/1.4 ui-monospace, Menlo, monospace; color: var(--zs-muted); }
 /* visually hidden but available to screen readers (gives the panel a real heading) */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

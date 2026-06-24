@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.29.0 — native desktop window (citevahti-app), not a browser
+## Status: v0.30.0 — drag-and-drop a manuscript onto the panel
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
