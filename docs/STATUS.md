@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.25.0 — an everyday check-paragraph agent skill (MCP prompt)
+## Status: v0.26.0 — a methods-statement agent skill (MCP prompt)
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

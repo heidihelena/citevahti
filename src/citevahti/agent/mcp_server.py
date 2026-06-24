@@ -14,11 +14,14 @@ from .prompts import (
     CHECK_PARAGRAPH_PROMPT_NAME,
     CLAIM_TEST_PROMPT_DESCRIPTION,
     CLAIM_TEST_PROMPT_NAME,
+    METHODS_PROMPT_DESCRIPTION,
+    METHODS_PROMPT_NAME,
     REVIEW_PROMPT_DESCRIPTION,
     REVIEW_PROMPT_NAME,
     SCREEN_TOPIC_PROMPT_DESCRIPTION,
     SCREEN_TOPIC_PROMPT_NAME,
     check_paragraph_prompt,
+    methods_prompt,
     run_claim_tests_prompt,
     screen_topic_prompt,
 )
@@ -56,6 +59,12 @@ def build_server(name: str = "citevahti", *, root: str = "."):
     @server.prompt(name=CHECK_PARAGRAPH_PROMPT_NAME, description=CHECK_PARAGRAPH_PROMPT_DESCRIPTION)
     def check_paragraph(paragraph: str = "") -> str:
         return check_paragraph_prompt(paragraph)
+
+    # Read-only methods text: the workflow paragraph + PRISMA AI-disclosure + flow counts,
+    # for a methods section / systematic review. Reports + discloses; judges nothing.
+    @server.prompt(name=METHODS_PROMPT_NAME, description=METHODS_PROMPT_DESCRIPTION)
+    def methods_statement() -> str:
+        return methods_prompt()
 
     # Deprecated alias kept for clients that connected via 0.9.0 (same workflow).
     @server.prompt(name=REVIEW_PROMPT_NAME, description=REVIEW_PROMPT_DESCRIPTION)
