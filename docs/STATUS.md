@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.27.0 — sealed-envelope pre-screening (agent rates first, withheld)
+## Status: v0.28.0 — evidence-basis chip on the review card (abstract-only vs full-text)
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
