@@ -40,6 +40,26 @@ def test_screen_topic_prompt_screens_into_claim_tests_without_deciding():
     assert "submit_ai_support_rating" not in t and "commit_write" not in t
 
 
+def test_check_paragraph_prompt_is_read_only_and_hands_off_to_the_blinded_flow():
+    # The everyday in-writing companion: a read-only lookup against the ledger that routes
+    # real work into run_claim_tests. It must rate/decide/write nothing, reveal no AI value,
+    # and make no truth/quality claim.
+    assert prompts.CHECK_PARAGRAPH_PROMPT_NAME == "check_paragraph"
+    assert prompts.CHECK_PARAGRAPH_PROMPT_DESCRIPTION
+    t = prompts.check_paragraph_prompt()
+    low = t.lower()
+    assert "check_paragraph" in t                         # calls the read-only tool
+    assert "run_claim_tests" in t                         # hands off real work to the blinded flow
+    assert "read-only" in low and "no ai" in low
+    assert "not that the claim" in low                    # honest: reviewed != true
+    # it never rates, decides, writes, or reveals an AI value itself
+    for forbidden in ("submit_ai_support_rating", "preview_write", "commit_write"):
+        assert forbidden not in t
+    # paragraph is appended when supplied
+    t2 = prompts.check_paragraph_prompt("Nurse-led clinics shorten time to detection.")
+    assert "Nurse-led clinics shorten time to detection." in t2 and "Paragraph to check" in t2
+
+
 def test_prompt_preserves_human_first_then_ai_then_preview_then_commit():
     t = prompts.run_claim_tests_prompt()
     i_human = t.index("rate this claim against its candidate IN")
@@ -112,6 +132,7 @@ def test_both_prompts_registered_over_stdio(tmp_path):
                 assert prompts.CLAIM_TEST_PROMPT_NAME in names
                 assert prompts.REVIEW_PROMPT_NAME in names      # deprecated alias still works
                 assert prompts.SCREEN_TOPIC_PROMPT_NAME in names  # Layer-0 screening (ADR-0008)
+                assert prompts.CHECK_PARAGRAPH_PROMPT_NAME in names  # everyday in-writing check
                 got = await session.get_prompt(prompts.CLAIM_TEST_PROMPT_NAME, {})
                 text = " ".join(
                     m.content.text for m in got.messages if hasattr(m.content, "text"))
