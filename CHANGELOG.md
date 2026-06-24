@@ -4,6 +4,18 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.28.1 — desktop extension advertises all four agent prompts (2026-06-24)
+
+- **Fixed: the `.mcpb` manifests advertised only 2 of the 5 registered prompts**, so a
+  Claude Desktop user couldn't discover `check_paragraph` (0.25.0) or `methods_statement`
+  (0.26.0) even though the server served them. Both `manifest.json` and
+  `manifest.binary.json` now list all four canonical prompts (the deprecated
+  `review_manuscript` alias stays intentionally unadvertised).
+- The parity test that should have caught this had a **hardcoded stale expected set**; it
+  now checks every canonical prompt name, so the manifest can't silently drift behind the
+  server again. (Icons were already correct: `.mcpb` `icon.png`, panel `favicon.svg` +
+  `apple-touch-icon`, VS Code `icon.png`.)
+
 ## 0.28.0 — evidence-basis chip on the review card (2026-06-24)
 
 - **The review card now shows the evidence basis at rate time** — a neutral chip on each

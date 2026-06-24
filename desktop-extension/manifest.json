@@ -3,7 +3,7 @@
   "name": "citevahti",
   "display_name": "CiteVahti",
   "icon": "icon.png",
-  "version": "0.28.0",
+  "version": "0.28.1",
   "description": "Run unit tests on your manuscript — check every claim before you cite it.",
   "long_description": "CiteVahti is a local-first citation-integrity tool. It runs a blinded human → AI → adjudication review of the claims in your manuscript: you rate the evidence before the AI rating is revealed, decisions are gated and undoable, and every step is recorded in a hash-chained audit trail. This extension adds CiteVahti's MCP tools and the `run_claim_tests` prompt to Claude Desktop so you can run the whole review in chat — no terminal required. Local-first and single-user; literature lookups use PubMed, OpenAlex, Semantic Scholar and Crossref; no telemetry.",
   "author": {
@@ -45,6 +45,16 @@
       "name": "screen_topic",
       "description": "Layer-0 screening: turn a topic into candidate claims + nearby evidence (leads, not verdicts), then hand off to run_claim_tests.",
       "text": "Screen a topic with CiteVahti and propose candidate claims to assess."
+    },
+    {
+      "name": "check_paragraph",
+      "description": "Everyday in-writing check: paste a paragraph you're drafting and see, per sentence, what's already vetted, what needs attention, and what's new. Read-only.",
+      "text": "Check this paragraph with CiteVahti against the claims I've already vetted."
+    },
+    {
+      "name": "methods_statement",
+      "description": "Produce the paste-ready methods text from this ledger: the blinded human-AI-adjudication workflow paragraph, the PRISMA AI-discovery disclosure, and the flow-of-evidence counts. Read-only.",
+      "text": "Give me the CiteVahti methods statement and PRISMA disclosure for this review."
     }
   ],
   "compatibility": {
