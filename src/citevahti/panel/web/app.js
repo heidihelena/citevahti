@@ -566,7 +566,9 @@ function syncThemeLabel() {
 function applyDeepLink() {
   const q = new URLSearchParams(location.search);
   const focus = q.get("focus");
-  if (focus && claimOrder().includes(focus)) selectClaim(focus);
+  // selectClaim now switches to the claim's manuscript itself, so a deep-link to a
+  // claim in another manuscript works instead of being silently dropped.
+  if (focus) selectClaim(focus);
   if (q.get("legend") === "1") {
     $("#legend").removeAttribute("hidden");
     $("#legendBtn").setAttribute("aria-expanded", "true");
@@ -614,6 +616,7 @@ async function loadManuscript(id) {
   state.view = await api("GET", `/api/manuscript/${encodeURIComponent(id)}`);
   $("#msName").textContent = id;
   renderDoc(); renderProgress();
+  if (state.manuscripts.length) renderMsBar();   // keep the switcher highlight on the active one (e.g. after a cross-manuscript jump)
   loadTriage();   // surface "what needs you", worst-first (fire-and-forget)
 }
 
@@ -807,15 +810,26 @@ function claimOrder() {
 
 /* ---------- claim card ---------- */
 async function selectClaim(id) {
+  // Load the claim FIRST so we know which manuscript it belongs to. A triage row or a
+  // ?focus= deep-link can target a claim in a DIFFERENT manuscript than the one open
+  // (each manuscript holds only a few claims — a primary outcome and a few secondary —
+  // so the ledger spans several). Bring the document pane to that manuscript so the
+  // highlighted prose and the claim card never desync.
+  let claim;
+  try { claim = await api("GET", `/api/claims/${encodeURIComponent(id)}`); }
+  catch (e) { $("#card").innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  const mid = claim.claim && claim.claim.manuscript_id;
+  if (mid && mid !== state.activeMs && state.manuscripts.some((m) => m.manuscript_id === mid)) {
+    await loadManuscript(mid);
+  }
   const sameClaim = id === state.activeClaim;
   state.activeClaim = id;
   // moving to a different claim: drop the in-session write/undo/timer state so a global
   // key (u undo, the o double-tap) can't act on the claim you just navigated away from.
   // (Undo is still recoverable per-claim from the audit trail via recoverableTxn().)
   if (!sameClaim) { state.candIdx = 0; resetWrite(); state.lastTxn = null; state.docTxn = null; clearTimeout(oTimer); oTimer = null; }   // keep the candidate in view on a same-claim refresh
+  state.claim = claim;
   renderDoc(); renderProgress();
-  try { state.claim = await api("GET", `/api/claims/${encodeURIComponent(id)}`); }
-  catch (e) { $("#card").innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
   try { state.history = await api("GET", `/api/claims/${encodeURIComponent(id)}/history`); }
   catch { state.history = null; }
   renderCard();

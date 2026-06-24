@@ -4,6 +4,17 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.5 — jumping to a claim opens its manuscript (2026-06-24)
+
+- **Fixed the cross-manuscript desync (audit §A3).** A manuscript holds only a few claims
+  (a primary outcome and a few secondary), so the ledger spans several — and a triage row
+  or a `?focus=` deep-link often targets a claim in a *different* manuscript than the one
+  open. The claim card switched but the document pane didn't. Now `selectClaim` loads the
+  claim first, reads its `manuscript_id`, and switches the document pane (and switcher
+  highlight) to that manuscript so prose and card stay in sync.
+- `/api/claims/<id>` now returns `manuscript_id` (the same key the switcher groups by);
+  the deep-link no longer drops a `?focus=` that points outside the current manuscript.
+
 ## 0.24.4 — the panel reopens the manuscript you were on (2026-06-24)
 
 - **Completes the manuscript switcher.** The manuscript you open is now remembered
