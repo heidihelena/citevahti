@@ -13,17 +13,11 @@ and out of the keyring (no secrets here)."""
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Optional
 
 # ledgers the panel will look in when the active root is empty (onboarding aid)
 _DISCOVER_DIRS = ("~/.citevahti", "~/Documents/CiteVahti/.citevahti", "./.citevahti")
-
-
-def _global_state_path() -> Path:
-    base = Path(os.environ.get("XDG_CONFIG_HOME", "~/.config")).expanduser()
-    return base / "citevahti" / "state.json"
 
 
 def _panel_path(root: str) -> Path:
@@ -78,40 +72,16 @@ def recall_manuscript(root: str) -> Optional[str]:
     return load_panel(root).get("active_manuscript")
 
 
-# ---- remembered root (global) ----------------------------------------------
-def remember_root(root: str) -> None:
-    try:
-        _write_json(_global_state_path(), {"last_root": str(Path(root).expanduser().resolve())})
-    except OSError:
-        pass   # remembering is best-effort; never block startup
-
-
-def recall_root() -> Optional[str]:
-    r = _read_json(_global_state_path()).get("last_root")
-    return r if r and (Path(r) / ".citevahti").is_dir() else None
-
-
-def has_ledger(root: str) -> bool:
-    return (Path(root).expanduser() / ".citevahti").is_dir()
+# ---- remembered root + the shared resolver ---------------------------------
+# The last-used root and the resolver now live in `rootcfg` so every surface — the
+# CLI, the MCP server, and this panel — answers "what am I working on" the same way.
+# Re-exported here so existing `prefs.*` call sites keep working.
+from ..rootcfg import has_ledger, recall_root, remember_root, resolve_root  # noqa: E402,F401
 
 
 def resolve_default_root(cli_root: Optional[str]) -> str:
-    """Pick the root for the panel when ``--root`` is omitted.
-
-    Precedence: explicit ``--root`` → ``$CITEVAHTI_ROOT`` → the cwd if it has a
-    ledger → the last-used root → cwd. This is what stops the empty-``~/.citevahti``
-    trap without surprising someone who deliberately passes ``--root``."""
-    if cli_root and cli_root != ".":
-        return cli_root
-    env = os.environ.get("CITEVAHTI_ROOT")
-    if env and has_ledger(env):
-        return env
-    if has_ledger("."):
-        return str(Path(".").resolve())
-    remembered = recall_root()
-    if remembered:
-        return remembered
-    return cli_root or "."
+    """The panel's project root — now the one shared resolver (see ``rootcfg``)."""
+    return resolve_root(cli_root)
 
 
 # ---- ledger discovery (empty-state onboarding) ------------------------------
