@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.9 — the read-only methods view no longer writes exports (2026-06-24)
+
+- **Fixed a read-only-contract violation found by a new safety test.** Building the
+  methods statement (`citevahti methods` / the read-only `methods` chat tool) called the
+  agreement report, which *always* wrote export files under `.citevahti/exports/` and
+  appended an `export.agreement` audit entry — so merely *viewing* the methods paragraph
+  mutated the ledger and littered the audit trail with phantom exports. The methods
+  builder now computes those numbers with `AgreementReportService.report(persist=False)`;
+  the explicit `agreement-report` / `evidence-export` paths are unchanged.
+- **New test `test_readonly_tools_dont_mutate.py`** locks the contract: `claim_report`,
+  `triage`, `methods_statement`, and `check_paragraph` leave the audit log and every
+  ledger file byte-identical. Recorded as a supporting safety invariant.
+
 ## 0.24.8 — a PRISMA flow numbers table in the methods statement (2026-06-24)
 
 - **The methods statement now includes a PRISMA-style flow-of-evidence table** — the
