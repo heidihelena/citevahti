@@ -142,6 +142,60 @@ def _discovery_paragraph(store, ai_model_id, ai_model_snapshot=None) -> str:
         "flow and disclose the model and date of use.")
 
 
+def _prisma_flow(store) -> dict:
+    """A PRISMA-style flow of evidence derived from the ledger: identification (records
+    returned by the searches) → screening (records staged as candidate evidence) →
+    assessed (claim–evidence pairs human-rated) → included (claims with accepted
+    supporting evidence). Claim-level — each claim is a separate question — aggregated
+    across the manuscript. No schema change; counts come from the existing ledger."""
+    from ..state import StateError
+    from .claim_report import ClaimReportService
+
+    identified = 0
+    batches = store.list_intake()
+    for b in batches:
+        try:
+            rec = store.load_intake(b)
+        except StateError:
+            continue
+        identified += rec.result_count if rec.result_count is not None else len(rec.hits)
+
+    claims = store.list_claims()
+    staged = 0
+    for cid in claims:
+        try:
+            staged += len(store.load_candidates(cid).candidates)
+        except StateError:
+            pass
+
+    rep = ClaimReportService(store).report()
+    included = sum(1 for r in rep.rows if r.state == "accepted")
+    return {"searches": len(batches), "identified": identified, "staged": staged,
+            "assessed": len(store.list_support_ratings()), "included": included,
+            "claims": len(claims)}
+
+
+def _prisma_table(store) -> str:
+    """A Markdown counts table for the PRISMA flow diagram — empty when the ledger is bare."""
+    f = _prisma_flow(store)
+    if not (f["claims"] or f["identified"]):
+        return ""
+    rows = [
+        (f"Records identified — returned across {f['searches']} database search(es)", f["identified"]),
+        (f"Records staged as candidate evidence for {f['claims']} claim(s)", f["staged"]),
+        ("Claim–evidence pairs assessed (human-rated)", f["assessed"]),
+        ("Supporting citations included (claims with accepted evidence)", f["included"]),
+    ]
+    body = "\n".join(f"| {label} | {n} |" for label, n in rows)
+    return (
+        "\n## Flow of evidence (PRISMA-style, derived from this ledger)\n\n"
+        "Counts for the PRISMA flow diagram's *identification → screening → included* boxes. "
+        "CiteVahti works at the **claim** level (each claim is a separate question), so these "
+        "aggregate across the manuscript's claims and are **not** de-duplicated across "
+        "searches — adapt them to your review's unit before reporting.\n\n"
+        "| Stage | n |\n| --- | --: |\n" + body + "\n")
+
+
 def build_methods_markdown(store) -> str:
     """Return the filled methods paragraph (Markdown) for this ledger."""
     from ..export import AgreementReportService
@@ -186,4 +240,5 @@ def build_methods_markdown(store) -> str:
         "Paste under the *identification* step. This documents the role of any LLM in "
         "discovery — distinct from the human-only screening and rating above.\n\n"
         f"> {discovery}\n"
+        + _prisma_table(store)
     )
