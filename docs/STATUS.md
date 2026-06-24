@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.24.5 — jumping to a claim opens its manuscript
+## Status: v0.24.6 — one shared root resolver across all surfaces
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

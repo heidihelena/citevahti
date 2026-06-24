@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.6 — one shared root resolver across all surfaces (2026-06-24)
+
+- **The CLI, the MCP server, and the panel now resolve the project root the same way
+  (audit §A.1).** Previously two resolvers disagreed: chat/CLI fell back to *home* while
+  the panel fell back to *recents/cwd*, and only the panel consulted the last-used root —
+  so the same machine could answer "what am I working on" two different ways. There is now
+  one `rootcfg.resolve_root()` with a single precedence: explicit `--root` → `$CITEVAHTI_ROOT`
+  → cwd-with-ledger → last-used root (with ledger) → home. Chat and panel now agree.
+- The last-used root and `has_ledger` moved into `rootcfg` (re-exported from `panel.prefs`
+  for compatibility); `prefs.resolve_default_root` is a thin wrapper over the shared resolver.
+- Safety preserved: bare cwd is still never the fallback (the desktop launches the MCP
+  server from `/`), so a launch from `/` resolves to your last-used ledger, never `/`.
+
 ## 0.24.5 — jumping to a claim opens its manuscript (2026-06-24)
 
 - **Fixed the cross-manuscript desync (audit §A3).** A manuscript holds only a few claims
