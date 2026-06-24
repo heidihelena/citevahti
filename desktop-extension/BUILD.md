@@ -45,6 +45,25 @@ Uses `manifest.binary.json` (staged, so the tracked `manifest.json` stays the py
 The build *produces* `server/citevahti-mcp`; on the build machine that binary was confirmed to
 run under `env -i` (no PATH, no Python) — self-contained.
 
+## Build the desktop APP (windowed) — `build-app.sh`
+
+A different artifact from the `.mcpb`. The `.mcpb` above is the **MCP server** for Claude
+Desktop (stdio); `build-app.sh` freezes the **standalone desktop app** — the loopback panel
+shown in the OS-native webview (`citevahti.desktop:main`, via the `[app]` extra / pywebview),
+no browser and no Python required.
+```
+./build-app.sh           # PyInstaller --windowed → build/app/dist/CiteVahti.app (or .exe / dir)
+```
+- Bundles the panel web assets with `--collect-data citevahti` (the server resolves them at
+  `WEB_DIR = Path(__file__).parent / "web"`, which lands at `citevahti/panel/web/` in the
+  freeze) and pulls the pywebview backend with `--collect-all webview`.
+- Emits the **unsigned** bundle. Signing + notarization is the same Developer ID + notarytool
+  flow as the binary `.mcpb`, run in CI with the founder's Apple secrets — it is not part of
+  this script. macOS needs `icon.icns` (Windows `icon.ico`) for the app icon; falls back to
+  `icon.png`. Verified to here: the `[app]` extra resolves and the app imports under real
+  pywebview; the windowed freeze + signed multi-platform bundles are produced on a build
+  machine (the native window needs a display to confirm at runtime).
+
 > **Not in the checkout.** The binary and `dist/*.mcpb` are **gitignored build artifacts**, so a
 > fresh clone has neither until you run `./build-binary.sh` (or download a release asset).
 > `manifest.binary.json` points at the path the build creates. To let others install-test the
