@@ -4,6 +4,21 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.26.0 — a methods-statement agent skill (2026-06-24)
+
+- **New MCP prompt `methods_statement`** — companion to the `check_paragraph` skill (0.25.0).
+  A researcher can now ask the assistant to produce the paste-ready **methods text** from
+  the ledger: the blinded human→AI→adjudication workflow paragraph, the PRISMA "how the
+  literature was found" AI-disclosure (model + snapshot, leads-only role), and the
+  flow-of-evidence counts table. The `methods` tool shipped in 0.24.0–0.24.9 but had no
+  guided prompt skill; this makes it discoverable.
+- **Safe by construction:** read-only (calls only the read-only `methods` tool — no AI, no
+  network), records nothing, reveals no AI rating, and the prompt explicitly frames the
+  output as *documenting the workflow and disclosing AI use* — **not** asserting the
+  manuscript is true, correct, or publication-ready. It surfaces `(unset — …)`/`n/a`
+  markers for the researcher to fill, never invented. Adds no tool/capability (agent
+  surface guard unchanged).
+
 ## 0.25.0 — an everyday "check this paragraph" agent skill (2026-06-24)
 
 - **New MCP prompt `check_paragraph`** — the everyday in-writing loop (shipped as a tool in

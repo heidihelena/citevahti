@@ -60,6 +60,23 @@ def test_check_paragraph_prompt_is_read_only_and_hands_off_to_the_blinded_flow()
     assert "Nurse-led clinics shorten time to detection." in t2 and "Paragraph to check" in t2
 
 
+def test_methods_prompt_is_read_only_disclosure_not_a_quality_claim():
+    # The methods skill produces paste-ready methods text + AI-use disclosure from the
+    # ledger. Read-only: it reports/discloses, never rates/decides/writes, and must NOT
+    # claim the manuscript is true, correct, or publication-ready.
+    assert prompts.METHODS_PROMPT_NAME == "methods_statement"
+    assert prompts.METHODS_PROMPT_DESCRIPTION
+    t = prompts.methods_prompt()
+    low = t.lower()
+    assert "`methods`" in t                               # calls the read-only methods tool
+    assert "read-only" in low
+    assert "prisma" in low and "how the literature was found" in low  # the AI-discovery disclosure
+    assert "not" in low and ("publication-ready" in low or "publish" in low)  # honest scope
+    # never rates/decides/writes or reveals an AI value from this skill
+    for forbidden in ("submit_ai_support_rating", "preview_write", "commit_write"):
+        assert forbidden not in t
+
+
 def test_prompt_preserves_human_first_then_ai_then_preview_then_commit():
     t = prompts.run_claim_tests_prompt()
     i_human = t.index("rate this claim against its candidate IN")
@@ -133,6 +150,7 @@ def test_both_prompts_registered_over_stdio(tmp_path):
                 assert prompts.REVIEW_PROMPT_NAME in names      # deprecated alias still works
                 assert prompts.SCREEN_TOPIC_PROMPT_NAME in names  # Layer-0 screening (ADR-0008)
                 assert prompts.CHECK_PARAGRAPH_PROMPT_NAME in names  # everyday in-writing check
+                assert prompts.METHODS_PROMPT_NAME in names          # read-only methods + AI disclosure
                 got = await session.get_prompt(prompts.CLAIM_TEST_PROMPT_NAME, {})
                 text = " ".join(
                     m.content.text for m in got.messages if hasattr(m.content, "text"))

@@ -212,3 +212,49 @@ def check_paragraph_prompt(paragraph: str = "") -> str:
     if paragraph.strip():
         body += "\n\n--- Paragraph to check ---\n" + paragraph.strip()
     return body
+
+
+METHODS_PROMPT_NAME = "methods_statement"
+METHODS_PROMPT_DESCRIPTION = (
+    "Produce the paste-ready methods text for a manuscript or systematic review from this "
+    "ledger: the blinded human→AI→adjudication workflow paragraph, the PRISMA 'how the "
+    "literature was found' AI-disclosure, and the flow-of-evidence counts. Read-only; it "
+    "reports what was done and discloses any AI use — it does not judge the manuscript."
+)
+
+
+def methods_prompt() -> str:
+    """Guide the assistant to surface the auto-filled methods statement (read-only). It
+    documents the workflow and discloses AI use for a methods section / PRISMA report; it
+    records nothing and judges nothing."""
+    return (
+        "You are producing CiteVahti's METHODS TEXT from this chat — the paste-ready "
+        "paragraph a researcher puts in their manuscript's methods section (or a systematic "
+        "review's PRISMA reporting). This is READ-ONLY: it reports what was already done in "
+        "the ledger and discloses any AI use. It records nothing, and it does NOT assert "
+        "that the manuscript is true, correct, complete, of good quality, or ready to "
+        "publish.\n\n"
+        "1. Call `methods` (read-only; no AI, no network). It returns Markdown with three "
+        "parts, auto-filled from this ledger's real numbers:\n"
+        "   - the **methods paragraph** — the blinded dual-rating workflow (human rates "
+        "first; the AI second opinion is withheld until then; every discordance is resolved "
+        "by human adjudication; AI values are advisory and never set the final value), with "
+        "the model provenance, agreement, and Cohen's κ;\n"
+        "   - **'How the literature was found'** — the PRISMA *identification* disclosure of "
+        "whether a large language model was in the discovery loop (it proposed leads only "
+        "and made no eligibility or inclusion decision), naming the model + snapshot;\n"
+        "   - **'Flow of evidence'** — the PRISMA-style identification→screening→included "
+        "counts table.\n"
+        "2. Present it verbatim for pasting, then point out anything marked `(unset — …)` or "
+        "`n/a` and what the researcher must fill or pin before submission (e.g. the AI "
+        "provenance model) — never invent those values.\n"
+        "3. Be honest about scope: this text DOCUMENTS the human→AI→adjudication process and "
+        "discloses AI use. It is NOT a claim that the citations are correct, that the "
+        "evidence is sufficient, or that the paper is publication-ready. CiteVahti checks "
+        "citation support, not the truth of the underlying claims.\n"
+        "4. Do not rate, decide, write to Zotero, or reveal any AI rating here. If claims "
+        "still need review, hand off to `run_claim_tests` (the blinded, human-first flow).\n\n"
+        "Invariant: read-only reporting + AI-use disclosure. It records no rating, decision, "
+        "or write, reveals no blinded AI value, and makes no truth/quality/publication "
+        "claim."
+    )
