@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.26.0 — a methods-statement agent skill (MCP prompt)
+## Status: v0.27.0 — sealed-envelope pre-screening (agent rates first, withheld)
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
@@ -53,8 +53,10 @@ human-first rating workflow and an auditable local ledger.
 The manuscript is the code; each scientific claim is a test case. CiteVahti checks whether
 each claim is actually supported by its cited or candidate evidence — using PubMed and
 Zotero, a **blinded, human-first** rating workflow, and MCP-connected agents such as Codex
-or Claude Code. The human rates support first; the AI second opinion stays hidden until
-then; Zotero writes are previewed, confirmed, and undoable.
+or Claude Code. The AI's support rating is recorded **blind and sealed** — withheld until
+you rate — so your rating is never anchored (the agent may pre-screen and record its rating
+first; you simply never see it until yours is in); Zotero writes are previewed, confirmed,
+and undoable.
 
 Three doors to the same product: *run unit tests on your manuscript* (agents / technical
 researchers) · *check every claim before you cite it* (researchers) · *create an auditable

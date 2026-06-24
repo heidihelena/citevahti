@@ -914,14 +914,14 @@ def test_claim_tests_prompt_endpoint(tmp_path):
 
 def test_topic_screen_prompt_engine_prefills_topic():
     # Layer-0 screening (ADR-0008): leads not verdicts, hands off to run_claim_tests,
-    # the human still rates first, and the topic is embedded
+    # the human rates unanchored (sealed-envelope blinding), and the topic is embedded
     r = engine.topic_screen_prompt("low-dose CT screening in heavy smokers")
     assert r["name"] == "screen_topic"
     assert "low-dose CT screening in heavy smokers" in r["prompt"]
     low = r["prompt"].lower()
     assert "leads, not verdicts" in low            # screening proposes, never decides
     assert "run_claim_tests" in low                # hands off to the blinded review
-    assert "rates every claim first" in low        # the human still rates first
+    assert "rates every claim unanchored" in low   # human not anchored (AI rating sealed until they rate)
     empty = engine.topic_screen_prompt("")
     assert "--- Topic to screen ---" not in empty["prompt"]   # nothing embedded when blank
 
