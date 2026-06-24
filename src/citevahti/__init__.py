@@ -16,7 +16,7 @@ log and the binding validators, behind read/discover, cite, extraction,
 claim-check, PubMed, dual-rating, and guarded write-back.
 """
 
-__version__ = "0.24.8"
+__version__ = "0.24.9"
 
 PRODUCT_NAME = "CiteVahti"
 COMPANY = "Vahtian"

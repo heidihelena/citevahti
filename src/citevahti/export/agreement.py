@@ -52,7 +52,10 @@ class AgreementReportService:
     # ---- main ------------------------------------------------------------
     def report(self, filters: Optional[dict] = None, metrics: Optional[list[str]] = None,
                output_formats: Optional[list[str]] = None,
-               output_dir: Optional[str] = None) -> AgreementReport:
+               output_dir: Optional[str] = None, persist: bool = True) -> AgreementReport:
+        """Compute the agreement report. With ``persist=False`` it is a pure read —
+        no files written under ``exports/`` and no audit event — for callers that only
+        need the numbers (e.g. the methods statement), never an exported artifact."""
         filters = filters or {}
         metrics = metrics or ["raw_agreement", "adjudication_rate"]
         output_formats = output_formats or ["json", "markdown"]
@@ -74,7 +77,8 @@ class AgreementReportService:
         report.overall = self._counts(records)
         report.method_transparency_markdown = self._transparency(report)
 
-        self._write(report, output_formats, output_dir, run_id)
+        if persist:
+            self._write(report, output_formats, output_dir, run_id)
         return report
 
     # ---- loading / filtering --------------------------------------------

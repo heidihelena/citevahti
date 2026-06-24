@@ -202,8 +202,10 @@ def build_methods_markdown(store) -> str:
 
     cfg = store.load_config()
     prov = cfg.ai_provenance
+    # persist=False: the methods statement only needs the numbers — it must not write an
+    # agreement export or an audit event (the `methods` surface is read-only).
     rep = AgreementReportService(store).report(
-        metrics=["raw_agreement", "cohen_kappa", "adjudication_rate"])
+        metrics=["raw_agreement", "cohen_kappa", "adjudication_rate"], persist=False)
     c = rep.overall
     raw = f"{c.agreements / c.comparable_pairs:.2f}" if c.comparable_pairs else "n/a (no comparable pairs yet)"
 

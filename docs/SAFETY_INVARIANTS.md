@@ -41,6 +41,12 @@ guarantees of the system; a reviewer should treat any violation as a defect.
 - **Tag-mirror discipline**: mirrors only human/final values, refuses AI-only and
   unadjudicated discordant values, and replaces the prior same-scheme tag rather
   than accumulating (`writeback/service.py`).
+- **Read-only views never mutate the ledger**: the derived surfaces
+  (`claim_report`, `triage`, `methods_statement`, `check_paragraph`) append no audit
+  entry and write no file. The agreement numbers behind the methods statement are
+  computed with `AgreementReportService.report(persist=False)`; only the explicit
+  `agreement_report` / `evidence_export` paths write (invariant #12). Guarded by
+  `test_readonly_tools_dont_mutate.py`.
 - **Offline tests**: the suite uses fake seams for HTTP, Zotero, BBT, PubMed, the
   AI rater, the retraction provider, and the write backend; no live network call
   or model invocation occurs.
