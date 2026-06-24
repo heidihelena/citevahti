@@ -4,6 +4,20 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.29.0 — native desktop window: `citevahti-app` (not a browser) (2026-06-24)
+
+- **New `citevahti-app` launcher opens the review panel in a native OS window** — WKWebView
+  on macOS, WebView2 on Windows, WebKitGTK on Linux — instead of a browser tab. It reuses
+  the exact same panel and every guarantee (loopback-only, single-user, human-first); only
+  the shell changes. `pip install 'citevahti[app]'` (pywebview is an optional extra; the
+  core install and the browser/MCP surfaces are untouched).
+- First slice of the desktop-app goal: the launcher starts the panel on an ephemeral
+  loopback port with **no browser** and shows it in a sized, titled window. Still to come:
+  drag-and-drop a manuscript onto the window, and a signed double-clickable `.app`/`.exe`/
+  AppImage build (reusing the existing PyInstaller + notarization pipeline). The native
+  window needs a display, so it's verified by wiring (fake-webview tests) here and on your
+  machine in practice.
+
 ## 0.28.1 — desktop extension advertises all four agent prompts (2026-06-24)
 
 - **Fixed: the `.mcpb` manifests advertised only 2 of the 5 registered prompts**, so a
