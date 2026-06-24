@@ -4,6 +4,24 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.27.0 — sealed-envelope pre-screening: the agent may rate first, withheld (2026-06-24)
+
+- **The agent prompts now let pre-screening produce the LLM rating corpus without anchoring
+  the human.** Previously `run_claim_tests` required the agent to submit its support rating
+  *only after* the human's — chronological human-first. That made the tool a stopper for a
+  legitimate workflow: an agent pre-screening candidates and recording its own (blind)
+  ratings first. The blinding is now correctly framed as **sealed-envelope**: the agent may
+  record its support rating first with `submit_ai_support_rating`; the engine **seals it and
+  keeps it hidden until the human rates**, and the agent must **present candidates neutrally**
+  so its sealed rating never leaks — the human still rates fully unanchored.
+- No engine change — `support_run_ai`/`submit_ai_support_rating` already had no human-first
+  ordering guard, and `blinded_rating_view` already returns `"hidden (blinded until human
+  rates)"`. This release aligns the **prompts, the ordering test, and the docs** with that
+  sealed model. Every safety invariant holds: AI value never becomes the final value, the
+  human owns the decision, the human is never anchored, and Zotero writes stay
+  previewed/confirmed/undoable. `screen_topic` still records no rating itself (it proposes
+  leads); the sealed pre-rating happens in `run_claim_tests`.
+
 ## 0.26.0 — a methods-statement agent skill (2026-06-24)
 
 - **New MCP prompt `methods_statement`** — companion to the `check_paragraph` skill (0.25.0).

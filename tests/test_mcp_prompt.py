@@ -77,14 +77,20 @@ def test_methods_prompt_is_read_only_disclosure_not_a_quality_claim():
         assert forbidden not in t
 
 
-def test_prompt_preserves_human_first_then_ai_then_preview_then_commit():
+def test_prompt_seals_the_ai_rating_until_human_rates_then_previews_before_commit():
+    # Sealed-envelope blinding: the agent may record its OWN support rating first (the LLM
+    # corpus), but it is recorded blind and stays sealed/hidden until the human rates, and
+    # candidates are presented neutrally so the human is never anchored. Writes are still
+    # previewed before commit. (This replaced a chronological human-before-AI assertion:
+    # blinding = the human is not anchored, NOT that the AI must rate last.)
     t = prompts.run_claim_tests_prompt()
-    i_human = t.index("rate this claim against its candidate IN")
-    i_ai = t.index("submit_ai_support_rating")
+    low = t.lower()
+    assert "seals it" in low or "sealed" in low          # the AI rating is sealed
+    assert "hidden until the human rates" in low          # withheld until the human rates
+    assert "neutrally" in low                             # candidates presented without anchoring
+    assert "do not state, hint at, or imply your support rating" in low
     i_preview = t.index("preview_write")
     i_commit = t.index("commit_write")
-    assert i_human < i_ai, "human must be told to rate before the AI rating is submitted"
-    assert i_ai < i_preview, "AI rating happens before the write is previewed"
     assert i_preview < i_commit, "the write is previewed before it is committed"
 
 
