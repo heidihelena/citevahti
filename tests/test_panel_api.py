@@ -260,6 +260,20 @@ def test_review_card_carries_the_evidence_basis(tmp_path):
     assert data2["candidates"][0]["evidence_basis"] == "abstract_only"
 
 
+def test_prompts_panel_lists_the_preprogrammed_skills(tmp_path):
+    # The prompt panel surfaces the canonical MCP prompt-skills as copy-to-paste text.
+    from citevahti.agent import prompts as P
+    status, data = dispatch(str(tmp_path), "GET", "/api/prompts", None)
+    assert status == 200
+    names = [p["name"] for p in data["prompts"]]
+    assert names == [P.CLAIM_TEST_PROMPT_NAME, P.SCREEN_TOPIC_PROMPT_NAME,
+                     P.CHECK_PARAGRAPH_PROMPT_NAME, P.METHODS_PROMPT_NAME]
+    for p in data["prompts"]:
+        assert p["label"] and p["description"] and len(p["text"]) > 200   # real prompt text
+    # the deprecated review_manuscript alias is not advertised here
+    assert P.REVIEW_PROMPT_NAME not in names
+
+
 def test_claim_view_carries_its_manuscript_id_for_cross_manuscript_jump(tmp_path):
     # A3: a triage row / deep-link can target a claim in another manuscript. The claim
     # view must report which manuscript it belongs to (the same key the switcher groups

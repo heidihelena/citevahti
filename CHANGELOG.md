@@ -4,6 +4,17 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.31.0 — a prompt panel: the preprogrammed skills, one click (2026-06-25)
+
+- **New "✦ Prompts" panel** (Tools menu) surfaces the preprogrammed agent skills —
+  **run claim tests · screen a topic · check a paragraph · methods statement** — as
+  one-click, copy-to-paste cards, each with its description. Paste into your chat client,
+  or a local model via Ollama. Backed by a read-only `GET /api/prompts`; the deprecated
+  `review_manuscript` alias is not advertised.
+- Runs no model itself — it's the preprogrammed-prompt launcher. (A small in-app chat that
+  *runs* these against a local Ollama model is the planned next piece; its model-backend
+  is a separate, deliberate choice.)
+
 ## 0.30.0 — drag-and-drop a manuscript onto the panel (2026-06-24)
 
 - **Drop a `.md`/`.markdown`/`.txt`/`.docx` anywhere on the panel window to open it** — a
