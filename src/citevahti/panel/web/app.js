@@ -282,6 +282,39 @@ async function copyScreenTopicPrompt() {
     if (out) out.innerHTML = `✓ Copied the <b>${esc(r.name || "screen_topic")}</b> prompt — paste it into your chat client to screen this topic.`;
   } catch (e) { if (out) out.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
+/* Prompt panel — the preprogrammed agent skills (run claim tests, screen a topic, check a
+ * paragraph, methods statement) in one place; copy one to paste into a chat client or a
+ * local model. Read-only text from /api/prompts; runs no model itself. */
+async function openPrompts() {
+  const tm = $("#toolsmenu"); if (tm) tm.removeAttribute("open");
+  let data;
+  try { data = await api("GET", "/api/prompts"); }
+  catch (e) { notify(e.message); return; }
+  const box = modalShell("promptsModal");
+  const cards = (data.prompts || []).map((p, i) => `
+    <div class="promptcard">
+      <div class="pc-head"><b>${esc(p.label)}</b> <span class="pc-name">${esc(p.name)}</span></div>
+      <div class="note">${esc(p.description)}</div>
+      <div class="actions"><button class="btn ghost" data-copy-prompt="${i}">⧉ Copy prompt</button></div>
+    </div>`).join("");
+  box.innerHTML = `<div class="modal-card">
+    <div class="modal-head"><b>Prompts — preprogrammed skills</b>
+      <button class="chip-btn" data-prompts-close="1" aria-label="Close">✕</button></div>
+    <div class="note">One-click skills to paste into your chat client (or a local model via
+      Ollama). Each keeps the blinded, human-first workflow — the human rates first.</div>
+    ${cards}
+    <div id="promptsResult" class="note"></div></div>`;
+  box.querySelectorAll("[data-copy-prompt]").forEach((b) => {
+    b.onclick = async () => {
+      const p = data.prompts[+b.dataset.copyPrompt];
+      await copyText(p.text);
+      const r = $("#promptsResult");
+      if (r) r.innerHTML = `✓ Copied the <b>${esc(p.name)}</b> prompt — paste it into your chat client.`;
+    };
+  });
+  const x = box.querySelector("[data-prompts-close]"); if (x) x.onclick = () => closeModalEl(box);
+}
+
 async function copyText(text) {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) return await navigator.clipboard.writeText(text);
@@ -1790,6 +1823,7 @@ document.addEventListener("click", (e) => {
      next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
+$("#prompts").addEventListener("click", openPrompts);
 $("#report").addEventListener("click", openExportModal);
 $("#runTests").addEventListener("click", () => runTests(false));
 $("#warehouse").addEventListener("click", openWarehouse);

@@ -53,6 +53,11 @@ html, body { margin: 0; height: 100%; }
   border-radius: var(--zs-radius-lg); border: 2px dashed var(--zs-brand);
   box-shadow: var(--zs-shadow-2); font: 600 16px/1.5 system-ui, sans-serif; text-align: center; }
 .dz-sub { display: block; margin-top: 6px; font: 400 12px/1.4 ui-monospace, Menlo, monospace; color: var(--zs-muted); }
+/* prompt panel — preprogrammed skills as cards */
+.promptcard { border: 1px solid var(--zs-line); border-radius: var(--zs-radius-md);
+  padding: 10px 12px; margin: 8px 0; background: var(--zs-surface); }
+.promptcard .pc-head { display: flex; align-items: baseline; gap: var(--zs-space); }
+.promptcard .pc-name { font: 600 11px/1 ui-monospace, Menlo, monospace; color: var(--zs-muted); }
 /* visually hidden but available to screen readers (gives the panel a real heading) */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

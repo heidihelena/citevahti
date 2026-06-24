@@ -519,6 +519,28 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "POST" and path == "/api/topic-screen-prompt":
             return 200, engine.topic_screen_prompt(body.get("topic") or "")
 
+        # ---- the prompt panel: every preprogrammed agent skill in one place -----
+        # The panel surfaces the canonical MCP prompts as one-click, copy-to-paste
+        # skills (the same text the chat client / desktop chat would run). Read-only
+        # text; the deprecated review_manuscript alias is omitted.
+        if method == "GET" and path == "/api/prompts":
+            from ..agent import prompts as P
+            items = [
+                {"name": P.CLAIM_TEST_PROMPT_NAME, "label": "Run claim tests",
+                 "description": P.CLAIM_TEST_PROMPT_DESCRIPTION,
+                 "text": P.run_claim_tests_prompt()},
+                {"name": P.SCREEN_TOPIC_PROMPT_NAME, "label": "Screen a topic",
+                 "description": P.SCREEN_TOPIC_PROMPT_DESCRIPTION,
+                 "text": P.screen_topic_prompt()},
+                {"name": P.CHECK_PARAGRAPH_PROMPT_NAME, "label": "Check a paragraph",
+                 "description": P.CHECK_PARAGRAPH_PROMPT_DESCRIPTION,
+                 "text": P.check_paragraph_prompt()},
+                {"name": P.METHODS_PROMPT_NAME, "label": "Methods statement",
+                 "description": P.METHODS_PROMPT_DESCRIPTION,
+                 "text": P.methods_prompt()},
+            ]
+            return 200, {"prompts": items}
+
         # ---- the manuscript "unit test" suite (each claim is a test case) ----
         # Offline by default (instant, structural); online verifies citations are
         # real + not retracted. Optionally scoped to one manuscript.

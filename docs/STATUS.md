@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.30.0 — drag-and-drop a manuscript onto the panel
+## Status: v0.31.0 — a prompt panel: the preprogrammed skills, one click
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
