@@ -126,17 +126,16 @@ jobs:
   # Without them the bundle is built UNSIGNED, uploaded as an artifact only (never
   # attached to a release, because Gatekeeper would block an unsigned download).
   macos:
-    # one runner per arch — PyInstaller can't cross-compile (macos-latest = Apple
-    # Silicon/arm64; macos-13 = Intel/x64). Both signed + notarized with the same
-    # Developer ID and notarytool key.
+    # Apple Silicon only. PyInstaller can't cross-compile, and the macos-13 (Intel/x64)
+    # runner is being retired by GitHub — its job sat queued indefinitely and blocked the
+    # release workflow from completing. Intel-Mac users install via pip, or run the arm64
+    # build under Rosetta. macos-latest = Apple Silicon/arm64; signed + notarized.
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
             arch: arm64
-          - os: macos-13
-            arch: x64
     runs-on: ${{ matrix.os }}
     defaults:
       run:
