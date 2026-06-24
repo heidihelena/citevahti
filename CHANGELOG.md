@@ -4,6 +4,16 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.30.0 — drag-and-drop a manuscript onto the panel (2026-06-24)
+
+- **Drop a `.md`/`.markdown`/`.txt`/`.docx` anywhere on the panel window to open it** — a
+  full-window dropzone routes the file into the existing import-review flow (`.docx` is
+  converted server-side; text opens as-is). Works in the native desktop window
+  (`citevahti-app`) and the browser panel alike; available even on the empty first-run
+  screen, since dropping your first manuscript is the point. Slice 2 of the desktop-app goal.
+- Refactor only: the file picker and the dropzone now share one `importFile()` path; the
+  import endpoints and review modal are unchanged. No new dependency.
+
 ## 0.29.0 — native desktop window: `citevahti-app` (not a browser) (2026-06-24)
 
 - **New `citevahti-app` launcher opens the review panel in a native OS window** — WKWebView

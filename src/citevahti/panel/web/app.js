@@ -89,6 +89,7 @@ function citeOf(c) {
 async function boot() {
   applyTheme();
   drawLogos();
+  setupDropzone();   // before the first-run early return — dropping your first manuscript is the point
   try { state.ctx = await api("GET", "/api/context"); }
   catch (e) { $("#card").innerHTML = `<div class="err">panel API unreachable: ${esc(e.message)}</div>`; return; }
   renderLedger();
@@ -186,12 +187,13 @@ async function exportDocx() {
   } catch (e) { notify(e.message); }   // surfaces the "install citevahti[docx]" hint if absent
 }
 
-function importWord() {
-  const inp = document.createElement("input");
-  inp.type = "file"; inp.accept = ".docx";
-  inp.onchange = async () => {
-    const file = inp.files && inp.files[0]; if (!file) return;
-    try {
+// Open a manuscript file from the picker OR a drag-and-drop, routed into the same
+// import-review flow. .docx is converted server-side; .md/.markdown/.txt open as-is.
+async function importFile(file) {
+  if (!file) return;
+  const name = file.name || "manuscript";
+  try {
+    if (/\.docx$/i.test(name)) {
       const dataUrl = await new Promise((res, rej) => {
         const fr = new FileReader();
         fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error("could not read the file"));
@@ -199,10 +201,43 @@ function importWord() {
       });
       const b64 = String(dataUrl).split(",", 2)[1] || "";
       const r = await api("POST", "/api/manuscripts/import-docx", { docx_base64: b64 });
-      openImportReview(file.name.replace(/\.docx$/i, "") + ".md", r.markdown || "");
-    } catch (e) { notify(e.message); }
-  };
+      openImportReview(name.replace(/\.docx$/i, "") + ".md", r.markdown || "");
+    } else if (/\.(md|markdown|txt)$/i.test(name)) {
+      const text = await file.text();
+      openImportReview(name.replace(/\.(markdown|txt)$/i, ".md"), text);
+    } else {
+      notify("Drop a manuscript: .md, .markdown, .txt, or .docx.");
+    }
+  } catch (e) { notify(e.message); }
+}
+
+function importWord() {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".docx,.md,.markdown,.txt";
+  inp.onchange = () => importFile(inp.files && inp.files[0]);
   inp.click();
+}
+
+/* Drag-and-drop a manuscript anywhere on the window (works in the browser and the
+ * native desktop webview): a full-window dropzone that feeds importFile(). */
+function setupDropzone() {
+  if ($("#dropzone")) return;
+  const ov = document.createElement("div");
+  ov.id = "dropzone"; ov.className = "dropzone-overlay"; ov.hidden = true;
+  ov.innerHTML = `<div class="dz-card">Drop a manuscript to open it
+    <span class="dz-sub">.md · .markdown · .txt · .docx</span></div>`;
+  document.body.appendChild(ov);
+  let depth = 0;
+  const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  window.addEventListener("dragenter", (e) => { if (hasFiles(e)) { depth++; ov.hidden = false; } });
+  window.addEventListener("dragover", (e) => { if (!ov.hidden) e.preventDefault(); });
+  window.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) ov.hidden = true; });
+  window.addEventListener("drop", (e) => {
+    if (hasFiles(e)) {
+      e.preventDefault(); depth = 0; ov.hidden = true;
+      importFile(e.dataTransfer.files[0]);
+    }
+  });
 }
 
 function openImportReview(filename, markdown) {
