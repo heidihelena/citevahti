@@ -167,3 +167,48 @@ def screen_topic_prompt(topic: str = "") -> str:
     if topic.strip():
         body += "\n\n--- Topic to screen ---\n" + topic.strip()
     return body
+
+
+CHECK_PARAGRAPH_PROMPT_NAME = "check_paragraph"
+CHECK_PARAGRAPH_PROMPT_DESCRIPTION = (
+    "Everyday in-writing check: paste a paragraph you're drafting and see, per claim-like "
+    "sentence, which claims are already vetted, which need attention, and which are new — "
+    "then hand off to run_claim_tests for anything that needs work. Read-only: it records "
+    "no rating, decision, or write, and judges no claim's truth."
+)
+
+
+def check_paragraph_prompt(paragraph: str = "") -> str:
+    """The everyday in-writing companion loop (read-only). Surfaces where a pasted
+    paragraph's claims stand against the ledger, then routes real work into the blinded
+    human-first claim-test flow. Adds no capability and rates/decides nothing."""
+    body = (
+        "You are running CiteVahti's EVERYDAY CHECK from this chat — the in-writing "
+        "companion, not the full review. The researcher pastes a paragraph they are "
+        "drafting; you tell them where each claim-like sentence stands against the claims "
+        "ALREADY in their ledger, then hand off anything that needs work. This step is "
+        "READ-ONLY: it records no rating, no decision, no write, and it judges no claim's "
+        "truth and no manuscript's quality.\n\n"
+        "1. Take the pasted paragraph (ask for it if none is given). Keep their wording.\n"
+        "2. Call `check_paragraph` with the text. It matches each sentence to claims already "
+        "in the ledger — exact normalized hash, then substring / token overlap — with NO AI "
+        "and NO network, returning each as: `reviewed` (already vetted), `attention` (a "
+        "tracked claim that needs the human, with a reason + next action), or `new` (not "
+        "tracked yet).\n"
+        "3. Report it plainly, grouped — vetted / needs attention / new. State honestly that "
+        "`reviewed` means the citation SUPPORT was reviewed in the ledger, NOT that the claim "
+        "is true, the source is sound, or the paragraph is publication-ready.\n"
+        "4. Do NOT rate, decide, or assert support here. `check_paragraph` is a lookup, not a "
+        "verdict; never infer support for the `new` sentences.\n"
+        "5. Offer the next step: for `attention` items and for `new` sentences worth citing, "
+        "hand off to the `run_claim_tests` choreography — the blinded, human-first flow where "
+        "the human rates each claim FIRST, you rate second and blind, and every decision and "
+        "Zotero write stays previewed, confirmed, and undoable. Do not shortcut that flow "
+        "from here.\n\n"
+        "Invariant: this is a read-only convenience view over the existing ledger. It never "
+        "records a rating, a decision, or a write; it never reveals an AI rating; and it "
+        "never claims a citation is correct or a manuscript is sound."
+    )
+    if paragraph.strip():
+        body += "\n\n--- Paragraph to check ---\n" + paragraph.strip()
+    return body

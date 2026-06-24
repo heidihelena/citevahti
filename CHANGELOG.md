@@ -4,6 +4,20 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.25.0 — an everyday "check this paragraph" agent skill (2026-06-24)
+
+- **New MCP prompt `check_paragraph`** — the everyday in-writing loop (shipped as a tool in
+  0.23.0) is now a first-class, discoverable agent skill for researchers. Paste a paragraph
+  you're drafting and the assistant reports, per claim-like sentence, what's already vetted,
+  what needs attention, and what's new — then hands real work off to `run_claim_tests`.
+- **Safe by construction:** the prompt is read-only — it calls only the read-only
+  `check_paragraph` tool (no AI, no network) and routes anything that needs work into the
+  blinded, human-first claim-test flow (human rates first → AI second → preview → confirm →
+  undo). It rates/decides/writes nothing, reveals no AI value, and says plainly that
+  "reviewed" means the citation *support* was reviewed — **not** that the claim is true or
+  the manuscript is publication-ready. Adds no new tool/capability (the agent surface guard
+  is unchanged).
+
 ## 0.24.9 — the read-only methods view no longer writes exports (2026-06-24)
 
 - **Fixed a read-only-contract violation found by a new safety test.** Building the

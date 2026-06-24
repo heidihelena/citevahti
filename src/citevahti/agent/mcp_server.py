@@ -10,12 +10,15 @@ from __future__ import annotations
 
 from . import TOOLS, assert_safe_surface
 from .prompts import (
+    CHECK_PARAGRAPH_PROMPT_DESCRIPTION,
+    CHECK_PARAGRAPH_PROMPT_NAME,
     CLAIM_TEST_PROMPT_DESCRIPTION,
     CLAIM_TEST_PROMPT_NAME,
     REVIEW_PROMPT_DESCRIPTION,
     REVIEW_PROMPT_NAME,
     SCREEN_TOPIC_PROMPT_DESCRIPTION,
     SCREEN_TOPIC_PROMPT_NAME,
+    check_paragraph_prompt,
     run_claim_tests_prompt,
     screen_topic_prompt,
 )
@@ -47,6 +50,12 @@ def build_server(name: str = "citevahti", *, root: str = "."):
     @server.prompt(name=SCREEN_TOPIC_PROMPT_NAME, description=SCREEN_TOPIC_PROMPT_DESCRIPTION)
     def screen_topic(topic: str = "") -> str:
         return screen_topic_prompt(topic)
+
+    # Everyday in-writing check: a read-only lookup of a drafted paragraph against the
+    # ledger, then hand off to run_claim_tests. Adds NO capability; rates/decides nothing.
+    @server.prompt(name=CHECK_PARAGRAPH_PROMPT_NAME, description=CHECK_PARAGRAPH_PROMPT_DESCRIPTION)
+    def check_paragraph(paragraph: str = "") -> str:
+        return check_paragraph_prompt(paragraph)
 
     # Deprecated alias kept for clients that connected via 0.9.0 (same workflow).
     @server.prompt(name=REVIEW_PROMPT_NAME, description=REVIEW_PROMPT_DESCRIPTION)
