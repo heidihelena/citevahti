@@ -3,7 +3,7 @@
 # (product brand, a product of Vahtian). The earlier `zotsynth` package
 # alias and CLI shims were retired in the full rename.
 name = "citevahti"
-version = "0.28.1"
+version = "0.29.0"
 description = "CiteVahti — citation-integrity and provenance for research synthesis: a blinded human->AI->adjudication dual-rating workflow with decision-gated, undoable Zotero write-back (single-user, local-first; searches PubMed, OpenAlex, Semantic Scholar, Crossref)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,6 +32,7 @@ Issues = "https://github.com/heidihelena/citevahti/issues"
 
 [project.optional-dependencies]
 mcp = ["mcp>=1.27.2"]
+app = ["pywebview>=5.0"]   # native desktop window (OS webview) for the panel — `citevahti-app`
 dev = ["pytest>=9.1.0"]
 keyring = ["keyring>=25.7.0"]   # OS-native secret store for onboarding (system_keyring backend)
 timestamp = ["asn1crypto>=1.5.1"]   # RFC 3161 timestamping of the audit head (issue #42); opt-in
@@ -41,6 +42,7 @@ docx = []   # back-compat alias: python-docx is now a core dependency (Word feat
 citevahti = "citevahti.cli:main"
 citevahti-mcp = "citevahti.agent.mcp_server:main"
 citevahti-panel = "citevahti.panel.server:main"
+citevahti-app = "citevahti.desktop:main"
 
 [build-system]
 requires = ["hatchling"]
