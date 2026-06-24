@@ -101,6 +101,20 @@ def test_methods_documents_llm_assisted_discovery_when_used(tmp_path):
     assert "1 was model-proposed" in md                          # honest count, verb agrees
 
 
+def test_methods_includes_a_prisma_flow_table(tmp_path):
+    # The PRISMA flow numbers table: identification → screening → assessed → included,
+    # derived from the ledger (intake → candidates → ratings → accepted claims).
+    from citevahti.report import build_methods_markdown
+    s, claim_id = _store(tmp_path)          # 1 claim, 1 intake search (1 hit), 1 candidate
+    md = build_methods_markdown(s)
+    assert "Flow of evidence (PRISMA-style" in md
+    assert "Records identified" in md and "database search(es)" in md
+    assert "Records staged as candidate evidence for 1 claim(s)" in md
+    assert "Supporting citations included" in md
+    # honest scope caveat is present
+    assert "not** de-duplicated" in md or "not de-duplicated" in md
+
+
 def test_methods_states_abstract_vs_fulltext_evidence_basis(tmp_path):
     # MatchVahti's "abstract-only, verify before citing" honesty, in CiteVahti's methods:
     # a rating with no located passage is abstract-only; one with a quoted passage is

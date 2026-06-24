@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.24.8 — a PRISMA flow numbers table in the methods statement (2026-06-24)
+
+- **The methods statement now includes a PRISMA-style flow-of-evidence table** — the
+  larger companion to the LLM-discovery paragraph (0.24.0) and the abstract-vs-full-text
+  basis line (0.24.2). Counts are derived from the ledger for the PRISMA diagram's
+  *identification → screening → included* boxes: records identified (returned across the
+  database searches) → records staged as candidate evidence → claim–evidence pairs
+  assessed (human-rated) → supporting citations included (claims with accepted evidence).
+- Honest by construction: it states plainly that CiteVahti works at the **claim** level
+  (each claim is a separate question), so the counts aggregate across the manuscript and
+  are **not** de-duplicated across searches — adapt to your review's unit before reporting.
+  No schema change; rides `citevahti methods` / the `methods` chat tool.
+
 ## 0.24.7 — a non-color design-token scale for the panel (2026-06-24)
 
 - **The panel now has spacing, radius, type, and elevation tokens (audit §B).** The CSS
