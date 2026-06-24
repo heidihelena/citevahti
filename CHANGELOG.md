@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.28.0 — evidence-basis chip on the review card (2026-06-24)
+
+- **The review card now shows the evidence basis at rate time** — a neutral chip on each
+  candidate: **◐ abstract only**, **● full-text passage**, or **○ no text staged**. This
+  puts "you're rating against the abstract, not the full text" in front of the human
+  exactly when they rate, instead of only in the methods statement (0.24.2). Derived with
+  the same rule: a rating anchored to a located `PassageRef` is full-text; otherwise the
+  candidate's abstract is what's available.
+- Honest, not a verdict: the chip is **metadata, styled neutrally** — it never reuses the
+  support-state colours and makes no truth/quality claim; the tooltip says to confirm
+  against the full text before relying on the citation. `/api/claims/<id>` now returns
+  `evidence_basis` per candidate.
+
 ## 0.27.0 — sealed-envelope pre-screening: the agent may rate first, withheld (2026-06-24)
 
 - **The agent prompts now let pre-screening produce the LLM rating corpus without anchoring

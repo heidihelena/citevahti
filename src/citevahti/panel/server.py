@@ -101,6 +101,18 @@ def _candidate_card(c) -> dict:
     }
 
 
+def _evidence_basis(rec, candidate) -> str:
+    """What the support judgment can be based on, shown on the review card at rate time:
+    a located full-text passage (someone anchored a quote), the candidate's abstract only,
+    or no text staged. Same rule as the methods statement's evidence-basis line — a rating
+    with a quoted PassageRef is full-text-anchored; otherwise the rater sees the abstract."""
+    human = rec.human_rating.source_passages if (rec and rec.human_rating) else []
+    ai = rec.ai_rating.supporting_passages if (rec and rec.ai_rating) else []
+    if human or ai:
+        return "full_text"
+    return "abstract_only" if getattr(candidate, "abstract", None) else "no_text"
+
+
 def _evidence_index(root: str, claim_id: str) -> dict:
     """PICO fit + excerpt + blinded AI per candidate, from the read-only report.
 
@@ -360,6 +372,7 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                 view["rating"] = blinded_rating_view(rec) if rec else None
                 ev = evidence.get(c.candidate_id)
                 view["evidence"] = ev
+                view["evidence_basis"] = _evidence_basis(rec, c)   # abstract-only vs full-text, at rate time
                 view["stale_bond"] = c.candidate_id in stale_cands
                 # the workflow phase is computed in ONE place (workflow.candidate_step);
                 # surfaces render it rather than re-deriving the rate→decide→write rules.

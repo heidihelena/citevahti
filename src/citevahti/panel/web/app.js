@@ -1083,6 +1083,14 @@ function candidateTags(cand) {
   }
   if (cand.retracted) t.push(`<span class="tag retracted">⚠ RETRACTED</span>`);
   if (cand.stale_bond) t.push(`<span class="tag stale" title="This paper was assessed against an older wording of the claim — re-check">⚠ claim reworded since</span>`);
+  // evidence basis at rate time: be honest about what the judgment can rest on
+  if (cand.evidence_basis === "abstract_only") {
+    t.push(`<span class="tag abstractonly" title="You're rating against the abstract, not the full text. Confirm against the full text before relying on this citation.">◐ abstract only</span>`);
+  } else if (cand.evidence_basis === "full_text") {
+    t.push(`<span class="tag fulltext" title="A full-text passage is anchored to this rating.">● full-text passage</span>`);
+  } else if (cand.evidence_basis === "no_text") {
+    t.push(`<span class="tag notext" title="No abstract or passage staged — out of indexed scope.">○ no text staged</span>`);
+  }
   if (cand.already_in_zotero) t.push(`<span class="tag inzot">✓ in Zotero</span>`);
   t.push(cand.doi ? `<span class="tag ok">DOI ✓</span>` : `<span class="tag nodoi">no DOI</span>`);
   return `<div class="ctags">${t.join("")}

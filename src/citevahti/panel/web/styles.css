@@ -333,6 +333,10 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .tag.nodoi { color: var(--zs-delete-text); border-color: var(--zs-delete-border); background: var(--zs-delete-bg); }
 .tag.retracted { color: var(--zs-brand-contrast); background: var(--zs-delete-border); border-color: var(--zs-delete-border); }
 .tag.stale { color: var(--zs-partial-text); background: var(--zs-partial-bg); border-color: var(--zs-partial-border); }
+/* evidence basis — metadata, NOT a support verdict: neutral hues, never the support-state colors */
+.tag.abstractonly { color: var(--zs-ink); background: var(--zs-surface-2); border-color: var(--zs-muted); }
+.tag.fulltext { color: var(--zs-ink); background: var(--zs-surface-2); border-color: var(--zs-line); }
+.tag.notext { color: var(--zs-muted); border-style: dashed; }
 /* organized-panel "X of N support" consensus badge (ADR-0008) */
 .tag.panel { color: var(--zs-brand-contrast); background: var(--zs-brand); border-color: var(--zs-brand); }
 

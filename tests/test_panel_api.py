@@ -240,6 +240,26 @@ def test_active_manuscript_is_remembered_across_reloads(tmp_path):
     assert gone["active"] is None                          # absent → not surfaced
 
 
+def test_review_card_carries_the_evidence_basis(tmp_path):
+    # The review card shows, at rate time, whether the support judgment rests on the
+    # abstract only or a located full-text passage — surfacing the abstract-only caveat
+    # where the decision happens, not only in the methods statement.
+    store, claim_id, _cand_id = _setup(tmp_path)   # candidate staged with no passages yet
+    status, data = dispatch(str(tmp_path), "GET", f"/api/claims/{claim_id}", None)
+    assert status == 200
+    cand = data["candidates"][0]
+    # _setup's candidate has no abstract and no anchored passage → no_text (honest, not faked)
+    assert cand["evidence_basis"] in ("abstract_only", "full_text", "no_text")
+    assert cand["evidence_basis"] == "no_text"
+    # add an abstract → abstract_only
+    from citevahti.schemas.candidate import ClaimPaperCandidate  # noqa: F401
+    cc = store.load_candidates(claim_id)
+    cc.candidates[0].abstract = "Telephone follow-up reduced readmissions in the trial."
+    store.save_candidates(cc)
+    _, data2 = dispatch(str(tmp_path), "GET", f"/api/claims/{claim_id}", None)
+    assert data2["candidates"][0]["evidence_basis"] == "abstract_only"
+
+
 def test_claim_view_carries_its_manuscript_id_for_cross_manuscript_jump(tmp_path):
     # A3: a triage row / deep-link can target a claim in another manuscript. The claim
     # view must report which manuscript it belongs to (the same key the switcher groups
