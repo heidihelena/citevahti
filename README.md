@@ -60,6 +60,11 @@ or shared as individual data.
 
 ## Start here
 
+**Which one?** Most researchers want the **Claude Desktop extension** — one click, no terminal,
+and your AI assistant runs the review through it. Want a **standalone app window** (no Claude
+Desktop)? Use the **desktop app**. Comfortable in a terminal, or scripting a pipeline? Use **pip**.
+All three drive the same local-first, human-first review.
+
 ### No terminal — Claude Desktop
 
 Download the CiteVahti extension **for your computer** from the
@@ -75,6 +80,21 @@ choose a CiteVahti folder, then ask: *"Run claim tests on my manuscript using Ci
 > macOS can't pre-stamp even though the app inside is signed and notarized. If it appears:
 > **right-click the file → Open**, or **System Settings → Privacy & Security → "Open Anyway"**.
 > Once allowed, it installs and runs normally.
+
+### Desktop app — a real window, no browser
+
+A standalone CiteVahti window: the review panel in a native OS window (not a browser tab, and
+no Claude Desktop needed). Install once, then launch it:
+
+```bash
+pip install "citevahti[app]"
+citevahti-app
+```
+
+Drag a `.md` or `.docx` onto the window to begin. The AI second opinion is optional — point it
+at a local [Ollama](https://ollama.com) model in AI settings (nothing leaves your machine), or
+let an MCP chat client provide it. (Installing takes the terminal once; after that it's just the
+app window.)
 
 ### Terminal
 
