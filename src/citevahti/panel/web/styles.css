@@ -58,6 +58,8 @@ html, body { margin: 0; height: 100%; }
   padding: 10px 12px; margin: 8px 0; background: var(--zs-surface); }
 .promptcard .pc-head { display: flex; align-items: baseline; gap: var(--zs-space); }
 .promptcard .pc-name { font: 600 11px/1 ui-monospace, Menlo, monospace; color: var(--zs-muted); }
+.pc-group { font: 700 10px/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--zs-muted); margin: 14px 0 4px; }
 .chatbox { margin-top: 12px; border-top: 1px solid var(--zs-line); padding-top: 10px; }
 .chatlog { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: var(--zs-space-sm); }
 .chatlog .chat-you { align-self: flex-end; background: var(--zs-brand-bg); color: var(--zs-ink);

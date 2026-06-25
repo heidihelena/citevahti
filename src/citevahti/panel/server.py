@@ -524,21 +524,24 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         # skills (the same text the chat client / desktop chat would run). Read-only
         # text; the deprecated review_manuscript alias is omitted.
         if method == "GET" and path == "/api/prompts":
+            from .. import writing
             from ..agent import prompts as P
             items = [
-                {"name": P.CLAIM_TEST_PROMPT_NAME, "label": "Run claim tests",
+                {"name": P.CLAIM_TEST_PROMPT_NAME, "label": "Run claim tests", "group": "Review",
                  "description": P.CLAIM_TEST_PROMPT_DESCRIPTION,
                  "text": P.run_claim_tests_prompt()},
-                {"name": P.SCREEN_TOPIC_PROMPT_NAME, "label": "Screen a topic",
+                {"name": P.SCREEN_TOPIC_PROMPT_NAME, "label": "Screen a topic", "group": "Review",
                  "description": P.SCREEN_TOPIC_PROMPT_DESCRIPTION,
                  "text": P.screen_topic_prompt()},
-                {"name": P.CHECK_PARAGRAPH_PROMPT_NAME, "label": "Check a paragraph",
+                {"name": P.CHECK_PARAGRAPH_PROMPT_NAME, "label": "Check a paragraph", "group": "Review",
                  "description": P.CHECK_PARAGRAPH_PROMPT_DESCRIPTION,
                  "text": P.check_paragraph_prompt()},
-                {"name": P.METHODS_PROMPT_NAME, "label": "Methods statement",
+                {"name": P.METHODS_PROMPT_NAME, "label": "Methods statement", "group": "Review",
                  "description": P.METHODS_PROMPT_DESCRIPTION,
                  "text": P.methods_prompt()},
             ]
+            # writing-assistance skills (advisory; suggestion-only, no silent manuscript edit)
+            items.extend(writing.writing_skills())
             return 200, {"prompts": items}
 
         # ---- small chat with the configured model (local Ollama / LM Studio / API key) ----
