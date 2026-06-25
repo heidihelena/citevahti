@@ -294,6 +294,31 @@ def test_prompts_panel_includes_writing_skills_that_stay_advisory(tmp_path):
         assert "invent" in t and "citekey" in t
 
 
+def test_draft_context_pulls_accepted_claims_with_their_citekeys(tmp_path):
+    # "Draft from claims" gathers the vetted (accepted) claims + the citekey to cite them
+    # by, so there is nothing to paste; an accepted claim with no identifier is flagged,
+    # never given an invented citekey.
+    from citevahti import tools as engine
+    from citevahti.demo import build
+    build(tmp_path)
+    status, out = dispatch(str(tmp_path), "GET", "/api/draft-context", None)
+    assert status == 200 and out["accepted"] >= 1
+    cited = [c for c in out["claims"] if c["cited"]]
+    assert cited, "accepted claims surface with a citekey"
+    for c in cited:
+        assert c["citekey"] and "@" not in c["citekey"]       # bare key; [@..] is added in prose
+    for c in out["claims"]:
+        if not c["cited"]:
+            assert c["citekey"] is None and c.get("reason")   # flagged, not fabricated
+
+
+def test_draft_context_empty_on_a_fresh_ledger(tmp_path):
+    from citevahti import tools as engine
+    CiteVahtiStore(tmp_path).init()
+    out = engine.draft_context(root=str(tmp_path))
+    assert out["accepted"] == 0 and out["claims"] == [] and out["cited"] == 0
+
+
 class _FakePoster:
     """Stands in for the HTTP client so the chat is tested without a live model."""
     def __init__(self):

@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.34.0 — "Draft from claims" pulls your vetted claims automatically (2026-06-25)
+
+- **The "Draft from claims" skill now gathers your accepted claims and their citekeys for
+  you** — no pasting. A new read-only `GET /api/draft-context` (`engine.draft_context`)
+  lists each **accepted** claim with the citekey to cite it by (the stable key minted from
+  the paper's PMID/DOI — your own Better BibTeX key is still resolved by cite-export). An
+  accepted claim with no identifier is returned `cited: false` and flagged "needs a source"
+  — **never given an invented citekey**.
+- Read-only and advisory: it records nothing and writes nothing (locked by the
+  read-only-surface invariant test), and it only feeds the chat skill, which still offers a
+  draft to review and never edits the manuscript. Loop iteration 2 (turning vetted claims
+  into writing).
+
 ## 0.33.0 — writing-assistance skills: turn vetted claims into prose (2026-06-25)
 
 - **The Prompts & chat panel now has a "Writing" group** of advisory skills for turning
