@@ -369,8 +369,15 @@ async function sendChat(message, label) {
   log.scrollTop = log.scrollHeight;
   try {
     const r = await api("POST", "/api/chat", { message });
-    pending.textContent = r.status === "ai_off"
-      ? (r.message || "No model configured.") : (r.reply || "(no reply)");
+    if (r.status === "ai_off") {
+      // turn the dead-end into a next action: open AI settings (recommends a local model)
+      pending.innerHTML = esc(r.message || "No model is configured.") +
+        ` <button class="btn ghost" id="aiOffSetup" title="Pick a model — a local Ollama model keeps everything on your machine">⚙ Set up a model</button>`;
+      const b = pending.querySelector("#aiOffSetup");
+      if (b) b.onclick = () => { const pm = $("#promptsModal"); if (pm) closeModalEl(pm); openAiSettings(); };
+    } else {
+      pending.textContent = r.reply || "(no reply)";
+    }
   } catch (e) { pending.textContent = "chat failed: " + e.message; }
   log.scrollTop = log.scrollHeight;
 }
@@ -1770,8 +1777,9 @@ async function renderFirstRun() {
       ${rows}</div>` : ""}
     <div class="panel-box">
       <div class="lbl">1 · Add your manuscript</div>
-      <p class="note">Paste your manuscript Markdown — CiteVahti saves it and remembers where it lives.
-      You'll get the exact prompt to paste into your chat client to extract claims next.</p>
+      <p class="note"><b>Drag a <code>.md</code> or <code>.docx</code> onto this window</b>, or paste your
+      Markdown below — CiteVahti saves it and remembers where it lives. You'll get the exact prompt to
+      paste into your chat client to extract claims next.</p>
       <input id="pasteName" type="text" aria-label="Manuscript filename" placeholder="filename, e.g. my-draft.md" />
       <textarea id="pasteBody" class="revbox" aria-label="Manuscript Markdown" placeholder="# Title&#10;&#10;Paste your Markdown here…"></textarea>
       <div class="actions"><button class="btn primary" id="pasteSave">Save my document</button></div>

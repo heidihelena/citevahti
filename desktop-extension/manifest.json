@@ -3,7 +3,7 @@
   "name": "citevahti",
   "display_name": "CiteVahti",
   "icon": "icon.png",
-  "version": "0.34.0",
+  "version": "0.34.1",
   "description": "Run unit tests on your manuscript — check every claim before you cite it.",
   "long_description": "CiteVahti is a local-first citation-integrity tool. It runs a blinded human → AI → adjudication review of the claims in your manuscript: you rate the evidence before the AI rating is revealed, decisions are gated and undoable, and every step is recorded in a hash-chained audit trail. This extension adds CiteVahti's MCP tools and the `run_claim_tests` prompt to Claude Desktop so you can run the whole review in chat — no terminal required. Local-first and single-user; literature lookups use PubMed, OpenAlex, Semantic Scholar and Crossref; no telemetry.",
   "author": {

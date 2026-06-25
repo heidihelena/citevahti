@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.34.0 — "Draft from claims" pulls your vetted claims + citekeys
+## Status: v0.34.1 — author pathway: no model-config dead-end; drag-drop on first run
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
