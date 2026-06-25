@@ -544,6 +544,11 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             items.extend(writing.writing_skills())
             return 200, {"prompts": items}
 
+        # the researcher's ACCEPTED claims + citekeys, so "Draft from claims" drafts from
+        # vetted claims without pasting. Read-only; uncited accepted claims are flagged.
+        if method == "GET" and path == "/api/draft-context":
+            return 200, engine.draft_context(root=root)
+
         # ---- small chat with the configured model (local Ollama / LM Studio / API key) ----
         # Advisory text only — records nothing, calls no tools, writes nothing. ai_off when
         # no model is configured. Reuses the same connection plumbing as the AI rater.

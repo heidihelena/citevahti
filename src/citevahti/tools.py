@@ -1281,6 +1281,38 @@ def check_paragraph(text: str, *, root: Optional[str] = None):
     return _check(_open_store(root), text or "")
 
 
+def draft_context(*, root: Optional[str] = None) -> dict:
+    """Read-only: the researcher's ACCEPTED claims, each with the citekey to cite it by —
+    the user's own Better BibTeX key is resolved by cite-export; here we give the stable
+    key minted from the paper's PMID/DOI (never an invented one). An accepted claim with
+    no resolvable identifier is returned ``cited: False`` and flagged, so the draft skill
+    can mark it as needing a source rather than fabricating one. Records nothing, writes
+    nothing — it just gathers vetted claims to draft from."""
+    from .report import ClaimReportService
+    from .report.citation_export import mint_citekey
+    from .report.claim_report import _ACCEPTING
+
+    rep = ClaimReportService(_open_store(root)).report()
+    items = []
+    for row in rep.rows:
+        if row.state != "accepted":
+            continue
+        fresh = [e for e in row.evidence if e.final_decision in _ACCEPTING and not e.stale]
+        if not fresh:
+            items.append({"claim_text": row.claim_text, "citekey": None, "cited": False,
+                          "reason": "the citation went stale (claim reworded) — re-accept to refresh"})
+            continue
+        ev = fresh[0]
+        citekey = mint_citekey(ev.pmid, ev.doi)
+        if not citekey:
+            items.append({"claim_text": row.claim_text, "citekey": None, "cited": False,
+                          "reason": "the accepted paper has no PMID or DOI to cite by"})
+            continue
+        items.append({"claim_text": row.claim_text, "citekey": citekey, "cited": True})
+    return {"claims": items, "accepted": len(items),
+            "cited": sum(1 for i in items if i["cited"])}
+
+
 _CHAT_FRAMING = (
     "You are CiteVahti's assistant, helping a researcher check that their manuscript's "
     "claims are supported by the sources cited for them. Help them find candidate claims, "

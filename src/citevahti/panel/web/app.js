@@ -329,7 +329,16 @@ async function openPrompts() {
   });
   box.querySelectorAll("[data-run-prompt]").forEach((b) => {
     const p = data.prompts[+b.dataset.runPrompt];
-    b.onclick = () => sendChat(p.text, p.label);
+    b.onclick = async () => {
+      let msg = p.text;
+      if (p.name === "draft_from_claims") {   // pull the vetted claims so there's nothing to paste
+        try {
+          const ctx = await api("GET", "/api/draft-context");
+          msg += "\n\nMy accepted claims to draft from:\n" + formatDraftContext(ctx);
+        } catch (e) { /* fall back to the bare prompt */ }
+      }
+      sendChat(msg, p.label);
+    };
   });
   const x = box.querySelector("[data-prompts-close]"); if (x) x.onclick = () => closeModalEl(box);
   const send = $("#chatSend"), inp = $("#chatInput");
@@ -337,6 +346,16 @@ async function openPrompts() {
     send.onclick = () => { const m = inp.value.trim(); if (m) { inp.value = ""; sendChat(m); } };
     inp.addEventListener("keydown", (e) => { if (e.key === "Enter") send.onclick(); });
   }
+}
+
+/* Format the accepted claims for the draft skill — an uncited accepted claim is shown as
+ * "needs a source", never given an invented citekey. */
+function formatDraftContext(ctx) {
+  const claims = (ctx && ctx.claims) || [];
+  if (!claims.length) return "(no accepted claims yet — accept some citations first)";
+  return claims.map((c) => c.cited
+    ? `- ${c.claim_text} [@${c.citekey}]`
+    : `- ${c.claim_text} (needs a source — ${c.reason || "uncited"})`).join("\n");
 }
 
 /* Small chat with the configured model (local Ollama / LM Studio / API key). Advisory text
