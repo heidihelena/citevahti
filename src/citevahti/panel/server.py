@@ -541,6 +541,12 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             ]
             return 200, {"prompts": items}
 
+        # ---- small chat with the configured model (local Ollama / LM Studio / API key) ----
+        # Advisory text only — records nothing, calls no tools, writes nothing. ai_off when
+        # no model is configured. Reuses the same connection plumbing as the AI rater.
+        if method == "POST" and path == "/api/chat":
+            return 200, engine.chat(body.get("message") or "", root=root)
+
         # ---- the manuscript "unit test" suite (each claim is a test case) ----
         # Offline by default (instant, structural); online verifies citations are
         # real + not retracted. Optionally scoped to one manuscript.

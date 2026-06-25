@@ -295,15 +295,25 @@ async function openPrompts() {
     <div class="promptcard">
       <div class="pc-head"><b>${esc(p.label)}</b> <span class="pc-name">${esc(p.name)}</span></div>
       <div class="note">${esc(p.description)}</div>
-      <div class="actions"><button class="btn ghost" data-copy-prompt="${i}">⧉ Copy prompt</button></div>
+      <div class="actions"><button class="btn ghost" data-copy-prompt="${i}">⧉ Copy</button>
+        <button class="btn ghost" data-run-prompt="${i}" title="Run this skill against your configured model">▷ Run in chat</button></div>
     </div>`).join("");
   box.innerHTML = `<div class="modal-card">
-    <div class="modal-head"><b>Prompts — preprogrammed skills</b>
+    <div class="modal-head"><b>Prompts &amp; chat</b>
       <button class="chip-btn" data-prompts-close="1" aria-label="Close">✕</button></div>
-    <div class="note">One-click skills to paste into your chat client (or a local model via
-      Ollama). Each keeps the blinded, human-first workflow — the human rates first.</div>
+    <div class="note">Preprogrammed skills — copy one for your chat client, or run it against
+      your configured model (a local Ollama model keeps everything on your machine). The model
+      is advisory; you still rate and decide. It never sets a rating or writes anything.</div>
     ${cards}
-    <div id="promptsResult" class="note"></div></div>`;
+    <div id="promptsResult" class="note"></div>
+    <div class="chatbox">
+      <div id="chatlog" class="chatlog" aria-live="polite"></div>
+      <div class="chatrow">
+        <input id="chatInput" type="text" aria-label="Message the model"
+          placeholder="Ask the model… (local-first with Ollama)" />
+        <button class="btn primary" id="chatSend">Send</button>
+      </div>
+    </div></div>`;
   box.querySelectorAll("[data-copy-prompt]").forEach((b) => {
     b.onclick = async () => {
       const p = data.prompts[+b.dataset.copyPrompt];
@@ -312,7 +322,33 @@ async function openPrompts() {
       if (r) r.innerHTML = `✓ Copied the <b>${esc(p.name)}</b> prompt — paste it into your chat client.`;
     };
   });
+  box.querySelectorAll("[data-run-prompt]").forEach((b) => {
+    const p = data.prompts[+b.dataset.runPrompt];
+    b.onclick = () => sendChat(p.text, p.label);
+  });
   const x = box.querySelector("[data-prompts-close]"); if (x) x.onclick = () => closeModalEl(box);
+  const send = $("#chatSend"), inp = $("#chatInput");
+  if (send && inp) {
+    send.onclick = () => { const m = inp.value.trim(); if (m) { inp.value = ""; sendChat(m); } };
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") send.onclick(); });
+  }
+}
+
+/* Small chat with the configured model (local Ollama / LM Studio / API key). Advisory text
+ * only — the server records nothing, calls no tools, and writes nothing. */
+async function sendChat(message, label) {
+  const log = $("#chatlog"); if (!log) return;
+  const shown = label ? `Run: ${label}` : message;
+  log.insertAdjacentHTML("beforeend",
+    `<div class="chat-you">${esc(shown)}</div><div class="chat-ai">…</div>`);
+  const pending = log.lastElementChild;
+  log.scrollTop = log.scrollHeight;
+  try {
+    const r = await api("POST", "/api/chat", { message });
+    pending.textContent = r.status === "ai_off"
+      ? (r.message || "No model configured.") : (r.reply || "(no reply)");
+  } catch (e) { pending.textContent = "chat failed: " + e.message; }
+  log.scrollTop = log.scrollHeight;
 }
 
 async function copyText(text) {

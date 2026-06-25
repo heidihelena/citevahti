@@ -1281,6 +1281,39 @@ def check_paragraph(text: str, *, root: Optional[str] = None):
     return _check(_open_store(root), text or "")
 
 
+_CHAT_FRAMING = (
+    "You are CiteVahti's assistant, helping a researcher check that their manuscript's "
+    "claims are supported by the sources cited for them. Help them find candidate claims, "
+    "screen a topic, and refine wording. The researcher records every support rating and "
+    "decision themselves in the panel — do NOT declare whether a source supports a claim "
+    "before they have rated it; present evidence neutrally so you don't anchor them. Never "
+    "assert that a paper proves a claim, or that a manuscript is correct or "
+    "publication-ready: CiteVahti checks citation support, not truth."
+)
+
+
+def chat(message: str, *, root: Optional[str] = None, poster=None) -> dict:
+    """One advisory chat turn with the CONFIGURED model — a local Ollama / LM Studio model
+    (nothing leaves your machine) or your own API key — reusing the same connection plumbing
+    as the AI rater. It RECORDS nothing, calls no tools, and writes nothing: a conversational
+    helper, never the blinded rating path. Returns ``ai_off`` when no model is configured.
+    ``poster`` is injectable for tests."""
+    from .rating.ai import chat_completion, resolve_ai_connection
+
+    config = _open_store(root).load_config()
+    conn = resolve_ai_connection(config)
+    if conn is None:
+        return {"status": "ai_off", "reply": None,
+                "message": "No model is configured. Set one in AI settings — a local Ollama "
+                           "model keeps everything on your machine."}
+    prompt = f"{_CHAT_FRAMING}\n\nResearcher: {message or ''}\n\nAssistant:"
+    reply = chat_completion(shape=conn["shape"], endpoint=conn["endpoint"],
+                            model=config.ai_provenance.model_id, prompt=prompt,
+                            api_key=conn["api_key"], poster=poster,
+                            timeout=config.ai_connection.request_timeout_s)
+    return {"status": "ok", "model": config.ai_provenance.model_id, "reply": reply}
+
+
 # ---- the manuscript "unit test" suite ---------------------------------------
 # CiteVahti's core metaphor: each claim is a test case. A claim PASSES when it is
 # backed by accepted, supporting evidence whose citation is identifiable (and,

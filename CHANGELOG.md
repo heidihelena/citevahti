@@ -4,6 +4,20 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.32.0 — a small in-app chat with your configured model (2026-06-25)
+
+- **The Prompts panel is now "Prompts & chat":** a small chat that talks to your **configured
+  model** — a local **Ollama** / LM Studio model (nothing leaves your machine) or your own API
+  key — reusing the same connection plumbing as the AI rater. Each preprogrammed skill gets a
+  **▷ Run in chat** button; or just type. Returns a clear "configure a model" message when AI
+  is off (`POST /api/chat`, `engine.chat`).
+- **Advisory only, by construction:** the chat records nothing, calls no tools, and writes
+  nothing (a test asserts the audit ledger is unchanged after a turn). Its framing keeps the
+  model neutral — it must not declare whether a source supports a claim before you rate, and
+  makes no truth/quality claim. The human still rates and decides in the panel; the blinded
+  rating path is untouched. It sends only what you type to the model you configured (local
+  Ollama = fully local).
+
 ## 0.31.0 — a prompt panel: the preprogrammed skills, one click (2026-06-25)
 
 - **New "✦ Prompts" panel** (Tools menu) surfaces the preprogrammed agent skills —
