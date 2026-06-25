@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.32.0 — a small in-app chat with your configured (local) model
+## Status: v0.33.0 — writing-assistance skills: turn vetted claims into prose
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

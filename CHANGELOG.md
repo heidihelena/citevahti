@@ -4,6 +4,18 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.33.0 — writing-assistance skills: turn vetted claims into prose (2026-06-25)
+
+- **The Prompts & chat panel now has a "Writing" group** of advisory skills for turning
+  vetted claims into manuscript prose: **Draft from claims · Improve structure · Improve
+  transitions · Check spelling**. Run any against your configured model (local Ollama / API).
+- **Advisory and aligned by construction:** each skill offers *suggestions to review*, never
+  edits the manuscript silently (the chat records and writes nothing), uses **only the
+  citekeys you provide** — never invents or drops a citation — keeps each claim's meaning,
+  and makes **no** truth/quality/publication-readiness claim. An uncited claim is flagged as
+  needing a source, not given an invented one; spelling flags technical terms and citekeys to
+  "check" rather than changing them. The prompts are grouped (Review vs Writing) in the panel.
+
 ## 0.32.0 — a small in-app chat with your configured model (2026-06-25)
 
 - **The Prompts panel is now "Prompts & chat":** a small chat that talks to your **configured

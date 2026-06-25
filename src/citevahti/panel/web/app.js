@@ -291,13 +291,18 @@ async function openPrompts() {
   try { data = await api("GET", "/api/prompts"); }
   catch (e) { notify(e.message); return; }
   const box = modalShell("promptsModal");
-  const cards = (data.prompts || []).map((p, i) => `
+  let lastGroup = null;
+  const cards = (data.prompts || []).map((p, i) => {
+    const hdr = p.group && p.group !== lastGroup ? `<div class="pc-group">${esc(p.group)}</div>` : "";
+    lastGroup = p.group;
+    return hdr + `
     <div class="promptcard">
       <div class="pc-head"><b>${esc(p.label)}</b> <span class="pc-name">${esc(p.name)}</span></div>
       <div class="note">${esc(p.description)}</div>
       <div class="actions"><button class="btn ghost" data-copy-prompt="${i}">⧉ Copy</button>
         <button class="btn ghost" data-run-prompt="${i}" title="Run this skill against your configured model">▷ Run in chat</button></div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
   box.innerHTML = `<div class="modal-card">
     <div class="modal-head"><b>Prompts &amp; chat</b>
       <button class="chip-btn" data-prompts-close="1" aria-label="Close">✕</button></div>

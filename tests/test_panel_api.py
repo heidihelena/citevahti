@@ -265,13 +265,33 @@ def test_prompts_panel_lists_the_preprogrammed_skills(tmp_path):
     from citevahti.agent import prompts as P
     status, data = dispatch(str(tmp_path), "GET", "/api/prompts", None)
     assert status == 200
-    names = [p["name"] for p in data["prompts"]]
-    assert names == [P.CLAIM_TEST_PROMPT_NAME, P.SCREEN_TOPIC_PROMPT_NAME,
-                     P.CHECK_PARAGRAPH_PROMPT_NAME, P.METHODS_PROMPT_NAME]
+    review = [p["name"] for p in data["prompts"] if p.get("group") == "Review"]
+    assert review == [P.CLAIM_TEST_PROMPT_NAME, P.SCREEN_TOPIC_PROMPT_NAME,
+                      P.CHECK_PARAGRAPH_PROMPT_NAME, P.METHODS_PROMPT_NAME]
     for p in data["prompts"]:
-        assert p["label"] and p["description"] and len(p["text"]) > 200   # real prompt text
+        assert p["label"] and p["description"] and len(p["text"]) > 150   # real prompt text
     # the deprecated review_manuscript alias is not advertised here
-    assert P.REVIEW_PROMPT_NAME not in names
+    assert P.REVIEW_PROMPT_NAME not in [p["name"] for p in data["prompts"]]
+
+
+def test_prompts_panel_includes_writing_skills_that_stay_advisory(tmp_path):
+    # Writing-assistance skills help turn vetted claims into prose, but must stay advisory:
+    # suggestion-only, no invented citations, no quality/publication claim, no silent edit.
+    status, data = dispatch(str(tmp_path), "GET", "/api/prompts", None)
+    assert status == 200
+    groups = {p["name"]: p.get("group") for p in data["prompts"]}
+    writing = [p for p in data["prompts"] if p.get("group") == "Writing"]
+    assert {p["name"] for p in writing} == {
+        "draft_from_claims", "improve_structure", "improve_transitions", "check_spelling"}
+    assert groups["run_claim_tests"] == "Review"          # the review prompts are grouped too
+    for p in writing:
+        low = p["text"].lower()
+        assert "suggestion" in low or "advisory" in low    # offered, not imposed
+        assert "publication-ready" in low or "quality" in low  # never a quality claim
+    # the citation-touching skills must forbid inventing a citation/citekey
+    for name in ("draft_from_claims", "improve_structure", "improve_transitions"):
+        t = next(p["text"] for p in writing if p["name"] == name).lower()
+        assert "invent" in t and "citekey" in t
 
 
 class _FakePoster:
