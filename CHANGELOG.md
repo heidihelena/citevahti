@@ -4,6 +4,17 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.34.1 — author pathway: remove two dead-ends (2026-06-25)
+
+- **The chat's "no model configured" is no longer a dead-end.** When the chat returns
+  `ai_off`, it now offers a **⚙ Set up a model** button that opens AI settings (which
+  recommends a local Ollama model) — so a standalone user has a one-click path to a working
+  model instead of a flat message.
+- **First-run leads with drag-and-drop.** The empty-state now says *"Drag a `.md` or `.docx`
+  onto this window"* first — surfacing the 0.30.0 capability that was the easiest no-terminal
+  way to start but went unmentioned. (Author-pathway polish; no behaviour change to the
+  blinded review.)
+
 ## 0.34.0 — "Draft from claims" pulls your vetted claims automatically (2026-06-25)
 
 - **The "Draft from claims" skill now gathers your accepted claims and their citekeys for
