@@ -274,6 +274,43 @@ def test_prompts_panel_lists_the_preprogrammed_skills(tmp_path):
     assert P.REVIEW_PROMPT_NAME not in names
 
 
+class _FakePoster:
+    """Stands in for the HTTP client so the chat is tested without a live model."""
+    def __init__(self):
+        self.calls = []
+
+    def post_json(self, endpoint, headers, payload, timeout):
+        self.calls.append((endpoint, payload))
+        return {"choices": [{"message": {"content": "Here are candidate claims to assess."}}]}
+
+
+def test_chat_talks_to_the_configured_model_and_records_nothing(tmp_path):
+    from citevahti import tools as engine
+    s = CiteVahtiStore(tmp_path); s.init()
+    cfg = s.load_config()
+    cfg.ai_connection.mode = "local"            # local Ollama / LM Studio, no key
+    cfg.ai_provenance.model_id = "llama3"
+    s.save_config(cfg)
+    audit = tmp_path / ".citevahti" / "audit_log.jsonl"
+    before = len(audit.read_text(encoding="utf-8").splitlines()) if audit.exists() else 0
+
+    fake = _FakePoster()
+    out = engine.chat("Find claims in: telephone follow-up reduces readmissions.",
+                      root=str(tmp_path), poster=fake)
+    assert out["status"] == "ok" and out["model"] == "llama3"
+    assert "candidate claims" in out["reply"]
+    assert fake.calls, "the configured model endpoint was contacted"
+    after = len(audit.read_text(encoding="utf-8").splitlines()) if audit.exists() else 0
+    assert after == before, "chat must record nothing in the audit ledger"
+
+
+def test_chat_is_ai_off_when_no_model_configured(tmp_path):
+    from citevahti import tools as engine
+    s = CiteVahtiStore(tmp_path); s.init()      # default config: ai_connection mode = off
+    out = engine.chat("hello", root=str(tmp_path))
+    assert out["status"] == "ai_off" and out["reply"] is None and out["message"]
+
+
 def test_claim_view_carries_its_manuscript_id_for_cross_manuscript_jump(tmp_path):
     # A3: a triage row / deep-link can target a claim in another manuscript. The claim
     # view must report which manuscript it belongs to (the same key the switcher groups

@@ -58,6 +58,15 @@ html, body { margin: 0; height: 100%; }
   padding: 10px 12px; margin: 8px 0; background: var(--zs-surface); }
 .promptcard .pc-head { display: flex; align-items: baseline; gap: var(--zs-space); }
 .promptcard .pc-name { font: 600 11px/1 ui-monospace, Menlo, monospace; color: var(--zs-muted); }
+.chatbox { margin-top: 12px; border-top: 1px solid var(--zs-line); padding-top: 10px; }
+.chatlog { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: var(--zs-space-sm); }
+.chatlog .chat-you { align-self: flex-end; background: var(--zs-brand-bg); color: var(--zs-ink);
+  padding: 6px 10px; border-radius: var(--zs-radius-md); max-width: 80%; font-size: var(--zs-text); }
+.chatlog .chat-ai { align-self: flex-start; background: var(--zs-surface-2); color: var(--zs-ink);
+  padding: 6px 10px; border-radius: var(--zs-radius-md); max-width: 85%; font-size: var(--zs-text); white-space: pre-wrap; }
+.chatrow { display: flex; gap: var(--zs-space-sm); margin-top: 8px; }
+.chatrow input { flex: 1; padding: 7px 10px; border: 1px solid var(--zs-line);
+  border-radius: var(--zs-radius); background: var(--zs-paper); color: var(--zs-ink); font: inherit; }
 /* visually hidden but available to screen readers (gives the panel a real heading) */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
