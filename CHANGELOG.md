@@ -4,6 +4,16 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.34.2 — README install front-door (2026-06-25)
+
+- **A "Which one?" pointer** at the top of *Start here*: Claude Desktop extension (one click,
+  no terminal) · the standalone **desktop app** · pip — all driving the same review.
+- **Documents the standalone desktop app** (`pip install 'citevahti[app]'` → `citevahti-app`),
+  which shipped across 0.29–0.32 but was never in the README: a native window (no browser, no
+  Claude Desktop), drag-a-manuscript to start, optional local-Ollama AI. Honest about needing
+  the terminal once to install. Docs-only — no behaviour change; ships the clearer guidance to
+  the PyPI page (the README is the long description).
+
 ## 0.34.1 — author pathway: remove two dead-ends (2026-06-25)
 
 - **The chat's "no model configured" is no longer a dead-end.** When the chat returns
