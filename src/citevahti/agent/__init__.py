@@ -16,6 +16,7 @@ from .policy import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, assert_sa
 TOOLS = {
     "init": tools.init,                  # create the ledger — every other tool needs it first
     "status": tools.status,
+    "check_update": tools.check_update,  # read-only, user-initiated: is a newer release on PyPI?
     "triage": tools.triage,              # risk-first "what needs you" — review the few, not all
     "check_paragraph": tools.check_paragraph,  # everyday in-writing loop: vetted / needs-attention / new
     "methods": tools.methods,            # submission methods paragraph + PRISMA LLM-discovery disclosure

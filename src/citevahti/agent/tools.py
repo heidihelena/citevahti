@@ -96,6 +96,17 @@ def status(*, root: Optional[str] = None) -> dict:
                              "permissions": rep.permissions}}
 
 
+def check_update(*, root: Optional[str] = None) -> dict:
+    """Check whether a newer CiteVahti is published on PyPI. Read-only and user-initiated
+    — it makes ONE outbound call to pypi.org only when asked, sends no user data, and never
+    installs anything. Pair it with `status` (which reports the RUNNING version): use this
+    when the user wonders if they're up to date, or after they reinstall the .mcpb / desktop
+    app and want to confirm the new build is live (Claude Desktop caches the old extension —
+    if still stale, remove the old one, restart, and add the newest). Returns current,
+    latest, update_available, and a plain-language message safe to relay verbatim."""
+    return _t.check_update()
+
+
 def open_review_panel(port: int = 8765, open_browser: bool = True, *,
                       root: Optional[str] = None) -> dict:
     """Open the human's loopback rating panel (idempotent; loopback-only).
