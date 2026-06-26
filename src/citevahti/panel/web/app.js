@@ -1890,6 +1890,21 @@ document.addEventListener("click", (e) => {
      "export-word": exportDocx, "import-word": importWord,
      next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
+// User-initiated update check: the ONLY moment the panel talks to PyPI, and only on this
+// click — never on load — so it doesn't weaken the no-silent-egress posture. Read-only.
+async function checkForUpdates() {
+  const tm = $("#toolsmenu"); if (tm) tm.removeAttribute("open");
+  notify("Checking PyPI for a newer version…", { kind: "ok", sticky: true });
+  try {
+    const r = await api("GET", "/api/check-update");
+    // checked=false means we couldn't reach PyPI — say so plainly, not as a crash.
+    // update_available stays sticky so the user can read the upgrade steps; up-to-date
+    // auto-dismisses.
+    notify(r.message, r.checked ? { kind: "ok", sticky: !!r.update_available }
+                                : { kind: "error" });
+  } catch (e) { notify(e.message); }
+}
+$("#checkUpdate").addEventListener("click", checkForUpdates);
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
 $("#prompts").addEventListener("click", openPrompts);
 $("#report").addEventListener("click", openExportModal);

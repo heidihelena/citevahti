@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.35.0 — check-update: ask PyPI if a newer release is out (read-only, user-initiated)
+## Status: v0.36.0 — Check for updates in the panel (one click, non-silent)
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
@@ -41,9 +41,10 @@ or checks — **PubMed (NCBI), OpenAlex, Semantic Scholar, and Crossref/doi.org*
 you connect it, **your Zotero**. Search queries and the titles/DOIs/PMIDs of references
 you look up are sent to those services. (PubMed is the primary search source; "PubMed-only"
 was an earlier, narrower scope.) The one other outbound call is **opt-in and user-initiated**:
-running `check-update` (or the `check_update` agent tool) makes a single request to the
-public PyPI API to see whether a newer release exists — it sends no data about you and never
-installs anything; pair it with `status`, which reports the version you're *running*.
+running `check-update`, clicking the panel's **Check for updates** button, or calling the
+`check_update` agent tool makes a single request to the public PyPI API to see whether a newer
+release exists — it sends no data about you and never installs anything; pair it with
+`status`, which reports the version you're *running*.
 
 ## Positioning
 

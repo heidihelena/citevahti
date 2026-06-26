@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.36.0 — "Check for updates" in the panel (2026-06-27)
+
+- **A "⬆ Check for updates" button in the panel's Tools menu** — surfaces 0.35.0's
+  `check-update` to the non-technical researcher who lives in the panel, not the terminal.
+  It calls PyPI **only on click** (new `GET /api/check-update` → `engine.check_update()`),
+  never on load — so the no-silent-egress posture is preserved. Up-to-date dismisses on its
+  own; an available update stays pinned with the upgrade steps; an unreachable PyPI is
+  reported calmly, not as a crash.
+- Egress disclosure (README + `docs/STATUS.md`) now names the panel button alongside the CLI
+  command and agent tool. Endpoint routing is test-guarded
+  (`test_update_check.py::test_panel_endpoint_routes_to_check_update`) and the suite stays
+  offline.
+
 ## 0.35.0 — `check-update`: is a newer release out? (2026-06-26)
 
 - **New `check-update` CLI command + `check_update` agent tool** — ask PyPI whether a newer

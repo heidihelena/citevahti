@@ -95,3 +95,18 @@ def test_defaults_to_the_real_running_version():
     r = check_update(http=http)
     assert r["current"] == __version__
     assert r["update_available"] is False
+
+
+def test_panel_endpoint_routes_to_check_update(monkeypatch, tmp_path):
+    """The panel's 'Check for updates' button hits GET /api/check-update, which must route
+    to the engine and return its dict. Monkeypatched so the suite makes no live call — the
+    point is the wiring, and that the check runs ONLY on this request (never on load)."""
+    from citevahti.panel import server
+
+    canned = {"checked": True, "current": "1.0.0", "latest": "2.0.0",
+              "update_available": True, "message": "A newer version is available: citevahti 2.0.0"}
+    monkeypatch.setattr("citevahti.tools.check_update", lambda **kw: canned)
+
+    status, payload = server.dispatch(str(tmp_path), "GET", "/api/check-update", None)
+    assert status == 200
+    assert payload == canned
