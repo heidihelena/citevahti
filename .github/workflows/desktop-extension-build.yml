@@ -54,14 +54,14 @@ jobs:
         shell: bash
         working-directory: desktop-extension
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
         with:
           # build from the EXACT tag on a manual backfill, so a .mcpb attached to vX.Y.Z
           # is built from vX.Y.Z (not from later main). On a release event github.ref is
           # already the tag. (Provenance: the wheel, the source archive, and the desktop
           # extension must represent the same commit.)
           ref: ${{ inputs.release_tag != '' && inputs.release_tag || github.ref }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: '3.11'
       - name: Read extension version
@@ -111,13 +111,13 @@ jobs:
           mkdir -p out
           npx --yes @anthropic-ai/mcpb pack build/ci-stage "out/${{ steps.ver.outputs.asset }}"
       - name: Upload build artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: ${{ steps.ver.outputs.asset }}
           path: desktop-extension/out/${{ steps.ver.outputs.asset }}
       - name: Attach to release
         if: ${{ github.event_name == 'release' || inputs.release_tag != '' }}
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b  # v3
         with:
           tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
           files: desktop-extension/out/${{ steps.ver.outputs.asset }}
@@ -142,10 +142,10 @@ jobs:
         shell: bash
         working-directory: desktop-extension
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
         with:
           ref: ${{ inputs.release_tag != '' && inputs.release_tag || github.ref }}   # build from the exact tag on backfill
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: '3.11'
       - name: Detect signing secrets
@@ -274,13 +274,13 @@ jobs:
             --key /tmp/AuthKey.p8 --key-id "$KEY_ID" --issuer "$ISSUER" --wait
           rm -f /tmp/AuthKey.p8
       - name: Upload build artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: ${{ steps.ver.outputs.asset }}
           path: desktop-extension/out/${{ steps.ver.outputs.asset }}
       - name: Attach to release (signed + notarized only)
         if: ${{ steps.sign.outputs.enabled == 'true' && (github.event_name == 'release' || inputs.release_tag != '') }}
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b  # v3
         with:
           tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
           files: desktop-extension/out/${{ steps.ver.outputs.asset }}
