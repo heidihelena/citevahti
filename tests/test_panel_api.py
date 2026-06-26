@@ -484,6 +484,9 @@ def test_health_exposes_write_target_for_pre_write_disclosure(tmp_path):
     assert "write_target" in health
     wt = health["write_target"]
     assert {"backend", "available", "zotero_library", "permissions"} <= set(wt)
+    # status reports the running version, so you can confirm a re-uploaded .mcpb is the latest
+    from citevahti import __version__
+    assert health["version"] == __version__
     assert isinstance(wt["available"], bool)
     # no secret key material leaks through the disclosure
     blob = repr(wt).lower()

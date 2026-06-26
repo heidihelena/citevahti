@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.34.2 — README install front-door (which install? + the desktop app)
+## Status: v0.34.3 — status reports the running version (confirm your .mcpb is the latest)
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

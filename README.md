@@ -122,8 +122,14 @@ pip show citevahti          # confirm the new version
 Or in one line: `pip install --no-cache-dir --upgrade "citevahti[mcp]"`.
 
 Your review data in `.citevahti/` is **not** touched by this — updating only replaces the
-program. On Claude Desktop, download the newest extension for your platform and double-click
-it to replace the old one.
+program.
+
+**Claude Desktop (the `.mcpb`):** uploading a new extension can leave the *old* one cached and
+still running. For a clean swap: **remove the existing CiteVahti extension, fully quit and
+reopen Claude Desktop, then add the newest `.mcpb`** for your platform from the
+[latest release](https://github.com/heidihelena/citevahti/releases/latest). To **confirm you're
+on the latest**, ask your assistant to run the **`status`** tool — it now reports the running
+`version` (and the startup log shows `citevahti-mcp v<version>`).
 
 ## The workflow
 
