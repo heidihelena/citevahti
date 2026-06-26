@@ -500,6 +500,12 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         if method == "GET" and path == "/api/triage":
             return 200, engine.triage(root=root).model_dump()
 
+        # user-initiated update check: ONE outbound call to PyPI, made only when this
+        # endpoint is hit (the panel calls it on a button click, never on load), so it
+        # doesn't weaken the local-first/no-silent-egress posture. Read-only, no install.
+        if method == "GET" and path == "/api/check-update":
+            return 200, engine.check_update()
+
         if method == "POST" and path == "/api/report/packet":
             return 200, engine.export_review_packet(root=root)
 
