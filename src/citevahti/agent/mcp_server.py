@@ -118,9 +118,12 @@ def main(argv=None) -> int:
                         help="project root holding .citevahti/ (default: $CITEVAHTI_ROOT or your home folder)")
     args = parser.parse_args(argv)
     root = str(Path(args.root).expanduser().resolve())
-    # stdout is the MCP protocol channel — startup diagnostics go to stderr.
-    print(f"citevahti-mcp: ledger root = {root} ({root}/.citevahti/config.json) — "
-          "run the 'init' tool first if it doesn't exist yet.", file=sys.stderr)
+    from .. import __version__
+    # stdout is the MCP protocol channel — startup diagnostics go to stderr. The version
+    # lets you confirm a re-uploaded .mcpb is the latest build (Claude Desktop caches it).
+    print(f"citevahti-mcp v{__version__}: ledger root = {root} "
+          f"({root}/.citevahti/config.json) — run the 'init' tool first if it doesn't exist yet.",
+          file=sys.stderr)
     build_server(root=root).run()
     return 0
 

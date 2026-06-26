@@ -1,0 +1,8 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "citevahti-panel", "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "PYTHONPATH=/Users/heidiandersen/Zotsynth/src python3 -m citevahti.panel.server --root /tmp/cv-triage-demo --port 8766"],
+      "port": 8766 }
+  ]
+}

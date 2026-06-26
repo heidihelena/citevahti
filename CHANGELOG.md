@@ -4,6 +4,17 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.34.3 — confirm which build is running (2026-06-26)
+
+- **`status` now reports the running `version`** as its first field, and the MCP server
+  prints `citevahti-mcp v<version>` on startup. After (re)installing the `.mcpb` in Claude
+  Desktop you can now check that the latest build is actually live — Claude Desktop can
+  keep the previously-installed extension cached, so an upload alone didn't tell you which
+  version was running.
+- **README — "Updating" gained a Claude Desktop note**: if `status` shows an old version,
+  remove the existing CiteVahti extension, fully quit and reopen Claude Desktop, then add
+  the newest `.mcpb` and re-check `status`.
+
 ## 0.34.2 — README install front-door (2026-06-25)
 
 - **A "Which one?" pointer** at the top of *Start here*: Claude Desktop extension (one click,

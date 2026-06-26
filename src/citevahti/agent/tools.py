@@ -76,11 +76,16 @@ def methods(*, root: Optional[str] = None) -> dict:
 
 
 def status(*, root: Optional[str] = None) -> dict:
+    from .. import __version__
     from ..capabilities import CapabilityStatusService
     from ..probe import HttpxClient
     from ..state import CiteVahtiStore
     rep = CapabilityStatusService(CiteVahtiStore(root or "."), HttpxClient()).report()
-    return {"connections": {c.name: c.status for c in rep.connections},
+    # version first, so you can confirm which build is running after (re)installing the
+    # .mcpb — Claude Desktop caches the old extension; if this isn't the latest, fully
+    # remove the old extension and re-upload, then check again.
+    return {"version": __version__,
+            "connections": {c.name: c.status for c in rep.connections},
             "write_backend": rep.write_backend_kind, "can_write": rep.supported_write_ops,
             "cannot_write": rep.unsupported_write_ops,
             # honest write-target summary so the UI can say what a write will touch
