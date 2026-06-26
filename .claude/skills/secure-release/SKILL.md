@@ -176,11 +176,11 @@ reasoning are in `references/security-checklist.md`. The non-negotiables:
   (tufup `timestamp`/`snapshot`) may live in CI; the trust anchors (`root`/`targets`) stay
   offline even in beta. That single split is the whole reason to use tufup over a one-key
   scheme.
-- **The loopback panel is already hardened** (`Host`/`Origin`/Content-Type checks in
-  `panel/server.py`, guarded by `test_panel_csrf.py`) — localhost is not private (DNS-rebinding,
-  CSRF), and those checks are the defense. Any new mutating endpoint inherits them; don't add a
-  write path that bypasses `do_POST`'s checks. A per-session token is a deliberate non-goal for
-  this single-user threat model. Details in `references/security-checklist.md`.
+- **The loopback panel is hardened** (`Host`/`Origin`/`Content-Type` + a **per-session CSRF
+  token** in `panel/server.py`, guarded by `test_panel_csrf.py`) — localhost is not private
+  (DNS-rebinding, CSRF), and these checks are the defense. Any new mutating endpoint inherits
+  them via `do_POST`; don't add a write path that bypasses them. Details in
+  `references/security-checklist.md`.
 
 ---
 

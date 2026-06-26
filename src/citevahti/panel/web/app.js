@@ -56,8 +56,18 @@ const state = {
 };
 let oTimer = null;   // double-tap "o" (decide phase): single = caution [o], double = accept [oo]
 
+// Per-session CSRF token, fetched once on boot and echoed on every state-changing request.
+// GET reads don't need it; the server requires it on POSTs (see panel/server.py).
+let CSRF = "";
+async function loadSessionToken() {
+  try { CSRF = (await api("GET", "/api/session")).csrf_token || ""; }
+  catch { CSRF = ""; }   // older server without /api/session → POSTs still work there
+}
+
 async function api(method, path, body) {
   const opts = { method, headers: { "Content-Type": "application/json" } };
+  // attach the session token to mutating requests so the server's CSRF check passes
+  if (method !== "GET" && CSRF) opts.headers["X-CiteVahti-Token"] = CSRF;
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
@@ -89,6 +99,7 @@ function citeOf(c) {
 async function boot() {
   applyTheme();
   drawLogos();
+  await loadSessionToken();   // before anything that could POST — mutating requests need the token
   setupDropzone();   // before the first-run early return — dropping your first manuscript is the point
   try { state.ctx = await api("GET", "/api/context"); }
   catch (e) { $("#card").innerHTML = `<div class="err">panel API unreachable: ${esc(e.message)}</div>`; return; }

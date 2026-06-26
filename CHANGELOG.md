@@ -4,6 +4,23 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.37.0 — per-session CSRF token for localhost writes (2026-06-27)
+
+- **The loopback panel now requires a per-session CSRF token on every state-changing request**
+  (`X-CiteVahti-Token`), layered on the existing `Host`/`Origin`/`Content-Type` checks. The
+  token is minted per server process, served to the legitimate page at `GET /api/session`, and
+  compared in constant time. It's a *positive* secret check — robust even if the Origin/Host
+  allow-list parser ever mishandles an adversarial header value — and the client's `api()`
+  helper sends it automatically, so it costs the user nothing. First item on the founder's
+  pre-public-beta security roadmap. (Items #1 Origin/Host validation was already shipped and
+  test-guarded; this completes the localhost-write hardening pair.)
+- Guarded by `tests/test_panel_csrf.py` (now 7 tests: missing-token → 403, wrong-token → 403,
+  valid-token → 200, plus the existing Host/Origin/Content-Type cases). `docs/SAFETY_INVARIANTS.md`
+  records it as a supporting invariant.
+- **Honest limitation:** the token does not stop a non-browser local process running as the
+  user (already past a single-user tool's trust boundary); its value is against browser attacks
+  and parser edge cases.
+
 ## 0.36.0 — "Check for updates" in the panel (2026-06-27)
 
 - **A "⬆ Check for updates" button in the panel's Tools menu** — surfaces 0.35.0's
