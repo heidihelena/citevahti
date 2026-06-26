@@ -161,7 +161,10 @@ CiteVahti is local-first.
 - Zotero writes require preview and confirmation.
 - AI is optional and blinded.
 - Local AI and bring-your-own API key modes are supported.
-- No telemetry.
+- No telemetry. The only outbound calls are the literature services you search (PubMed,
+  OpenAlex, Semantic Scholar, Crossref), your Zotero if you connect it, and — *only when
+  you run `check-update`* — a single request to PyPI to see if a newer release exists (no
+  data about you is sent, and nothing is installed automatically).
 
 ## What AI does
 

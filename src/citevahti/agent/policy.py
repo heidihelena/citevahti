@@ -15,6 +15,7 @@ from __future__ import annotations
 ALLOWED_AGENT_TOOLS = (
     "init",                      # create the project ledger (idempotent); every tool needs it
     "status",                    # read-only capability report
+    "check_update",              # read-only, user-initiated PyPI version check (no install, no user data)
     "triage",                    # read-only risk-first "what needs your attention" list
     "check_paragraph",           # read-only: match a pasted snippet's sentences to vetted claims
     "methods",                   # read-only: submission methods paragraph + PRISMA LLM-discovery disclosure

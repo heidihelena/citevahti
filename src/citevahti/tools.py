@@ -1281,6 +1281,14 @@ def check_paragraph(text: str, *, root: Optional[str] = None):
     return _check(_open_store(root), text or "")
 
 
+def check_update(*, http=None) -> dict:
+    """Ask PyPI whether a newer CiteVahti release is published. Read-only, never installs;
+    user-initiated (no launch-time or timed phone-home). Contacts pypi.org only when
+    called. Returns current/latest/update_available + a plain-language message."""
+    from .update_check import check_update as _check
+    return _check(http=http)
+
+
 def draft_context(*, root: Optional[str] = None) -> dict:
     """Read-only: the researcher's ACCEPTED claims, each with the citekey to cite it by —
     the user's own Better BibTeX key is resolved by cite-export; here we give the stable

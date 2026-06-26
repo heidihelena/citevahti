@@ -175,6 +175,20 @@ def _cmd_doctor(args) -> int:
     return 0
 
 
+def _cmd_check_update(args) -> int:
+    """Check PyPI for a newer release. Read-only, user-initiated, never installs.
+
+    Contacts pypi.org only when you run it (no launch-time or background phone-home), sends
+    no data about you, and just tells you whether a newer CiteVahti is published. Pairs with
+    `doctor`/`status`, which report the version you're RUNNING."""
+    from .update_check import check_update
+    result = check_update()
+    print(result["message"])
+    # exit 0 whether up-to-date or update-available (both normal); only a FAILED check is
+    # non-zero, so a script can tell "couldn't reach PyPI" from "checked successfully".
+    return 0 if result["checked"] else 1
+
+
 def _cmd_run(args) -> int:
     """Guided one command: create the ledger if needed, say what's next, open the panel.
 
@@ -1566,6 +1580,8 @@ def main(argv: list[str] | None = None) -> int:
             ("status", _cmd_status, "machine-readable capability + connection report"),
             ("preflight", _cmd_preflight, "readiness snapshot for tooling (JSON-friendly)"),
             ("doctor", _cmd_doctor, "plain-language readiness check + version + the next thing to do"),
+            ("check-update", _cmd_check_update,
+             "check PyPI for a newer release (read-only, user-initiated; contacts pypi.org, never installs)"),
             ("vocabulary", _cmd_vocabulary, "print the verdicts / states / phases as JSON"),
             ("agent-tools", _cmd_agent_tools, "list the constrained agent tool surface")):
         p = sub.add_parser(name, help=helptext)

@@ -4,6 +4,20 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.35.0 — `check-update`: is a newer release out? (2026-06-26)
+
+- **New `check-update` CLI command + `check_update` agent tool** — ask PyPI whether a newer
+  CiteVahti is published. Read-only, **user-initiated** (no launch-time or background
+  phone-home), sends no data about you, and **never installs** anything; it just reports
+  current vs latest with a plain-language next step. The companion to 0.34.3's running-version
+  readout: `status` says what you're *running*, `check-update` says what's *available* — so
+  together they answer "am I up to date?", the recurring stale-`.mcpb` pain.
+- **Honest egress disclosure** updated in README + `docs/STATUS.md`: the one new outbound call
+  is the opt-in PyPI check. Network goes through the existing `HttpClient` seam, so the test
+  suite stays fully offline (`tests/test_update_check.py`).
+- The desktop-app / panel surfacing of the check is a deliberate follow-up (it involves a
+  UI-egress placement decision) — this release ships the reusable core (engine + CLI + agent).
+
 ## 0.34.3 — confirm which build is running (2026-06-26)
 
 - **`status` now reports the running `version`** as its first field, and the MCP server
