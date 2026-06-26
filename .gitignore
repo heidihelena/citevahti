@@ -22,7 +22,10 @@ manuscript*.md
 # local demo ledger for screenshots (regenerate with docs/demo/build_demo_ledger.py)
 .demo-ledger/
 
-# Claude Code local session config (machine-specific paths)
-.claude/
+# Claude Code local session config (machine-specific paths) — ignore the contents
+# with a glob (not the dir itself) so the version-controlled skills under
+# .claude/skills/ can be re-included as shared, reviewable repo assets.
+.claude/*
+!.claude/skills/
 # stray reference bib belonging to the EpiNet project, not CiteVahti
 epinet-references.bib
