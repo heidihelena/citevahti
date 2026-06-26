@@ -21,3 +21,8 @@ manuscript*.md
 
 # local demo ledger for screenshots (regenerate with docs/demo/build_demo_ledger.py)
 .demo-ledger/
+
+# Claude Code local session config (machine-specific paths)
+.claude/
+# stray reference bib belonging to the EpiNet project, not CiteVahti
+epinet-references.bib
