@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import time
 import uuid
 from html import escape as esc_html
@@ -1116,6 +1117,14 @@ def _undo_edit(root: str, txn_id: str) -> dict:
 # ---- HTTP server ------------------------------------------------------------
 def _handler_factory(root: str):
     box = {"root": root}   # mutable so /api/root can switch ledger without a restart
+    # Per-session CSRF token, minted once per server process and handed to the legitimate
+    # loopback page at GET /api/session. State-changing requests must echo it back in the
+    # X-CiteVahti-Token header. This is a POSITIVE check (must present an unguessable secret)
+    # layered on top of the Origin/Host allow-list: it stays sound even if that allow-list
+    # parser ever mishandles an adversarial header value. A cross-origin page cannot read the
+    # token (the browser blocks reading the cross-origin /api/session response), and a
+    # DNS-rebound request is already 403'd on the Host header before it can fetch it.
+    csrf_token = secrets.token_urlsafe(32)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "CiteVahtiPanel/0.1"
@@ -1224,6 +1233,15 @@ def _handler_factory(root: str):
                 self._send(403, {"error": "forbidden",
                                  "message": "cross-origin request rejected"})
                 return True
+            # Positive CSRF defense: require the per-session token the page was handed at
+            # /api/session (constant-time compare). Robust even if the Origin/Host parser has
+            # an edge case, and it costs the legitimate client nothing — its api() helper sends
+            # the header automatically. A stale token (server restarted) → reload the panel.
+            token = self.headers.get("X-CiteVahti-Token", "")
+            if not secrets.compare_digest(token, csrf_token):
+                self._send(403, {"error": "forbidden",
+                                 "message": "missing or invalid session token — reload the panel"})
+                return True
             ctype = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
             if ctype != "application/json":
                 self._send(415, {"error": "unsupported_media_type",
@@ -1234,10 +1252,17 @@ def _handler_factory(root: str):
         def do_GET(self):
             if self._reject_bad_host():
                 return
+            path = self.path.split("?", 1)[0]
+            # Hand the loopback page its per-session CSRF token. Reaching here means the Host
+            # header already passed the loopback check, and a cross-origin page can't read this
+            # response — so only the legitimate same-origin client obtains the token.
+            if path == "/api/session":
+                self._send(200, {"csrf_token": csrf_token})
+                return
             if self.path.startswith("/oauth/zotero/callback"):
                 self._oauth_callback()
             elif self.path.startswith("/api/"):
-                status, payload = dispatch(box["root"], "GET", self.path.split("?", 1)[0], None)
+                status, payload = dispatch(box["root"], "GET", path, None)
                 self._send(status, payload)
             elif not self._static():
                 self._send(404, {"error": "not_found", "message": self.path})

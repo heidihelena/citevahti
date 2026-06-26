@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.36.0 — Check for updates in the panel (one click, non-silent)
+## Status: v0.37.0 — per-session CSRF token for localhost writes (defense-in-depth)
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

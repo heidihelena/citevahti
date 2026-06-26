@@ -41,6 +41,12 @@ guarantees of the system; a reviewer should treat any violation as a defect.
 - **Tag-mirror discipline**: mirrors only human/final values, refuses AI-only and
   unadjudicated discordant values, and replaces the prior same-scheme tag rather
   than accumulating (`writeback/service.py`).
+- **Loopback panel writes are CSRF-hardened**: `127.0.0.1` is reachable from any web
+  page the user visits, so the panel rejects a non-loopback `Host` (defeats DNS-rebinding),
+  rejects a cross-origin `Origin`, requires `Content-Type: application/json`, and requires a
+  per-session token (`X-CiteVahti-Token`, minted per process, served at `GET /api/session`,
+  constant-time compared) on every state-changing request — the token is a positive secret
+  check robust to a header-parser edge case. Guarded by `test_panel_csrf.py`.
 - **Read-only views never mutate the ledger**: the derived surfaces
   (`claim_report`, `triage`, `methods_statement`, `check_paragraph`) append no audit
   entry and write no file. The agreement numbers behind the methods statement are

@@ -25,6 +25,8 @@ Before changing the panel, re-read that test — it is the security contract:
 - **Cross-origin `Origin` rejection** on POST (`_reject_unsafe_mutation`) → 403. Defeats CSRF.
 - **`Content-Type: application/json` required** on POST → 415 otherwise. Blocks the cross-origin
   "simple request" a browser sends without a CORS preflight (text/plain / form-encoded).
+- **Per-session CSRF token required** on POST (`X-CiteVahti-Token`, constant-time compare) → 403
+  otherwise — see the dedicated note below.
 - Binds `127.0.0.1` explicitly; refuses a non-loopback bind unless `--allow-nonloopback`.
 
 This matters most for the **Zotero-write** and **rating-submit** endpoints — a forged request
@@ -32,10 +34,17 @@ there corrupts the provenance trail, which is the product's whole value. Any new
 endpoint inherits these checks automatically (they run in `do_POST` before dispatch); don't add
 a write path that bypasses them.
 
-**Deliberate non-goal: a per-session auth token.** It would stop a *non-browser local process*
-(malware running as the user) from calling the API — but for a single-user local tool, a
-process running as you is already past the trust boundary, and a token adds real UI fragility
-for little gain. Revisit only if the threat model changes (e.g. multi-user, or a shared host).
+- **Per-session CSRF token** (`X-CiteVahti-Token`) — minted per server process, handed to the
+  legitimate page at `GET /api/session`, required (constant-time compare) on every POST. This
+  is a *positive* secret check, so it stays sound even if the Origin/Host allow-list parser
+  ever mishandles an adversarial header value — defense-in-depth for state-changing requests.
+  Added before public-beta per the founder's security roadmap (item #2). The client's `api()`
+  helper sends it automatically, so it costs the legitimate user nothing.
+
+**Honest limitation:** the token does **not** stop a non-browser local process running as the
+user (it can read `/api/session` like any local process) — but such a process is already past
+the trust boundary of a single-user local tool. The token's value is against *browser* attacks
+(where same-origin policy keeps it secret) and against a future header-parser edge case.
 
 ## 2. MCP / LLM surface
 
