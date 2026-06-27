@@ -4,6 +4,23 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.38.0 — deterministic blinding: one rule, all surfaces (2026-06-27)
+
+- **The blinding rule is now single-source.** Blinding — keeping the AI rating hidden until
+  the human rates — is CiteVahti's core safety property, but the reveal logic was *duplicated*
+  in three places (the loopback panel's `blinded_rating_view`, the agent's `get_provenance`,
+  and the report's `claim_report`). Coincidentally consistent, but a future edit to one could
+  leak the AI value on that surface while the others' tests stayed green. All three now derive
+  blinding from one canonical, pure, **deterministic** function (`rating/blinding.py`:
+  `reveal_ai` / `blinded_ai_value`) — reveal iff a human rating exists, with no dependence on
+  timing, ordering, or randomness. Each surface keeps its own display wording; only the
+  *decision* is centralized, so outputs are byte-for-byte unchanged.
+- New tests lock it: `test_blinding_deterministic.py` (the pure rule — state-based, idempotent,
+  the AI value never affects the reveal decision) and
+  `test_panel_api.py::test_blinding_is_consistent_across_surfaces` (panel == provenance ==
+  report agree, and the AI value leaks from none of them). Both join the `security` group
+  (now 32 tests). `docs/SAFETY_INVARIANTS.md` + `SECURITY.md` record the invariant.
+
 ## 0.37.0 — per-session CSRF token for localhost writes (2026-06-27)
 
 - **The loopback panel now requires a per-session CSRF token on every state-changing request**

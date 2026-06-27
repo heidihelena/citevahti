@@ -60,15 +60,12 @@ def blinded_rating_view(record) -> dict:
     The human may always see their own rating; the AI rating is only revealed once
     the human has committed theirs.
     """
+    from ..rating.blinding import blinded_ai_value
     human = record.human_rating.value if record.human_rating else None
     ai_value = record.ai_rating.value if record.ai_rating else None
     ai_present = record.ai_rating is not None
-    if human is not None:
-        ai_shown = ai_value
-    elif ai_present:
-        ai_shown = "hidden (blinded until human rates)"
-    else:
-        ai_shown = None
+    # the one canonical blinding rule (see rating/blinding.py) — never re-derive it here
+    ai_shown = blinded_ai_value(human, ai_value, hidden="hidden (blinded until human rates)")
     human_fit = (record.human_rating.fit.model_dump()
                  if record.human_rating and record.human_rating.fit else None)
     return {
