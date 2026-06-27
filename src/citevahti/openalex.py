@@ -93,3 +93,34 @@ class OpenAlexClient:
             return bool(resp.json().get("is_retracted"))
         except Exception:  # noqa: BLE001
             return None
+
+    def licensing(self, *, doi: Optional[str] = None,
+                  pmid: Optional[str] = None) -> Optional[dict]:
+        """Reuse rights for a DOI/PMID via OpenAlex: ``{oa_status, is_oa, license}``.
+
+        Reports what OpenAlex knows; never decides reusability. ``None`` if unknown
+        (not found / offline). ``license`` comes from the best open-access location
+        (e.g. ``"cc-by"``); a closed/unknown work has ``license`` ``None``."""
+        ident = f"https://doi.org/{doi}" if doi else (f"pmid:{pmid}" if pmid else None)
+        if not ident:
+            return None
+        from .probe.client import ProbeTransportError
+        try:
+            resp = self._client().get(
+                f"{WORKS_URL}/{ident}",
+                params=self._params({"select": "open_access,best_oa_location"}))
+        except ProbeTransportError:
+            return None
+        if resp.status_code != 200:
+            return None
+        try:
+            w = resp.json()
+        except Exception:  # noqa: BLE001
+            return None
+        oa = w.get("open_access") or {}
+        best = w.get("best_oa_location") or {}
+        return {
+            "oa_status": oa.get("oa_status"),     # gold | green | hybrid | bronze | closed
+            "is_oa": oa.get("is_oa"),
+            "license": best.get("license"),        # e.g. "cc-by"; None when closed/unknown
+        }

@@ -96,6 +96,8 @@ def _candidate_card(c) -> dict:
         "retrieval_query": c.retrieval_query, "why_found": c.why_found,
         "already_in_zotero": c.already_in_zotero, "dedupe_status": c.dedupe_status,
         "abstract": getattr(c, "abstract", None),
+        # reuse rights (from the licence scan) — reported, never a reuse verdict
+        "oa_status": getattr(c, "oa_status", None), "license": getattr(c, "license", None),
     }
 
 
@@ -757,6 +759,11 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
 
         if method == "POST" and path == "/api/candidates/scan-retractions":
             return 200, engine.scan_retractions(root=root)
+
+        # fill candidates' reuse rights (oa_status/license) from OpenAlex — reports,
+        # never decides reusability (one outbound OpenAlex call per DOI/PMID, on click).
+        if method == "POST" and path == "/api/candidates/scan-licenses":
+            return 200, engine.scan_licenses(root=root)
 
         # locate a candidate in the Zotero library so the UI can deep-link its PDF
         if method == "POST" and path == "/api/zotero/locate":

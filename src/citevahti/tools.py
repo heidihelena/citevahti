@@ -372,6 +372,44 @@ def scan_retractions(*, root: Optional[str] = None, http=None, client=None) -> d
     return {"flagged": flagged, "checked": checked}
 
 
+def scan_licenses(*, root: Optional[str] = None, http=None, client=None) -> dict:
+    """Fill each candidate's reuse rights (``oa_status``/``license``) from OpenAlex.
+
+    REPORTS, never DECIDES: it records what the source's licence is so a human (or a
+    downstream tool like a content hub) can judge reuse — CiteVahti never says a source
+    is OK to republish. Unknown/offline leaves the fields unset (never a false 'closed')."""
+    store = _open_store(root)
+    if client is None:
+        from .openalex import OpenAlexClient
+        try:
+            mailto = store.load_config().pubmed.contact_email
+        except Exception:  # noqa: BLE001
+            mailto = None
+        client = OpenAlexClient(http=http, mailto=mailto)
+    filled = checked = 0
+    for cc in _iter_candidate_collections(store, root):
+        changed = False
+        new = []
+        for c in cc.candidates:
+            if c.doi or c.pmid:
+                checked += 1
+                rights = client.licensing(doi=c.doi, pmid=c.pmid)
+                if rights and (rights.get("oa_status") or rights.get("license")):
+                    new.append(c.model_copy(update={
+                        "oa_status": rights.get("oa_status"),
+                        "license": rights.get("license")}))
+                    changed, filled = True, filled + 1
+                    continue
+            new.append(c)
+        if changed:
+            cc.candidates = new
+            store.save_candidates(cc)
+    store.audit.append("license.scan",
+                       {"checked": checked, "filled": filled,
+                        "source": "openalex.open_access"})
+    return {"filled": filled, "checked": checked}
+
+
 def zotero_locate(*, doi: Optional[str] = None, title: Optional[str] = None,
                   pmid: Optional[str] = None, root: Optional[str] = None,
                   endpoints: Optional[Endpoints] = None, zotero=None) -> dict:

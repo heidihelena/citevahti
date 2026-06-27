@@ -1229,6 +1229,13 @@ function candidateTags(cand) {
   }
   if (cand.retracted) t.push(`<span class="tag retracted">⚠ RETRACTED</span>`);
   if (cand.stale_bond) t.push(`<span class="tag stale" title="This paper was assessed against an older wording of the claim — re-check">⚠ claim reworded since</span>`);
+  // reuse rights (licence scan): reported, never a reuse verdict. A CC licence is shown
+  // plainly; a closed work is flagged neutrally; unknown shows nothing.
+  if (cand.license) {
+    t.push(`<span class="tag license" title="Open-access licence reported by OpenAlex — check the source's own terms before reuse">⚖ ${esc(cand.license)}</span>`);
+  } else if (cand.oa_status === "closed") {
+    t.push(`<span class="tag closed" title="OpenAlex reports no open licence — likely all-rights-reserved. Do not reuse without permission.">⚖ closed</span>`);
+  }
   // evidence basis at rate time: be honest about what the judgment can rest on
   if (cand.evidence_basis === "abstract_only") {
     t.push(`<span class="tag abstractonly" title="You're rating against the abstract, not the full text. Confirm against the full text before relying on this citation.">◐ abstract only</span>`);
@@ -1966,6 +1973,9 @@ $("#recheckLib").addEventListener("click", () =>
 $("#scanRetractions").addEventListener("click", () =>
   maintenance("/api/candidates/scan-retractions", "Scan retractions",
               (r) => `Checked ${r.checked || 0} candidate(s); ${r.flagged || 0} flagged as RETRACTED.`));
+$("#scanLicenses").addEventListener("click", () =>
+  maintenance("/api/candidates/scan-licenses", "Scan licences",
+              (r) => `Checked ${r.checked || 0} candidate(s); reuse rights filled for ${r.filled || 0}.`));
 async function citeExport() {
   if (!state.activeMs) { notify("Open a manuscript first."); return; }
   if (!(state.view && state.view.mode === "file")) {

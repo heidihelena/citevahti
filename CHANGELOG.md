@@ -4,6 +4,21 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.42.0 — source reuse rights (`license-scan`) (2026-06-28)
+
+- **Each candidate can now carry its reuse rights** — `oa_status` (gold/green/hybrid/bronze/
+  closed) and `license` (e.g. `cc-by`) — filled from **OpenAlex** (the service CiteVahti already
+  calls for retractions), by DOI/PMID. `citevahti license-scan [--json]`, a panel **⚖ Scan
+  licences** button (`POST /api/candidates/scan-licenses`), and a neutral licence/closed chip on
+  the candidate card; the API now returns the two fields.
+- **Reports, never decides.** It records what the source's licence *is* so a human — or a
+  downstream tool like a content hub — can judge reuse; CiteVahti never says a source is OK to
+  republish. Unknown/offline leaves the fields unset (never a false "closed"/"reusable"). No new
+  egress (OpenAlex was already disclosed). Audited as `license.scan`.
+- 6 offline tests (`test_license_scan.py`): OpenAlex extraction, closed→no-licence, honest
+  unknowns, the scan fills/audits, and unknown stays unset. Verified live end-to-end through the
+  panel.
+
 ## 0.41.0 — tufup auto-updater scaffold for the desktop app (2026-06-27)
 
 - **Signed auto-updates** for the frozen desktop app, built on `tufup` → The Update Framework
