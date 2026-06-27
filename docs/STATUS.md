@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.39.0 — claim-check --json: a stable, machine-readable citation-verifier contract
+## Status: v0.40.0 — claim-verify: offline claim-vs-text check (the no-Zotero integration seam)
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

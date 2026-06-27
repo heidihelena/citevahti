@@ -4,6 +4,20 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.40.0 — `claim-verify`: offline claim-vs-text check (2026-06-27)
+
+- **`citevahti claim-verify --claim "…" --text-file src.txt --json`** — checks a claim against
+  **provided text, fully offline (no Zotero, no ledger)**. The companion to `claim-check` for
+  the integration case where the caller already has the cited source's text (an external
+  citation reviewer typically does). Source text comes from `--text`, `--text-file`, or stdin.
+  Returns the deterministic lexical-overlap result — `coverage`, `status`
+  (`terms_present`/`terms_missing`), present/missing terms, and a `contradiction` + inspectable
+  `polarity_cue` when a sentence carries the claim's terms with the opposite polarity. **Never
+  a verdict.** Exit `0` when the check ran.
+- `docs/INTEGRATION.md` updated: `claim-verify --json` is now the documented offline seam (was
+  previously in-process only). Locked by two `test_cli_json.py` tests (stable shape + the
+  polarity cue is surfaced, not auto-judged).
+
 ## 0.39.0 — `claim-check --json`: a stable citation-verifier contract (2026-06-27)
 
 - **`citevahti claim-check --json`** emits the full `ClaimCheckResult` as JSON on stdout (no
