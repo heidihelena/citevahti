@@ -508,6 +508,7 @@ def test_paste_manuscript_saves_binds_and_returns_chat_prompt(tmp_path):
     assert "my draft.md" in out["next_prompt"]
 
 
+@pytest.mark.security   # argument validation: write path can't escape the manuscripts dir
 def test_paste_manuscript_rejects_path_traversal(tmp_path):
     _setup(tmp_path)
     status, out = dispatch(str(tmp_path), "POST", "/api/manuscripts/paste",

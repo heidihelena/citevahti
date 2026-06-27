@@ -13,10 +13,14 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import pytest
+
 from citevahti import agent
 from citevahti import tools as engine
 from citevahti.demo import build
 from citevahti.panel.server import dispatch
+
+pytestmark = pytest.mark.security   # read-only views never mutate the ledger
 
 # panel.json is UI state, explicitly NOT part of the audited ledger (prefs.py); opening a
 # manuscript records the active one there on purpose. exports/ is the audited write path.

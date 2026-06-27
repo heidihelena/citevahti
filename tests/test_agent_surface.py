@@ -24,6 +24,8 @@ from citevahti.intake import IntakeService, StaticLibraryIndex
 from citevahti.pubmed import ProviderHit, ProviderSearchResult
 from citevahti.state import CiteVahtiStore
 
+pytestmark = pytest.mark.security   # the constrained agent surface (allow-list = capability w/o power)
+
 
 class _Provider:
     name = "pubmed"

@@ -15,6 +15,8 @@ from citevahti.tools import run_manuscript_tests
 from citevahti.writeback import FakeWriteBackend, TransactionService
 from citevahti.writeback.transaction import TransactionError
 
+pytestmark = pytest.mark.security   # P0: decision-file tamper must be caught everywhere
+
 
 def _tamper(root, *, both_fields):
     """Flip the demo's rejected decision to 'accept' on disk; returns (claim_id, decision_id)."""
