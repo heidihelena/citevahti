@@ -13,6 +13,8 @@ from .policy import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, assert_sa
 
 # The complete agent tool registry (name -> callable). MCP/function-calling
 # servers build directly from this; nothing outside it is reachable by an agent.
+# Output contract: every tool returns a structured JSON `dict` — never free text —
+# so clients can parse results reliably (locked by tests/test_structured_outputs.py).
 TOOLS = {
     "init": tools.init,                  # create the ledger — every other tool needs it first
     "status": tools.status,
