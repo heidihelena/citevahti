@@ -1336,6 +1336,19 @@ def _cmd_assess(args) -> int:
     return rc
 
 
+def _cmd_license_scan(args) -> int:
+    """Fill candidates' reuse rights (oa_status/license) from OpenAlex. Reports, never
+    decides — contacts OpenAlex (api.openalex.org) for each DOI/PMID."""
+    from . import tools
+    rep = tools.scan_licenses(root=args.root)
+    if getattr(args, "json", False):
+        import json as _json
+        print(_json.dumps(rep, ensure_ascii=False))
+    else:
+        print(f"checked: {rep['checked']}  ·  filled: {rep['filled']}")
+    return 0
+
+
 def _cmd_retraction_scan(args) -> int:
     from . import tools
     selection = {"citekeys": args.citekey, "dois": args.doi, "pmids": args.pmid}
@@ -2047,6 +2060,12 @@ def main(argv: list[str] | None = None) -> int:
     rsc.add_argument("--pmid", action="append", default=[])
     rsc.add_argument("--mark-stale", action="store_true")
     rsc.set_defaults(func=_cmd_retraction_scan)
+
+    lsc = sub.add_parser("license-scan",
+                         help="fill each candidate's reuse rights (oa_status/license) from "
+                              "OpenAlex — reports, never decides reusability")
+    lsc.add_argument("--json", action="store_true", help="emit the result counts as JSON")
+    lsc.set_defaults(func=_cmd_license_scan)
 
     pl = sub.add_parser("prisma-ledger", help="human-only PRISMA flow accounting")
     pl.add_argument("--question-id", required=True)

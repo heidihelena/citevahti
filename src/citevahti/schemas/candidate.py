@@ -34,6 +34,11 @@ class ClaimPaperCandidate(BaseModel):
     already_in_zotero: Optional[bool] = None
     dedupe_status: Optional[str] = None
     retracted: Optional[bool] = None          # set by the retraction scan (OpenAlex is_retracted)
+    # reuse rights — set by the licence scan (OpenAlex open_access). REPORTS, never DECIDES:
+    # these describe the source's licensing so a human/tool can judge reuse; CiteVahti
+    # never says "you may republish". None = unknown (not scanned, or not found).
+    oa_status: Optional[str] = None           # gold | green | hybrid | bronze | closed | None
+    license: Optional[str] = None             # e.g. "cc-by", "cc-by-nc-nd"; None = unknown/closed
     # paper metadata snapshot (canonical papers table comes later)
     pmid: Optional[str] = None
     doi: Optional[str] = None

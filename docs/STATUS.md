@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.41.0 — tufup auto-updater scaffold for the desktop app (inert until keys exist)
+## Status: v0.42.0 — source reuse rights (license-scan): reports a source's OA/licence, never decides reusability
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
