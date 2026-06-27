@@ -24,6 +24,8 @@ import pytest
 from citevahti.panel import make_server
 from citevahti.state import CiteVahtiStore
 
+pytestmark = pytest.mark.security   # loopback CSRF / cross-origin / token hardening
+
 
 @pytest.fixture
 def panel(tmp_path):

@@ -63,3 +63,9 @@ include = ["/src/citevahti", "/README.md", "/LICENSE", "/NOTICE", "/CHANGELOG.md
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
+# Security-control regression group. Run just these with `pytest -m security`.
+# These guard the local trust boundary (loopback CSRF, constrained agent surface,
+# decision-tamper integrity, read-only-views-never-mutate). See docs/SECURITY.md.
+markers = [
+  "security: security-control regression tests for the local trust boundary",
+]

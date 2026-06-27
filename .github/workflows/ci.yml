@@ -29,6 +29,8 @@ jobs:
           pip install -e ".[dev,mcp,keyring,timestamp,docx]"
       - name: Run the offline test suite
         run: python -m pytest -q
+      - name: Security-control regression suite (local trust boundary)
+        run: python -m pytest -m security   # loopback CSRF, agent surface, tamper/integrity — see SECURITY.md
       - name: Probe + audit-chain smoke (no writes, no network)
         run: |
           python -m citevahti.cli --root "$RUNNER_TEMP/cv-smoke" init

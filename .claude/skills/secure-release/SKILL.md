@@ -87,8 +87,13 @@ AI rater, so a green run proves no accidental live call crept in.
 
 ```bash
 python -m pytest -q                      # full offline suite — must be green
+python -m pytest -m security -q          # the security-control regression group (see SECURITY.md)
 cd vscode-extension && npm run compile   # the VS Code adapter must compile
 ```
+
+If your change touches a security control (loopback panel, agent surface, decision/audit
+integrity, a write path), it belongs in the `security` group — mark its test
+`@pytest.mark.security` and add a row to the table in `SECURITY.md`.
 
 When building distributable artifacts, **verify the artifact contains what it claims** —
 silent omission is the classic packaging bug:
