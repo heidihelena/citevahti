@@ -38,6 +38,22 @@ def _icon_path() -> Optional[str]:
     return str(p) if p.is_file() else None
 
 
+def _announce_update() -> None:
+    """On launch, check for a signed update and surface it — without blocking or auto-
+    applying. Inert (a no-op) until the auto-updater is configured (keys generated +
+    update server set), so it never affects a normal launch. The prompted download/apply
+    UX is a follow-up; for now an available update is logged for the user to act on."""
+    try:
+        from .autoupdate import check_for_update
+
+        outcome = check_for_update()
+        if outcome.update_available:
+            print(f"A newer CiteVahti is available ({outcome.version}). "
+                  "Use 'Check for updates' to install it.")
+    except Exception:  # pragma: no cover — the updater must never break a launch
+        pass
+
+
 def run_app(root: Optional[str] = None, *, host: str = "127.0.0.1", port: int = 0,
             webview=None) -> int:
     """Open the panel in a native OS webview window; blocks until it closes.
@@ -46,6 +62,7 @@ def run_app(root: Optional[str] = None, *, host: str = "127.0.0.1", port: int = 
     then hands the URL to the native webview. ``webview`` is injectable for tests; in
     production it is the pywebview module. Returns a process exit code.
     """
+    _announce_update()
     root = root or default_root()
     res = launch_panel(root, port=port, host=host, open_browser=False)
     if res["status"] == "refused_non_loopback":

@@ -171,9 +171,10 @@ reasoning are in `references/security-checklist.md`. The non-negotiables:
   the OS keychain (the `keyring` extra), or GitHub Secrets — never committed, never echoed.
   GitHub Secrets are safe across the planned history rewrite *because they're not in git* —
   keep it that way; never let a keystore or `.env` get committed during the transition.
-- **Pin GitHub Actions to a full commit SHA**, not a floating tag. The workflows currently use
-  `@v7` / `@release/v1` — a compromised third-party action is the most common way CI secrets
-  (your signing keys, once added) leak. Pin them before adding any signing secret to CI.
+- **GitHub Actions are pinned to full commit SHAs** (done in #163; Dependabot keeps them
+  current) — a compromised third-party action is the most common way CI secrets (your signing
+  keys, once added) leak. Keep any *new* workflow step pinned too, especially before a signing
+  secret lands in CI; never reintroduce a floating tag (`@v7` / `@release/v1`).
 - **Keep CI least-privilege.** `permissions: contents: read` by default; grant `id-token:
   write` only on the publish job (already the case). Gate any job that holds a signing key
   behind a GitHub Environment with required reviewers, the same way `pypi` is gated.

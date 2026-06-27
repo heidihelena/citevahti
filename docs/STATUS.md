@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.40.0 — claim-verify: offline claim-vs-text check (the no-Zotero integration seam)
+## Status: v0.41.0 — tufup auto-updater scaffold for the desktop app (inert until keys exist)
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
@@ -44,7 +44,10 @@ was an earlier, narrower scope.) The one other outbound call is **opt-in and use
 running `check-update`, clicking the panel's **Check for updates** button, or calling the
 `check_update` agent tool makes a single request to the public PyPI API to see whether a newer
 release exists — it sends no data about you and never installs anything; pair it with
-`status`, which reports the version you're *running*.
+`status`, which reports the version you're *running*. The signed-update channel for the
+desktop app (`docs/AUTO_UPDATE.md`) is the same shape: it contacts the configured update
+server **only on the frozen app, only when auto-update is configured** (off by default), sends
+no data about you, and never applies an update without your say-so.
 
 ## Positioning
 
