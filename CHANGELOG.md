@@ -4,6 +4,21 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.39.0 — `claim-check --json`: a stable citation-verifier contract (2026-06-27)
+
+- **`citevahti claim-check --json`** emits the full `ClaimCheckResult` as JSON on stdout (no
+  human lines), so another tool can use CiteVahti as a citation-verification backend without
+  scraping text. The schema is the stable contract: the 4-state `aggregate_status`
+  (`supported_candidate` / `contradiction_candidate` / `no_support_found` / `unverifiable` —
+  **never a binary pass/fail**), per-citekey detail, and provenance. Exit code is `0` unless
+  the result is `unverifiable`.
+- **New `docs/INTEGRATION.md`** documents the verifier seams (the `--json` CLI, the in-process
+  `claim_lexical_check` / `claim_check` engine functions, the MCP `verify_claims` tool), the
+  "never asserts truth" semantics to preserve, the recommended mock-first adapter pattern
+  (`CITATION_VERIFIER=local|citevahti`, pin the version), and what *not* to integrate against
+  (the loopback panel; FullVahti).
+- Contract locked by `test_cli_json.py::test_claim_check_json_is_a_stable_verifier_contract`.
+
 ## 0.38.0 — deterministic blinding: one rule, all surfaces (2026-06-27)
 
 - **The blinding rule is now single-source.** Blinding — keeping the AI rating hidden until

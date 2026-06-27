@@ -18,6 +18,28 @@ def _out(capsys):
     return json.loads(capsys.readouterr().out)
 
 
+_CLAIM_STATES = {"supported_candidate", "contradiction_candidate",
+                 "no_support_found", "unverifiable"}
+
+
+def test_claim_check_json_is_a_stable_verifier_contract(tmp_path, capsys):
+    """`claim-check --json` is the machine-readable contract an external citation reviewer
+    (e.g. forskai's CITATION_VERIFIER=citevahti adapter) parses. Offline there's no Zotero
+    text, so the honest result is `unverifiable` — but the SHAPE must be stable: the 4-state
+    status (never a truth/'valid' verdict), per-citekey detail, and provenance."""
+    _store(tmp_path)
+    main(["--root", str(tmp_path), "claim-check",
+          "--claim", "Aspirin reduces cardiovascular events.",
+          "--citekey", "smith2020", "--json"])
+    res = _out(capsys)
+    assert set(res) >= {"claim_text", "aggregate_status", "per_citekey", "warnings", "provenance"}
+    assert res["aggregate_status"] in _CLAIM_STATES        # never a binary pass/fail
+    pc = res["per_citekey"][0]
+    assert pc["citekey"] == "smith2020"
+    assert pc["status"] in _CLAIM_STATES
+    assert res["provenance"]["tool"] == "claim_check"      # callers can audit what produced it
+
+
 def test_claim_add_json_roundtrip(tmp_path, capsys):
     _store(tmp_path)
     main(["--root", str(tmp_path), "claim-add", "--text", "LDCT reduces mortality.",
