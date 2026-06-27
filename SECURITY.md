@@ -34,6 +34,7 @@ regression group — run it alone with `pytest -m security`:
 | Loopback panel: reject non-loopback `Host` | DNS-rebinding | `test_panel_csrf.py` |
 | Loopback panel: reject cross-origin `Origin`, require `application/json` | CSRF / cross-origin simple-request POST | `test_panel_csrf.py` |
 | Loopback panel: per-session CSRF token (`X-CiteVahti-Token`) | forged writes; a header-parser edge case | `test_panel_csrf.py` |
+| Deterministic blinding — one rule (`rating/blinding.py`), all surfaces agree | a blinding leak (AI value visible before the human rates) | `test_blinding_deterministic.py`, `test_panel_api.py::test_blinding_is_consistent_across_surfaces` |
 | Write path: filename sanitised (`_safe_md_name`) | path traversal out of the manuscripts dir | `test_panel_api.py::test_paste_manuscript_rejects_path_traversal` |
 | Constrained agent surface (allow-list + `assert_safe_surface`) | a tool reaching beyond its sanctioned power | `test_agent_surface.py` |
 | Decision-file tamper detection | a hand-edited `accept` slipping past the audit | `test_decision_tamper_integrity.py` |

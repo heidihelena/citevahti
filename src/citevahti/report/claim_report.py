@@ -93,8 +93,10 @@ class ClaimReportService:
             human = rating.human_rating if (rating and rating.human_rating) else None
             human_v = human.value if human else None
             ai_raw = rating.ai_rating.value if (rating and rating.ai_rating) else None
-            # blinded for the human card: the AI value is hidden until the human rates
-            ai_blinded = ai_raw if human_v is not None else ("hidden" if ai_raw is not None else None)
+            # blinded for the human card via the one canonical rule (rating/blinding.py):
+            # the AI value is hidden until the human rates — never re-derive it here
+            from ..rating.blinding import blinded_ai_value
+            ai_blinded = blinded_ai_value(human_v, ai_raw, hidden="hidden")
             support = (dec.final_support_status if dec else None) or human_v
             # PICO fit + excerpt come ONLY from the human rating (never the blinded
             # AI), and only once committed — so the card can't leak the AI view.

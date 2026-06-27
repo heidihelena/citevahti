@@ -26,6 +26,7 @@ from citevahti.claims import (
     ClaimSupportEngine,
     DecisionService,
 )
+from citevahti.claims.support import select_support_rating
 from citevahti.intake import IntakeService, StaticLibraryIndex
 from citevahti.panel import blinded_rating_view, dispatch, make_server
 from citevahti.probe.client import HttpResponse
@@ -113,6 +114,7 @@ def test_rating_read_hides_ai_until_human_rates(tmp_path):
     assert after["comparison_status"] == "discordant"
 
 
+@pytest.mark.security   # AI value must not surface until the human rates
 def test_blinded_rating_view_unit_rule(tmp_path):
     store, claim_id, cand_id = _setup(tmp_path)
     eng = ClaimSupportEngine(store)
@@ -123,7 +125,44 @@ def test_blinded_rating_view_unit_rule(tmp_path):
     assert blinded_rating_view(rec)["ai"] == "contradicts"
 
 
+@pytest.mark.security   # blinding is one rule (rating/blinding.py); surfaces must not drift
+def test_blinding_is_consistent_across_surfaces(tmp_path):
+    """The panel view, the agent's provenance, and the report all derive blinding from the
+    one canonical rule — so for a single ledger state they must AGREE, and the AI value must
+    leak from none of them. This catches a future edit that blinds one surface but not another."""
+    store, claim_id, cand_id = _setup(tmp_path)
+    root = str(tmp_path)
+    eng = ClaimSupportEngine(store)
+    rec = eng.support_start(claim_id, cand_id)
+    eng.submit_ai_rating(rec.rating_id, "does_not_support")     # AI in, human has NOT rated
+    eng.support_compare(rec.rating_id)
+    dec = DecisionService(store).decide(claim_id, cand_id, "needs_second_review",
+                                        "raters not both in", rating_id=rec.rating_id)
+
+    def surfaces():
+        panel = blinded_rating_view(select_support_rating(store, claim_id, cand_id))["ai"]
+        prov = dispatch(root, "GET", f"/api/decisions/{dec.decision_id}/provenance", None)[1]
+        prov_ai = prov["support"]["ai"]
+        rep = engine.claim_report(claim_ids=[claim_id], root=root)
+        rep_ai = next(ev.ai_support for r in rep.rows for ev in r.evidence
+                      if ev.candidate_id == cand_id)
+        return panel, prov_ai, rep_ai, json.dumps([panel, prov, rep.model_dump()])
+
+    # blinded state: all three say hidden, and the real AI value appears nowhere
+    panel, prov_ai, rep_ai, blob = surfaces()
+    assert panel == "hidden (blinded until human rates)"
+    assert prov_ai == "hidden (blinded until human rates)"
+    assert rep_ai == "hidden"
+    assert "does_not_support" not in blob          # no surface leaks the value
+
+    # human rates -> all three reveal the same AI value
+    eng.support_commit_human(rec.rating_id, "directly_supports")
+    panel, prov_ai, rep_ai, _ = surfaces()
+    assert panel == prov_ai == rep_ai == "does_not_support"
+
+
 # ---- provenance endpoint respects blinding ---------------------------------
+@pytest.mark.security   # the agent provenance surface must blind too
 def test_provenance_endpoint_blinds_until_human_rated(tmp_path):
     store, claim_id, cand_id = _setup(tmp_path)
     root = str(tmp_path)

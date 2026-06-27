@@ -271,10 +271,11 @@ def get_provenance(decision_id: str, *, root: Optional[str] = None) -> dict:
     # report use, so provenance never explains a stale or blank duplicate rating.
     from ..claims.support import select_support_rating
     rating = select_support_rating(store, dec.claim_id, dec.candidate_id)
+    from ..rating.blinding import blinded_ai_value
     human_v = rating.human_rating.value if (rating and rating.human_rating) else None
     ai_v = (rating.ai_rating.value if (rating and rating.ai_rating) else None)
-    ai_shown = ai_v if human_v is not None else ("hidden (blinded until human rates)"
-                                                 if ai_v is not None else None)
+    # the one canonical blinding rule (see rating/blinding.py) — never re-derive it here
+    ai_shown = blinded_ai_value(human_v, ai_v, hidden="hidden (blinded until human rates)")
     txn_id = None
     for tid in store.list_transactions():
         t = store.load_transaction(tid)

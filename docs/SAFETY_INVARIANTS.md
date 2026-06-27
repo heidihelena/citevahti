@@ -41,6 +41,12 @@ guarantees of the system; a reviewer should treat any violation as a defect.
 - **Tag-mirror discipline**: mirrors only human/final values, refuses AI-only and
   unadjudicated discordant values, and replaces the prior same-scheme tag rather
   than accumulating (`writeback/service.py`).
+- **Blinding is one deterministic rule**: the decision to reveal the AI rating is a single
+  pure function of state — reveal iff a human rating exists (`rating/blinding.py`,
+  `blinded_ai_value`/`reveal_ai`) — with no dependence on timing, ordering, or randomness.
+  Every surface (the loopback panel, the agent's `get_provenance`, and the report) derives
+  blinding through that one function, so they cannot drift apart and leak on one surface only.
+  Guarded by `test_blinding_deterministic.py` + `test_blinding_is_consistent_across_surfaces`.
 - **Loopback panel writes are CSRF-hardened**: `127.0.0.1` is reachable from any web
   page the user visits, so the panel rejects a non-loopback `Host` (defeats DNS-rebinding),
   rejects a cross-origin `Origin`, requires `Content-Type: application/json`, and requires a
