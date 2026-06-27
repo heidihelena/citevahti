@@ -58,23 +58,42 @@ Note: this path resolves citekeys against a **Zotero** library for the source te
 callers that share the user's Zotero. For a caller that already *has* the source text and just
 wants a claim-vs-text check, see the in-process primitive below.
 
-### 2. In-process (Python) — the engine functions
+### 2. CLI — `claim-verify --json` (offline; the seam when you already have the source text)
+
+```bash
+citevahti claim-verify --claim "Aspirin reduces cardiovascular events" \
+                       --text-file source.txt --json
+# or inline:  --text "…"      or piped:  cat source.txt | citevahti claim-verify --claim "…" --json
+```
+
+The most decoupled seam for an external reviewer: claim vs a text blob, **fully offline — no
+Zotero, no ledger**. Deterministic lexical overlap; **never a verdict**. Stable JSON shape:
+
+```jsonc
+{
+  "available": true,
+  "coverage": 0.75,                 // 0..1 share of the claim's content terms present in the text
+  "status": "terms_present",        // "terms_present" (coverage ≥ 0.5) | "terms_missing"
+  "present": ["aspirin", "cardiovascular", "events"],
+  "missing": ["reduces"],
+  "contradiction": false,           // true = a sentence has the terms but the OPPOSITE polarity
+  "polarity_cue": null,             // the negation word that flipped it, if any (inspectable)
+  "opposing_quote": null
+}
+```
+
+`{"available": false}` when the text is empty or the claim has no content terms. Exit `0` when
+the check ran (`terms_present`/`terms_missing` are both valid), non-zero only if it couldn't.
+
+### 3. In-process (Python) — the engine functions
 
 ```python
 from citevahti import tools
-
-# claim vs a specific text blob — fully offline, no Zotero, no ledger:
-result = tools.claim_lexical_check(claim_text, source_text)   # -> dict
-
-# claim vs citekeys resolved through Zotero:
-result = tools.claim_check(claim_text, citekeys=["smith2020"])  # -> ClaimCheckResult
+result = tools.claim_lexical_check(claim_text, source_text)   # -> dict (same shape as claim-verify)
+result = tools.claim_check(claim_text, citekeys=["smith2020"])  # -> ClaimCheckResult (Zotero-backed)
 ```
 
-`claim_lexical_check(claim, text)` is the most decoupled primitive for an external safety
-reviewer — give it the claim and the cited source's text, get back the structured verdict.
-(A `--json` CLI for this offline one-shot can be added on request; it isn't exposed yet.)
-
-### 3. MCP — `verify_claims`
+### 4. MCP — `verify_claims`
 
 The `citevahti-mcp` server exposes `verify_claims`, a read-only **4-state report over a whole
 `.citevahti` ledger**. Use this only if you're already orchestrating via MCP and operating on
@@ -98,6 +117,6 @@ Define a verifier seam in your code and keep CiteVahti behind an adapter — exa
 - **FullVahti** is the planned Zotero plugin for fetching open-access PDFs and writing citekeys
   back — it is **not** a verification surface. Verification lives in the claim-check engine.
 
-If you need a frozen, versioned verifier contract (a guaranteed-stable `claim-check --json`
-schema, or an offline `claim_lexical_check --json` CLI), open an issue — that seam can be
-committed to and held stable across releases.
+The `claim-check --json` and `claim-verify --json` schemas are the intended integration
+surfaces. If you need them *frozen and versioned* (a guarantee they won't change across
+releases), open an issue — they can be committed to and held stable behind a schema version.

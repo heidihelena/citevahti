@@ -425,6 +425,35 @@ def _cmd_claim_check(args) -> int:
     return 0 if res.aggregate_status != "unverifiable" else 1
 
 
+def _cmd_claim_verify(args) -> int:
+    """Check a claim against PROVIDED text — offline, no Zotero. The companion to
+    claim-check for callers that already have the cited source's text (e.g. an external
+    citation reviewer). Deterministic lexical overlap; never a verdict — see
+    docs/INTEGRATION.md."""
+    from . import tools
+
+    if args.text is not None:
+        text = args.text
+    elif args.text_file:
+        text = Path(args.text_file).expanduser().read_text(encoding="utf-8")
+    else:
+        text = sys.stdin.read()   # piped: `… | citevahti claim-verify --claim "…"`
+    res = tools.claim_lexical_check(args.claim, text)
+    if getattr(args, "json", False):
+        import json as _json
+        print(_json.dumps(res, ensure_ascii=False, indent=2, default=str))
+    elif not res.get("available"):
+        print("unavailable: empty text or no content terms in the claim")
+    else:
+        print(f"status: {res['status']}  (coverage {res['coverage']})"
+              + ("  ⚠ may contradict" if res.get("contradiction") else ""))
+        if res.get("missing"):
+            print(f"  missing terms: {', '.join(res['missing'])}")
+    # exit 0 when we could check (terms_present/terms_missing are both valid results);
+    # non-zero only when the check couldn't run at all.
+    return 0 if res.get("available") else 1
+
+
 def _cmd_claim_add(args) -> int:
     from . import tools
     claim = tools.add_claim(
@@ -1661,6 +1690,17 @@ def main(argv: list[str] | None = None) -> int:
                          "machine-readable contract for callers integrating CiteVahti as a "
                          "citation verifier (see docs/INTEGRATION.md)")
     cc.set_defaults(func=_cmd_claim_check)
+
+    cv = sub.add_parser("claim-verify",
+                        help="check a claim against PROVIDED text — offline, no Zotero "
+                             "(the integration seam for callers that have the source text)")
+    cv.add_argument("--claim", required=True)
+    cv.add_argument("--text", default=None, help="the source text inline")
+    cv.add_argument("--text-file", default=None, help="read the source text from a file")
+    cv.add_argument("--json", action="store_true",
+                    help="emit the structured result as JSON (see docs/INTEGRATION.md). "
+                         "With neither --text nor --text-file, the text is read from stdin.")
+    cv.set_defaults(func=_cmd_claim_verify)
 
     from .schemas.claim import CLAIM_TYPES, EXTRACTED_BY
     cla = sub.add_parser("claim-add", help="record a first-class manuscript claim (ADR-0001)")

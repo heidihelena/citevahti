@@ -40,6 +40,28 @@ def test_claim_check_json_is_a_stable_verifier_contract(tmp_path, capsys):
     assert res["provenance"]["tool"] == "claim_check"      # callers can audit what produced it
 
 
+def test_claim_verify_offline_text_is_a_stable_contract(tmp_path, capsys):
+    """`claim-verify` checks a claim against PROVIDED text — offline, no Zotero — the seam an
+    external reviewer that already has the source text uses. Stable JSON; never a verdict."""
+    main(["claim-verify", "--claim", "Aspirin reduces cardiovascular events",
+          "--text", "In the randomized trial, aspirin reduced cardiovascular events.", "--json"])
+    res = _out(capsys)
+    assert res["available"] is True
+    assert res["status"] in {"terms_present", "terms_missing"}
+    assert "aspirin" in res["present"]
+    assert res["contradiction"] is False
+
+
+def test_claim_verify_flags_polarity_conflict_not_a_verdict(tmp_path, capsys):
+    """A sentence with the claim's terms but the opposite polarity surfaces as an inspectable
+    'may contradict' cue — never auto-judged true or false."""
+    main(["claim-verify", "--claim", "Aspirin reduces cardiovascular events",
+          "--text", "Aspirin did not reduce cardiovascular events in this cohort.", "--json"])
+    res = _out(capsys)
+    assert res["contradiction"] is True
+    assert res["polarity_cue"]            # the negation word is inspectable, not hidden
+
+
 def test_claim_add_json_roundtrip(tmp_path, capsys):
     _store(tmp_path)
     main(["--root", str(tmp_path), "claim-add", "--text", "LDCT reduces mortality.",
