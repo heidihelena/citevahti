@@ -4,6 +4,28 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## 0.41.0 — tufup auto-updater scaffold for the desktop app (2026-06-27)
+
+- **Signed auto-updates** for the frozen desktop app, built on `tufup` → The Update Framework
+  (`src/citevahti/autoupdate/`, the `update` extra). Updates are signed metadata + hashes, so a
+  client accepts a new version only if it was signed by CiteVahti's offline keys — integrity even
+  if the update server is compromised. The maintainer flow (`maintainer.py`) keeps the `root`/
+  `targets` trust-anchor keys **offline** (the TUF key split); the client (`client.py`) checks and
+  applies, degrading to a clear status on any error.
+- **Inert and safe until configured.** With no update URL and no bundled trusted root (the state
+  until the founder generates keys + stands up the server), every entry point is a no-op — it
+  never touches the network or affects a launch. Nothing is auto-applied silently: `check_for_update`
+  is read-only; `apply_update` is the post-consent step. The desktop app surfaces an available
+  update at launch (logged) without blocking.
+- **`docs/AUTO_UPDATE.md`** documents the security model (the key split, why `root`/`targets` stay
+  offline), the one-time key generation, the per-release sign-and-publish flow, and a
+  key-management runbook (custody, rotation, compromise). 11 offline tests (inert path, graceful
+  degradation, maintainer wiring, the launch hook never breaks a launch) — no tufup or network
+  needed in CI. STATUS egress disclosure updated.
+- **Founder-gated next steps** (flagged, not silently assumed): generating the offline keys,
+  standing up the update server, and the Apple/Windows *code-signing* of the bundle (a separate
+  signature from tufup's metadata signing) — see the secure-release skill.
+
 ## 0.40.0 — `claim-verify`: offline claim-vs-text check (2026-06-27)
 
 - **`citevahti claim-verify --claim "…" --text-file src.txt --json`** — checks a claim against
