@@ -404,6 +404,13 @@ def _cmd_claim_check(args) -> int:
     lib = _parse_library(args.library)
     res = tools.claim_check(args.claim, args.citekey or [], require_page=args.require_page,
                             library=lib)
+    if getattr(args, "json", False):
+        # stable machine-readable contract: the full ClaimCheckResult schema. Emits ONLY
+        # JSON (no human lines) so a caller can parse stdout directly. Exit code still
+        # distinguishes a usable result from "unverifiable".
+        import json as _json
+        print(_json.dumps(res.model_dump(), ensure_ascii=False, indent=2, default=str))
+        return 0 if res.aggregate_status != "unverifiable" else 1
     print(f"aggregate: {res.aggregate_status}")
     for pc in res.per_citekey:
         line = f"  {pc.citekey}: {pc.status}"
@@ -1649,6 +1656,10 @@ def main(argv: list[str] | None = None) -> int:
     cc.add_argument("--require-page", action="store_true")
     cc.add_argument("--library", default="personal", help="personal | group:<id> | all")
     cc.add_argument("--show-quotes", action="store_true")
+    cc.add_argument("--json", action="store_true",
+                    help="emit the structured ClaimCheckResult as JSON — a stable, "
+                         "machine-readable contract for callers integrating CiteVahti as a "
+                         "citation verifier (see docs/INTEGRATION.md)")
     cc.set_defaults(func=_cmd_claim_check)
 
     from .schemas.claim import CLAIM_TYPES, EXTRACTED_BY
