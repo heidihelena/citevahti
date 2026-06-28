@@ -28,6 +28,13 @@ previous one.
   deliberately with the rating/writeback tests per `docs/SAFETY_INVARIANTS.md`.
 
 ### Fixed
+- **Library dedupe missed DOIs in non-canonical form.** `ZoteroLibraryIndex.contains`
+  searched Zotero with the *raw* DOI while comparing against the *normalized* one, so a
+  manuscript DOI written `https://doi.org/10.1/ABC` could fail to match a library item stored
+  as `10.1/abc` — reporting a duplicate as absent. Now searches with the normalized DOI
+  (matching the comparison and the PMID branch). New regression test
+  (`test_dedupe_zotero_index.py`) pins the search-uses-normalized-DOI contract; this also
+  brought `intake/dedupe.py` off the `mypy` backlog (10 modules remain).
 - **Type ratchet — `pubmed/provider.py` (now type-checked).** Corrected `_esearch`'s return
   annotation, which declared `list[str]` but always returned an `_EsearchResult` (the code
   already used it as one — the annotation lied; no runtime change), and made the esearch

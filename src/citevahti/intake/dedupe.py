@@ -86,7 +86,10 @@ class ZoteroLibraryIndex:
             return None
         nd = normalize_doi(doi)
         if nd:
-            items = self._items(doi)
+            # Search with the NORMALIZED doi (matching the comparison below and the
+            # PMID branch). Searching the raw form — e.g. "https://doi.org/10.1/ABC"
+            # — can miss a library item stored canonically as "10.1/abc".
+            items = self._items(nd)
             if items is None:
                 return None
             for it in items:
