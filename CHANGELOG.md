@@ -7,6 +7,11 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Dependency-CVE scanning in CI (`pip-audit`).** A new `pip-audit` workflow installs CiteVahti
+  + its runtime extras and audits the resolved dependency tree against the PyPI Advisory DB + OSV
+  on every push/PR and weekly. Complements CodeQL (our code) and ruff `S` (our patterns) with
+  third-party CVE coverage. SHA-pinned, least-privilege. (OSV-Scanner remains a complementary
+  follow-up — it becomes precise once a committed lockfile lands.)
 - **CodeQL SAST in CI.** A new `CodeQL` workflow runs GitHub's security queries over the Python
   source on every push/PR and weekly, uploading results (SARIF) to the Security tab. It does
   deeper dataflow/taint analysis than line-level linting, complementing the ruff `S` (bandit)
