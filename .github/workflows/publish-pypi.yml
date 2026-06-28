@@ -40,3 +40,28 @@ jobs:
           PY
       - name: Publish to PyPI (Trusted Publishing)
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
+
+  sbom:
+    name: SBOM (CycloneDX) → release asset
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # attach the SBOM to the GitHub Release (no id-token here)
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+      - name: Generate a CycloneDX SBOM of the shipped dependency set
+        run: |
+          python -m pip install --upgrade pip cyclonedx-bom
+          # Install the package into a clean venv, then snapshot exactly that env —
+          # so the SBOM reflects `pip install citevahti`, not the build tooling.
+          python -m venv /tmp/sbomenv
+          /tmp/sbomenv/bin/pip install .
+          cyclonedx-py environment /tmp/sbomenv/bin/python \
+            --of JSON --output-reproducible \
+            -o "citevahti-${{ github.event.release.tag_name }}.cdx.json"
+      - name: Attach the SBOM to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" citevahti-*.cdx.json --clobber

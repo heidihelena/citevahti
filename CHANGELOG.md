@@ -7,6 +7,10 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **CycloneDX SBOM attached to every release.** Publishing a GitHub Release now generates a
+  CycloneDX SBOM of the shipped dependency set and uploads it as a release asset
+  (`citevahti-vX.Y.Z.cdx.json`), in a separate least-privilege job (`contents: write` only — the
+  Trusted-Publishing job keeps `id-token: write` alone). Documented in `docs/RELEASING.md`.
 - **OSV-Scanner in CI (dependency vulnerabilities).** A new `OSV-Scanner` workflow reads
   `uv.lock` directly and checks it against Google's OSV database on PR (new-vulns-only), push to
   `main`, and weekly, uploading SARIF to the Security tab. Complements `pip-audit` (PyPI Advisory
