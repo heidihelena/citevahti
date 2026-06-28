@@ -20,6 +20,12 @@ previous one.
   entity-expansion payload and assert it is not expanded.
 
 ### Added
+- **OpenSSF Scorecard in CI.** A new `Scorecard supply-chain security` workflow rates the repo's
+  supply-chain posture (Branch-Protection, Token-Permissions, Pinned-Dependencies, Code-Review,
+  Dependency-Update-Tool, …) on push to `main`, weekly, and on branch-protection changes, uploading
+  findings (SARIF) to the Security tab. `publish_results: true` (public repo) feeds the OpenSSF API
+  and enables a README badge. SHA-pinned, least-privilege. (Branch-Protection scores fully only with
+  a repo-admin PAT; the default token covers the rest.)
 - **Dependency-CVE scanning in CI (`pip-audit`).** A new `pip-audit` workflow installs CiteVahti
   + its runtime extras and audits the resolved dependency tree against the PyPI Advisory DB + OSV
   on every push/PR and weekly. Complements CodeQL (our code) and ruff `S` (our patterns) with
