@@ -13,7 +13,7 @@ import io
 import json
 from collections import Counter
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from .. import __version__
 from ..schemas.common import Provenance
@@ -36,7 +36,7 @@ def _rating_date(rec) -> Optional[str]:
 class AgreementReportService:
     def __init__(self, store) -> None:
         self.store = store
-        self._frames: dict[str, object] = {}
+        self._frames: dict[str, Any] = {}   # store is untyped, so load_frame() is Any
 
     # ---- frame/scheme lookup --------------------------------------------
     def _scheme(self, frame_id: str, scheme_id: str):
@@ -127,7 +127,7 @@ class AgreementReportService:
     # ---- per-group metrics ----------------------------------------------
     def _counts(self, records) -> AgreementCounts:
         c = AgreementCounts()
-        finals = Counter()
+        finals: Counter[str] = Counter()
         for rec in records:
             s = rec.comparison.status
             if s == "concordant":
