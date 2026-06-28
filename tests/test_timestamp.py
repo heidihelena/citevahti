@@ -10,7 +10,12 @@ import pytest
 from citevahti.schemas.config import Config, TimestampConfig
 from citevahti.schemas.timestamp import TimestampProof
 from citevahti.state import CiteVahtiStore
-from citevahti.timestamp import FakeTimestampProvider, TimestampService, TimestampUnavailable
+from citevahti.timestamp import (
+    FakeTimestampProvider,
+    Rfc3161Provider,
+    TimestampService,
+    TimestampUnavailable,
+)
 from citevahti.timestamp.service import provider_for_proof, provider_from_config
 
 
@@ -103,6 +108,30 @@ def test_rfc3161_config_requires_a_tsa_url():
         timestamp = TimestampConfig(provider="rfc3161", tsa_url=None)
     with pytest.raises(TimestampUnavailable):
         provider_from_config(_Cfg())
+
+
+@pytest.mark.security
+def test_rfc3161_rejects_non_http_tsa_url_without_touching_the_filesystem(tmp_path, monkeypatch):
+    """A config-supplied tsa_url with a ``file://`` (or any non-http) scheme must be refused
+    *before* urlopen is ever called — otherwise the timestamp client becomes a local-file
+    reader for whatever path an attacker can write into the config (ruff S310)."""
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOP SECRET - the TSA client must never read this")
+
+    import urllib.request
+
+    def _boom(*args, **kwargs):  # any network/file open here is a test failure
+        raise AssertionError("urlopen must not be called for a non-http(s) TSA URL")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _boom)
+
+    provider = Rfc3161Provider(secret.as_uri())  # file:///.../secret.txt
+    with pytest.raises(TimestampUnavailable) as exc:
+        provider._post(b"\x00")
+
+    msg = str(exc.value)
+    assert "http" in msg                  # the error explains the http(s)-only constraint
+    assert "TOP SECRET" not in msg        # the file was never opened, so nothing leaked
 
 
 def test_provider_for_proof_matches_how_the_proof_was_made(tmp_path):
