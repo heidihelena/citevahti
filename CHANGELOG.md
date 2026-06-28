@@ -45,6 +45,19 @@ previous one.
   several backlog modules sit on safety paths (`tools.py`, `writeback/*`) and will be typed
   deliberately with the rating/writeback tests per `docs/SAFETY_INVARIANTS.md`.
 
+### Security
+- **Timestamp client now refuses a non-`http(s)` TSA URL (closes the `S310` deferral).**
+  `Rfc3161Provider._post` validated nothing about the config-supplied `tsa_url` scheme, so a
+  `file://` (or `ftp://`, `data:`…) URL would make `urllib.urlopen` read a local file instead
+  of POSTing to a timestamp authority. It now rejects any scheme other than `http`/`https`
+  with `TimestampUnavailable` *before* opening the URL. The `TODO(security)` deferral is
+  gone; the `# noqa: S310` markers remain but are re-justified by the guard (bandit's blanket
+  URL-open rule has no dataflow, so it can't see the upstream scheme check). New offline
+  security regression
+  (`test_timestamp.py::test_rfc3161_rejects_non_http_tsa_url_without_touching_the_filesystem`,
+  marked `@pytest.mark.security`) proves a `file://` URL is refused without any network or
+  filesystem access; documented in `SECURITY.md`.
+
 ### Fixed
 - **`corpus_diff` now degrades instead of crashing on a missing `to_snapshot_id`.** Calling
   `diff(from_id, to_snapshot_id=None, compare_to_current=False)` — an invalid combination —
