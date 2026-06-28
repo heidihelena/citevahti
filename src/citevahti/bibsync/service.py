@@ -7,7 +7,7 @@ from typing import Optional
 
 from .. import __version__
 from ..schemas.bibsync import BibSyncReport, ExportFormat, FileCitations
-from ..schemas.common import Provenance
+from ..schemas.common import LibrarySelector, Provenance
 from ..state import CiteVahtiStore
 from ..util import config_hash, utc_now_iso
 from .extract import (
@@ -74,7 +74,7 @@ class BibSyncService:
     def run(self, paths: list[str], output_dir: Optional[str] = None,
             export_format: ExportFormat = "bibtex", include_cited_only: bool = True,
             make_master: bool = True, fail_on_orphans: bool = False,
-            library: str = "personal") -> BibSyncReport:
+            library: LibrarySelector = "personal") -> BibSyncReport:
         out_dir = Path(output_dir) if output_dir else None
         sources, explicit_bibs = self._collect_sources(paths, out_dir)
 

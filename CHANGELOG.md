@@ -7,6 +7,14 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Safety-path modules now type-checked (mypy).** `tools.py`, `writeback/service.py`,
+  `writeback/webapi.py`, and `panel/server.py` are off the `ignore_errors` backlog (only the
+  `autoupdate/*` pair remains). All 10 errors were triaged to non-bugs: false alarms from a
+  correlated guard and reused variable names (narrowed/renamed); two were an **incomplete
+  `HttpClient` protocol** — it now declares `delete` (used on the undo path) and accepts a JSON
+  *array* on `post` (Zotero batch create), matching the real client. One defensive guard added:
+  the OAuth completion path now raises a clear error if the client key/secret are unconfigured
+  instead of constructing with `None`. No behaviour change on any valid path.
 - **Regression tests for the dual-rating flag/score guarantees.** Six added tests pin behaviour
   that was enforced but previously unasserted: an AI rating recorded *before* the human rates stays
   blinded and reveals only once a human value exists; `compare()` stamps `computed_at` and reports

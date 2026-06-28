@@ -16,6 +16,7 @@ from typing import Optional
 from .cite import CiteService, CiteTarget
 from .probe.client import HttpxClient
 from .probe.probe import CapabilityReport
+from .schemas.bibsync import ExportFormat
 from .schemas.common import ItemRef, LibrarySelector, ToolResult
 from .schemas.config import Endpoints
 from .schemas.rating import Subject
@@ -69,7 +70,7 @@ def cite(target: CiteTarget, format: str = "pandoc", *,
 
 # ---- step 3: bib_sync + evidence_map ------------------------------------
 def bib_sync(targets: dict, output_dir: Optional[str] = None,
-             export_format: str = "bibtex", include_cited_only: bool = True,
+             export_format: ExportFormat = "bibtex", include_cited_only: bool = True,
              make_master: bool = True, fail_on_orphans: bool = False,
              library: LibrarySelector = "personal", *,
              endpoints: Optional[Endpoints] = None, provider=None, root: Optional[str] = None):
@@ -852,6 +853,9 @@ def zotero_oauth_finish(oauth_token: str, token_secret: str, verifier: str, *,
     converge on the same validated, keyring-stored, write-enabled state."""
     from .zotero import ZoteroOAuth, load_client_credentials
     ck, cs = load_client_credentials()
+    if not ck or not cs:
+        raise ValueError("Zotero OAuth is not configured (set the client key/secret env vars); "
+                         "use the paste-a-key flow instead.")
     oa = ZoteroOAuth(ck, cs, http=http)
     result = oa.access_token(oauth_token, token_secret, verifier)
     connect_zotero(result["api_key"], root=root)      # validate + keyring-store + enable write
