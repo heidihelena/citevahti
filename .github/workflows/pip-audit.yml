@@ -32,3 +32,12 @@ jobs:
         uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266  # v1.1.0
         with:
           local: true   # audit the installed environment (the concrete resolved versions)
+          # Documented exception (NOT a blanket disable — every other advisory still gates):
+          # GHSA-qp9x-wp8f-qgjj is in `tuf` 4.0.0, pulled in by the `update` extra. The fix is
+          # tuf 7.0.0, but tufup (latest 0.10.0) hard-pins `tuf==4.0.*`, so it can't be bumped
+          # until tufup updates upstream. Exposure is low: the flaw is Windows-only and needs a
+          # malicious TUF repo with case-colliding delegations, and CiteVahti's auto-updater is
+          # still an inert scaffold (no live update server/keys). Tracked: re-check when tufup
+          # supports a patched tuf, and BEFORE enabling live auto-update. See docs/AUTO_UPDATE.md.
+          ignore-vulns: |
+            GHSA-qp9x-wp8f-qgjj

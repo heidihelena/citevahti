@@ -24,7 +24,11 @@ previous one.
   + its runtime extras and audits the resolved dependency tree against the PyPI Advisory DB + OSV
   on every push/PR and weekly. Complements CodeQL (our code) and ruff `S` (our patterns) with
   third-party CVE coverage. SHA-pinned, least-privilege. (OSV-Scanner remains a complementary
-  follow-up — it becomes precise once a committed lockfile lands.)
+  follow-up — it becomes precise once a committed lockfile lands.) One documented exception:
+  `GHSA-qp9x-wp8f-qgjj` in `tuf` 4.0.0 (via the `update` extra → tufup, which hard-pins
+  `tuf==4.0.*`) — Windows-only, the auto-updater is an inert scaffold, and the fix (tuf 7.0.0)
+  is blocked on tufup upstream. Tracked to re-check before live auto-update; every other
+  advisory still gates.
 - **CodeQL SAST in CI.** A new `CodeQL` workflow runs GitHub's security queries over the Python
   source on every push/PR and weekly, uploading results (SARIF) to the Security tab. It does
   deeper dataflow/taint analysis than line-level linting, complementing the ruff `S` (bandit)
