@@ -7,6 +7,11 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Scorecard can use a repo-admin PAT for full Branch-Protection scoring.** The Scorecard
+  workflow now reads `repo_token` from an optional `SCORECARD_TOKEN` secret (a fine-grained PAT
+  with Administration: read), falling back to the default `GITHUB_TOKEN` when unset — so it's
+  inert until the secret is added, then the admin-gated checks (Branch-Protection, etc.) score
+  fully. The token lives only in GitHub Secrets, never in git.
 - **mypy now type-checks the entire package — zero `ignore_errors` backlog.** The final two
   modules (`autoupdate/client.py`, `autoupdate/maintainer.py`) are typed: the tufup client/repo
   seam — duck-typed (real tufup in production, a fake in tests) and previously a bare `object` —
