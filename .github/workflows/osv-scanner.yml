@@ -1,0 +1,35 @@
+name: OSV-Scanner
+
+# Dependency-vulnerability scanning via Google's OSV database, reading uv.lock
+# directly (exact versions). Complements pip-audit (PyPI Advisory DB) with OSV's
+# broader/independent coverage. PR runs report only newly-introduced vulns;
+# push/schedule runs scan the whole lockfile and upload SARIF to the Security tab.
+# Exceptions live in osv-scanner.toml. Reusable workflows are SHA-pinned.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "19 5 * * 4"   # weekly, Thursday (staggered from the other scanners)
+
+permissions:
+  contents: read
+
+jobs:
+  scan-pr:
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@9a498708959aeaef5ef730655706c5a1df1edbc2"  # v2.3.8
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+
+  scan-scheduled:
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' }}
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@9a498708959aeaef5ef730655706c5a1df1edbc2"  # v2.3.8
+    permissions:
+      actions: read
+      security-events: write
+      contents: read

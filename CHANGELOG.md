@@ -7,6 +7,11 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **OSV-Scanner in CI (dependency vulnerabilities).** A new `OSV-Scanner` workflow reads
+  `uv.lock` directly and checks it against Google's OSV database on PR (new-vulns-only), push to
+  `main`, and weekly, uploading SARIF to the Security tab. Complements `pip-audit` (PyPI Advisory
+  DB) with OSV's independent coverage. Reusable workflows SHA-pinned; exceptions live in
+  `osv-scanner.toml` (currently the one documented `tuf` advisory, mirroring the pip-audit ignore).
 - **Committed dependency lockfile (`uv.lock`).** A full resolution of the dependency tree
   (84 packages across all extras) is now locked for reproducible dev/CI installs and as a precise
   scan target for dependency auditors. Generated with `uv lock`; it does **not** change the

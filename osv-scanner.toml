@@ -1,0 +1,12 @@
+# OSV-Scanner configuration. Exceptions here mirror the pip-audit ignore in
+# .github/workflows/pip-audit.yml — keep the two in sync.
+
+[[IgnoredVulns]]
+id = "GHSA-qp9x-wp8f-qgjj"
+# tuf 4.0.0 (pulled in by the `update` extra → tufup, which hard-pins tuf==4.0.*).
+# Fix is tuf 7.0.0, blocked on tufup upstream. Exposure is low: the flaw is
+# Windows-only and needs a malicious TUF repo with case-colliding delegations,
+# and CiteVahti's auto-updater is still an inert scaffold (no live server/keys).
+# Tracked in a GitHub issue; re-check before enabling live auto-update.
+# See docs/AUTO_UPDATE.md. Every other advisory still fails the scan.
+reason = "tuf 4.0.0 fix blocked on tufup upstream pin; Windows-only; auto-updater inert. Tracked."
