@@ -131,7 +131,6 @@ module = [
   "citevahti.autoupdate.client",
   "citevahti.writeback.webapi",
   "citevahti.writeback.service",
-  "citevahti.bootstrap.service",
   "citevahti.corpus.diff",
   "citevahti.demo",
 ]

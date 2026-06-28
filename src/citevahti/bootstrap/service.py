@@ -45,8 +45,13 @@ def _outcomes(span: str) -> list[str]:
     for m in _OUT_LINE.finditer(span):
         found.append(m.group(1).strip())
     # de-dup preserving order
-    seen = set()
-    return [o for o in found if not (o in seen or seen.add(o))]
+    seen: set[str] = set()
+    out: list[str] = []
+    for o in found:
+        if o not in seen:
+            seen.add(o)
+            out.append(o)
+    return out
 
 
 class MapBootstrapService:
@@ -122,7 +127,8 @@ class MapBootstrapService:
             item = resolved_refs.get(pn.citekey) if pn.type == "study" and pn.citekey else None
             svc.add_node(emap, Node(node_id=pn.node_id, type=pn.type, label=pn.label, item=item))
             existing_nodes.add(pn.node_id)
-        existing_links = {(l.from_, l.to, l.type) for l in emap.links}
+        # string-triple dedup key (LinkType is a str subtype); only used for membership
+        existing_links: set[tuple[str, str, str]] = {(l.from_, l.to, l.type) for l in emap.links}
         for pl in report.proposed_links:
             sig = (pl.from_, pl.to, pl.type)
             if sig in existing_links:
