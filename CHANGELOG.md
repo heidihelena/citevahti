@@ -28,6 +28,12 @@ previous one.
   deliberately with the rating/writeback tests per `docs/SAFETY_INVARIANTS.md`.
 
 ### Fixed
+- **Type ratchet — `bootstrap/service.py` (now type-checked).** Two non-bugs cleared: the
+  order-preserving `_outcomes` dedup used the cryptic `seen.add(o)`-returns-`None` idiom
+  (correct but flagged) — rewritten as an explicit loop; and the link-dedup key-set is now
+  annotated `set[tuple[str, str, str]]` (a `LinkType` `Literal` is a `str` subtype; the set is
+  only used for membership). No behaviour change. `bootstrap/service.py` off the `mypy` backlog
+  (8 modules remain).
 - **Type ratchet — `schemas/frame.py` (now type-checked).** `Scheme.ordinal_levels` sorted on
   `Level.ordinal` (`Optional[int]`) under a mismatched `# type: ignore[arg-type]`. The flag was a
   false alarm: `Level._check` (a pydantic validator) guarantees every non-`missing_like` level
