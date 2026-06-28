@@ -17,7 +17,7 @@ tufup is an optional dependency (the `update` extra): `pip install 'citevahti[up
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, Protocol
 
 from .settings import APP_NAME
 
@@ -32,11 +32,21 @@ def _require_tufup():
     return tufup_repo
 
 
+class _TufupRepo(Protocol):
+    """The slice of tufup's Repository that this module uses (the maintainer flow)."""
+
+    def initialize(self) -> Any: ...
+
+    def add_bundle(self, *, new_bundle_dir: str, new_version: str) -> Any: ...
+
+    def publish_changes(self, *, private_key_dirs: list[str]) -> Any: ...
+
+
 # Injectable for tests; in production builds a real tufup Repository.
-RepoFactory = Callable[..., object]
+RepoFactory = Callable[..., _TufupRepo]
 
 
-def _default_repo_factory(**kwargs) -> object:
+def _default_repo_factory(**kwargs) -> _TufupRepo:
     tufup_repo = _require_tufup()
     return tufup_repo.Repository(**kwargs)
 

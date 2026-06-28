@@ -7,6 +7,12 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **mypy now type-checks the entire package — zero `ignore_errors` backlog.** The final two
+  modules (`autoupdate/client.py`, `autoupdate/maintainer.py`) are typed: the tufup client/repo
+  seam — duck-typed (real tufup in production, a fake in tests) and previously a bare `object` —
+  is now described by small `Protocol`s (`check_for_updates`/`download_and_apply_update`;
+  `initialize`/`add_bundle`/`publish_changes`), matching the house idiom (HttpClient,   TimestampProvider).
+  No behaviour change. All 162 source files are type-checked and gating.
 - **Safety-path modules now type-checked (mypy).** `tools.py`, `writeback/service.py`,
   `writeback/webapi.py`, and `panel/server.py` are off the `ignore_errors` backlog (only the
   `autoupdate/*` pair remains). All 10 errors were triaged to non-bugs: false alarms from a
