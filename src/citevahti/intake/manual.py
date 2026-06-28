@@ -10,7 +10,7 @@ from __future__ import annotations
 import csv
 import io
 import re
-from typing import Optional
+from typing import Any, Optional
 
 
 class ManualParseError(Exception):
@@ -86,8 +86,8 @@ def parse_csv(text: str) -> list[dict]:
         raise ManualParseError("CSV has no recognizable columns")
     out: list[dict] = []
     for row in reader:
-        rec = {"title": "", "authors": [], "journal": None, "doi": None,
-               "pmid": None, "year": None, "publication_date": None}
+        rec: dict[str, Any] = {"title": "", "authors": [], "journal": None, "doi": None,
+                               "pmid": None, "year": None, "publication_date": None}
         for fn, value in row.items():
             key = norm.get(fn)
             if not key or value is None:

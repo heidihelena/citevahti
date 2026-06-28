@@ -415,7 +415,7 @@ class CiteVahtiStore:
     def transactions_dir(self) -> Path:
         return self.dir / "transactions"
 
-    def save_transaction(self, txn, *, event: str = None):
+    def save_transaction(self, txn, *, event: Optional[str] = None):
         """Validate (incl. the §6 chain), audit, and write a write-transaction."""
         from ..validators.transaction import validate_transaction
 

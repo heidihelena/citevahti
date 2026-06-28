@@ -34,6 +34,11 @@ previous one.
   `count` parse handle a missing count explicitly. Removes the module from the `mypy`
   `ignore_errors` backlog (15 modules remain). PubMed search behaviour unchanged (covered by
   `test_pubmed_provider.py` + `test_pubmed_search_diagnostics.py`).
+- **Type ratchet — 4 more modules type-checked** (`state/store.py`, `pubmed/parse.py`,
+  `intake/manual.py`, `export/agreement.py`; backlog now 11). All annotation-only or
+  behaviour-identical: an implicit-`Optional` parameter made explicit (`save_transaction`'s
+  `event`); a `None`-guard reordered so the parser narrows `MedlineCitation` (same outcomes);
+  and three container annotations (`dict[str, Any]`, `Counter[str]`). No runtime change.
 
 ## 0.42.0 — source reuse rights (`license-scan`) (2026-06-28)
 

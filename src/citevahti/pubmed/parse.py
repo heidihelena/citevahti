@@ -54,7 +54,9 @@ def parse_efetch_xml(xml_text: str) -> list[dict]:
     out: list[dict] = []
     for art in root.findall(".//PubmedArticle"):
         citation = art.find("MedlineCitation")
-        article = citation.find("Article") if citation is not None else None
+        if citation is None:
+            continue
+        article = citation.find("Article")
         if article is None:
             continue
         pmid = citation.findtext("PMID")
