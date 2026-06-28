@@ -23,6 +23,10 @@ dependencies = [
     # Word import (.docx -> Markdown) + the integrity-report .docx. Core (not an
     # extra) so these work in the no-terminal .mcpb, which can't `pip install`.
     "python-docx>=1.1.0",
+    # Hardened XML parsing for PubMed efetch (entity-expansion/XXE). Core (not an
+    # extra), like python-docx, so the no-terminal .mcpb — which can't `pip install`
+    # — parses PubMed safely. Tiny pure-Python wheel (~25 KB), no transitive deps.
+    "defusedxml>=0.7.1",
 ]
 
 [project.urls]

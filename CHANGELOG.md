@@ -6,6 +6,19 @@ previous one.
 
 ## [Unreleased]
 
+### Security
+- **PubMed XML is now parsed with `defusedxml` (entity-expansion / XXE hardening).**
+  `pubmed/parse.py` previously used stdlib `xml.etree.ElementTree.fromstring`, which
+  expands internal entities — a malicious efetch response (e.g. a "billion laughs"
+  payload) could exhaust memory. It now uses `defusedxml.ElementTree.fromstring`, which
+  refuses to expand entities; a hostile payload degrades to `[]`, the same honest
+  degradation as a malformed document. This clears the deferred `ruff` `S314` finding
+  (the `# noqa: S314` and its `TODO(security)` are removed). `defusedxml` is a **core**
+  dependency (not an extra), matching `python-docx`, so the no-terminal `.mcpb` — which
+  can't `pip install` — parses PubMed safely; it is a tiny pure-Python wheel with no
+  transitive dependencies. New offline regression tests (`@pytest.mark.security`) feed an
+  entity-expansion payload and assert it is not expanded.
+
 ### Added
 - **Static analysis in CI (`ruff`).** A new `lint` job runs `ruff check src` on every
   push/PR, gating merges alongside the test suite. Config lives in `pyproject.toml`
