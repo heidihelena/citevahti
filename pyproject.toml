@@ -34,7 +34,7 @@ Issues = "https://github.com/heidihelena/citevahti/issues"
 mcp = ["mcp>=1.27.2"]
 app = ["pywebview>=5.0"]   # native desktop window (OS webview) for the panel — `citevahti-app`
 update = ["tufup>=0.9"]   # signed auto-updates for the frozen desktop app (TUF); see docs/AUTO_UPDATE.md
-dev = ["pytest>=9.1.0", "ruff>=0.15"]
+dev = ["pytest>=9.1.0", "ruff>=0.15", "mypy>=1.18"]
 keyring = ["keyring>=25.7.0"]   # OS-native secret store for onboarding (system_keyring backend)
 timestamp = ["asn1crypto>=1.5.1"]   # RFC 3161 timestamping of the audit head (issue #42); opt-in
 docx = []   # back-compat alias: python-docx is now a core dependency (Word features ship by default)
@@ -97,3 +97,49 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # Tests assert by design, spin up loopback servers, and bind to localhost.
 "tests/**" = ["S101", "S104", "S105", "S106", "S311"]
+
+[tool.mypy]
+# Gradual adoption: the whole package is type-checked and gating, EXCEPT the
+# modules listed under ignore_errors below — a tracked typing backlog, not a
+# blanket relaxation. The ratchet is: each follow-up types one module and
+# removes it from that list. 146 of 162 files check clean today.
+python_version = "3.10"
+plugins = ["pydantic.mypy"]   # pydantic v2 model awareness
+mypy_path = "src"
+files = ["src/citevahti"]
+namespace_packages = true
+explicit_package_bases = true
+# Untyped function bodies aren't checked during gradual adoption, so silence the
+# per-line "consider --check-untyped-defs" notes (tightening this is a later step).
+disable_error_code = ["annotation-unchecked"]
+
+# Optional/untyped third-party deps with no stubs or py.typed marker.
+[[tool.mypy.overrides]]
+module = ["tufup.*", "pypandoc.*", "asn1crypto.*", "keyring.*", "mcp.*"]
+ignore_missing_imports = true
+
+# Typing backlog — modules with pre-existing type errors, deferred to scoped
+# follow-ups (NOT silently fixed in the type-checker-introduction PR). Several
+# sit on safety paths (rating-adjacent tools.py, writeback/*) and must be typed
+# deliberately with the rating/writeback tests, per docs/SAFETY_INVARIANTS.md.
+# Largest: pubmed/provider.py (one wrong return annotation → 14 errors).
+[[tool.mypy.overrides]]
+module = [
+  "citevahti.pubmed.provider",
+  "citevahti.pubmed.parse",
+  "citevahti.tools",
+  "citevahti.panel.server",
+  "citevahti.autoupdate.maintainer",
+  "citevahti.autoupdate.client",
+  "citevahti.writeback.webapi",
+  "citevahti.writeback.service",
+  "citevahti.intake.manual",
+  "citevahti.intake.dedupe",
+  "citevahti.export.agreement",
+  "citevahti.bootstrap.service",
+  "citevahti.state.store",
+  "citevahti.schemas.frame",
+  "citevahti.corpus.diff",
+  "citevahti.demo",
+]
+ignore_errors = true
