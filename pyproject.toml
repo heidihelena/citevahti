@@ -132,7 +132,6 @@ module = [
   "citevahti.writeback.webapi",
   "citevahti.writeback.service",
   "citevahti.bootstrap.service",
-  "citevahti.schemas.frame",
   "citevahti.corpus.diff",
   "citevahti.demo",
 ]

@@ -28,6 +28,12 @@ previous one.
   deliberately with the rating/writeback tests per `docs/SAFETY_INVARIANTS.md`.
 
 ### Fixed
+- **Type ratchet — `schemas/frame.py` (now type-checked).** `Scheme.ordinal_levels` sorted on
+  `Level.ordinal` (`Optional[int]`) under a mismatched `# type: ignore[arg-type]`. The flag was a
+  false alarm: `Level._check` (a pydantic validator) guarantees every non-`missing_like` level
+  carries an ordinal, and the sort filters to exactly those — so the key is never `None` at
+  runtime. Replaced the bogus ignore with an explicit, documented narrowing (no behaviour change).
+  `frame.py` off the `mypy` backlog (9 modules remain).
 - **Library dedupe missed DOIs in non-canonical form.** `ZoteroLibraryIndex.contains`
   searched Zotero with the *raw* DOI while comparing against the *normalized* one, so a
   manuscript DOI written `https://doi.org/10.1/ABC` could fail to match a library item stored
