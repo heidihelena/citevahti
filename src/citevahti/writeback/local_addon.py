@@ -16,7 +16,6 @@ non-loopback URL unless explicitly allowed. Same contract MatchVahti's
 
 from __future__ import annotations
 
-from typing import Optional
 from urllib.parse import urlparse
 
 from ..probe.client import HttpClient, ProbeTransportError

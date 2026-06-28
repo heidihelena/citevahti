@@ -6,7 +6,6 @@ import uuid
 from typing import Optional
 
 from .. import __version__
-from ..intake.dedupe import normalize_doi, normalize_pmid
 from ..schemas.common import Provenance
 from ..schemas.results import AffectedRefs, RetractedItem, RetractionScanReport
 from ..util import config_hash, utc_now_iso

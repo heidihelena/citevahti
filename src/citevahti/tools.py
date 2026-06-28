@@ -17,9 +17,8 @@ from .cite import CiteService, CiteTarget
 from .probe.client import HttpxClient
 from .probe.probe import CapabilityReport
 from .schemas.common import ItemRef, LibrarySelector, ToolResult
-from .schemas.config import Config, Endpoints
+from .schemas.config import Endpoints
 from .schemas.rating import Subject
-from .validators import authorize_rating_task, require_model_pinned
 from .zotero import ZoteroService
 
 

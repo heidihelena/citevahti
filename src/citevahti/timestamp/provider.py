@@ -93,10 +93,11 @@ class Rfc3161Provider:
                                    {"Content-Type": "application/timestamp-query"})
         import urllib.error
         import urllib.request
-        req = urllib.request.Request(
+        # TODO(security): allow-list http(s) on tsa_url (config-supplied) — tracked as a follow-up.
+        req = urllib.request.Request(  # noqa: S310 — scheme guard deferred (see TODO above)
             self.tsa_url, data=data, headers={"Content-Type": "application/timestamp-query"})
         try:
-            with urllib.request.urlopen(req, timeout=self._timeout) as resp:
+            with urllib.request.urlopen(req, timeout=self._timeout) as resp:  # noqa: S310 — see TODO above
                 return resp.read()
         except (urllib.error.URLError, OSError) as exc:
             raise TimestampUnavailable(f"TSA unreachable: {exc}") from exc

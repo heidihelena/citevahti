@@ -8,7 +8,7 @@ extraction/claim-check unit tests run fully offline.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Protocol, runtime_checkable
 
 from ..schemas.common import ItemRef

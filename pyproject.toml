@@ -34,7 +34,7 @@ Issues = "https://github.com/heidihelena/citevahti/issues"
 mcp = ["mcp>=1.27.2"]
 app = ["pywebview>=5.0"]   # native desktop window (OS webview) for the panel — `citevahti-app`
 update = ["tufup>=0.9"]   # signed auto-updates for the frozen desktop app (TUF); see docs/AUTO_UPDATE.md
-dev = ["pytest>=9.1.0"]
+dev = ["pytest>=9.1.0", "ruff>=0.15"]
 keyring = ["keyring>=25.7.0"]   # OS-native secret store for onboarding (system_keyring backend)
 timestamp = ["asn1crypto>=1.5.1"]   # RFC 3161 timestamping of the audit head (issue #42); opt-in
 docx = []   # back-compat alias: python-docx is now a core dependency (Word features ship by default)
@@ -70,3 +70,30 @@ addopts = "-q"
 markers = [
   "security: security-control regression tests for the local trust boundary",
 ]
+
+[tool.ruff]
+target-version = "py310"   # matches requires-python = ">=3.10"
+src = ["src"]
+extend-exclude = ["vscode-extension"]   # Node land; linted by its own tooling
+
+[tool.ruff.lint]
+# E/F = pyflakes + pycodestyle (correctness/dead-code); S = flake8-bandit (security).
+# S is deliberately on: CiteVahti is security-critical, so a security regression
+# should fail CI the same as a syntax error.
+select = ["E", "F", "S"]
+ignore = [
+  # Line length is a formatter concern, not a correctness gate — enforcing it would
+  # reflow ~1500 pre-existing lines (huge diff, no safety value). Left to ruff format.
+  "E501",   # line too long
+  # Pre-existing, cosmetic; renaming touches logic so it's deferred to its own pass.
+  "E741",   # ambiguous variable name (l/I/O)
+  # Robustness lints with a high false-positive rate here — most sites are
+  # intentional best-effort cleanup. A dedicated "do we swallow errors we
+  # shouldn't?" audit is tracked separately, not blanket-suppressed inline.
+  "S110",   # try-except-pass
+  "S112",   # try-except-continue
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert by design, spin up loopback servers, and bind to localhost.
+"tests/**" = ["S101", "S104", "S105", "S106", "S311"]

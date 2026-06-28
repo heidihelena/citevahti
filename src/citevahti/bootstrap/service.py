@@ -11,7 +11,7 @@ from ..bibsync.extract import extract_keys_for_ext
 from ..schemas.bootstrap import MapBootstrapReport, ProposedLink, ProposedNode
 from ..schemas.common import ItemRef, Provenance
 from ..schemas.evidence_map import Link, Node
-from ..util import config_hash, sha256_hex, utc_now_iso
+from ..util import config_hash, utc_now_iso
 
 _MD_HEAD = re.compile(r"^(#{1,6})\s+(.*\S)\s*$", re.MULTILINE)
 _TEX_HEAD = re.compile(r"\\(?:sub)*section\*?\{([^}]*)\}")

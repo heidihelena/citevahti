@@ -30,7 +30,7 @@ AUTHORIZE_URL = "https://www.zotero.org/oauth/authorize"
 ACCESS_URL = "https://www.zotero.org/oauth/access"
 
 ENV_CLIENT_KEY = "CITEVAHTI_ZOTERO_OAUTH_CLIENT_KEY"
-ENV_CLIENT_SECRET = "CITEVAHTI_ZOTERO_OAUTH_CLIENT_SECRET"
+ENV_CLIENT_SECRET = "CITEVAHTI_ZOTERO_OAUTH_CLIENT_SECRET"  # noqa: S105 — env-var name, not a secret value
 
 
 class ZoteroOAuthError(Exception):

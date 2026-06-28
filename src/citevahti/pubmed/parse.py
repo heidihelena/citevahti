@@ -47,7 +47,8 @@ def _pub_date(article: ET.Element) -> tuple[Optional[str], Optional[int]]:
 def parse_efetch_xml(xml_text: str) -> list[dict]:
     """Return one dict per article with normalized bibliographic fields."""
     try:
-        root = ET.fromstring(xml_text)
+        # TODO(security): switch to defusedxml for entity-expansion/XXE hardening — tracked as a follow-up.
+        root = ET.fromstring(xml_text)  # noqa: S314 — defusedxml migration deferred (see TODO above)
     except ET.ParseError:
         return []
     out: list[dict] = []

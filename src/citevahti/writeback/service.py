@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Optional
 
 from .. import __version__
-from ..intake.dedupe import normalize_doi, normalize_pmid
 from ..schemas.common import ItemRef, Provenance
 from ..schemas.writeback import WriteDiff, WriteOperation, WriteResult
 from ..util import sha256_hex, utc_now_iso

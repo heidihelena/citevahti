@@ -19,7 +19,7 @@ SERVICE = "CiteVahti"
 # keyring secret names
 ZOTERO_WRITE_KEY = "zotero_write_key"
 NCBI_API_KEY = "ncbi_api_key"
-FULLVAHTI_TOKEN = "fullvahti_token"      # the FullVahti plugin's local tag-write token
+FULLVAHTI_TOKEN = "fullvahti_token"      # noqa: S105 — keyring lookup-key name, not a secret value; the FullVahti plugin's local tag-write token
 AI_API_KEY = "ai_api_key"                # external AI provider key (api mode only; local needs none)
 
 # env escape hatches (runtime injection only; override the keyring)

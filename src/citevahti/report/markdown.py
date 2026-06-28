@@ -166,7 +166,7 @@ def render_test_report(report: ClaimReport, *, title: str = "Claim Test Report")
         if not row.evidence:
             if row.state != "untestable":
                 lines.append("- Evidence candidate: _none linked yet_")
-                lines.append(f"- Finding: `missing_support`")
+                lines.append("- Finding: `missing_support`")
         for e in row.evidence:
             ids = " · ".join(p for p in (f"PMID {e.pmid}" if e.pmid else "",
                                          f"DOI {e.doi}" if e.doi else "") if p)
