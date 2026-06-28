@@ -4,6 +4,19 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## [Unreleased]
+
+### Fixed
+- **The running version now shows on the panel's BETA chip** (`BETA · vX.Y.Z`, from
+  `/api/health`) — so a stale build is obvious at a glance instead of silently hiding new
+  features.
+- **No more empty "white stripe" in the panel.** The evidence pane was a blank vertical band
+  until you clicked a claim; the layout is now single-column until a claim is selected, then the
+  evidence pane appears beside it. The empty agent/notification footer (a 46px blank bar) is
+  collapsed until it actually has a message.
+- **The desktop app no longer identifies as "Python" on macOS.** `citevahti-app` now relabels the
+  menu-bar/Dock name to *CiteVahti* (a no-op off macOS or without pyobjc; never blocks launch).
+
 ## 0.43.0 — supply-chain hardening & whole-package typing (2026-06-28)
 
 ### Added

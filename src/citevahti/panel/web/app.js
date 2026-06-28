@@ -724,6 +724,17 @@ function applyDeepLink() {
 async function loadHealth() {
   try { state.health = await api("GET", "/api/health"); } catch { state.health = null; }
   renderConns();
+  renderBetaBadge();
+}
+
+/* Show the running version on the BETA chip, so a stale build is obvious at a glance. */
+function renderBetaBadge() {
+  const b = document.querySelector(".beta-badge");
+  const v = state.health && state.health.version;
+  if (b && v) {
+    b.textContent = "BETA · v" + v;
+    b.title = "CiteVahti " + v + " (beta) — free to use for testing and research feedback";
+  }
 }
 
 async function loadAudit() {
@@ -970,6 +981,9 @@ async function selectClaim(id) {
   }
   const sameClaim = id === state.activeClaim;
   state.activeClaim = id;
+  // A claim is selected → reveal the evidence pane (the split is single-column until now,
+  // so the empty right pane never shows as a blank band).
+  const sp = document.getElementById("split"); if (sp) sp.classList.add("has-detail");
   // moving to a different claim: drop the in-session write/undo/timer state so a global
   // key (u undo, the o double-tap) can't act on the claim you just navigated away from.
   // (Undo is still recoverable per-claim from the audit trail via recoverableTxn().)
