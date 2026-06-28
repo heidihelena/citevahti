@@ -103,10 +103,8 @@ ignore = [
 "tests/**" = ["S101", "S104", "S105", "S106", "S311"]
 
 [tool.mypy]
-# Gradual adoption: the whole package is type-checked and gating, EXCEPT the
-# modules listed under ignore_errors below — a tracked typing backlog, not a
-# blanket relaxation. The ratchet is: each follow-up types one module and
-# removes it from that list. 146 of 162 files check clean today.
+# The whole package is type-checked and gating — all 162 files. (The gradual-
+# adoption ignore_errors backlog has been fully worked off, module by module.)
 python_version = "3.10"
 plugins = ["pydantic.mypy"]   # pydantic v2 model awareness
 mypy_path = "src"
@@ -121,14 +119,3 @@ disable_error_code = ["annotation-unchecked"]
 [[tool.mypy.overrides]]
 module = ["tufup.*", "pypandoc.*", "asn1crypto.*", "keyring.*", "mcp.*"]
 ignore_missing_imports = true
-
-# Typing backlog — modules with pre-existing type errors, deferred to scoped
-# follow-ups. The safety paths (rating-adjacent tools.py, writeback/*, the loopback
-# panel) are now typed and gating. What remains is the autoupdate/* pair, which
-# needs the tufup shim's `object` fallback resolved.
-[[tool.mypy.overrides]]
-module = [
-  "citevahti.autoupdate.maintainer",
-  "citevahti.autoupdate.client",
-]
-ignore_errors = true
