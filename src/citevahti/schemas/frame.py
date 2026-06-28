@@ -65,7 +65,10 @@ class Scheme(BaseModel):
     def ordinal_levels(self) -> list[Level]:
         """Ordered, non-missing levels for ordinal-aware statistics."""
         ordered = [lvl for lvl in self.levels if not lvl.missing_like]
-        return sorted(ordered, key=lambda lvl: lvl.ordinal)  # type: ignore[arg-type]
+
+        # Non-missing_like levels always carry an ordinal — Level._check enforces it at
+        # construction — so the `else` is unreachable; it only proves int-ness to mypy.
+        return sorted(ordered, key=lambda lvl: lvl.ordinal if lvl.ordinal is not None else 0)
 
 
 class Outcome(BaseModel):
