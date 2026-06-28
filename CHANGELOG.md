@@ -4,7 +4,7 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
-## [Unreleased]
+## 0.43.0 — supply-chain hardening & whole-package typing (2026-06-28)
 
 ### Added
 - **Scorecard can use a repo-admin PAT for full Branch-Protection scoring.** The Scorecard
