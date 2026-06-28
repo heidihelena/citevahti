@@ -28,6 +28,13 @@ previous one.
   deliberately with the rating/writeback tests per `docs/SAFETY_INVARIANTS.md`.
 
 ### Fixed
+- **`corpus_diff` now degrades instead of crashing on a missing `to_snapshot_id`.** Calling
+  `diff(from_id, to_snapshot_id=None, compare_to_current=False)` — an invalid combination —
+  previously hit `load_snapshot(None)` and raised. It now returns a `degraded` report
+  (`error_code="no_to_snapshot"`), matching the function's existing `no_corpus_source` /
+  `zotero_unavailable` handling. Surfaced by the `mypy` ratchet; new regression test. Also
+  type-checked `demo.py` (made the `await_rating ⇒ human is None` link explicit). Both off the
+  `mypy` backlog (6 modules remain — all safety-path or autoupdate).
 - **Type ratchet — `bootstrap/service.py` (now type-checked).** Two non-bugs cleared: the
   order-preserving `_outcomes` dedup used the cryptic `seen.add(o)`-returns-`None` idiom
   (correct but flagged) — rewritten as an explicit loop; and the link-dedup key-set is now
