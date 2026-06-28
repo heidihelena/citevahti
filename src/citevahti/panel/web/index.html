@@ -19,6 +19,15 @@
         <span class="sep">›</span>
         <span class="cmd">CiteVahti: Verify claims</span>
 
+        <nav class="surfnav" id="surfnav" aria-label="Sections" hidden>
+          <button class="surfnav-tab" type="button" data-surface="workspace" aria-current="true" title="Review claims in the manuscript">Review</button>
+          <button class="surfnav-tab" type="button" data-surface="manuscripts" aria-current="false" title="Add a manuscript, switch ledgers, connect sources">Manuscripts</button>
+          <button class="surfnav-tab" type="button" data-surface="checks" aria-current="false" title="Run unit tests and maintenance scans">Checks</button>
+          <button class="surfnav-tab" type="button" data-surface="atlas" aria-current="false" title="Local evidence map and Atlas contribution">Atlas</button>
+          <button class="surfnav-tab" type="button" data-surface="output" aria-current="false" title="Export the review and cite-stable manuscript">Output</button>
+          <button class="surfnav-tab" type="button" data-surface="settings" aria-current="false" title="AI second opinion, theme, shortcuts, updates">Settings</button>
+        </nav>
+
         <div class="progress" id="progress" aria-label="Review progress"></div>
 
         <div class="ide-bar-right">
@@ -26,23 +35,14 @@
           <span class="auditbadge" id="auditBadge" title="audit-log integrity — click to re-verify"></span>
           <span class="ledger" id="ledger" title="active ledger"></span>
           <button id="runTests" class="chip-btn primary" type="button" aria-label="Run unit tests on the manuscript" title="Run unit tests on this manuscript — does every claim meet its references, and are the citations real?">▶ Run unit tests</button>
-          <button id="report" class="chip-btn" type="button" aria-label="Export the citation-integrity report" title="Export the review — Markdown, PDF (print), or a review-packet .zip for a supervisor or journal.">⎙ Export</button>
-          <button id="aiSettings" class="chip-btn" type="button" aria-label="AI second-opinion settings" title="AI second opinion — your assistant (MCP) provides it, or run a local model / your own API key. You always rate first.">✦ AI</button>
           <span class="beta-badge" title="CiteVahti is in beta — free to use for testing, research feedback, and early development">BETA</span>
           <button id="legendBtn" class="chip-btn" type="button" aria-label="What the marks mean" aria-expanded="false" title="What the marks and statuses mean">?</button>
           <details class="toolsmenu" id="toolsmenu">
             <summary class="chip-btn" aria-label="More tools and settings" title="More tools and settings">⋯ Tools</summary>
             <div class="menu-pop">
               <button id="prompts" class="chip-btn" type="button" aria-label="Preprogrammed prompts" title="Preprogrammed skills (run claim tests, screen a topic, check a paragraph, methods statement) — copy one to paste into your chat client or a local model.">✦ Prompts</button>
-              <button id="resolveDois" class="chip-btn" type="button" aria-label="Resolve missing DOIs from PMIDs" title="Resolve missing DOIs from PMIDs (NCBI)">⟳ Resolve DOIs</button>
-              <button id="recheckLib" class="chip-btn" type="button" aria-label="Re-check Zotero library membership" title="Re-check which candidates are already in your Zotero library">⟳ Re-check library</button>
-              <button id="scanRetractions" class="chip-btn" type="button" aria-label="Scan candidates for retractions" title="Scan candidates for retracted papers (OpenAlex)">⚠ Scan retractions</button>
-              <button id="scanLicenses" class="chip-btn" type="button" aria-label="Scan candidate reuse rights" title="Fill each candidate's reuse rights (open-access status / licence) from OpenAlex — reports, never decides reusability">⚖ Scan licences</button>
-              <button id="warehouse" class="chip-btn" type="button" aria-label="Local evidence map and Atlas contribution" title="Your local evidence map — opt-in, nothing uploaded. Optionally contribute de-identified records to Atlas (download only).">⛁ Evidence map</button>
-              <button id="citeExport" class="chip-btn" type="button" aria-label="Export the manuscript with citations" title="Embed [@citekey] for every accepted claim into your .md and write references.bib (and a Word .docx if Pandoc is installed) — citations that survive copy-paste and conversion to Word.">⎘ Cite-stable export</button>
               <button id="reload" class="chip-btn" type="button" aria-label="Reload claims" title="reload claims">↻ Reload claims</button>
-              <button id="checkUpdate" class="chip-btn" type="button" aria-label="Check for a newer version" title="Check PyPI for a newer CiteVahti release. Read-only and only when you click — makes one request to pypi.org, sends nothing about you, and never installs.">⬆ Check for updates</button>
-              <button id="theme" class="chip-btn" type="button" aria-label="Toggle light or dark theme">◑ Dark</button>
+              <div class="menu-note">Tests &amp; scans → <b>Checks</b> · evidence map → <b>Atlas</b> · exports → <b>Output</b> · AI, theme, updates → <b>Settings</b></div>
             </div>
           </details>
         </div>
@@ -50,7 +50,7 @@
 
       <div id="notify" class="notifybar" role="alert" aria-live="assertive" hidden></div>
 
-      <main class="split" id="split">
+      <main class="split" id="split" data-surface="workspace">
         <section class="editor" aria-label="Manuscript">
           <div class="nextstep" id="nextstep" role="status" aria-live="polite" hidden></div>
           <div class="triagebar" id="triagebar" role="region" aria-label="Claims worth your attention" hidden></div>
@@ -84,10 +84,22 @@
           <div class="empty">Pick a claim in the manuscript to review its evidence. You rate
             first — the AI second rating stays hidden until your rating is recorded.</div>
         </aside>
+
+        <!-- Top-level surfaces: each lives inside #split (full-width) and is swapped
+             in by renderSurface() without destroying the workspace DOM — so they're
+             reachable any time, non-blocking, and never lose the review context. -->
+        <section class="surface" id="manuscripts" aria-label="Manuscripts and sources" hidden></section>
+        <section class="surface" id="checks" aria-label="Checks and maintenance" hidden></section>
+        <section class="surface" id="atlas" aria-label="Evidence map and Atlas contribution" hidden></section>
+        <section class="surface" id="output" aria-label="Export and cite-stable output" hidden></section>
+        <section class="surface" id="settings" aria-label="Settings" hidden></section>
       </main>
 
       <footer class="agent" id="agent" aria-live="polite" aria-atomic="true"></footer>
     </div>
+    <!-- classic scripts, shared global scope, loaded in dependency order -->
+    <script src="state.js"></script>
+    <script src="api.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -40,6 +40,7 @@ from . import prefs
 
 WEB_DIR = Path(__file__).parent / "web"
 _STATIC = {"/": "index.html", "/index.html": "index.html",
+           "/state.js": "state.js", "/api.js": "api.js",  # loaded before app.js
            "/app.js": "app.js", "/styles.css": "styles.css",
            "/favicon.svg": "favicon.svg",
            "/favicon.ico": "favicon.svg",  # browsers auto-request /favicon.ico; serve the SVG

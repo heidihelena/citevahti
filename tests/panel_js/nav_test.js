@@ -14,13 +14,20 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-const appPath = path.join(__dirname, "..", "..", "src", "citevahti", "panel", "web", "app.js");
-const src = fs.readFileSync(appPath, "utf8");
+// The panel ships as classic scripts loaded in order (state.js → api.js → app.js);
+// concatenate them the same way so the sandbox sees the same global scope the browser does.
+const webDir = path.join(__dirname, "..", "..", "src", "citevahti", "panel", "web");
+const src = ["state.js", "api.js", "app.js"]
+  .map((f) => fs.readFileSync(path.join(webDir, f), "utf8"))
+  .join("\n");
 
 // minimal DOM/browser stubs — just enough for app.js to load without throwing
-const fakeEl = () => new Proxy({ value: "", textContent: "", innerHTML: "" }, {
+const fakeEl = () => new Proxy({ value: "", textContent: "", innerHTML: "", hidden: false, dataset: {} }, {
   get(t, p) {
     if (p === "addEventListener") return () => {};
+    if (p === "setAttribute" || p === "removeAttribute" || p === "toggleAttribute") return () => {};
+    if (p === "querySelector") return () => fakeEl();
+    if (p === "querySelectorAll") return () => [];
     if (p === "classList") return { toggle() {}, contains() { return true; }, add() {}, remove() {} };
     if (p in t) return t[p];
     return undefined;
