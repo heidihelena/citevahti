@@ -7,6 +7,12 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Regression tests for the dual-rating flag/score guarantees.** Six added tests pin behaviour
+  that was enforced but previously unasserted: an AI rating recorded *before* the human rates stays
+  blinded and reveals only once a human value exists; `compare()` stamps `computed_at` and reports
+  `agreement_countable` correctly per outcome; adjudication refuses an empty rationale and any
+  decider other than `human`/`panel` (never the AI); and a concordant auto-accept is revisable only
+  via an explicit, rationale-carrying `adjudicated` event. (`test_dual_rating.py`.)
 - **CycloneDX SBOM attached to every release.** Publishing a GitHub Release now generates a
   CycloneDX SBOM of the shipped dependency set and uploads it as a release asset
   (`citevahti-vX.Y.Z.cdx.json`), in a separate least-privilege job (`contents: write` only — the
