@@ -125,7 +125,6 @@ ignore_missing_imports = true
 # Largest: pubmed/provider.py (one wrong return annotation → 14 errors).
 [[tool.mypy.overrides]]
 module = [
-  "citevahti.pubmed.provider",
   "citevahti.pubmed.parse",
   "citevahti.tools",
   "citevahti.panel.server",

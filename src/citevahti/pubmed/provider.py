@@ -121,7 +121,7 @@ class PubMedProvider:
                 self._sleep(0.2 * (2 ** attempt))  # exponential backoff
         raise PubMedUnavailable(last_err)
 
-    def _esearch(self, query: str, max_results: int, date_range: Optional[dict]) -> list[str]:
+    def _esearch(self, query: str, max_results: int, date_range: Optional[dict]) -> _EsearchResult:
         params = {"db": "pubmed", "term": query, "retmax": str(max_results), "retmode": "json"}
         if date_range:
             if date_range.get("from"):
@@ -204,10 +204,14 @@ def _parse_esearch(body: dict) -> _EsearchResult:
     out = _EsearchResult(
         idlist=list(er.get("idlist") or []),
         query_translation=er.get("querytranslation") or None)
-    try:
-        out.total = int(er.get("count"))
-    except (TypeError, ValueError):
+    count = er.get("count")
+    if count is None:
         out.total = len(out.idlist)
+    else:
+        try:
+            out.total = int(count)
+        except (TypeError, ValueError):
+            out.total = len(out.idlist)
 
     if er.get("ERROR"):
         out.errors.append(str(er["ERROR"]))

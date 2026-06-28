@@ -27,6 +27,14 @@ previous one.
   several backlog modules sit on safety paths (`tools.py`, `writeback/*`) and will be typed
   deliberately with the rating/writeback tests per `docs/SAFETY_INVARIANTS.md`.
 
+### Fixed
+- **Type ratchet — `pubmed/provider.py` (now type-checked).** Corrected `_esearch`'s return
+  annotation, which declared `list[str]` but always returned an `_EsearchResult` (the code
+  already used it as one — the annotation lied; no runtime change), and made the esearch
+  `count` parse handle a missing count explicitly. Removes the module from the `mypy`
+  `ignore_errors` backlog (15 modules remain). PubMed search behaviour unchanged (covered by
+  `test_pubmed_provider.py` + `test_pubmed_search_diagnostics.py`).
+
 ## 0.42.0 — source reuse rights (`license-scan`) (2026-06-28)
 
 - **Each candidate can now carry its reuse rights** — `oa_status` (gold/green/hybrid/bronze/
