@@ -18,6 +18,14 @@ previous one.
   TSA-URL scheme allow-list, `S314` defusedxml for PubMed parsing), each marked with a
   `TODO(security)` at the site. `E501` (line length) and `S110`/`S112` (best-effort
   try/except) are documented deferrals, not silent suppressions.
+- **Type checking in CI (`mypy`).** A new `typecheck` job runs `mypy` on every push/PR.
+  Config in `pyproject.toml` (`[tool.mypy]`, pydantic v2 plugin); `mypy` is in the `dev`
+  extra. Gradual adoption: **146 of 162 files are type-checked and gating today**; the 16
+  modules with pre-existing type errors are an explicit `ignore_errors` backlog (a ratchet —
+  each follow-up types one module and removes it), not a blanket relaxation. No behaviour
+  change. The largest item is `pubmed/provider.py` (one wrong return annotation → 14 errors);
+  several backlog modules sit on safety paths (`tools.py`, `writeback/*`) and will be typed
+  deliberately with the rating/writeback tests per `docs/SAFETY_INVARIANTS.md`.
 
 ## 0.42.0 — source reuse rights (`license-scan`) (2026-06-28)
 
