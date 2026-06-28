@@ -124,6 +124,8 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
   box-shadow: var(--zs-shadow-2); min-width: 190px; }
 .menu-pop .chip-btn { width: 100%; text-align: left; border: 1px solid transparent; background: transparent; }
 .menu-pop .chip-btn:hover { background: var(--zs-surface-2); }
+.menu-pop .menu-note { font: 400 11px/1.5 inherit; color: var(--zs-muted); padding: 6px 6px 2px;
+  margin-top: 4px; border-top: 1px solid var(--zs-line); }
 
 /* inline notification (replaces blocking alert()): fixed just below the header */
 .notifybar { position: fixed; top: 56px; left: 50%; transform: translateX(-50%); z-index: 100;
@@ -177,6 +179,31 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 /* min-width:0 lets the 1fr tracks shrink below their content's intrinsic width;
  * without it a long token/URL (or the chip row) forces the track wider and the
  * whole panel scrolls sideways — stricter in Chromium than in Safari. */
+
+/* ---- top-level surfaces (workspace ⇄ manuscripts) ----
+ * The Manuscripts surface swaps in inside #split without touching the outer .ide
+ * grid: when it's active we hide the two workspace columns and let #manuscripts
+ * span the full width. The workspace DOM stays alive, so switching back is instant. */
+.surfnav { display: flex; gap: 4px; }
+.surfnav[hidden] { display: none; }
+.surfnav-tab { font: inherit; cursor: pointer; border: 1px solid var(--zs-line);
+  background: var(--zs-surface-2); color: var(--zs-muted); border-radius: 7px; padding: 5px 10px; }
+.surfnav-tab[aria-current="true"] { color: var(--zs-brand); border-color: var(--zs-brand); background: var(--zs-brand-bg); }
+.surface { grid-column: 1 / -1; overflow: auto; min-width: 0; }
+.surface[hidden] { display: none; }
+/* any non-workspace surface takes over the content area: hide the two workspace columns */
+.split:not([data-surface="workspace"]) > .editor,
+.split:not([data-surface="workspace"]) > .card { display: none; }
+/* composition surfaces (Checks/Output/Settings) get their own padded column */
+.surfacepad { padding: 22px 30px 32px; max-width: 760px; }
+.surfacepad > h2 { font-size: 20px; margin: 0 0 4px; }
+.surfacepad .seg { border: 1px solid var(--zs-line); border-radius: var(--zs-radius-lg);
+  padding: 16px; margin: 14px 0; background: var(--zs-paper); }
+.surfacepad .seg > .lbl { margin-bottom: 8px; }
+/* a modal hosted inline inside a surface — same card body, no overlay/backdrop, not height-capped */
+.surface-host { padding: 18px 20px 28px; }
+.surface-host .modal-card { width: min(720px, 100%); max-height: none; margin: 0 auto;
+  box-shadow: none; }
 .editor { overflow: auto; overflow-x: hidden; min-width: 0; -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain; padding: 18px 30px 28px; border-right: 1px solid var(--zs-line); }
 .msbar { display: flex; flex-wrap: wrap; gap: var(--zs-space); align-items: center; margin-bottom: 14px; }
@@ -583,3 +610,25 @@ a.doi:hover { text-decoration: underline; }
 .triagebar .tfatal { color: #C24D7E; font-weight: 700; }
 .triagebar .treason { font-weight: 600; }
 .triagebar .tclaim { display: block; color: var(--zs-muted); font-size: 12.5px; margin-top: 2px; }
+/* persistent queue: when nothing needs attention, drop the amber alarm styling */
+.triagebar.calm { background: var(--zs-paper); border-color: var(--zs-line); border-left-color: var(--zs-line); }
+.triagebar .tlbl.ok { color: var(--zs-partial-text); }
+/* attention | all filter */
+.qtoggle { display: flex; gap: 4px; margin: 2px 0 8px; }
+.qtab { font: 600 12px/1 inherit; cursor: pointer; border: 1px solid var(--zs-line);
+  background: var(--zs-paper); color: var(--zs-muted); border-radius: 7px; padding: 5px 9px; }
+.qtab.on { color: var(--zs-brand); border-color: var(--zs-brand); background: var(--zs-brand-bg); }
+/* all-claims list — capped height so it never dominates the editor column */
+.qlist { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow: auto; }
+.qrow { display: flex; align-items: baseline; gap: var(--zs-space); width: 100%; text-align: left;
+  cursor: pointer; background: var(--zs-paper); border: 1px solid var(--zs-line); border-radius: 7px;
+  padding: 6px 9px; font: inherit; color: var(--zs-ink); }
+.qrow:hover { border-color: var(--zs-brand); }
+.qrow.active { border-color: var(--zs-brand); background: var(--zs-brand-bg); }
+.qrow:focus-visible { outline: 2px solid var(--zs-brand); outline-offset: 1px; }
+.qcode { font: 700 11px/1.4 ui-monospace, Menlo, monospace; flex: none; color: var(--zs-muted); }
+.qcode.s-oo { color: var(--zs-supported-text); }
+.qcode.s-o { color: var(--zs-partial-text); }
+.qcode.s-r { color: var(--zs-revise-text); }
+.qcode.s-d { color: var(--zs-delete-text); }
+.qtext { color: var(--zs-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

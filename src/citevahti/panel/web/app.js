@@ -7,76 +7,10 @@
  * and undoable. Connect actions store secrets via the engine; keys never round-trip
  * back to the browser. */
 
-const SUPPORT = [
-  ["directly_supports", "Directly supports", "the paper directly supports this claim"],
-  ["partially_supports", "Partially supports", "the paper supports part of this claim"],
-  ["indirectly_supports", "Indirectly supports", "the paper supports this claim only indirectly"],
-  ["overstated", "Overstated", "the paper supports a weaker version of this claim"],
-  ["does_not_support", "Does not support", "the paper does not support this claim"],
-  ["contradicts", "Contradicts", "the paper contradicts this claim"],
-  ["unclear", "Unclear", "the paper's support for this claim is genuinely unclear"],
-];
-const SUP_LABEL = Object.fromEntries(SUPPORT.map(([v, l]) => [v, l]));
-const SUP_DEF = Object.fromEntries(SUPPORT.map(([v, , d]) => [v, d]));
-// Human-readable claim-type labels; the enum is stored, only the label is shown.
-const CLAIM_TYPE_LABEL = {
-  effectiveness: "Treatment effect", diagnostic_accuracy: "Diagnostic accuracy",
-  prognosis: "Prognosis", risk_factor: "Risk factor", mechanism: "Mechanism",
-  background: "Background claim", guideline_recommendation: "Guideline recommendation",
-  implementation: "Implementation", other: "Other",
-};
-const claimTypeLabel = (t) => CLAIM_TYPE_LABEL[t] || t || "";
-const DECISIONS = [
-  ["accept", "Accept", "oo"],
-  ["accepted_with_caution", "Caution", "o"],
-  ["needs_second_review", "Needs review", "r"],
-  ["reject", "Reject", "d"],
-];
-const HEALTHY = ["connected", "configured", "available", "ok"];
-const STATE_CLASS = { oo: "s-oo", o: "s-o", r: "s-r", d: "s-d" };
-// a claim is "decided" once a verdict exists — every state except the pending one.
-// (verified=accept, review_needed=revise, decision_recorded=reject; needs_support=pending)
-const PENDING_STATE = "needs_support";
-const isDecided = (state) => !!state && state !== PENDING_STATE;
-// PICO fit dimensions: key, short label, and a plain explanation of what to judge.
-const PICO = [
-  ["population_fit", "P", "Population — does the paper study the same people/setting the claim is about?"],
-  ["intervention_fit", "I", "Intervention / exposure — does the paper test the same thing the claim is about?"],
-  ["outcome_fit", "O", "Outcome — does the paper measure the outcome the claim is about?"],
-  ["claim_fit", "Claim", "Overall — does this paper actually address this specific claim?"],
-];
-// What each 0/1/2 fit score means (the scale was ambiguous as bare numbers).
-const FIT_SCORES = [["0", "0 — no / off-topic"], ["1", "1 — partial / indirect"], ["2", "2 — strong / direct"]];
-const fitWord = (n) => n >= 7 ? "Strong" : n >= 4 ? "Moderate" : n >= 1 ? "Weak" : "None";
-
-const state = {
-  ctx: null, health: null, manuscripts: [], activeMs: null, view: null,
-  activeClaim: null, claim: null, candIdx: 0, done: new Set(),
-  lastTxn: null, docTxn: null, pendingDocToken: null,
-};
-let oTimer = null;   // double-tap "o" (decide phase): single = caution [o], double = accept [oo]
-
-// Per-session CSRF token, fetched once on boot and echoed on every state-changing request.
-// GET reads don't need it; the server requires it on POSTs (see panel/server.py).
-let CSRF = "";
-async function loadSessionToken() {
-  try { CSRF = (await api("GET", "/api/session")).csrf_token || ""; }
-  catch { CSRF = ""; }   // older server without /api/session → POSTs still work there
-}
-
-async function api(method, path, body) {
-  const opts = { method, headers: { "Content-Type": "application/json" } };
-  // attach the session token to mutating requests so the server's CSRF check passes
-  if (method !== "GET" && CSRF) opts.headers["X-CiteVahti-Token"] = CSRF;
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(path, opts);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const base = data.message || data.error || `HTTP ${res.status}`;
-    throw new Error(data.remediation ? `${base} — ${data.remediation}` : base);
-  }
-  return data;
-}
+/* Domain constants, `state`, and the `api()`/CSRF transport now live in two classic
+ * scripts loaded before this one — see state.js and api.js (index.html loads them in
+ * order: state.js → api.js → app.js). They share the global scope, so the symbols
+ * (SUPPORT, DECISIONS, PICO, state, api, CSRF, …) are available here unchanged. */
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const $ = (sel) => document.querySelector(sel);
@@ -106,9 +40,30 @@ async function boot() {
   renderLedger();
   await loadHealth();
   loadAudit();
-  if (!state.ctx.claim_total) return renderFirstRun();
+  const nav = $("#surfnav"); if (nav) nav.hidden = false;   // the surface router is live now
+  // An empty ledger opens on the Manuscripts surface (intake); otherwise the review
+  // workspace. Either way both surfaces stay reachable from the header nav.
+  if (!state.ctx.claim_total) return renderSurface("manuscripts");
+  renderSurface("workspace");
   await loadManuscripts();
   applyDeepLink();
+}
+
+/* Top-level surface router. Two surfaces today: the review "workspace" (the split
+ * editor + evidence card) and "manuscripts" (intake, ledger switching, source
+ * connections). Both live inside #split; we toggle which is shown via a data-surface
+ * attribute rather than destroying the workspace DOM, so the Manuscripts surface is
+ * reachable any time — not just on an empty first run. */
+const SURFACES = ["manuscripts", "checks", "atlas", "output", "settings"];
+function renderSurface(name) {
+  state.surface = name;
+  const split = $("#split"); if (split) split.dataset.surface = name;
+  SURFACES.forEach((s) => { const el = $("#" + s); if (el) el.hidden = (s !== name); });
+  const nav = $("#surfnav");
+  if (nav) nav.querySelectorAll("[data-surface]").forEach((b) =>
+    b.setAttribute("aria-current", String(b.dataset.surface === name)));
+  ({ manuscripts: renderManuscripts, checks: renderChecksSurface, atlas: renderAtlasSurface,
+     output: renderOutputSurface, settings: renderSettingsSurface }[name] || (() => {}))();
 }
 
 /* The "what's next" wizard: the single next action for the whole project, from the
@@ -452,19 +407,29 @@ const TEST_BADGE = { pass: "PASS", fail: "FAIL", skip: "SKIP" };
  * dialog, moves focus inside on open, and restores focus to the opener on close.
  * Escape + a Tab focus-trap are handled in the global keydown listener. */
 let _modalReturnFocus = null;
-function modalShell(id) {
+/* modalShell(id) builds a centered .modal overlay (default). modalShell(id, host)
+ * instead mounts the same content inline inside a surface container — no backdrop,
+ * no focus-trap — so the modal render functions can be reused verbatim on a surface.
+ * The box keeps its id either way, so the functions' re-render targets ($("#whModal")
+ * etc.) resolve in both modes. */
+function modalShell(id, host) {
   let box = document.getElementById(id);
   if (!box) {
     box = document.createElement("div");
     box.id = id;
+    box.tabIndex = -1;
+  }
+  if (host) {
+    box.className = "surface-host";
+    if (box.parentElement !== host) host.appendChild(box);
+  } else {
     box.className = "modal";
     box.setAttribute("role", "dialog");
     box.setAttribute("aria-modal", "true");
-    box.tabIndex = -1;
-    document.body.appendChild(box);
+    if (box.parentElement !== document.body) document.body.appendChild(box);
+    _modalReturnFocus = document.activeElement;          // restore on close
+    setTimeout(() => { try { box.focus(); } catch {} }, 0);
   }
-  _modalReturnFocus = document.activeElement;          // restore on close
-  setTimeout(() => { try { box.focus(); } catch {} }, 0);
   return box;
 }
 function closeModalEl(box) {
@@ -473,9 +438,17 @@ function closeModalEl(box) {
   const back = _modalReturnFocus; _modalReturnFocus = null;
   if (back && back.focus) { try { back.focus(); } catch {} }
 }
+/* A modal's ✕/Done acts as "leave": inside a surface it routes back to the review
+ * workspace (the surface stays mounted, just hidden); as a real modal it's removed. */
+function leaveModal(id, cleanup) {
+  if (cleanup) cleanup();
+  const box = document.getElementById(id);
+  if (box && box.closest(".surface")) return void renderSurface("workspace");
+  closeModalEl(box);
+}
 
-async function runTests(online) {
-  const box = modalShell("testModal");
+async function runTests(online, host) {
+  const box = modalShell("testModal", host || testSurfaceHost());
   box.innerHTML = `<div class="modal-card"><div class="note">Running unit tests${online ? " — verifying citations online (this can take a moment)…" : "…"}</div></div>`;
   try {
     const s = await api("POST", "/api/test-suite", { online: !!online, manuscript_id: state.activeMs || null });
@@ -512,7 +485,10 @@ function renderTestResults(box, s) {
       ${s.online ? "" : `<button class="btn ghost" data-test-online="1">Also verify citations online</button>`}
       <button class="btn primary" data-test-close="1">Done</button></div></div>`;
 }
-function closeTests() { closeModalEl($("#testModal")); }
+function closeTests() { leaveModal("testModal"); }
+// Where unit-test results render: a dedicated slot in the Checks surface (falls back to
+// a real modal only if the surface isn't mounted, e.g. a deep-linked call).
+function testSurfaceHost() { return $("#checksTestResults") || $("#checks") || null; }
 
 /* ---------- de-identified warehouse + Atlas contribution (download-only) ---- */
 function downloadJson(obj, filename) {
@@ -523,8 +499,8 @@ function downloadJson(obj, filename) {
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
 }
-async function openWarehouse() {
-  const box = modalShell("whModal");
+async function openWarehouse(host) {
+  const box = modalShell("whModal", host);
   box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
   try { renderWarehouse(box, await api("GET", "/api/warehouse")); }
   catch (e) { box.innerHTML = `<div class="modal-card"><div class="err">${esc(e.message)}</div>
@@ -603,15 +579,15 @@ async function whAction(act) {
     }
   } catch (e) { notify(e.message); }
 }
-function closeWarehouse() { state.lastBundle = null; closeModalEl($("#whModal")); }
+function closeWarehouse() { leaveModal("whModal", () => { state.lastBundle = null; }); }
 
 /* ---------- AI second opinion settings ----------
  * Privacy-first. Most users drive CiteVahti through an assistant over MCP, which
  * submits the blinded rating with no key (subscription pays) — so the MCP path is
  * framed first and the off/local/api modes are for CiteVahti's OWN call. The API
  * key is NEVER entered here: it lives in the keychain/env (we only show presence). */
-async function openAiSettings() {
-  const box = modalShell("aiModal");
+async function openAiSettings(host) {
+  const box = modalShell("aiModal", host);
   box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
   try {
     const cfg = await api("GET", "/api/ai-config");
@@ -682,7 +658,7 @@ async function aiConfigure(patch) {
     renderAiSettings($("#aiModal"), cfg, models, suggested);
   } catch (e) { notify(e.message); }
 }
-function closeAiSettings() { closeModalEl($("#aiModal")); }
+function closeAiSettings() { leaveModal("aiModal"); }
 // CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
 function cssEscape(s) {
   return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
@@ -777,22 +753,52 @@ async function loadManuscript(id) {
   loadTriage();   // surface "what needs you", worst-first (fire-and-forget)
 }
 
-// Risk-first triage banner: review the few that matter, not every claim. Each row jumps
-// to that claim's review card. Read-only; hidden when nothing needs attention.
+// Persistent claims queue. Fetches the risk-first triage, then renders a queue that is
+// always present while a manuscript with claims is open — a "Needs attention" shortlist
+// (worst-first) and an "All claims" view in document order. Rows carry data-claim, so the
+// global click delegation selects them. Read-only; never mutates.
 async function loadTriage() {
+  try { state.triage = await api("GET", "/api/triage"); } catch { state.triage = null; }
+  renderQueue();
+}
+function renderQueue() {
   const bar = $("#triagebar"); if (!bar) return;
-  let t;
-  try { t = await api("GET", "/api/triage"); } catch { bar.hidden = true; return; }
-  if (!t || !t.needs_attention) { bar.hidden = true; return; }
-  const rows = (t.items || []).slice(0, 6).map((it) =>
-    `<button type="button" class="trow" data-triage-claim="${esc(it.claim_id)}" title="${esc(it.action)}">
-       ${it.fatal ? '<span class="tfatal" aria-hidden="true">‼</span> ' : ""}<span class="treason">${esc(it.reason)}</span>
-       <span class="tclaim">${esc((it.claim_text || "").slice(0, 72))}</span></button>`).join("");
-  bar.innerHTML = `<div class="tlbl">⚠ ${t.needs_attention} of ${t.total} claim(s) worth your attention
-      <span class="tdim">· ${t.clean} clean · risk ${t.score}/100</span> — review these first:</div>${rows}`;
+  const ids = claimOrder();
+  if (!ids.length) { bar.hidden = true; bar.innerHTML = ""; return; }
+  const t = state.triage, all = !!state.queueAll;
+  const states = (state.view && state.view.claim_states) || {};
+  const textOf = {};
+  for (const seg of ((state.view && state.view.segments) || [])) if (seg.kind === "claim") textOf[seg.claim_id] = seg.text;
+  const need = t ? (t.needs_attention || 0) : 0;
+  const calm = need === 0;
+  const head = need
+    ? `<div class="tlbl">⚠ ${need} of ${t.total} claim(s) worth your attention
+        <span class="tdim">· ${t.clean} clean · risk ${t.score}/100</span></div>`
+    : `<div class="tlbl ok">✓ ${ids.length} claim(s) in this manuscript — nothing flagged for attention.</div>`;
+  const toggle = `<div class="qtoggle">
+    <button type="button" class="qtab${all ? "" : " on"}" data-queue="attention">Needs attention${t ? ` (${need})` : ""}</button>
+    <button type="button" class="qtab${all ? " on" : ""}" data-queue="all">All claims (${ids.length})</button></div>`;
+  let body;
+  if (!all) {
+    const items = (t && t.items) || [];
+    body = items.length
+      ? items.map((it) => `<button type="button" class="trow" data-claim="${esc(it.claim_id)}" title="${esc(it.action || "")}">
+          ${it.fatal ? '<span class="tfatal" aria-hidden="true">‼</span> ' : ""}<span class="treason">${esc(it.reason)}</span>
+          <span class="tclaim">${esc((it.claim_text || textOf[it.claim_id] || "").slice(0, 72))}</span></button>`).join("")
+      : `<div class="note">Nothing needs attention. Switch to <b>All claims</b> to browse the manuscript.</div>`;
+  } else {
+    body = `<div class="qlist">` + ids.map((id) => {
+      const st = states[id] || {};
+      const code = (isDecided(st.state) && st.code) ? st.code : "··";
+      const active = id === state.activeClaim ? " active" : "";
+      return `<button type="button" class="qrow${active}" data-claim="${esc(id)}">
+        <span class="qcode ${STATE_CLASS[code] || "s-pend"}">[${esc(code.padEnd(2))}]</span>
+        <span class="qtext">${esc((textOf[id] || id).slice(0, 84))}</span></button>`;
+    }).join("") + `</div>`;
+  }
+  bar.classList.toggle("calm", calm);
+  bar.innerHTML = head + toggle + body;
   bar.hidden = false;
-  bar.querySelectorAll("[data-triage-claim]").forEach((b) =>
-    b.addEventListener("click", () => selectClaim(b.dataset.triageClaim)));
 }
 
 /* ---------- header ---------- */
@@ -993,6 +999,7 @@ async function selectClaim(id) {
   try { state.history = await api("GET", `/api/claims/${encodeURIComponent(id)}/history`); }
   catch { state.history = null; }
   renderCard();
+  renderQueue();   // keep the queue's active-row highlight in sync (cheap; no refetch)
 }
 function activeCand() { return (state.claim && state.claim.candidates || [])[state.candIdx] || null; }
 /* The committed, not-yet-undone Zotero write recorded for this candidate in the
@@ -1789,15 +1796,17 @@ async function zsave(recordId, btn) {
   } catch (e) { showErr(e.message); }
 }
 
-/* ---------- first-run / empty-state ---------- */
-async function renderFirstRun() {
+/* ---------- Manuscripts surface (intake / ledgers / sources) ----------
+ * Formerly the first-run takeover that overwrote #split; now it renders into its own
+ * surface container so it's reachable any time via the header nav (renderSurface). */
+async function renderManuscripts() {
   let ledgers = [];
   try { ledgers = (await api("GET", "/api/ledgers")).ledgers || []; } catch {}
   const others = ledgers.filter((l) => l.claims > 0 && l.root !== state.ctx.root);
   const rows = ledgers.map((l) =>
     `<div class="ledrow"><span class="path">${esc(l.root)}</span><span class="n">${l.claims} claims</span>
       ${l.root !== state.ctx.root && l.claims > 0 ? `<button class="btn ghost" data-switch="${esc(l.root)}">Switch here</button>` : (l.root === state.ctx.root ? `<span class="note">active</span>` : "")}</div>`).join("");
-  $("#split").innerHTML = `<div class="firstrun">
+  $("#manuscripts").innerHTML = `<div class="firstrun">
     <div class="beta-banner"><b>CiteVahti is in beta — free to use.</b> Local-first: your manuscript
       and ratings stay on your device unless you choose to use an external AI model.</div>
     <h2>Start your review</h2>
@@ -1839,6 +1848,99 @@ async function renderFirstRun() {
     </details></div>`;
 }
 
+/* ---------- Checks surface (unit tests + maintenance scans) ----------
+ * Promoted from the test-results modal + the four Tools-menu scan buttons. Unit-test
+ * results render inline into #checksTestResults (runTests targets it via testSurfaceHost). */
+function renderChecksSurface() {
+  const host = $("#checks"); if (!host) return;
+  host.innerHTML = `<div class="surfacepad">
+    <h2>Checks</h2>
+    <div class="seg">
+      <div class="lbl">Manuscript unit tests</div>
+      <p class="note">Does every claim meet its references, and are the citations real? Structural checks
+        run offline; the online run also verifies each citation exists and isn't retracted.</p>
+      <div class="actions">
+        <button class="btn primary" data-act="run-tests">▶ Run structural tests</button>
+        <button class="btn ghost" data-act="run-tests-online">Run + verify citations online</button>
+      </div>
+      <div id="checksTestResults"></div>
+    </div>
+    <div class="seg">
+      <div class="lbl">Maintenance scans</div>
+      <p class="note">Housekeeping over your candidate evidence. Each one reports; none decides.</p>
+      <div class="actions" style="flex-wrap:wrap">
+        <button class="btn ghost" data-act="resolve-dois">⟳ Resolve DOIs</button>
+        <button class="btn ghost" data-act="recheck-library">⟳ Re-check library</button>
+        <button class="btn ghost" data-act="scan-retractions">⚠ Scan retractions</button>
+        <button class="btn ghost" data-act="scan-licenses">⚖ Scan licences</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Atlas surface (local evidence map + contribution) ----------
+ * Hosts the warehouse modal inline; its ✕/Done route back via leaveModal(). */
+function renderAtlasSurface() {
+  const host = $("#atlas"); if (!host) return;
+  host.innerHTML = "";
+  openWarehouse(host);
+}
+
+/* ---------- Output surface (export + cite-stable) ----------
+ * Promoted from the Export modal + the Tools-menu cite-stable export. All buttons reuse
+ * the existing delegated data-act handlers — no new export logic. */
+function renderOutputSurface() {
+  const host = $("#output"); if (!host) return;
+  host.innerHTML = `<div class="surfacepad">
+    <h2>Output</h2>
+    <div class="seg">
+      <div class="lbl">Citation-integrity report &amp; review trail</div>
+      <p class="note">For a supervisor, co-author, or journal. Local; nothing is transmitted.</p>
+      <div class="actions" style="flex-wrap:wrap">
+        <button class="btn ghost" data-act="export-md">⬇ Markdown (.md)</button>
+        <button class="btn ghost" data-act="export-pdf">⎙ PDF — print / Save as PDF</button>
+        <button class="btn ghost" data-act="export-word">📄 Word (.docx)</button>
+        <button class="btn primary" data-act="export-packet">⛁ Review packet (.zip)</button>
+      </div>
+    </div>
+    <div class="seg">
+      <div class="lbl">Cite-stable manuscript</div>
+      <p class="note">Embed <code>[@citekey]</code> for every accepted claim into your .md and write
+        references.bib (and a Word .docx if Pandoc is installed) — citations that survive copy-paste
+        and conversion to Word.</p>
+      <div class="actions"><button class="btn ghost" data-act="cite-export">⎘ Cite-stable export</button></div>
+    </div>
+    <div class="seg">
+      <div class="lbl">Bring a manuscript in</div>
+      <div class="actions"><button class="btn ghost" data-act="import-word">📄 Import Word (.docx) → review</button></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Settings surface ----------
+ * AI second opinion (hosted inline) + theme, keyboard shortcuts, and the update check —
+ * gathered from the scattered header/Tools controls into one home. */
+function renderSettingsSurface() {
+  const host = $("#settings"); if (!host) return;
+  const dark = document.documentElement.classList.contains("zs-dark");
+  host.innerHTML = `<div class="surfacepad">
+    <h2>Settings</h2>
+    <div class="seg">
+      <div class="lbl">Appearance &amp; shortcuts</div>
+      <div class="actions"><button class="btn ghost" data-act="toggle-theme">${dark ? "◑ Light theme" : "◑ Dark theme"}</button></div>
+      <label class="hkoff"><input type="checkbox" id="hkToggle2" ${state.hotkeysOff ? "checked" : ""}/> turn keyboard shortcuts off</label>
+    </div>
+    <div class="seg">
+      <div class="lbl">Updates</div>
+      <p class="note">Check PyPI for a newer CiteVahti release. Read-only and only when you click — it
+        sends nothing about you and never installs.</p>
+      <div class="actions"><button class="btn ghost" data-act="check-update">⬆ Check for updates</button></div>
+    </div>
+    <div id="settingsAi"></div>
+  </div>`;
+  openAiSettings($("#settingsAi"));   // hosts #aiModal inline within the AI segment
+}
+
 async function savePastedManuscript() {
   const filename = (($("#pasteName") || {}).value || "").trim();
   const content = ($("#pasteBody") || {}).value || "";
@@ -1878,6 +1980,10 @@ document.addEventListener("copy", (e) => {
 });
 
 document.addEventListener("click", (e) => {
+  // Match only the nav tabs — NOT the #split container, which also carries a
+  // data-surface attribute (for CSS), and would otherwise swallow every workspace click.
+  const nv = e.target.closest(".surfnav-tab"); if (nv) return void renderSurface(nv.dataset.surface);
+  const qq = e.target.closest("[data-queue]"); if (qq) { state.queueAll = qq.dataset.queue === "all"; return void renderQueue(); }
   const sw = e.target.closest("[data-switch]"); if (sw) return switchRoot(sw.dataset.switch);
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
   if (e.target.closest("[data-connect-close]")) return void closeConnectModal();
@@ -1919,7 +2025,14 @@ document.addEventListener("click", (e) => {
      docundo: docUndo, unlink: unlinkCandidate, gonext: goToNextClaim, exportreport: exportReport,
      "run-ai": runAiSecondOpinion,
      "export-md": exportReport, "export-pdf": exportPdf, "export-packet": exportPacket,
-     "export-word": exportDocx, "import-word": importWord,
+     "export-word": exportDocx, "import-word": importWord, "cite-export": citeExport,
+     // Checks surface: unit tests + maintenance scans (same actions as the header/Tools controls)
+     "run-tests": () => runTests(false), "run-tests-online": () => runTests(true),
+     "resolve-dois": () => runScan("resolve-dois"), "recheck-library": () => runScan("recheck-library"),
+     "scan-retractions": () => runScan("scan-retractions"), "scan-licenses": () => runScan("scan-licenses"),
+     // Settings surface
+     "check-update": checkForUpdates,
+     "toggle-theme": () => { const d = toggleTheme(); act.textContent = d ? "◑ Light theme" : "◑ Dark theme"; },
      next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
 });
 // User-initiated update check: the ONLY moment the panel talks to PyPI, and only on this
@@ -1936,13 +2049,12 @@ async function checkForUpdates() {
                                 : { kind: "error" });
   } catch (e) { notify(e.message); }
 }
-$("#checkUpdate").addEventListener("click", checkForUpdates);
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
 $("#prompts").addEventListener("click", openPrompts);
-$("#report").addEventListener("click", openExportModal);
-$("#runTests").addEventListener("click", () => runTests(false));
-$("#warehouse").addEventListener("click", openWarehouse);
-$("#aiSettings").addEventListener("click", openAiSettings);
+// The Run-unit-tests CTA opens the Checks surface and runs immediately. Export, AI,
+// evidence map, scans, cite-stable, updates and theme moved out of the header entirely —
+// they live on the Checks/Atlas/Output/Settings surfaces now (see the data-act handlers).
+$("#runTests").addEventListener("click", () => { renderSurface("checks"); runTests(false); });
 // warehouse opt-in toggles (delegated — the modal is rendered dynamically)
 document.addEventListener("change", (e) => {
   if (e.target.id === "whEnabled") return void whConfigure({ enabled: e.target.checked });
@@ -1953,6 +2065,8 @@ document.addEventListener("change", (e) => {
   if (e.target.id === "aiProvider") return void aiConfigure({ provider: e.target.value });
   if (e.target.id === "aiModelId") return void aiConfigure({ model_id: e.target.value.trim() });
   if (e.target.id === "aiEndpoint") return void aiConfigure({ endpoint: e.target.value.trim() });
+  // the Settings-surface copy of the keyboard-shortcuts toggle
+  if (e.target.id === "hkToggle2") return void setHotkeysOff(e.target.checked);
 });
 $("#auditBadge").addEventListener("click", () => loadAudit());
 $("#legendBtn").addEventListener("click", () => {
@@ -1960,15 +2074,20 @@ $("#legendBtn").addEventListener("click", () => {
   el.toggleAttribute("hidden");
   $("#legendBtn").setAttribute("aria-expanded", String(opening));
 });
-// keyboard-shortcut toggle, persisted across sessions (for people writing in the panel)
+// keyboard-shortcut toggle, persisted across sessions (for people writing in the panel).
+// Two checkboxes share it now — the legend (#hkToggle) and Settings (#hkToggle2) — so a
+// single setter keeps them, state, and localStorage in sync.
+function setHotkeysOff(v) {
+  state.hotkeysOff = v;
+  try { localStorage.setItem("citevahti.hotkeysOff", v ? "1" : "0"); } catch {}
+  const a = $("#hkToggle"), b = $("#hkToggle2");
+  if (a) a.checked = v; if (b) b.checked = v;
+}
 (function initHotkeyToggle() {
   try { state.hotkeysOff = localStorage.getItem("citevahti.hotkeysOff") === "1"; } catch { state.hotkeysOff = false; }
   const cb = $("#hkToggle"); if (!cb) return;
   cb.checked = state.hotkeysOff;
-  cb.addEventListener("change", () => {
-    state.hotkeysOff = cb.checked;
-    try { localStorage.setItem("citevahti.hotkeysOff", cb.checked ? "1" : "0"); } catch {}
-  });
+  cb.addEventListener("change", () => setHotkeysOff(cb.checked));
 })();
 async function maintenance(path, label, fmt) {
   try {
@@ -1978,18 +2097,20 @@ async function maintenance(path, label, fmt) {
     if (state.activeClaim) await selectClaim(state.activeClaim);
   } catch (e) { notify(`${label} failed: ${e.message}`, { retry: () => maintenance(path, label, fmt) }); }
 }
-$("#resolveDois").addEventListener("click", () =>
-  maintenance("/api/candidates/resolve-dois", "Resolve DOIs",
-              (r) => `Resolved ${r.resolved || 0} missing DOI(s) from PMIDs.`));
-$("#recheckLib").addEventListener("click", () =>
-  maintenance("/api/candidates/recheck-library", "Re-check library",
-              (r) => `Checked ${r.checked || 0} candidate(s); ${r.flagged || 0} now flagged as already in Zotero.`));
-$("#scanRetractions").addEventListener("click", () =>
-  maintenance("/api/candidates/scan-retractions", "Scan retractions",
-              (r) => `Checked ${r.checked || 0} candidate(s); ${r.flagged || 0} flagged as RETRACTED.`));
-$("#scanLicenses").addEventListener("click", () =>
-  maintenance("/api/candidates/scan-licenses", "Scan licences",
-              (r) => `Checked ${r.checked || 0} candidate(s); reuse rights filled for ${r.filled || 0}.`));
+// One registry for the maintenance scans, shared by the Tools-menu buttons and the
+// Checks surface (data-act="…") so the two entry points can't drift apart.
+const SCANS = {
+  "resolve-dois": ["/api/candidates/resolve-dois", "Resolve DOIs",
+    (r) => `Resolved ${r.resolved || 0} missing DOI(s) from PMIDs.`],
+  "recheck-library": ["/api/candidates/recheck-library", "Re-check library",
+    (r) => `Checked ${r.checked || 0} candidate(s); ${r.flagged || 0} now flagged as already in Zotero.`],
+  "scan-retractions": ["/api/candidates/scan-retractions", "Scan retractions",
+    (r) => `Checked ${r.checked || 0} candidate(s); ${r.flagged || 0} flagged as RETRACTED.`],
+  "scan-licenses": ["/api/candidates/scan-licenses", "Scan licences",
+    (r) => `Checked ${r.checked || 0} candidate(s); reuse rights filled for ${r.filled || 0}.`],
+};
+// Triggered from the Checks surface via data-act="resolve-dois" etc. (no header buttons).
+function runScan(key) { const s = SCANS[key]; if (s) maintenance(s[0], s[1], s[2]); }
 async function citeExport() {
   if (!state.activeMs) { notify("Open a manuscript first."); return; }
   if (!(state.view && state.view.mode === "file")) {
@@ -2016,12 +2137,15 @@ async function citeExport() {
     (r.warnings || []).forEach((w) => console.warn("cite-export:", w));
   } catch (e) { notify("Cite-stable export failed: " + e.message, { retry: () => citeExport() }); }
 }
-$("#citeExport").addEventListener("click", citeExport);
-$("#theme").addEventListener("click", () => {
+// citeExport() is invoked from the Output surface via data-act="cite-export".
+// Shared by the header ◑ button and the Settings surface; returns the new dark state.
+function toggleTheme() {
   const dark = document.documentElement.classList.toggle("zs-dark");
   try { localStorage.setItem("cv-theme", dark ? "dark" : "light"); } catch { /* private mode */ }
   syncThemeLabel();
-});
+  return dark;
+}
+// toggleTheme() is invoked from the Settings surface via data-act="toggle-theme".
 // "⋯ Tools" dropdown: close once an action runs, on outside-click, or on Escape
 (() => {
   const tm = $("#toolsmenu"); if (!tm || !tm.querySelector) return;
@@ -2068,6 +2192,9 @@ document.addEventListener("keydown", (e) => {
     if (recoverableTxn()) { zundo(); return e.preventDefault(); }
     if (state.docTxn) { docUndo(); return e.preventDefault(); }
   }
+  // claim navigation/rating only makes sense on the review workspace; on other surfaces
+  // (Checks, Settings, …) the manuscript isn't shown, so don't move the selection underneath.
+  if (state.surface !== "workspace") return;
   const ids = claimOrder(); if (!ids.length) return;   // document order, matching the eye
   const i = ids.indexOf(state.activeClaim);
   if (key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); return e.preventDefault(); }
