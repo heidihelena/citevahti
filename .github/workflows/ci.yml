@@ -11,6 +11,21 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: ruff (static analysis · incl. security S-rules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+      - name: Install ruff (dev extra)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Lint (config in pyproject.toml [tool.ruff])
+        run: python -m ruff check src
+
   python:
     name: pytest (offline) · py${{ matrix.python-version }}
     runs-on: ubuntu-latest

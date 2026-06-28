@@ -10,7 +10,6 @@ from __future__ import annotations
 import re
 from typing import Optional, Protocol, runtime_checkable
 
-from ..schemas.common import ItemRef
 from ..util import sha256_hex
 
 _DOI_PREFIX = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)", re.IGNORECASE)

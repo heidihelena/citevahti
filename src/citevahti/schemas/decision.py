@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from .. import SCHEMA_VERSION
 from .claim_support import SUPPORT_VALUES

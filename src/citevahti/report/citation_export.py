@@ -265,7 +265,7 @@ def write_outputs(result: CitationExport, manuscript_path, *, out=None, bib=None
             else:
                 docx_path = md_path.with_suffix(".docx")
                 try:
-                    subprocess.run([pandoc, str(md_path), "--citeproc",
+                    subprocess.run([pandoc, str(md_path), "--citeproc",  # noqa: S603 — list form (no shell), pandoc path resolved internally, args are local file paths
                                     f"--bibliography={bib_path}", "-o", str(docx_path)],
                                    check=True, capture_output=True)
                     info["docx_path"] = str(docx_path)

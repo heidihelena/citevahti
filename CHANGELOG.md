@@ -4,6 +4,21 @@ All notable changes to CiteVahti (a product of Vahtian; formerly developed as
 ZotSynth). The project was built in reviewed steps, each on its own branch off the
 previous one.
 
+## [Unreleased]
+
+### Added
+- **Static analysis in CI (`ruff`).** A new `lint` job runs `ruff check src` on every
+  push/PR, gating merges alongside the test suite. Config lives in `pyproject.toml`
+  (`[tool.ruff]`); `ruff` is in the `dev` extra. Rules: `E`/`F` (correctness, dead code)
+  plus **`S` (flake8-bandit security rules)** — a security regression now fails CI like a
+  syntax error. No behaviour change: the 19 auto-fixable dead-code findings (unused imports,
+  a placeholder-less f-string) were removed, and the 6 remaining security findings were each
+  triaged and annotated inline — 3 false positives (keyring/env-var *names*, a shell-free
+  `subprocess` list call) and 2 genuine hardenings deferred to scoped follow-ups (`S310`
+  TSA-URL scheme allow-list, `S314` defusedxml for PubMed parsing), each marked with a
+  `TODO(security)` at the site. `E501` (line length) and `S110`/`S112` (best-effort
+  try/except) are documented deferrals, not silent suppressions.
+
 ## 0.42.0 — source reuse rights (`license-scan`) (2026-06-28)
 
 - **Each candidate can now carry its reuse rights** — `oa_status` (gold/green/hybrid/bronze/
