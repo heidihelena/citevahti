@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 from dataclasses import dataclass
 from typing import Optional, Protocol, runtime_checkable
+from urllib.parse import urlparse
 
 from ..util import utc_now_iso
 
@@ -93,11 +94,20 @@ class Rfc3161Provider:
                                    {"Content-Type": "application/timestamp-query"})
         import urllib.error
         import urllib.request
-        # TODO(security): allow-list http(s) on tsa_url (config-supplied) — tracked as a follow-up.
-        req = urllib.request.Request(  # noqa: S310 — scheme guard deferred (see TODO above)
+        # Reach only a real TSA over the network: a config-supplied tsa_url with a
+        # file:/ftp:/data: scheme would otherwise let urlopen read a local file (or worse)
+        # instead of POSTing to an authority. Refuse anything but http(s) before opening it.
+        scheme = urlparse(self.tsa_url).scheme.lower()
+        if scheme not in ("http", "https"):
+            raise TimestampUnavailable(
+                f"TSA URL must use http or https, not {scheme or 'a missing'!r} scheme: "
+                f"{self.tsa_url!r}")
+        # S310: the scheme is allow-listed to http(s) just above, so urlopen can't be
+        # steered to a file:/custom-scheme local read — bandit can't see the guard.
+        req = urllib.request.Request(  # noqa: S310 — scheme guarded above
             self.tsa_url, data=data, headers={"Content-Type": "application/timestamp-query"})
         try:
-            with urllib.request.urlopen(req, timeout=self._timeout) as resp:  # noqa: S310 — see TODO above
+            with urllib.request.urlopen(req, timeout=self._timeout) as resp:  # noqa: S310 — scheme guarded above
                 return resp.read()
         except (urllib.error.URLError, OSError) as exc:
             raise TimestampUnavailable(f"TSA unreachable: {exc}") from exc

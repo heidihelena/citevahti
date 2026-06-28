@@ -6,6 +6,19 @@ previous one.
 
 ## [Unreleased]
 
+### Security
+- **PubMed XML is now parsed with `defusedxml` (entity-expansion / XXE hardening).**
+  `pubmed/parse.py` previously used stdlib `xml.etree.ElementTree.fromstring`, which
+  expands internal entities — a malicious efetch response (e.g. a "billion laughs"
+  payload) could exhaust memory. It now uses `defusedxml.ElementTree.fromstring`, which
+  refuses to expand entities; a hostile payload degrades to `[]`, the same honest
+  degradation as a malformed document. This clears the deferred `ruff` `S314` finding
+  (the `# noqa: S314` and its `TODO(security)` are removed). `defusedxml` is a **core**
+  dependency (not an extra), matching `python-docx`, so the no-terminal `.mcpb` — which
+  can't `pip install` — parses PubMed safely; it is a tiny pure-Python wheel with no
+  transitive dependencies. New offline regression tests (`@pytest.mark.security`) feed an
+  entity-expansion payload and assert it is not expanded.
+
 ### Added
 - **Dependency-CVE scanning in CI (`pip-audit`).** A new `pip-audit` workflow installs CiteVahti
   + its runtime extras and audits the resolved dependency tree against the PyPI Advisory DB + OSV
@@ -36,6 +49,19 @@ previous one.
   change. The largest item is `pubmed/provider.py` (one wrong return annotation → 14 errors);
   several backlog modules sit on safety paths (`tools.py`, `writeback/*`) and will be typed
   deliberately with the rating/writeback tests per `docs/SAFETY_INVARIANTS.md`.
+
+### Security
+- **Timestamp client now refuses a non-`http(s)` TSA URL (closes the `S310` deferral).**
+  `Rfc3161Provider._post` validated nothing about the config-supplied `tsa_url` scheme, so a
+  `file://` (or `ftp://`, `data:`…) URL would make `urllib.urlopen` read a local file instead
+  of POSTing to a timestamp authority. It now rejects any scheme other than `http`/`https`
+  with `TimestampUnavailable` *before* opening the URL. The `TODO(security)` deferral is
+  gone; the `# noqa: S310` markers remain but are re-justified by the guard (bandit's blanket
+  URL-open rule has no dataflow, so it can't see the upstream scheme check). New offline
+  security regression
+  (`test_timestamp.py::test_rfc3161_rejects_non_http_tsa_url_without_touching_the_filesystem`,
+  marked `@pytest.mark.security`) proves a `file://` URL is refused without any network or
+  filesystem access; documented in `SECURITY.md`.
 
 ### Fixed
 - **`corpus_diff` now degrades instead of crashing on a missing `to_snapshot_id`.** Calling

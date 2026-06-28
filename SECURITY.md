@@ -39,6 +39,7 @@ regression group — run it alone with `pytest -m security`:
 | Constrained agent surface (allow-list + `assert_safe_surface`) | a tool reaching beyond its sanctioned power | `test_agent_surface.py` |
 | Decision-file tamper detection | a hand-edited `accept` slipping past the audit | `test_decision_tamper_integrity.py` |
 | Read-only views never mutate the ledger | a "report" silently writing/auditing | `test_readonly_tools_dont_mutate.py` |
+| Timestamp client: refuse a non-`http(s)` `tsa_url` before opening it | SSRF / local-file read via a `file://` config-supplied TSA URL | `test_timestamp.py::test_rfc3161_rejects_non_http_tsa_url_without_touching_the_filesystem` |
 
 These complement — they don't replace — the full [safety-invariant](docs/SAFETY_INVARIANTS.md)
 table, which the whole offline suite guards. Adding a security control? Mark its test
