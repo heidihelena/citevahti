@@ -139,7 +139,8 @@ class WritebackService:
                 # None -> could-not-check. Treat None HONESTLY (not as "clean"), matching
                 # commit_for_decision -- an unreachable search must not pass as no-duplicate.
                 try:
-                    hit = find_existing(h.pmid, h.doi, library=library) if can_check else []
+                    hit = (find_existing(h.pmid, h.doi, library=library)
+                           if can_check and find_existing is not None else [])
                 except Exception:  # noqa: BLE001 (a dedupe failure must never crash the write)
                     hit = None
                 if hit:

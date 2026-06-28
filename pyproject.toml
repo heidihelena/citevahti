@@ -123,17 +123,12 @@ module = ["tufup.*", "pypandoc.*", "asn1crypto.*", "keyring.*", "mcp.*"]
 ignore_missing_imports = true
 
 # Typing backlog — modules with pre-existing type errors, deferred to scoped
-# follow-ups. What remains is deliberately the careful set: the safety paths
-# (rating-adjacent tools.py, writeback/*, the loopback panel) must be typed with
-# the rating/writeback tests in front of you per docs/SAFETY_INVARIANTS.md; the
-# autoupdate/* pair needs the tufup shim's `object` fallback resolved.
+# follow-ups. The safety paths (rating-adjacent tools.py, writeback/*, the loopback
+# panel) are now typed and gating. What remains is the autoupdate/* pair, which
+# needs the tufup shim's `object` fallback resolved.
 [[tool.mypy.overrides]]
 module = [
-  "citevahti.tools",
-  "citevahti.panel.server",
   "citevahti.autoupdate.maintainer",
   "citevahti.autoupdate.client",
-  "citevahti.writeback.webapi",
-  "citevahti.writeback.service",
 ]
 ignore_errors = true
