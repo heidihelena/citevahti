@@ -7,6 +7,11 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Committed dependency lockfile (`uv.lock`).** A full resolution of the dependency tree
+  (84 packages across all extras) is now locked for reproducible dev/CI installs and as a precise
+  scan target for dependency auditors. Generated with `uv lock`; it does **not** change the
+  published package's `pyproject.toml` version ranges (library consumers still get the ranges) and
+  is not shipped in the sdist/wheel. `uv sync` reproduces the environment exactly.
 - **OpenSSF Scorecard in CI.** A new `Scorecard supply-chain security` workflow rates the repo's
   supply-chain posture (Branch-Protection, Token-Permissions, Pinned-Dependencies, Code-Review,
   Dependency-Update-Tool, …) on push to `main`, weekly, and on branch-protection changes, uploading
