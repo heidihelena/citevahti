@@ -6,6 +6,19 @@ previous one.
 
 ## [Unreleased]
 
+### Security
+- **PubMed XML is now parsed with `defusedxml` (entity-expansion / XXE hardening).**
+  `pubmed/parse.py` previously used stdlib `xml.etree.ElementTree.fromstring`, which
+  expands internal entities — a malicious efetch response (e.g. a "billion laughs"
+  payload) could exhaust memory. It now uses `defusedxml.ElementTree.fromstring`, which
+  refuses to expand entities; a hostile payload degrades to `[]`, the same honest
+  degradation as a malformed document. This clears the deferred `ruff` `S314` finding
+  (the `# noqa: S314` and its `TODO(security)` are removed). `defusedxml` is a **core**
+  dependency (not an extra), matching `python-docx`, so the no-terminal `.mcpb` — which
+  can't `pip install` — parses PubMed safely; it is a tiny pure-Python wheel with no
+  transitive dependencies. New offline regression tests (`@pytest.mark.security`) feed an
+  entity-expansion payload and assert it is not expanded.
+
 ### Added
 - **CodeQL SAST in CI.** A new `CodeQL` workflow runs GitHub's security queries over the Python
   source on every push/PR and weekly, uploading results (SARIF) to the Security tab. It does

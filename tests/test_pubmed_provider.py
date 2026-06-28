@@ -1,5 +1,7 @@
 """PubMed provider: parsing, abstract gating, degradation, retry -- no live net."""
 
+import pytest
+
 from citevahti.probe.client import HttpResponse, ProbeTransportError
 from citevahti.pubmed import PubMedProvider, RateLimiter
 
@@ -149,3 +151,37 @@ def test_doi_is_article_own_not_reference():
     assert h["doi"] == "10.1007/s00330-025-12015-z"
     assert h["pmid"] == "40990985"
     assert h["doi"] != "10.1016/j.acra.2020.05.044"
+
+
+# --- security: PubMed XML parsing must not expand entities (billion-laughs / XXE) ---
+# A "billion laughs" payload: nested internal entities that, if expanded, blow up
+# from a few bytes to gigabytes and exhaust memory. defusedxml refuses to expand
+# them; parse_efetch_xml must degrade to [] without building the expansion.
+BILLION_LAUGHS = """<?xml version="1.0"?>
+<!DOCTYPE lolz [
+ <!ENTITY lol "lol">
+ <!ENTITY lol1 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+ <!ENTITY lol2 "&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;">
+ <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+]>
+<PubmedArticleSet><PubmedArticle><MedlineCitation>
+ <PMID>1</PMID><Article><ArticleTitle>&lol3;</ArticleTitle></Article>
+</MedlineCitation></PubmedArticle></PubmedArticleSet>"""
+
+
+@pytest.mark.security
+def test_parse_does_not_expand_entities():
+    """Malicious entity payload degrades to [] -- never expands, never raises out."""
+    from citevahti.pubmed.parse import parse_efetch_xml
+    # Honest degradation: no expansion, no crash, no hits.
+    assert parse_efetch_xml(BILLION_LAUGHS) == []
+
+
+@pytest.mark.security
+def test_safe_parser_rejects_entities_at_source():
+    """The underlying defusedxml parser refuses the payload, not stdlib ET."""
+    from defusedxml.common import EntitiesForbidden
+
+    from citevahti.pubmed.parse import _safe_fromstring
+    with pytest.raises(EntitiesForbidden):
+        _safe_fromstring(BILLION_LAUGHS)
