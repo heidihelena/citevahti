@@ -1,0 +1,37 @@
+name: CodeQL
+
+# GitHub-native SAST. Runs CodeQL's security queries over the Python source on
+# every push/PR and weekly, uploading results (SARIF) to the Security tab.
+# Complements the ruff `S` (bandit) rules in CI: CodeQL does deeper dataflow/
+# taint analysis that line-level linting can't. Advanced (workflow) setup so the
+# config is in-repo and SHA-pinned, per SECURITY.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 5 * * 1"   # weekly, Monday 05:23 UTC (catches new queries on unchanged code)
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL analyze (python)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # upload the SARIF results to the Security tab
+      actions: read            # read workflow run metadata (private-repo requirement)
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357  # v3
+        with:
+          languages: python
+          # Pure-Python project: no compiled build, so CodeQL needs no build step.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357  # v3
+        with:
+          category: "/language:python"

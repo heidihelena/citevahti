@@ -7,6 +7,11 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **CodeQL SAST in CI.** A new `CodeQL` workflow runs GitHub's security queries over the Python
+  source on every push/PR and weekly, uploading results (SARIF) to the Security tab. It does
+  deeper dataflow/taint analysis than line-level linting, complementing the ruff `S` (bandit)
+  rules. Advanced (in-repo) setup, SHA-pinned, least-privilege (`security-events: write` only on
+  the analyze job). Dependabot keeps the `codeql-action` pin current.
 - **Static analysis in CI (`ruff`).** A new `lint` job runs `ruff check src` on every
   push/PR, gating merges alongside the test suite. Config lives in `pyproject.toml`
   (`[tool.ruff]`); `ruff` is in the `dev` extra. Rules: `E`/`F` (correctness, dead code)
