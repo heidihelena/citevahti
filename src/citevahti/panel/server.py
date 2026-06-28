@@ -269,9 +269,9 @@ _CODE_BY_TYPE = {
 def _error_payload(e) -> tuple:
     """Map an exception to (status, {error, code, message, remediation})."""
     if isinstance(e, HttpError):
-        code = e.code or "bad_request"
-        return e.status, {"error": "bad_request", "code": code, "message": e.message,
-                          "remediation": e.remediation or _REMEDIATION.get(code, "")}
+        err_code = e.code or "bad_request"
+        return e.status, {"error": "bad_request", "code": err_code, "message": e.message,
+                          "remediation": e.remediation or _REMEDIATION.get(err_code, "")}
     if isinstance(e, KeyError):
         return 400, {"error": "missing_field", "code": "missing_field",
                      "message": str(e), "remediation": _REMEDIATION["missing_field"]}
@@ -720,12 +720,12 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             claim_id = _req(body, "claim_id")
             batch_id = _req(body, "batch_id")
             record_ids = body.get("record_ids")
-            resolved = _resolve_missing_dois(root, batch_id, record_ids)   # backfill before linking
+            doi_resolved = _resolve_missing_dois(root, batch_id, record_ids)   # backfill before linking
             rep = engine.link_candidates(claim_id, batch_id, record_ids=record_ids, root=root)
             return 200, {"linked": getattr(rep, "linked", None),
                          "skipped_duplicates": getattr(rep, "skipped_duplicates", None),
                          "total_candidates": getattr(rep, "total_candidates", None),
-                         "doi_resolved": resolved}
+                         "doi_resolved": doi_resolved}
 
         # ---- direct "Save to Zotero" for a search hit (preview → confirm) ------
         # Pushes a staged search record into the Zotero library as an item, WITHOUT
@@ -1330,6 +1330,8 @@ def serve(root: str = ".", host: str = "127.0.0.1", port: int = 8765, *,
     prefs.remember_root(root)   # so the next launch defaults here, not an empty ledger
     httpd = make_server(root, host, port)
     bound_host, bound_port = httpd.server_address[0], httpd.server_address[1]
+    if isinstance(bound_host, (bytes, bytearray)):
+        bound_host = bound_host.decode()
     print(f"CiteVahti side panel → http://{bound_host}:{bound_port}  (root={root})")
     print("Open it beside your chat client. Loopback only; Ctrl-C to stop.")
     try:

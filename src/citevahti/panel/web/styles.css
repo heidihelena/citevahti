@@ -172,6 +172,10 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 
 /* ---- split ---- */
 .split { display: grid; grid-template-columns: 1.6fr 1fr; min-height: 0; min-width: 0; }
+/* Until a claim is selected the evidence pane is empty — collapse to one column so it
+   doesn't show as a blank vertical band. `.has-detail` is added on first selectClaim(). */
+.split:not(.has-detail) { grid-template-columns: 1fr; }
+.split:not(.has-detail) > #card { display: none; }
 /* min-width:0 lets the 1fr tracks shrink below their content's intrinsic width;
  * without it a long token/URL (or the chip row) forces the track wider and the
  * whole panel scrolls sideways — stricter in Chromium than in Safari. */
@@ -454,6 +458,9 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 /* ---- agent lane ---- */
 .agent { border-top: 1px solid var(--zs-line); background: var(--zs-paper); padding: 10px 16px;
   display: flex; align-items: center; gap: var(--zs-space-lg); font: 13px/1.4 ui-monospace, Menlo, monospace; color: var(--zs-muted); min-height: 46px; }
+/* The agent lane is an aria-live notification region — empty most of the time. Collapse it
+   when empty so it isn't a blank 46px bar; it reappears the moment a message is posted. */
+.agent:empty { display: none; }
 .agent .who { color: var(--zs-brand); font-weight: 700; white-space: nowrap; }
 .agent .pill { color: var(--zs-ink); }
 

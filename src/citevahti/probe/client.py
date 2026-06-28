@@ -34,8 +34,11 @@ class HttpClient(Protocol):
     def get(self, url: str, headers: Optional[dict[str, str]] = None,
             params: Optional[dict[str, Any]] = None) -> HttpResponse: ...
 
-    def post(self, url: str, json: Optional[dict[str, Any]] = None,
+    def post(self, url: str, json: dict[str, Any] | list[Any] | None = None,
              headers: Optional[dict[str, str]] = None) -> HttpResponse: ...
+
+    def delete(self, url: str,
+               headers: Optional[dict[str, str]] = None) -> HttpResponse: ...
 
 
 class HttpxClient:

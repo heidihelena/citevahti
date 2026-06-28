@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, Protocol
 
 from .settings import AutoUpdateSettings, resolve_settings
 
@@ -34,12 +34,23 @@ class UpdateOutcome:
         return self.status == AVAILABLE
 
 
-# A factory returning a tufup-Client-like object (check_for_updates / download_and_apply_update).
-# Injectable so tests never need tufup or a network.
-ClientFactory = Callable[[AutoUpdateSettings], object]
+class _TufupClient(Protocol):
+    """The slice of tufup's Client that this module uses — so the duck-typed seam
+    (real tufup Client in production, a fake in tests) is checked at the call sites."""
+
+    def check_for_updates(self) -> Any: ...
+
+    def download_and_apply_update(self, *, skip_confirmation: bool = ...,
+                                  progress_hook: Optional[Callable[[float], None]] = ...,
+                                  install: Callable[..., Any] = ...) -> Any: ...
 
 
-def _default_client_factory(s: AutoUpdateSettings) -> object:
+# A factory returning a tufup-Client-like object. Injectable so tests never need tufup
+# or a network.
+ClientFactory = Callable[[AutoUpdateSettings], _TufupClient]
+
+
+def _default_client_factory(s: AutoUpdateSettings) -> _TufupClient:
     """Build a real tufup Client, bootstrapping the trusted root on first run."""
     from tufup.client import Client  # lazy: only when actually configured
 

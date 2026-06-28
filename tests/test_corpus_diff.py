@@ -25,6 +25,16 @@ def snap(store, items, label, include_ft=False):
         label=label, include_fulltext_hashes=include_ft).snapshot_id
 
 
+def test_degrades_when_to_snapshot_missing_and_not_comparing_to_current(tmp_path):
+    # No to_snapshot_id and compare_to_current=False is an invalid call; it must
+    # degrade gracefully (like no_corpus_source) rather than crash on load_snapshot(None).
+    store = store_with(tmp_path)
+    a = snap(store, [ci("K1")], "a")
+    rep = CorpusDiffService(store).diff(a, to_snapshot_id=None, compare_to_current=False)
+    assert rep.status == "degraded" and rep.error_code == "no_to_snapshot"
+    assert rep.added == [] and rep.removed == []
+
+
 def test_detects_added_study(tmp_path):
     store = store_with(tmp_path)
     a = snap(store, [ci("K1")], "a")

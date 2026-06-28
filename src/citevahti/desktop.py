@@ -73,6 +73,17 @@ def run_app(root: Optional[str] = None, *, host: str = "127.0.0.1", port: int = 
         return 2
 
     wv = webview or _import_webview()
+    # macOS shows the menu-bar/Dock name from the bundle — which is "Python" when run via
+    # the interpreter (not a packaged .app). Relabel it to CiteVahti. No-op off macOS or
+    # when pyobjc isn't present; never blocks a launch.
+    try:
+        from Foundation import NSBundle  # ships with pyobjc, a pywebview macOS dependency
+
+        info = NSBundle.mainBundle().infoDictionary()
+        if info is not None:
+            info["CFBundleName"] = "CiteVahti"
+    except Exception:  # noqa: S110 — cosmetic only; a missing relabel must never break launch
+        pass
     wv.create_window(_TITLE, res["url"], width=1180, height=820, min_size=(900, 600))
     icon = _icon_path()
     try:

@@ -98,6 +98,12 @@ class CorpusDiffService:
             to_items = _to_snapshot_items(live)
             to_id = "current"
         else:
+            if to_snapshot_id is None:
+                return CorpusDiffReport(from_snapshot_id=from_snapshot_id, to_snapshot_id="",
+                                        status="degraded", error_code="no_to_snapshot",
+                                        remediation="Provide a to_snapshot_id, or set "
+                                                    "compare_to_current to diff against the live corpus.",
+                                        provenance=prov)
             to_items = self.store.load_snapshot(to_snapshot_id).items
             to_id = to_snapshot_id
 

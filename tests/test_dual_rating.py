@@ -3,6 +3,7 @@
 import pytest
 
 from citevahti.rating import FakeAiRater, RatingEngine
+from citevahti.rating.blinding import blinded_ai_value
 from citevahti.schemas.common import ItemRef
 from citevahti.schemas.frame import Frame, Level, Outcome, Scheme, Study
 from citevahti.schemas.rating import Subject
@@ -193,3 +194,72 @@ def test_audit_event_on_each_mutation(tmp_path):
     saves = [e for e in store.audit.entries() if e.event == "rating.save"]
     assert len(saves) >= 4                        # start, commit, run_ai, compare, adjudicate
     assert store.audit.verify() is True
+
+
+# ---- flag/score behaviour (added coverage) ---------------------------------
+def test_ai_value_sealed_until_human_rates(tmp_path):
+    """Invariant: an AI rating recorded BEFORE the human rates stays blinded; it is
+    revealed only once a human value exists (the blinding window, through the engine)."""
+    eng, store = engine(tmp_path, rater=FakeAiRater("Moderate"))
+    rid = started(eng).rating_id
+    eng.rating_run_ai(rid, "assess")                 # AI first — human has NOT rated yet
+    rec = store.load_rating(rid)
+    assert rec.human_rating is None and rec.ai_rating.value == "Moderate"
+    # Sealed while no human value exists.
+    assert blinded_ai_value(None, rec.ai_rating.value, hidden="SEALED") == "SEALED"
+    # Once the human commits, the same rule reveals it.
+    eng.rating_commit_human(rid, "Low")
+    rec = store.load_rating(rid)
+    assert blinded_ai_value(rec.human_rating.value, rec.ai_rating.value, hidden="SEALED") == "Moderate"
+
+
+def test_compare_sets_computed_at(tmp_path):
+    """compare() stamps comparison.computed_at; it is unset until compare runs."""
+    eng, store, rid = _human_ai(tmp_path, "Moderate", "Moderate")
+    assert store.load_rating(rid).comparison.computed_at is None
+    eng.rating_compare(rid)
+    stamped = store.load_rating(rid).comparison.computed_at
+    assert stamped is not None and "T" in stamped     # ISO-8601
+
+
+def test_compare_reports_agreement_countable_per_outcome(tmp_path):
+    """agreement_countable is True only for concordant/discordant — the comparable pairs."""
+    eng_c, _, rid_c = _human_ai(tmp_path / "concordant", "Moderate", "Moderate")
+    eng_d, _, rid_d = _human_ai(tmp_path / "discordant", "Low", "High")
+    eng_a, _, rid_a = _human_ai(tmp_path / "abstained", "Moderate", abstain=True)
+    eng_h, _ = engine(tmp_path / "human_only")
+    rid_h = started(eng_h).rating_id
+    eng_h.rating_commit_human(rid_h, "Moderate")
+    assert eng_c.rating_compare(rid_c).agreement_countable is True
+    assert eng_d.rating_compare(rid_d).agreement_countable is True
+    assert eng_a.rating_compare(rid_a).agreement_countable is False
+    assert eng_h.rating_compare(rid_h).agreement_countable is False
+
+
+def test_adjudication_requires_rationale(tmp_path):
+    """A final value can never be set by adjudication without a recorded rationale."""
+    eng, _, rid = _human_ai(tmp_path, "Low", "High")
+    eng.rating_compare(rid)
+    with pytest.raises(RatingValidityError):
+        eng.rating_adjudicate(rid, "Low", rationale="", decider="human")
+
+
+def test_adjudication_rejects_non_human_decider(tmp_path):
+    """Only a human or a panel may adjudicate — never the AI (or any other actor)."""
+    eng, _, rid = _human_ai(tmp_path, "Low", "High")
+    eng.rating_compare(rid)
+    with pytest.raises(RatingValidityError):
+        eng.rating_adjudicate(rid, "Low", rationale="ai chose", decider="ai")
+
+
+def test_concordant_accept_is_overridable_only_by_explicit_adjudication(tmp_path):
+    """A concordant pair auto-accepts the HUMAN value; a human may still revise it, but
+    only via an explicit 'adjudicated' event carrying a rationale — never silently."""
+    eng, store, rid = _human_ai(tmp_path, "Moderate", "Moderate")
+    cmp = eng.rating_compare(rid)
+    assert cmp.final_value == "Moderate"
+    assert store.load_rating(rid).adjudication.event == "accepted"
+    rec = eng.rating_adjudicate(rid, "Low", rationale="human revised after re-reading",
+                                decider="human")
+    assert rec.adjudication.final_value == "Low"
+    assert rec.adjudication.event == "adjudicated" and rec.adjudication.rationale

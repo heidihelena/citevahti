@@ -121,7 +121,9 @@ def build(root: Path) -> dict:
 
         rec = support.support_start(claim.claim_id, cand_id)
         support.submit_ai_rating(rec.rating_id, ai)
-        if decision == "await_rating":
+        if decision == "await_rating" or human is None:
+            # await_rating rows carry human=None by construction (the human hasn't rated);
+            # the `or human is None` makes that link explicit (and narrows the type below).
             pending += 1
             continue  # AI is in, human has not rated — the panel shows the blind Rate step
         support.support_commit_human(rec.rating_id, human)

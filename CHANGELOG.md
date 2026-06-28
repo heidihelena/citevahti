@@ -6,7 +6,79 @@ previous one.
 
 ## [Unreleased]
 
+### Fixed
+- **The running version now shows on the panel's BETA chip** (`BETA · vX.Y.Z`, from
+  `/api/health`) — so a stale build is obvious at a glance instead of silently hiding new
+  features.
+- **No more empty "white stripe" in the panel.** The evidence pane was a blank vertical band
+  until you clicked a claim; the layout is now single-column until a claim is selected, then the
+  evidence pane appears beside it. The empty agent/notification footer (a 46px blank bar) is
+  collapsed until it actually has a message.
+- **The desktop app no longer identifies as "Python" on macOS.** `citevahti-app` now relabels the
+  menu-bar/Dock name to *CiteVahti* (a no-op off macOS or without pyobjc; never blocks launch).
+
+## 0.43.0 — supply-chain hardening & whole-package typing (2026-06-28)
+
 ### Added
+- **Scorecard can use a repo-admin PAT for full Branch-Protection scoring.** The Scorecard
+  workflow now reads `repo_token` from an optional `SCORECARD_TOKEN` secret (a fine-grained PAT
+  with Administration: read), falling back to the default `GITHUB_TOKEN` when unset — so it's
+  inert until the secret is added, then the admin-gated checks (Branch-Protection, etc.) score
+  fully. The token lives only in GitHub Secrets, never in git.
+- **mypy now type-checks the entire package — zero `ignore_errors` backlog.** The final two
+  modules (`autoupdate/client.py`, `autoupdate/maintainer.py`) are typed: the tufup client/repo
+  seam — duck-typed (real tufup in production, a fake in tests) and previously a bare `object` —
+  is now described by small `Protocol`s (`check_for_updates`/`download_and_apply_update`;
+  `initialize`/`add_bundle`/`publish_changes`), matching the house idiom (HttpClient,   TimestampProvider).
+  No behaviour change. All 162 source files are type-checked and gating.
+- **Safety-path modules now type-checked (mypy).** `tools.py`, `writeback/service.py`,
+  `writeback/webapi.py`, and `panel/server.py` are off the `ignore_errors` backlog (only the
+  `autoupdate/*` pair remains). All 10 errors were triaged to non-bugs: false alarms from a
+  correlated guard and reused variable names (narrowed/renamed); two were an **incomplete
+  `HttpClient` protocol** — it now declares `delete` (used on the undo path) and accepts a JSON
+  *array* on `post` (Zotero batch create), matching the real client. One defensive guard added:
+  the OAuth completion path now raises a clear error if the client key/secret are unconfigured
+  instead of constructing with `None`. No behaviour change on any valid path.
+- **Regression tests for the dual-rating flag/score guarantees.** Six added tests pin behaviour
+  that was enforced but previously unasserted: an AI rating recorded *before* the human rates stays
+  blinded and reveals only once a human value exists; `compare()` stamps `computed_at` and reports
+  `agreement_countable` correctly per outcome; adjudication refuses an empty rationale and any
+  decider other than `human`/`panel` (never the AI); and a concordant auto-accept is revisable only
+  via an explicit, rationale-carrying `adjudicated` event. (`test_dual_rating.py`.)
+- **CycloneDX SBOM attached to every release.** Publishing a GitHub Release now generates a
+  CycloneDX SBOM of the shipped dependency set and uploads it as a release asset
+  (`citevahti-vX.Y.Z.cdx.json`), in a separate least-privilege job (`contents: write` only — the
+  Trusted-Publishing job keeps `id-token: write` alone). Documented in `docs/RELEASING.md`.
+- **OSV-Scanner in CI (dependency vulnerabilities).** A new `OSV-Scanner` workflow reads
+  `uv.lock` directly and checks it against Google's OSV database on PR (new-vulns-only), push to
+  `main`, and weekly, uploading SARIF to the Security tab. Complements `pip-audit` (PyPI Advisory
+  DB) with OSV's independent coverage. Reusable workflows SHA-pinned; exceptions live in
+  `osv-scanner.toml` (currently the one documented `tuf` advisory, mirroring the pip-audit ignore).
+- **Committed dependency lockfile (`uv.lock`).** A full resolution of the dependency tree
+  (84 packages across all extras) is now locked for reproducible dev/CI installs and as a precise
+  scan target for dependency auditors. Generated with `uv lock`; it does **not** change the
+  published package's `pyproject.toml` version ranges (library consumers still get the ranges) and
+  is not shipped in the sdist/wheel. `uv sync` reproduces the environment exactly.
+- **OpenSSF Scorecard in CI.** A new `Scorecard supply-chain security` workflow rates the repo's
+  supply-chain posture (Branch-Protection, Token-Permissions, Pinned-Dependencies, Code-Review,
+  Dependency-Update-Tool, …) on push to `main`, weekly, and on branch-protection changes, uploading
+  findings (SARIF) to the Security tab. `publish_results: true` (public repo) feeds the OpenSSF API
+  and enables a README badge. SHA-pinned, least-privilege. (Branch-Protection scores fully only with
+  a repo-admin PAT; the default token covers the rest.)
+- **Dependency-CVE scanning in CI (`pip-audit`).** A new `pip-audit` workflow installs CiteVahti
+  + its runtime extras and audits the resolved dependency tree against the PyPI Advisory DB + OSV
+  on every push/PR and weekly. Complements CodeQL (our code) and ruff `S` (our patterns) with
+  third-party CVE coverage. SHA-pinned, least-privilege. (OSV-Scanner remains a complementary
+  follow-up — it becomes precise once a committed lockfile lands.) One documented exception:
+  `GHSA-qp9x-wp8f-qgjj` in `tuf` 4.0.0 (via the `update` extra → tufup, which hard-pins
+  `tuf==4.0.*`) — Windows-only, the auto-updater is an inert scaffold, and the fix (tuf 7.0.0)
+  is blocked on tufup upstream. Tracked to re-check before live auto-update; every other
+  advisory still gates.
+- **CodeQL SAST in CI.** A new `CodeQL` workflow runs GitHub's security queries over the Python
+  source on every push/PR and weekly, uploading results (SARIF) to the Security tab. It does
+  deeper dataflow/taint analysis than line-level linting, complementing the ruff `S` (bandit)
+  rules. Advanced (in-repo) setup, SHA-pinned, least-privilege (`security-events: write` only on
+  the analyze job). Dependabot keeps the `codeql-action` pin current.
 - **Static analysis in CI (`ruff`).** A new `lint` job runs `ruff check src` on every
   push/PR, gating merges alongside the test suite. Config lives in `pyproject.toml`
   (`[tool.ruff]`); `ruff` is in the `dev` extra. Rules: `E`/`F` (correctness, dead code)
@@ -28,6 +100,13 @@ previous one.
   deliberately with the rating/writeback tests per `docs/SAFETY_INVARIANTS.md`.
 
 ### Fixed
+- **`corpus_diff` now degrades instead of crashing on a missing `to_snapshot_id`.** Calling
+  `diff(from_id, to_snapshot_id=None, compare_to_current=False)` — an invalid combination —
+  previously hit `load_snapshot(None)` and raised. It now returns a `degraded` report
+  (`error_code="no_to_snapshot"`), matching the function's existing `no_corpus_source` /
+  `zotero_unavailable` handling. Surfaced by the `mypy` ratchet; new regression test. Also
+  type-checked `demo.py` (made the `await_rating ⇒ human is None` link explicit). Both off the
+  `mypy` backlog (6 modules remain — all safety-path or autoupdate).
 - **Type ratchet — `bootstrap/service.py` (now type-checked).** Two non-bugs cleared: the
   order-preserving `_outcomes` dedup used the cryptic `seen.add(o)`-returns-`None` idiom
   (correct but flagged) — rewritten as an explicit loop; and the link-dedup key-set is now
@@ -58,6 +137,31 @@ previous one.
   behaviour-identical: an implicit-`Optional` parameter made explicit (`save_transaction`'s
   `event`); a `None`-guard reordered so the parser narrows `MedlineCitation` (same outcomes);
   and three container annotations (`dict[str, Any]`, `Counter[str]`). No runtime change.
+
+### Security
+- **PubMed XML is now parsed with `defusedxml` (entity-expansion / XXE hardening).**
+  `pubmed/parse.py` previously used stdlib `xml.etree.ElementTree.fromstring`, which
+  expands internal entities — a malicious efetch response (e.g. a "billion laughs"
+  payload) could exhaust memory. It now uses `defusedxml.ElementTree.fromstring`, which
+  refuses to expand entities; a hostile payload degrades to `[]`, the same honest
+  degradation as a malformed document. This clears the deferred `ruff` `S314` finding
+  (the `# noqa: S314` and its `TODO(security)` are removed). `defusedxml` is a **core**
+  dependency (not an extra), matching `python-docx`, so the no-terminal `.mcpb` — which
+  can't `pip install` — parses PubMed safely; it is a tiny pure-Python wheel with no
+  transitive dependencies. New offline regression tests (`@pytest.mark.security`) feed an
+  entity-expansion payload and assert it is not expanded.
+
+- **Timestamp client now refuses a non-`http(s)` TSA URL (closes the `S310` deferral).**
+  `Rfc3161Provider._post` validated nothing about the config-supplied `tsa_url` scheme, so a
+  `file://` (or `ftp://`, `data:`…) URL would make `urllib.urlopen` read a local file instead
+  of POSTing to a timestamp authority. It now rejects any scheme other than `http`/`https`
+  with `TimestampUnavailable` *before* opening the URL. The `TODO(security)` deferral is
+  gone; the `# noqa: S310` markers remain but are re-justified by the guard (bandit's blanket
+  URL-open rule has no dataflow, so it can't see the upstream scheme check). New offline
+  security regression
+  (`test_timestamp.py::test_rfc3161_rejects_non_http_tsa_url_without_touching_the_filesystem`,
+  marked `@pytest.mark.security`) proves a `file://` URL is refused without any network or
+  filesystem access; documented in `SECURITY.md`.
 
 ## 0.42.0 — source reuse rights (`license-scan`) (2026-06-28)
 

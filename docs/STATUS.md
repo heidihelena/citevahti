@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.42.0 — source reuse rights (license-scan): reports a source's OA/licence, never decides reusability
+## Status: v0.43.0 — supply-chain hardening & whole-package typing: CI security scanners (CodeQL, pip-audit, OSV, Scorecard), SBOM + lockfile, mypy zero-backlog, plus defusedxml/TSA-scheme security fixes
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

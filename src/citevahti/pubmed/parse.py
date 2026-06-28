@@ -5,6 +5,10 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import Optional
 
+from defusedxml.common import DefusedXmlException
+from defusedxml.ElementTree import ParseError as DefusedParseError
+from defusedxml.ElementTree import fromstring as _safe_fromstring
+
 
 def _text(el: Optional[ET.Element]) -> Optional[str]:
     if el is None:
@@ -47,9 +51,11 @@ def _pub_date(article: ET.Element) -> tuple[Optional[str], Optional[int]]:
 def parse_efetch_xml(xml_text: str) -> list[dict]:
     """Return one dict per article with normalized bibliographic fields."""
     try:
-        # TODO(security): switch to defusedxml for entity-expansion/XXE hardening — tracked as a follow-up.
-        root = ET.fromstring(xml_text)  # noqa: S314 — defusedxml migration deferred (see TODO above)
-    except ET.ParseError:
+        # defusedxml hardens against entity-expansion (billion-laughs) and XXE.
+        # A malicious payload raises DefusedXmlException and degrades to [] here,
+        # the same honest degradation as a malformed document.
+        root = _safe_fromstring(xml_text)
+    except (ET.ParseError, DefusedParseError, DefusedXmlException):
         return []
     out: list[dict] = []
     for art in root.findall(".//PubmedArticle"):

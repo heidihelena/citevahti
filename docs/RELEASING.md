@@ -5,6 +5,10 @@ CLI + library the extension drives) and the **VS Code extension** (Marketplace +
 Open VSX). Publish the **Python package first** — the extension calls the
 `citevahti` CLI.
 
+Publishing a GitHub Release also auto-attaches a **CycloneDX SBOM**
+(`citevahti-vX.Y.Z.cdx.json`) of the shipped dependency set, generated in a
+separate least-privilege job (`publish-pypi.yml` → `sbom`).
+
 > **Credentials boundary.** PyPI / Marketplace / Open VSX tokens are credentials:
 > never committed, never logged, never pasted into a chat. Use env vars or the
 > keychain; pass them only to `twine` / `vsce` / `ovsx` at publish time.
