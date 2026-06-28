@@ -35,6 +35,11 @@ jobs:
           results_file: results.sarif
           results_format: sarif
           publish_results: true
+          # Branch-Protection (and a few other checks) need repo-admin read, which the
+          # default GITHUB_TOKEN can't grant. Add a fine-grained PAT as the SCORECARD_TOKEN
+          # repo secret (Administration: read-only on this repo) and those checks score fully.
+          # Until then this falls back to github.token — same as before — so it's safe to ship.
+          repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
       - name: Upload SARIF artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
