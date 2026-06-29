@@ -63,11 +63,13 @@ export function closeAll() {
 }
 
 export async function mount(routes = {}) {
-  const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8")
-    .replace(/<script\s+src=[^>]+><\/script>\s*/g, "");   // we inject the bundle ourselves
+  const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
   const dom = new JSDOM(html, { runScripts: "dangerously", url: "http://localhost/", pretendToBeVisual: true });
   const { window } = dom;
   _windows.push(window);
+  // Drop the per-file <script src> tags (jsdom doesn't fetch them anyway) and inject the
+  // concatenated bundle below — done via the DOM, not string-munging, so it's exact.
+  window.document.querySelectorAll("script[src]").forEach((s) => s.remove());
   const log = [];
   window.fetch = makeFetch({ ...DEFAULTS(), ...routes }, log);
   window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });

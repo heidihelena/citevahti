@@ -714,7 +714,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                 target = Path(_req(body, "path")).expanduser().resolve()
             except (OSError, RuntimeError) as exc:
                 raise HttpError(400, "invalid path", code="bad_path") from exc
-            if target != root_resolved and root_resolved not in target.parents:
+            # Containment barrier: the fully-resolved target must live inside the resolved
+            # project root. This is the check that stops a page from revealing arbitrary
+            # files — _reveal_in_os is only reached for a path that passes it.
+            if not target.is_relative_to(root_resolved):
                 raise HttpError(403, "that path is outside your project folder", code="forbidden",
                                 remediation="Only files inside your project folder can be revealed.")
             if not target.exists():
