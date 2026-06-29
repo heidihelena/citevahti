@@ -78,7 +78,7 @@ function renderAiSettings(box, cfg, models, suggested) {
       : "API key not set — store <b>CITEVAHTI_AI_API_KEY</b> in your env or keychain. The key is never saved in config or sent through this panel."}</div>
   </div>`;
   box.innerHTML = `<div class="modal-card ai">
-    <div class="modal-head"><b>AI second opinion</b><button class="chip-btn" data-ai-close="1">✕</button></div>
+    <div class="modal-head"><h2 class="modal-title" id="aiModal-title">AI second opinion</h2><button class="chip-btn" data-ai-close="1" aria-label="Close">✕</button></div>
     <div class="note">Privacy-first &middot; optional. <b>You rate first — the AI is a blinded second opinion.</b>
       Bring your own model or API key. No hidden AI subscription.</div>
     <div class="note ok"><b>Working through an assistant (Cowork / Claude via MCP)?</b> It already gives the

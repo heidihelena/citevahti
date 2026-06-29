@@ -24,6 +24,8 @@ function modalShell(id, host) {
     box.className = "modal";
     box.setAttribute("role", "dialog");
     box.setAttribute("aria-modal", "true");
+    // accessible name: each modal renders its heading as <h2 class="modal-title" id="<id>-title">
+    box.setAttribute("aria-labelledby", id + "-title");
     if (box.parentElement !== document.body) document.body.appendChild(box);
     _modalReturnFocus = document.activeElement;          // restore on close
     setTimeout(() => { try { box.focus(); } catch {} }, 0);

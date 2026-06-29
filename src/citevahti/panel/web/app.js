@@ -136,6 +136,9 @@ function renderAuditBadge() {
   if (!a) { el.className = "auditbadge"; el.textContent = ""; return; }
   el.className = "auditbadge " + (a.intact ? "ok" : "bad");
   el.textContent = a.intact ? `⛓ audit ✓ ${a.entries}` : "⛓ audit ⚠ tampered";
+  // clean accessible name (the ⛓/✓ glyphs read poorly); the button re-verifies on activate
+  el.setAttribute("aria-label", (a.intact ? `Audit log intact, ${a.entries} entries`
+                                          : "Audit log TAMPERED") + " — click to re-verify");
 }
 
 async function loadManuscripts(preferId) {
@@ -211,7 +214,7 @@ async function openBrowse(path) {
     const rows = (r.dirs || []).map((d) =>
       `<button class="browse-row" data-browse="${esc(d.path)}">📁 ${esc(d.name)}${d.manuscript_count ? ` <span class="n">${d.manuscript_count} doc${d.manuscript_count > 1 ? "s" : ""}</span>` : ""}</button>`).join("");
     box.innerHTML = `<div class="modal-card">
-      <div class="modal-head"><b>Open your manuscript — choose the folder it's in</b>
+      <div class="modal-head"><h2 class="modal-title" id="browseModal-title">Open your manuscript — choose the folder it's in</h2>
         <button class="chip-btn" data-browse-close="1">✕</button></div>
       <div class="browse-here">${esc(r.path)}${r.manuscript_count ? ` · <b>${r.manuscript_count}</b> manuscript file(s) here` : " · no manuscript files here"}</div>
       <div class="browse-list">${up}${rows || '<div class="note">No sub-folders.</div>'}</div>

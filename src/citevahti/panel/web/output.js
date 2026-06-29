@@ -62,7 +62,7 @@ async function exportReport() {
 function openExportModal() {
   const box = modalShell("exportModal");
   box.innerHTML = `<div class="modal-card">
-    <div class="modal-head"><b>Export</b><button class="chip-btn" data-export-close="1">✕</button></div>
+    <div class="modal-head"><h2 class="modal-title" id="exportModal-title">Export</h2><button class="chip-btn" data-export-close="1" aria-label="Close">✕</button></div>
     <div class="note">The Citation-Integrity Report and review trail — for a supervisor, co-author,
       or journal. Local; nothing is transmitted.</div>
     <div class="actions" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">

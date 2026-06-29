@@ -23,7 +23,7 @@ function renderWarehouse(box, st) {
   const on = !!st.enabled, text = !!st.include_claim_text;
   const bundle = state.lastBundle;
   box.innerHTML = `<div class="modal-card wh">
-    <div class="modal-head"><b>Local evidence map</b><button class="chip-btn" data-wh-close="1">✕</button></div>
+    <div class="modal-head"><h2 class="modal-title" id="whModal-title">Local evidence map</h2><button class="chip-btn" data-wh-close="1" aria-label="Close">✕</button></div>
     <div class="note"><b>Stored on this computer. Nothing uploaded.</b> An opt-in, de-identified record of your
       claim-test work — claim <b>hash</b> (not text), public PMID/DOI, and the ratings. Off by default.</div>
     <label class="wh-toggle"><input type="checkbox" id="whEnabled" ${on ? "checked" : ""}>

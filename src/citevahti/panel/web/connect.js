@@ -38,7 +38,7 @@ function openConnectModal(which) {
   const isZ = which === "zotero";
   const box = modalShell("connectModal");
   box.innerHTML = `<div class="modal-card">
-    <div class="modal-head"><b>Connect ${isZ ? "Zotero" : "PubMed (NCBI)"}</b><button class="chip-btn" data-connect-close="1">✕</button></div>
+    <div class="modal-head"><h2 class="modal-title" id="connectModal-title">Connect ${isZ ? "Zotero" : "PubMed (NCBI)"}</h2><button class="chip-btn" data-connect-close="1" aria-label="Close">✕</button></div>
     ${isZ
       ? `<div class="lbl">Zotero API key — write access</div>
          <input id="cmKey" type="password" autocomplete="off" spellcheck="false" aria-label="Zotero API key with write access" placeholder="Zotero API key" />
