@@ -7,34 +7,15 @@
  * and undoable. Connect actions store secrets via the engine; keys never round-trip
  * back to the browser. */
 
-/* Domain constants, `state`, and the `api()`/CSRF transport now live in two classic
- * scripts loaded before this one — see state.js and api.js (index.html loads them in
- * order: state.js → api.js → app.js). They share the global scope, so the symbols
- * (SUPPORT, DECISIONS, PICO, state, api, CSRF, …) are available here unchanged. */
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
-  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const $ = (sel) => document.querySelector(sel);
-// One loading pattern (design system §9): spinner + label. opts.card wraps it in a
-// modal-card so it can drop straight into a modal/surface-host while data loads.
-function loadingHTML(label, opts) {
-  const inner = `<div class="cv-loading${opts && opts.card ? " is-card" : ""}">`
-    + `<span class="cv-spin" aria-hidden="true"></span><span>${esc(label || "Loading…")}</span></div>`;
-  return opts && opts.card ? `<div class="modal-card">${inner}</div>` : inner;
-}
-
-/* A one-line reference from whatever identifiers a candidate carries — honest with
- * partial metadata. Used both to tag cited passages (data-citation) and, on copy, to
- * append the source to the clipboard. */
-function citeOf(c) {
-  if (!c) return "";
-  const bits = [];
-  if (c.title) bits.push(String(c.title).trim().replace(/\.+$/, ""));
-  const meta = [c.journal, c.year].filter(Boolean).join(" ");
-  if (meta) bits.push(meta);
-  if (c.doi) bits.push("https://doi.org/" + c.doi);
-  else if (c.pmid) bits.push("PMID " + c.pmid);
-  return bits.join(". ");
-}
+/* Shared building blocks now live in classic scripts loaded before this one (index.html
+ * order: state.js → util.js → api.js → modal.js → feedback.js → events.js → app.js).
+ * They share the global scope, so these symbols are available here unchanged:
+ *   state.js    — state, SUPPORT, DECISIONS, PICO, …
+ *   util.js     — esc, $, loadingHTML, citeOf, doiUrl, cssEscape, copyText, downloadJson
+ *   api.js      — api, CSRF
+ *   modal.js    — modalShell, closeModalEl, leaveModal
+ *   feedback.js — notify, clearNotify, showErr, setAgentLine, renderAgent
+ *   events.js   — registerActions + the delegated click listener */
 
 /* ---------- boot ---------- */
 async function boot() {
@@ -366,15 +347,6 @@ async function sendChat(message, label) {
   log.scrollTop = log.scrollHeight;
 }
 
-async function copyText(text) {
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) return await navigator.clipboard.writeText(text);
-  } catch {}
-  const ta = document.createElement("textarea");      // fallback for non-secure contexts
-  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-  document.body.appendChild(ta); ta.select();
-  try { document.execCommand("copy"); } finally { ta.remove(); }
-}
 async function saveImported() {
   const filename = (($("#imName") || {}).value || "").trim();
   const content = ($("#imBody") || {}).value || "";
@@ -407,10 +379,6 @@ async function exportPacket() {
   } catch (e) { notify(e.message); }
 }
 
-function setAgentLine(html) {
-  const el = $("#agent"); if (el) el.innerHTML = `<span class="who">CiteVahti ▸</span> <span class="pill">${html}</span>`;
-}
-
 /* ---------- the manuscript "unit test" suite ---------- */
 // each claim is a test case: does it meet its references, and are the citations real?
 const TEST_CHECK_LABELS = {
@@ -421,50 +389,6 @@ const TEST_CHECK_LABELS = {
 };
 const TEST_BADGE = { pass: "PASS", fail: "FAIL", skip: "SKIP" };
 
-/* ---------- modal a11y ----------
- * Every overlay goes through modalShell()/closeModalEl() so it announces as a
- * dialog, moves focus inside on open, and restores focus to the opener on close.
- * Escape + a Tab focus-trap are handled in the global keydown listener. */
-let _modalReturnFocus = null;
-/* modalShell(id) builds a centered .modal overlay (default). modalShell(id, host)
- * instead mounts the same content inline inside a surface container — no backdrop,
- * no focus-trap — so the modal render functions can be reused verbatim on a surface.
- * The box keeps its id either way, so the functions' re-render targets ($("#whModal")
- * etc.) resolve in both modes. */
-function modalShell(id, host) {
-  let box = document.getElementById(id);
-  if (!box) {
-    box = document.createElement("div");
-    box.id = id;
-    box.tabIndex = -1;
-  }
-  if (host) {
-    box.className = "surface-host";
-    if (box.parentElement !== host) host.appendChild(box);
-  } else {
-    box.className = "modal";
-    box.setAttribute("role", "dialog");
-    box.setAttribute("aria-modal", "true");
-    if (box.parentElement !== document.body) document.body.appendChild(box);
-    _modalReturnFocus = document.activeElement;          // restore on close
-    setTimeout(() => { try { box.focus(); } catch {} }, 0);
-  }
-  return box;
-}
-function closeModalEl(box) {
-  if (!box) return;
-  box.remove();
-  const back = _modalReturnFocus; _modalReturnFocus = null;
-  if (back && back.focus) { try { back.focus(); } catch {} }
-}
-/* A modal's ✕/Done acts as "leave": inside a surface it routes back to the review
- * workspace (the surface stays mounted, just hidden); as a real modal it's removed. */
-function leaveModal(id, cleanup) {
-  if (cleanup) cleanup();
-  const box = document.getElementById(id);
-  if (box && box.closest(".surface")) return void renderSurface("workspace");
-  closeModalEl(box);
-}
 
 async function runTests(online, host) {
   const box = modalShell("testModal", host || testSurfaceHost());
@@ -510,14 +434,6 @@ function closeTests() { leaveModal("testModal"); }
 function testSurfaceHost() { return $("#checksTestResults") || $("#checks") || null; }
 
 /* ---------- de-identified warehouse + Atlas contribution (download-only) ---- */
-function downloadJson(obj, filename) {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-}
 async function openWarehouse(host) {
   const box = modalShell("whModal", host);
   box.innerHTML = loadingHTML("Loading…", { card: true });
@@ -678,10 +594,6 @@ async function aiConfigure(patch) {
   } catch (e) { notify(e.message); }
 }
 function closeAiSettings() { leaveModal("aiModal"); }
-// CSS.escape isn't in every embedded webview; fall back to a minimal escaper for ids.
-function cssEscape(s) {
-  return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
-}
 
 /* Theme: light by default (the base stylesheet; .zs-dark is the override, and
  * index.html ships no default class). A ?theme=light|dark override wins
@@ -1490,48 +1402,8 @@ async function openZotEvidence() {
   } catch (e) { box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
 
-function renderAgent(ph, claim, cand) {
-  const code = cand && cand.evidence && cand.evidence.final_decision;
-  const lines = {
-    rate: `Read the evidence, then record your blind rating. The panel won't show my rating until yours is in, and the ledger logs the order — so your blind-first rating is on the record.`,
-    decide: (cand && cand.rating && cand.rating.comparison_status === "discordant")
-      ? `We disagree. You decide; I am advisory only. Your reason is audited.`
-      : `Record the verdict to continue — every Zotero write and document edit is previewed and undoable.`,
-    write: code === "reject" || code === "needs_second_review"
-      ? `I propose the document edit as a diff. Confirm to write it to the .md — I back up the file and it stays undoable.`
-      : `Decision-gated Zotero write. Preview first; nothing is written silently.`,
-    done: `Done and logged with an undo path. Press ↵ for the next claim.`,
-  };
-  $("#agent").innerHTML = `<span class="who">CiteVahti ▸</span> <span class="pill">${esc(lines[ph] || "")}</span>`;
-}
-
 /* ---------- actions ---------- */
 function resetWrite() { state.pendingZtoken = null; state.previewNote = ""; state.pendingDocToken = null; }
-function showErr(m) { const e = $("#cardErr"); if (e) { e.textContent = m; e.scrollIntoView({ block: "nearest" }); } }
-
-/* Inline, dismissible notification — replaces blocking alert()s. The server's error
- * payload already carries a plain "next action" remediation (api() appends it to the
- * message), so an error toast states what happened, why, and what to do — with an
- * optional Retry. `kind: "ok"` auto-dismisses; errors stay until dismissed/retried. */
-function clearNotify() { const b = $("#notify"); if (b) { clearTimeout(b._t); b.hidden = true; b.innerHTML = ""; } }
-function notify(msg, opts = {}) {
-  const box = $("#notify"); if (!box) { return; }     // headless/fallback
-  const kind = opts.kind === "ok" ? "ok" : "error";
-  // success is informational — announce politely; errors interrupt (assertive).
-  box.setAttribute("role", kind === "ok" ? "status" : "alert");
-  box.setAttribute("aria-live", kind === "ok" ? "polite" : "assertive");
-  box.innerHTML = `<div class="toast ${kind}">
-    <span class="toast-msg">${esc(msg)}</span>
-    ${opts.retry ? `<button class="btn ghost toast-btn" data-toast-retry="1">Retry</button>` : ""}
-    <button class="toast-x" data-toast-close="1" aria-label="Dismiss" title="Dismiss">✕</button></div>`;
-  box.hidden = false;
-  const retry = box.querySelector("[data-toast-retry]");
-  if (retry) retry.onclick = () => { clearNotify(); opts.retry(); };
-  box.querySelector("[data-toast-close]").onclick = clearNotify;
-  clearTimeout(box._t);
-  // sticky toasts stay until the next notify()/clearNotify() (e.g. a long Pandoc fetch)
-  if (kind === "ok" && !opts.sticky) box._t = setTimeout(clearNotify, 5000);
-}
 
 async function ensureRatingId(cand) {
   if (cand.rating && cand.rating.rating_id) return cand.rating.rating_id;
@@ -1786,10 +1658,6 @@ async function linkRecord(recordId) {
 }
 
 /* normalise a DOI (bare, or with a doi:/URL prefix) to an openable doi.org link */
-function doiUrl(doi) {
-  const d = String(doi).trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "").replace(/^doi:/i, "");
-  return "https://doi.org/" + d;
-}
 
 /* direct "Save to Zotero" for a search hit — preview the write, then confirm.
  * Honors the same nothing-written-silently gate as the claim write: preview
@@ -2084,63 +1952,32 @@ document.addEventListener("copy", (e) => {
   e.preventDefault();
 });
 
-document.addEventListener("click", (e) => {
-  // Match only the nav tabs — NOT the #split container, which also carries a
-  // data-surface attribute (for CSS), and would otherwise swallow every workspace click.
-  const nv = e.target.closest(".surfnav-tab"); if (nv) { stopAwaitingClaims(); return void renderSurface(nv.dataset.surface); }
-  const qq = e.target.closest("[data-queue]"); if (qq) { state.queueAll = qq.dataset.queue === "all"; return void renderQueue(); }
-  const sw = e.target.closest("[data-switch]"); if (sw) return switchRoot(sw.dataset.switch);
-  const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
-  if (e.target.closest("[data-connect-close]")) return void closeConnectModal();
-  if (e.target.closest("[data-export-close]")) return void closeExportModal();
-  if (e.target.closest("[data-import-close]")) return void closeImportModal();
-  if (e.target.closest("[data-import-save]")) return void saveImported();
-  if (e.target.closest("[data-import-prompt]")) return void copyClaimTestsPrompt();
-  const cs = e.target.closest("[data-connect-submit]"); if (cs) return void submitConnect(cs.dataset.connectSubmit);
-  const ms = e.target.closest("[data-ms]"); if (ms) return void loadManuscript(ms.dataset.ms).then(renderMsBar);
-  if (e.target.id === "bindBtn") return void bindFolder();
-  if (e.target.closest("#browseBtn") || e.target.closest("#reconOpen")) return void openBrowse(($("#bindDir") || {}).value || state.ctx.manuscripts_dir);
-  const bn = e.target.closest("[data-browse]"); if (bn) return void openBrowse(bn.dataset.browse);
-  const bu = e.target.closest("[data-browse-use]"); if (bu) return void useBrowseFolder(bu.dataset.browseUse);
-  if (e.target.closest("[data-browse-close]")) return void closeBrowse();
-  if (e.target.closest("[data-test-close]")) return void closeTests();
-  if (e.target.closest("[data-test-online]")) return void runTests(true);
-  const tf = e.target.closest("[data-test-focus]"); if (tf) { closeTests(); return void selectClaim(tf.dataset.testFocus); }
-  if (e.target.closest("[data-wh-close]")) return void closeWarehouse();
-  const wh = e.target.closest("[data-wh]"); if (wh) return void whAction(wh.dataset.wh);
-  if (e.target.closest("[data-ai-close]")) return void closeAiSettings();
-  if (e.target.id === "pasteSave") return void savePastedManuscript();
-  if (e.target.id === "screenTopicBtn") return void copyScreenTopicPrompt();
-  if (e.target.id === "addClaim") return void toggleAddClaim();
-  const sp = e.target.closest("[data-claim]"); if (sp) return void selectClaim(sp.dataset.claim);
-  const cp = e.target.closest("[data-cand]"); if (cp) { state.candIdx = +cp.dataset.cand; resetWrite(); return renderCard(); }
-  const rb = e.target.closest("[data-rate]"); if (rb) return void rate(rb.dataset.rate);
-  const dc = e.target.closest("[data-decide]"); if (dc) return void recordDecision(dc.dataset.decide);
-  const lk = e.target.closest("[data-link]"); if (lk) return void linkRecord(lk.dataset.link);
-  const zs = e.target.closest("[data-zsave]"); if (zs) return void zsave(zs.dataset.zsave, zs);
-  const act = e.target.closest("[data-act]"); if (!act) return;
-  ({ "connect-zotero": () => connect("zotero"), "connect-zotero-oauth": connectOAuth, search: doSearch,
-     "open-zotero": () => openInZotero(activeCand()), "zot-evidence": openZotEvidence, lexcheck: runLexCheck,
-     "print-audit": printAudit,
-     "edit-claim": toggleEditClaim, "claimedit-preview": editClaimPreview, "claimedit-commit": editClaimCommit,
-     "claimedit-save": editClaimSaveLedger, "claimedit-cancel": cancelEditClaim,
-     "save-claim": saveClaim, "cancel-claim": () => { $("#addClaimBox").innerHTML = ""; },
-     zpreview, zcommit, zcancel: () => { resetWrite(); renderCard(); },
-     zundo, docpreview: () => docPreview(act.dataset.kind), doccommit: docCommit, doccancel: () => { resetWrite(); renderCard(); },
-     docundo: docUndo, unlink: unlinkCandidate, gonext: goToNextClaim, exportreport: exportReport,
-     "run-ai": runAiSecondOpinion,
-     "export-md": exportReport, "export-pdf": exportPdf, "export-packet": exportPacket,
-     "export-word": exportDocx, "import-word": importWord, "cite-export": citeExport,
-     // Checks surface: unit tests + maintenance scans (same actions as the header/Tools controls)
-     "run-tests": () => runTests(false), "run-tests-online": () => runTests(true),
-     "resolve-dois": () => runScan("resolve-dois"), "recheck-library": () => runScan("recheck-library"),
-     "scan-retractions": () => runScan("scan-retractions"), "scan-licenses": () => runScan("scan-licenses"),
-     // Setup recovery + claim-extraction hand-off
-     "setup-folder": setupFolder, "copy-handoff": copyHandoff,
-     // Settings surface
-     "check-update": checkForUpdates,
-     "toggle-theme": () => { const d = toggleTheme(); act.textContent = d ? "◑ Light theme" : "◑ Dark theme"; },
-     next: () => { const n = nextPending(); if (n) selectClaim(n); } }[act.dataset.act] || (() => {}))();
+/* [data-act] handlers, registered with the delegated click listener in events.js.
+ * Handlers receive (el) — the matched [data-act] element. As components are split into
+ * their own files (later slices) these registrations move next to the code they call. */
+registerActions({
+  "connect-zotero": () => connect("zotero"), "connect-zotero-oauth": connectOAuth, search: doSearch,
+  "open-zotero": () => openInZotero(activeCand()), "zot-evidence": openZotEvidence, lexcheck: runLexCheck,
+  "print-audit": printAudit,
+  "edit-claim": toggleEditClaim, "claimedit-preview": editClaimPreview, "claimedit-commit": editClaimCommit,
+  "claimedit-save": editClaimSaveLedger, "claimedit-cancel": cancelEditClaim,
+  "save-claim": saveClaim, "cancel-claim": () => { $("#addClaimBox").innerHTML = ""; },
+  zpreview, zcommit, zcancel: () => { resetWrite(); renderCard(); },
+  zundo, docpreview: (el) => docPreview(el.dataset.kind), doccommit: docCommit, doccancel: () => { resetWrite(); renderCard(); },
+  docundo: docUndo, unlink: unlinkCandidate, gonext: goToNextClaim, exportreport: exportReport,
+  "run-ai": runAiSecondOpinion,
+  "export-md": exportReport, "export-pdf": exportPdf, "export-packet": exportPacket,
+  "export-word": exportDocx, "import-word": importWord, "cite-export": citeExport,
+  // Checks surface: unit tests + maintenance scans (same actions as the header/Tools controls)
+  "run-tests": () => runTests(false), "run-tests-online": () => runTests(true),
+  "resolve-dois": () => runScan("resolve-dois"), "recheck-library": () => runScan("recheck-library"),
+  "scan-retractions": () => runScan("scan-retractions"), "scan-licenses": () => runScan("scan-licenses"),
+  // Setup recovery + claim-extraction hand-off
+  "setup-folder": setupFolder, "copy-handoff": copyHandoff,
+  // Settings surface
+  "check-update": checkForUpdates,
+  "toggle-theme": (el) => { const d = toggleTheme(); el.textContent = d ? "◑ Light theme" : "◑ Dark theme"; },
+  next: () => { const n = nextPending(); if (n) selectClaim(n); },
 });
 // User-initiated update check: the ONLY moment the panel talks to PyPI, and only on this
 // click — never on load — so it doesn't weaken the no-silent-egress posture. Read-only.
