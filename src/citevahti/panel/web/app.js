@@ -14,6 +14,13 @@
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const $ = (sel) => document.querySelector(sel);
+// One loading pattern (design system §9): spinner + label. opts.card wraps it in a
+// modal-card so it can drop straight into a modal/surface-host while data loads.
+function loadingHTML(label, opts) {
+  const inner = `<div class="cv-loading${opts && opts.card ? " is-card" : ""}">`
+    + `<span class="cv-spin" aria-hidden="true"></span><span>${esc(label || "Loading…")}</span></div>`;
+  return opts && opts.card ? `<div class="modal-card">${inner}</div>` : inner;
+}
 
 /* A one-line reference from whatever identifiers a candidate carries — honest with
  * partial metadata. Used both to tag cited passages (data-citation) and, on copy, to
@@ -36,7 +43,13 @@ async function boot() {
   await loadSessionToken();   // before anything that could POST — mutating requests need the token
   setupDropzone();   // before the first-run early return — dropping your first manuscript is the point
   try { state.ctx = await api("GET", "/api/context"); }
-  catch (e) { $("#card").innerHTML = `<div class="err">panel API unreachable: ${esc(e.message)}</div>`; return; }
+  catch (e) {
+    // A fresh folder that was never set up: offer a one-click, no-terminal recovery
+    // instead of telling the user to run `citevahti init` in a shell they can't find.
+    if (e.code === "not_initialized") { const n = $("#surfnav"); if (n) n.hidden = false; return renderSetupNeeded(); }
+    $("#card").innerHTML = `<div class="err">Can't reach the review panel — ${esc(e.message)}</div>`;
+    return;
+  }
   renderLedger();
   await loadHealth();
   loadAudit();
@@ -55,13 +68,18 @@ async function boot() {
  * attribute rather than destroying the workspace DOM, so the Manuscripts surface is
  * reachable any time — not just on an empty first run. */
 const SURFACES = ["manuscripts", "checks", "atlas", "output", "settings"];
-function renderSurface(name) {
+// Toggle which surface is visible + sync the nav, WITHOUT (re)rendering its content.
+// Used by renderSurface and by the setup/hand-off screens that fill #manuscripts themselves.
+function showSurfaceShell(name) {
   state.surface = name;
   const split = $("#split"); if (split) split.dataset.surface = name;
   SURFACES.forEach((s) => { const el = $("#" + s); if (el) el.hidden = (s !== name); });
   const nav = $("#surfnav");
   if (nav) nav.querySelectorAll("[data-surface]").forEach((b) =>
     b.setAttribute("aria-current", String(b.dataset.surface === name)));
+}
+function renderSurface(name) {
+  showSurfaceShell(name);
   ({ manuscripts: renderManuscripts, checks: renderChecksSurface, atlas: renderAtlasSurface,
      output: renderOutputSurface, settings: renderSettingsSurface }[name] || (() => {}))();
 }
@@ -364,8 +382,9 @@ async function saveImported() {
   try {
     const r = await api("POST", "/api/manuscripts/paste", { filename, content });
     closeImportModal();
-    await loadManuscripts(r.filename);   // focus the just-added manuscript, not the old one
-    setAgentLine(`Imported ${esc(r.filename)} — ${esc(r.next_prompt || "extract claims next")}`);
+    // Same hand-off as the paste path: claims are extracted in the chat assistant, then the
+    // review opens itself. (If this manuscript already has claims, loadManuscripts shows them.)
+    renderHandoff(r);
   } catch (e) { notify(e.message); }
 }
 
@@ -449,7 +468,7 @@ function leaveModal(id, cleanup) {
 
 async function runTests(online, host) {
   const box = modalShell("testModal", host || testSurfaceHost());
-  box.innerHTML = `<div class="modal-card"><div class="note">Running unit tests${online ? " — verifying citations online (this can take a moment)…" : "…"}</div></div>`;
+  box.innerHTML = loadingHTML(online ? "Checking claims — verifying citations online (this can take a moment)…" : "Checking claims…", { card: true });
   try {
     const s = await api("POST", "/api/test-suite", { online: !!online, manuscript_id: state.activeMs || null });
     renderTestResults(box, s);
@@ -476,7 +495,7 @@ function renderTestResults(box, s) {
         <ul>${errs.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>
         citation checks may be stale; treat this run as inconclusive.</div>` : "";
   box.innerHTML = `<div class="modal-card test">
-    <div class="modal-head"><b>Manuscript unit tests</b><button class="chip-btn" data-test-close="1">✕</button></div>
+    <div class="modal-head"><b>Claim checks</b><button class="chip-btn" data-test-close="1">✕</button></div>
     <div class="tsummary ${allGreen ? "ok" : "bad"}"><b>${s.passed}</b> passed · <b>${s.failed}</b> failed · <b>${s.skipped}</b> skipped — of ${s.total} claims</div>
     <div class="note">${s.online ? "Citations verified online — real and not retracted." : "Structural checks only. Citations were not verified online."}</div>
     ${warn}
@@ -501,7 +520,7 @@ function downloadJson(obj, filename) {
 }
 async function openWarehouse(host) {
   const box = modalShell("whModal", host);
-  box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
+  box.innerHTML = loadingHTML("Loading…", { card: true });
   try { renderWarehouse(box, await api("GET", "/api/warehouse")); }
   catch (e) { box.innerHTML = `<div class="modal-card"><div class="err">${esc(e.message)}</div>
     <div class="modal-foot"><button class="btn ghost" data-wh-close="1">Close</button></div></div>`; }
@@ -521,7 +540,7 @@ function renderWarehouse(box, st) {
       <button class="btn ghost" data-wh="export" ${on ? "" : "disabled"}>Export records (local file)</button>
       <button class="btn ghost danger" data-wh="purge" ${st.record_count ? "" : "disabled"}>Purge (withdraw)</button></div>
 
-    <div class="lbl" style="margin-top:14px">Contribute to Atlas</div>
+    <div class="lbl cv-mt-lg">Contribute to Atlas</div>
     <div class="note">Build a de-identified bundle to <b>download</b>. Nothing is transmitted — there is
       no upload from here. Composed vs decomposed and case are normalized so your claim hashes match
       across tools (spec v1).</div>
@@ -588,7 +607,7 @@ function closeWarehouse() { leaveModal("whModal", () => { state.lastBundle = nul
  * key is NEVER entered here: it lives in the keychain/env (we only show presence). */
 async function openAiSettings(host) {
   const box = modalShell("aiModal", host);
-  box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
+  box.innerHTML = loadingHTML("Loading…", { card: true });
   try {
     const cfg = await api("GET", "/api/ai-config");
     let models = [], suggested = "";
@@ -838,7 +857,7 @@ function renderMsBar() {
 /* ---------- folder picker: click through the filesystem, no path typing ---- */
 async function openBrowse(path) {
   const box = modalShell("browseModal");
-  box.innerHTML = `<div class="modal-card"><div class="note">Loading…</div></div>`;
+  box.innerHTML = loadingHTML("Loading…", { card: true });
   try {
     const r = await api("POST", "/api/fs/browse", { path: path || null });
     state.browsePath = r.path;
@@ -1458,7 +1477,7 @@ function contextBlock(cand) {
 async function openZotEvidence() {
   const cand = activeCand(); if (!cand) return;
   const box = $("#zotEvidence"); if (!box) return;
-  box.innerHTML = `<div class="note">Loading from Zotero…</div>`;
+  box.innerHTML = loadingHTML("Loading from Zotero…");
   try {
     const r = await api("POST", "/api/zotero/evidence", { doi: cand.doi, title: cand.title, pmid: cand.pmid });
     if (!r.found) { box.innerHTML = `<div class="note">Not in your Zotero library.</div>`; return; }
@@ -1856,19 +1875,19 @@ function renderChecksSurface() {
   host.innerHTML = `<div class="surfacepad">
     <h2>Checks</h2>
     <div class="seg">
-      <div class="lbl">Manuscript unit tests</div>
-      <p class="note">Does every claim meet its references, and are the citations real? Structural checks
-        run offline; the online run also verifies each citation exists and isn't retracted.</p>
-      <div class="actions">
-        <button class="btn primary" data-act="run-tests">▶ Run structural tests</button>
-        <button class="btn ghost" data-act="run-tests-online">Run + verify citations online</button>
+      <div class="lbl">Claim checks</div>
+      <p class="note">Does every claim meet its references, and are the citations real? Offline checks
+        run instantly; the online run also verifies each citation exists and isn't retracted.</p>
+      <div class="actions cv-wrap">
+        <button class="btn primary" data-act="run-tests">✓ Check claims (offline)</button>
+        <button class="btn ghost" data-act="run-tests-online">Check claims + verify citations online</button>
       </div>
       <div id="checksTestResults"></div>
     </div>
     <div class="seg">
       <div class="lbl">Maintenance scans</div>
       <p class="note">Housekeeping over your candidate evidence. Each one reports; none decides.</p>
-      <div class="actions" style="flex-wrap:wrap">
+      <div class="actions cv-wrap">
         <button class="btn ghost" data-act="resolve-dois">⟳ Resolve DOIs</button>
         <button class="btn ghost" data-act="recheck-library">⟳ Re-check library</button>
         <button class="btn ghost" data-act="scan-retractions">⚠ Scan retractions</button>
@@ -1896,7 +1915,7 @@ function renderOutputSurface() {
     <div class="seg">
       <div class="lbl">Citation-integrity report &amp; review trail</div>
       <p class="note">For a supervisor, co-author, or journal. Local; nothing is transmitted.</p>
-      <div class="actions" style="flex-wrap:wrap">
+      <div class="actions cv-wrap">
         <button class="btn ghost" data-act="export-md">⬇ Markdown (.md)</button>
         <button class="btn ghost" data-act="export-pdf">⎙ PDF — print / Save as PDF</button>
         <button class="btn ghost" data-act="export-word">📄 Word (.docx)</button>
@@ -1949,14 +1968,100 @@ async function savePastedManuscript() {
   if (!content.trim()) { out.innerHTML = `<div class="note">Paste some Markdown first.</div>`; return; }
   try {
     const r = await api("POST", "/api/manuscripts/paste", { filename, content });
-    out.innerHTML = `<div class="note ok">Saved <b>${esc(r.filename)}</b> in
-      <code>${esc(r.manuscripts_dir)}</code>.</div>
-      <div class="lbl" style="margin-top:8px">Next: extract claims in your chat client</div>
-      <p class="note">Paste this prompt to CiteVahti over MCP — the panel will fill in
-      once claims are staged:</p>
-      <textarea class="revbox" readonly onclick="this.select()">${esc(r.next_prompt)}</textarea>`;
+    renderHandoff(r);
   } catch (e) { out.innerHTML = `<div class="note">${esc(e.message)}</div>`; }
 }
+
+/* ---------- "This folder isn't set up" recovery (replaces the `citevahti init` error) ----
+ * Reached from boot() when /api/context returns not_initialized — i.e. the panel was opened
+ * in a folder that was never set up. One click sets it up; no terminal involved. */
+async function renderSetupNeeded() {
+  const host = $("#manuscripts"); if (!host) return;
+  let active = "", others = [];
+  try { const lg = await api("GET", "/api/ledgers"); active = lg.active || ""; others = (lg.ledgers || []).filter((l) => l.claims > 0); } catch {}
+  const rows = others.map((l) =>
+    `<div class="ledrow"><span class="path">${esc(l.root)}</span><span class="n">${l.claims} claims</span>
+       <button class="btn ghost" data-switch="${esc(l.root)}">Open this one</button></div>`).join("");
+  showSurfaceShell("manuscripts");
+  host.innerHTML = `<div class="firstrun">
+    <h2>This folder isn't set up for CiteVahti yet</h2>
+    <p class="note">CiteVahti keeps each project's claims, ratings, and audit trail inside the folder
+      you open it from. This one${active ? ` (<code>${esc(active)}</code>)` : ""} is empty —
+      <b>no Terminal needed</b>, just pick one below.</p>
+    <div class="panel-box">
+      <div class="lbl">Start a review in this folder</div>
+      <p class="note">Sets up CiteVahti here so you can add a manuscript and begin.</p>
+      <div class="actions"><button class="btn primary" data-act="setup-folder">Set up this folder</button></div>
+      <div id="setupResult"></div>
+    </div>
+    ${others.length ? `<div class="panel-box"><div class="lbl">…or open a project you already started</div>${rows}</div>` : ""}
+  </div>`;
+}
+async function setupFolder() {
+  const out = $("#setupResult");
+  if (out) out.innerHTML = loadingHTML("Setting up…");
+  try {
+    await api("POST", "/api/setup", {});
+    if (out) out.innerHTML = `<div class="note ok">Done — opening your review…</div>`;
+    location.reload();   // re-boot: /api/context now succeeds and routes to the intake
+  } catch (e) { if (out) out.innerHTML = `<div class="note">Couldn't set up this folder — ${esc(e.message)}</div>`; }
+}
+
+/* ---------- claim-extraction hand-off (the panel never calls an AI itself) ----------
+ * After a manuscript is saved (paste OR drag/import), claims are pulled by the user's chat
+ * assistant over MCP — a separate app. Make that explicit, hand over the exact prompt, and
+ * POLL the local ledger so the review opens itself the moment the claims land — no reload. */
+function renderHandoff(r) {
+  const host = $("#manuscripts"); if (!host) return;
+  const prompt = r.next_prompt || `Extract the verifiable claims from ${r.filename || "this manuscript"} and add each one with CiteVahti.`;
+  showSurfaceShell("manuscripts");
+  host.innerHTML = `<div class="firstrun">
+    <h2>Extracting claims from ${esc(r.filename || "your manuscript")}</h2>
+    <p class="note">CiteVahti never calls an AI itself — your <b>chat assistant</b> (Claude / Cowork)
+      pulls the claims out, using CiteVahti's tools over MCP.</p>
+    <div class="panel-box">
+      <div class="lbl">1 · Paste this into your chat assistant</div>
+      <textarea class="revbox" readonly onclick="this.select()">${esc(prompt)}</textarea>
+      <div class="actions"><button class="btn ghost" data-act="copy-handoff">⧉ Copy prompt</button></div>
+    </div>
+    <div class="cv-loading is-prominent cv-mt-lg"><span class="cv-spin" aria-hidden="true"></span>
+      <span><b>Waiting for claims…</b> keep this panel open — your review opens automatically the moment they arrive.</span></div>
+    <p class="note">Already reviewing another project? The <b>Manuscripts</b> tab lets you switch.</p>
+  </div>`;
+  startAwaitingClaims();
+}
+function copyHandoff() {
+  const ta = document.querySelector("#manuscripts .revbox"); if (!ta) return;
+  ta.focus(); ta.select();
+  try { document.execCommand("copy"); notify("Prompt copied — paste it into your chat assistant.", { kind: "ok" }); } catch {}
+}
+// Local-only poll (loopback, never egress) for claims arriving from the chat assistant.
+function startAwaitingClaims() {
+  if (state.awaiting) return;
+  state.awaiting = true;
+  let tries = 0;
+  const poll = async () => {
+    if (!state.awaiting) return;
+    tries += 1;
+    try {
+      const ctx = await api("GET", "/api/context");
+      if (ctx && ctx.claim_total) {
+        stopAwaitingClaims();
+        state.ctx = ctx;
+        notify(`${ctx.claim_total} claim(s) received — opening your review.`, { kind: "ok" });
+        renderSurface("workspace");
+        await loadManuscripts();
+        applyDeepLink();
+        return;
+      }
+    } catch { /* folder may still be initialising — keep waiting */ }
+    if (!state.awaiting) return;
+    if (tries >= 150) { stopAwaitingClaims(); return; }   // ~10 min cap (150 × 4s)
+    state.awaitTimer = setTimeout(poll, 4000);
+  };
+  state.awaitTimer = setTimeout(poll, 4000);
+}
+function stopAwaitingClaims() { state.awaiting = false; if (state.awaitTimer) clearTimeout(state.awaitTimer); state.awaitTimer = null; }
 
 /* ---------- events ---------- */
 /* Citation-on-copy: copying text from a cited passage carries its source, like the
@@ -1982,7 +2087,7 @@ document.addEventListener("copy", (e) => {
 document.addEventListener("click", (e) => {
   // Match only the nav tabs — NOT the #split container, which also carries a
   // data-surface attribute (for CSS), and would otherwise swallow every workspace click.
-  const nv = e.target.closest(".surfnav-tab"); if (nv) return void renderSurface(nv.dataset.surface);
+  const nv = e.target.closest(".surfnav-tab"); if (nv) { stopAwaitingClaims(); return void renderSurface(nv.dataset.surface); }
   const qq = e.target.closest("[data-queue]"); if (qq) { state.queueAll = qq.dataset.queue === "all"; return void renderQueue(); }
   const sw = e.target.closest("[data-switch]"); if (sw) return switchRoot(sw.dataset.switch);
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
@@ -2030,6 +2135,8 @@ document.addEventListener("click", (e) => {
      "run-tests": () => runTests(false), "run-tests-online": () => runTests(true),
      "resolve-dois": () => runScan("resolve-dois"), "recheck-library": () => runScan("recheck-library"),
      "scan-retractions": () => runScan("scan-retractions"), "scan-licenses": () => runScan("scan-licenses"),
+     // Setup recovery + claim-extraction hand-off
+     "setup-folder": setupFolder, "copy-handoff": copyHandoff,
      // Settings surface
      "check-update": checkForUpdates,
      "toggle-theme": () => { const d = toggleTheme(); act.textContent = d ? "◑ Light theme" : "◑ Dark theme"; },
