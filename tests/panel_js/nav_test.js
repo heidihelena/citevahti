@@ -17,7 +17,8 @@ const vm = require("vm");
 // The panel ships as classic scripts loaded in dependency order; concatenate them the
 // same way so the sandbox sees the same global scope the browser does (see index.html).
 const webDir = path.join(__dirname, "..", "..", "src", "citevahti", "panel", "web");
-const src = ["state.js", "util.js", "api.js", "modal.js", "feedback.js", "events.js", "app.js"]
+const src = ["state.js", "util.js", "api.js", "modal.js", "feedback.js", "events.js",
+             "card.js", "card-phases.js", "card-edit.js", "review-actions.js", "app.js"]
   .map((f) => fs.readFileSync(path.join(webDir, f), "utf8"))
   .join("\n");
 

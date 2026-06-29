@@ -43,6 +43,8 @@ _STATIC = {"/": "index.html", "/index.html": "index.html",
            # classic scripts loaded before app.js, in dependency order
            "/state.js": "state.js", "/util.js": "util.js", "/api.js": "api.js",
            "/modal.js": "modal.js", "/feedback.js": "feedback.js", "/events.js": "events.js",
+           "/card.js": "card.js", "/card-phases.js": "card-phases.js",
+           "/card-edit.js": "card-edit.js", "/review-actions.js": "review-actions.js",
            "/app.js": "app.js", "/styles.css": "styles.css",
            "/favicon.svg": "favicon.svg",
            "/favicon.ico": "favicon.svg",  # browsers auto-request /favicon.ico; serve the SVG
