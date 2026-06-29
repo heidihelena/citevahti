@@ -5,7 +5,7 @@ window (never a browser), and a clear error when pywebview isn't installed."""
 
 from __future__ import annotations
 
-import importlib.util
+import sys
 
 import pytest
 
@@ -53,8 +53,10 @@ def test_run_app_never_opens_a_browser(tmp_path, monkeypatch):
     assert seen.get("open_browser") is False
 
 
-def test_missing_pywebview_gives_an_install_hint():
-    if importlib.util.find_spec("webview"):
-        pytest.skip("pywebview is installed in this environment")
+def test_missing_pywebview_gives_an_install_hint(monkeypatch):
+    # Exercise the error path regardless of whether the [app] extra is installed: a None
+    # entry in sys.modules makes `import webview` raise ImportError, simulating its absence.
+    # (Previously this skipped whenever pywebview was present — i.e. always, in CI.)
+    monkeypatch.setitem(sys.modules, "webview", None)
     with pytest.raises(RuntimeError, match=r"citevahti\[app\]"):
         desktop._import_webview()

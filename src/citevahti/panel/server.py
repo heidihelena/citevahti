@@ -45,6 +45,7 @@ _STATIC = {"/": "index.html", "/index.html": "index.html",
            "/modal.js": "modal.js", "/feedback.js": "feedback.js", "/events.js": "events.js",
            "/card.js": "card.js", "/card-phases.js": "card-phases.js",
            "/card-edit.js": "card-edit.js", "/review-actions.js": "review-actions.js",
+           "/connect.js": "connect.js", "/search.js": "search.js", "/surfaces.js": "surfaces.js",
            "/app.js": "app.js", "/styles.css": "styles.css",
            "/favicon.svg": "favicon.svg",
            "/favicon.ico": "favicon.svg",  # browsers auto-request /favicon.ico; serve the SVG
