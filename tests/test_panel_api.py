@@ -585,6 +585,41 @@ def test_setup_initialises_a_fresh_folder(tmp_path):
     assert status == 200 and out["created"] is False
 
 
+@pytest.mark.security   # "Show in Finder" must never reveal files outside the project folder
+def test_reveal_is_constrained_to_the_project_folder(tmp_path, monkeypatch):
+    import citevahti.panel.server as srv
+    _setup(tmp_path)
+    revealed = []
+    monkeypatch.setattr(srv, "_reveal_in_os", lambda p: revealed.append(p))
+    root = str(tmp_path)
+    doc = tmp_path / "manuscripts" / "draft.md"
+    doc.parent.mkdir(parents=True, exist_ok=True); doc.write_text("x")
+    # a file inside the project is revealed
+    status, out = dispatch(root, "POST", "/api/reveal", {"path": str(doc)})
+    assert status == 200 and out["ok"] is True and revealed == [doc.resolve()]
+    # a path OUTSIDE the project is rejected — and never reaches _reveal_in_os
+    status, out = dispatch(root, "POST", "/api/reveal", {"path": "/etc/hosts"})
+    assert status == 403 and out["code"] == "forbidden"
+    # a non-existent path inside the project is a clean 404
+    status, _ = dispatch(root, "POST", "/api/reveal", {"path": str(tmp_path / "nope.md")})
+    assert status == 404
+    assert revealed == [doc.resolve()]   # only the one valid reveal ran
+
+
+def test_audit_log_is_a_projected_timeline(tmp_path):
+    _setup(tmp_path)   # init + a claim + intake + candidate link → several audit events
+    status, out = dispatch(str(tmp_path), "GET", "/api/audit/log", None)
+    assert status == 200 and out["intact"] is True and out["total"] >= 4
+    rows = out["entries"]
+    assert rows and rows[0]["seq"] >= rows[-1]["seq"]                  # newest first
+    assert {"claim.write", "store.init"} <= {r["event"] for r in rows}
+    allowed = {"claim_id", "claim_type", "candidate_id", "comparison_status", "decision",
+               "final_decision", "citekey", "title_year", "kind", "filename", "transaction_id"}
+    for r in rows:                                                     # no secret/config keys leak
+        assert set(r) == {"seq", "ts", "event", "payload"}
+        assert set(r["payload"]).issubset(allowed)
+
+
 # ---- inline manuscript surface (ADR-0002): claims mapped onto real prose ----
 def _setup_ms(tmp_path):
     """A ledger with one claim whose text appears in a bound manuscript file."""

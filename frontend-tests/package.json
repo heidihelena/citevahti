@@ -1,0 +1,14 @@
+{
+  "name": "citevahti-panel-frontend-tests",
+  "private": true,
+  "type": "module",
+  "description": "Behaviour tests for the CiteVahti loopback panel — drives the real served vanilla-JS app (no build step). Unit/component/error/a11y via node:test + jsdom; full-flow via Playwright.",
+  "scripts": {
+    "test": "node --test --test-reporter=spec",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "jsdom": "^25.0.1"
+  }
+}

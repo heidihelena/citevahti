@@ -8,14 +8,16 @@ function renderOutputSurface() {
   const host = $("#output"); if (!host) return;
   host.innerHTML = `<div class="surfacepad">
     <h2>Output</h2>
+    <div id="outputResult"></div>
     <div class="seg">
-      <div class="lbl">Citation-integrity report &amp; review trail</div>
-      <p class="note">For a supervisor, co-author, or journal. Local; nothing is transmitted.</p>
+      <div class="lbl">Your review record</div>
+      <p class="note">A timestamped, tamper-evident record of what you reviewed and in what order — for a
+        supervisor, co-author, journal, or registry. Built on your Mac; nothing is transmitted.</p>
       <div class="actions cv-wrap">
-        <button class="btn ghost" data-act="export-md">⬇ Markdown (.md)</button>
-        <button class="btn ghost" data-act="export-pdf">⎙ PDF — print / Save as PDF</button>
+        <button class="btn primary" data-act="export-packet">⛁ Review record (.zip)</button>
         <button class="btn ghost" data-act="export-word">📄 Word (.docx)</button>
-        <button class="btn primary" data-act="export-packet">⛁ Review packet (.zip)</button>
+        <button class="btn ghost" data-act="export-pdf">⎙ PDF</button>
+        <button class="btn ghost" data-act="export-md">⬇ Markdown</button>
       </div>
     </div>
     <div class="seg">
@@ -30,6 +32,19 @@ function renderOutputSurface() {
       <div class="actions"><button class="btn ghost" data-act="import-word">📄 Import Word (.docx) → review</button></div>
     </div>
   </div>`;
+}
+
+// Result of a write that landed on disk: name it in plain language + a Show-in-Finder button.
+// Falls back to a toast when the Output surface isn't mounted (e.g. exportReport from a banner).
+function outputResult(html, plainMsg) {
+  const el = $("#outputResult");
+  if (el) { el.innerHTML = html; el.scrollIntoView({ block: "nearest" }); }
+  else if (plainMsg) notify(plainMsg, { kind: "ok" });
+}
+function savedToFolderCard(title, path) {
+  return `<div class="cv-card is-ok"><div class="lbl ok">✓ Saved</div>
+    <p class="note"><b>${esc(title)}</b> — in your project folder.</p>
+    <div class="actions"><button class="btn" data-act="reveal" data-reveal="${esc(path)}">📁 Show in Finder</button></div></div>`;
 }
 
 
@@ -49,10 +64,13 @@ async function exportReport() {
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
     // reinforce the proof: surface the timestamp + audit-chain state on save
-    const intact = r.audit_intact === false ? "⚠ audit chain BROKEN"
-      : r.audit_intact ? `audit chain intact ✓ (${r.audit_entries} entries)` : "";
+    const intact = r.audit_intact === false ? "⚠ review record BROKEN"
+      : r.audit_intact ? `record intact ✓ (${r.audit_entries} steps)` : "";
     setAgentLine(`Report saved — generated ${esc(r.generated_at || "now")}${intact ? " · " + intact : ""}.`);
-  } catch (e) { notify(e.message); }
+    outputResult(`<div class="cv-card is-ok"><div class="lbl ok">✓ Saved to your Downloads</div>
+      <p class="note">Markdown review record${intact ? " · " + intact : ""}.</p></div>`,
+      "Markdown review record saved to your Downloads.");
+  } catch (e) { outputResult(`<div class="cv-error">${esc(e.message)}</div>`, e.message); }
 }
 
 
@@ -80,12 +98,14 @@ function closeExportModal() { closeModalEl($("#exportModal")); }
 
 
 async function exportDocx() {
+  outputResult(loadingHTML("Building your Word file… this can take a minute."));
   try {
     const r = await api("POST", "/api/report/docx", {});
     closeExportModal();
-    setAgentLine(`Word report saved (${r.claim_count} claim(s)) → ${esc(r.output_file)}`);
-    notify(`Word report saved (${r.claim_count} claim(s)): ${r.output_file}`, { kind: "ok" });
-  } catch (e) { notify(e.message); }   // surfaces the "install citevahti[docx]" hint if absent
+    const n = r.claim_count;
+    outputResult(savedToFolderCard(`Word review record (${n} claim${n === 1 ? "" : "s"})`, r.output_file));
+    setAgentLine(`Word report saved (${n} claim(s)).`);
+  } catch (e) { outputResult(`<div class="cv-error">${esc(e.message)}</div>`, e.message); }   // shows the "install citevahti[docx]" hint if absent
 }
 
 
@@ -97,14 +117,18 @@ async function exportPdf() {
     w.document.write(r.html || "<p>(empty report)</p>");
     w.document.close(); w.focus();
     setTimeout(() => { try { w.print(); } catch {} }, 350);   // render, then open the print dialog
-  } catch (e) { notify(e.message); }
+    outputResult(`<div class="cv-card"><div class="lbl">⎙ Print dialog opened</div>
+      <p class="note">Choose <b>Save as PDF</b> in the print dialog to keep a copy.</p></div>`);
+  } catch (e) { outputResult(`<div class="cv-error">${esc(e.message)}</div>`, e.message); }
 }
 
 async function exportPacket() {
+  outputResult(loadingHTML("Building your review record…"));
   try {
     const r = await api("POST", "/api/report/packet", {});
     closeExportModal();
-    setAgentLine(`Review packet saved (${r.claim_count} claim(s)) → ${esc(r.output_file)}`);
-    notify(`Review packet saved (${r.claim_count} claim(s)): ${r.output_file}`, { kind: "ok" });
-  } catch (e) { notify(e.message); }
+    const n = r.claim_count;
+    outputResult(savedToFolderCard(`Review record (${n} claim${n === 1 ? "" : "s"})`, r.output_file));
+    setAgentLine(`Review packet saved (${n} claim(s)).`);
+  } catch (e) { outputResult(`<div class="cv-error">${esc(e.message)}</div>`, e.message); }
 }
