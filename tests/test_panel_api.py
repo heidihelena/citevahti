@@ -568,6 +568,23 @@ def test_paste_manuscript_refuses_to_clobber_existing(tmp_path):
     assert status == 409 and out["code"] == "file_exists" and out["remediation"]
 
 
+# ---- no-terminal setup: initialise a fresh folder from the panel ------------
+def test_setup_initialises_a_fresh_folder(tmp_path):
+    root = str(tmp_path)
+    # a fresh folder is not a CiteVahti project yet — context reports not_initialized
+    status, out = dispatch(root, "GET", "/api/context", None)
+    assert status == 400 and out["code"] == "not_initialized"
+    # one POST sets it up: no terminal, no `citevahti init`
+    status, out = dispatch(root, "POST", "/api/setup", {})
+    assert status == 200 and out["ok"] is True and out["created"] is True
+    # now it is a real project: context succeeds with zero claims
+    status, ctx = dispatch(root, "GET", "/api/context", None)
+    assert status == 200 and ctx["claim_total"] == 0
+    # idempotent: setting up an already-initialised folder is a no-op, not an error
+    status, out = dispatch(root, "POST", "/api/setup", {})
+    assert status == 200 and out["created"] is False
+
+
 # ---- inline manuscript surface (ADR-0002): claims mapped onto real prose ----
 def _setup_ms(tmp_path):
     """A ledger with one claim whose text appears in a bound manuscript file."""
