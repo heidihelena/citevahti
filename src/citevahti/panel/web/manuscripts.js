@@ -229,7 +229,7 @@ function openImportReview(filename, markdown) {
   closeExportModal();
   const box = modalShell("importModal");
   box.innerHTML = `<div class="modal-card">
-    <div class="modal-head"><b>Import Word → review</b><button class="chip-btn" data-import-close="1">✕</button></div>
+    <div class="modal-head"><h2 class="modal-title" id="importModal-title">Import Word → review</h2><button class="chip-btn" data-import-close="1" aria-label="Close">✕</button></div>
     <div class="note">Converted from .docx to Markdown. Review it, then save — claim extraction runs in your chat client afterwards.</div>
     <div class="lbl">Filename</div><input id="imName" type="text" aria-label="Filename" value="${esc(filename)}" />
     <div class="lbl">Manuscript (Markdown)</div>

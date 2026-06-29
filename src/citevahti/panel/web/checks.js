@@ -75,7 +75,7 @@ function renderTestResults(box, s) {
         <ul>${errs.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>
         citation checks may be stale; treat this run as inconclusive.</div>` : "";
   box.innerHTML = `<div class="modal-card test">
-    <div class="modal-head"><b>Claim checks</b><button class="chip-btn" data-test-close="1">✕</button></div>
+    <div class="modal-head"><h2 class="modal-title" id="testModal-title">Claim checks</h2><button class="chip-btn" data-test-close="1" aria-label="Close">✕</button></div>
     <div class="tsummary ${allGreen ? "ok" : "bad"}"><b>${s.passed}</b> passed · <b>${s.failed}</b> failed · <b>${s.skipped}</b> skipped — of ${s.total} claims</div>
     <div class="note">${s.online ? "Citations verified online — real and not retracted." : "Structural checks only. Citations were not verified online."}</div>
     ${warn}

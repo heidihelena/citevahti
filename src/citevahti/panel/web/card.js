@@ -86,7 +86,7 @@ function renderCard() {
   if (!cand) {
     card.innerHTML = claimLineBlock(claim) +
       `<div class="note">No candidate evidence linked yet — find and link one below.</div>
-      ${searchBlock()}<div class="err" id="cardErr"></div>`;
+      ${searchBlock()}<div class="err" id="cardErr" role="alert"></div>`;
     renderAgent("rate", claim, null);
     return;
   }
@@ -103,7 +103,7 @@ function renderCard() {
         title="Unlink this paper from the claim (keeps the claim and audit trail)">✕ Remove paper <span class="hk">⇧D</span></button></div>`
     : "";
   card.innerHTML = stepper(ph, !!(cand && cand.rating && cand.rating.ai_present)) + claimLineBlock(claim) +
-    picker + candidateTags(cand) + removeRow + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr"></div>`;
+    picker + candidateTags(cand) + removeRow + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr" role="alert"></div>`;
   renderAgent(ph, claim, cand);
 }
 

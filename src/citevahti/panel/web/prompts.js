@@ -23,7 +23,7 @@ async function openPrompts() {
     </div>`;
   }).join("");
   box.innerHTML = `<div class="modal-card">
-    <div class="modal-head"><b>Prompts &amp; chat</b>
+    <div class="modal-head"><h2 class="modal-title" id="promptsModal-title">Prompts &amp; chat</h2>
       <button class="chip-btn" data-prompts-close="1" aria-label="Close">✕</button></div>
     <div class="note">Preprogrammed skills — copy one for your chat client, or run it against
       your configured model (a local Ollama model keeps everything on your machine). The model
