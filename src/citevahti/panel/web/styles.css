@@ -43,6 +43,71 @@
   --zs-delete-bg: #3E1B2C; --zs-delete-border: #C8537F; --zs-delete-text: #FCC9DC;
 }
 
+/* ============================================================================
+   DESIGN SYSTEM — component layer (built on the --zs-* tokens above).
+   Tokens (colour / space / radius / text / shadow) live in :root + .zs-dark.
+   These are the canonical, reusable components; new UI should use them.
+   Full spec: docs/DESIGN_SYSTEM.md.
+   ========================================================================== */
+
+/* 1 · Typography — title / subtitle / label (.lbl) / body (13px) / caption (.note).
+   Surface + first-run <h2> headings adopt the title style without per-call classes. */
+.cv-title, .surfacepad > h2, .firstrun h2 { font-size: 20px; font-weight: 700; line-height: 1.25;
+  margin: 0 0 var(--zs-space-xs); color: var(--zs-ink); }
+.cv-subtitle { font-size: var(--zs-text-lg); font-weight: 600; line-height: 1.3; color: var(--zs-ink); }
+
+/* 2 · Spacing utilities — one place for the margins/flex that were inline styles */
+.cv-mt-xs { margin-top: var(--zs-space-xs); }
+.cv-mt-sm { margin-top: var(--zs-space); }
+.cv-mt    { margin-top: var(--zs-space-md); }
+.cv-mt-lg { margin-top: var(--zs-space-lg); }
+.cv-m0    { margin: 0; }
+.cv-wrap  { flex-wrap: wrap; }
+.cv-col   { display: flex; flex-direction: column; align-items: stretch; gap: var(--zs-space); }
+
+/* 4 · Card — one container pattern (legacy .seg / .panel-box are aliases) */
+.cv-card, .surfacepad .seg, .firstrun .panel-box {
+  border: 1px solid var(--zs-line); border-radius: var(--zs-radius-lg);
+  padding: var(--zs-space-xl); margin: var(--zs-space-lg) 0; background: var(--zs-paper); }
+.cv-card.is-warn, .firstrun .panel-box.wrong-ledger {
+  border-color: var(--zs-supported-border); background: var(--zs-supported-bg); }
+.cv-card > .lbl, .surfacepad .seg > .lbl, .firstrun .panel-box > .lbl { margin-bottom: var(--zs-space); }
+
+/* 6 · Status badge — bracketed status code / metadata chip (one component, six hues) */
+.cv-badge { display: inline-flex; align-items: center; gap: var(--zs-space-2xs);
+  font: 700 var(--zs-text-xs)/1 ui-monospace, Menlo, monospace; padding: 2px 6px;
+  border: 1px solid var(--zs-line); border-radius: var(--zs-radius-xs); white-space: nowrap; }
+.cv-badge.is-supported { color: var(--zs-supported-text); border-color: var(--zs-supported-border); background: var(--zs-supported-bg); }
+.cv-badge.is-partial   { color: var(--zs-partial-text);   border-color: var(--zs-partial-border);   background: var(--zs-partial-bg); }
+.cv-badge.is-revise    { color: var(--zs-revise-text);    border-color: var(--zs-revise-border);    background: var(--zs-revise-bg); }
+.cv-badge.is-reject    { color: var(--zs-delete-text);    border-color: var(--zs-delete-border);    background: var(--zs-delete-bg); }
+.cv-badge.is-pending   { color: var(--zs-brand);          border-color: var(--zs-brand);            background: var(--zs-mark); }
+.cv-badge.is-muted     { color: var(--zs-muted);          border-color: var(--zs-line);             background: var(--zs-surface-2); }
+
+/* 7 · Empty state */
+.cv-empty { padding: var(--zs-space-2xl) var(--zs-space-xl); color: var(--zs-muted); text-align: center; }
+.cv-empty .cv-empty-title { color: var(--zs-ink); font-weight: 600; margin-bottom: var(--zs-space-xs); }
+
+/* 8 · Error state — inline block (toasts use .toast.error; see notify()) */
+.cv-error { display: flex; gap: var(--zs-space); align-items: flex-start;
+  color: var(--zs-delete-text); background: var(--zs-delete-bg);
+  border: 1px solid var(--zs-delete-border); border-radius: var(--zs-radius-md);
+  padding: var(--zs-space-md) var(--zs-space-lg); font-size: var(--zs-text-sm); }
+
+/* 9 · Loading state — spinner + label; .is-card centers it, .is-prominent boxes it */
+.cv-spin { flex: none; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--zs-line); border-top-color: var(--zs-brand);
+  animation: cv-spin .8s linear infinite; }
+@keyframes cv-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .cv-spin { animation: none; } }
+.cv-loading { display: flex; align-items: center; gap: var(--zs-space-md);
+  color: var(--zs-muted); font-size: var(--zs-text-sm); padding: var(--zs-space-lg); }
+.cv-loading.is-card { justify-content: center; padding: var(--zs-space-2xl); }
+.cv-loading.is-prominent { color: var(--zs-ink); font-size: var(--zs-text);
+  background: var(--zs-brand-bg); border: 1px solid var(--zs-brand);
+  border-radius: var(--zs-radius-lg); padding: var(--zs-space-lg) var(--zs-space-xl); }
+/* ===================== end design-system component layer ==================== */
+
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 /* drag-and-drop a manuscript anywhere on the window (browser + native desktop webview) */
@@ -196,10 +261,7 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .split:not([data-surface="workspace"]) > .card { display: none; }
 /* composition surfaces (Checks/Output/Settings) get their own padded column */
 .surfacepad { padding: 22px 30px 32px; max-width: 760px; }
-.surfacepad > h2 { font-size: 20px; margin: 0 0 4px; }
-.surfacepad .seg { border: 1px solid var(--zs-line); border-radius: var(--zs-radius-lg);
-  padding: 16px; margin: 14px 0; background: var(--zs-paper); }
-.surfacepad .seg > .lbl { margin-bottom: 8px; }
+/* .surfacepad > h2 styled by .cv-title; .seg styled by the shared card rule (design system) */
 /* a modal hosted inline inside a surface — same card body, no overlay/backdrop, not height-capped */
 .surface-host { padding: 18px 20px 28px; }
 .surface-host .modal-card { width: min(720px, 100%); max-height: none; margin: 0 auto;
@@ -441,8 +503,7 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 
 /* ---- first-run / empty-state ---- */
 .firstrun { grid-column: 1 / -1; max-width: 640px; margin: 40px auto; padding: 0 20px; }
-.firstrun h2 { font-size: 20px; }
-.firstrun .panel-box { border: 1px solid var(--zs-line); border-radius: var(--zs-radius-lg); padding: 16px; margin: 14px 0; background: var(--zs-paper); }
+/* .firstrun h2 → .cv-title; .firstrun .panel-box → the shared card rule (design system) */
 .firstrun .ledrow { display: flex; align-items: center; gap: var(--zs-space-md); padding: 8px 0; border-bottom: 1px solid var(--zs-line); }
 .firstrun .ledrow:last-child { border-bottom: 0; }
 /* first-run: one primary path; the alternative starts collapse behind a quiet disclosure */
@@ -451,7 +512,7 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .firstrun-more > summary::-webkit-details-marker { display: none; }
 .firstrun-more > summary::before { content: "▸ "; }
 .firstrun-more[open] > summary::before { content: "▾ "; }
-.firstrun .panel-box.wrong-ledger { border-color: var(--zs-supported-border); background: var(--zs-supported-bg); }
+/* claim-extraction waiting state uses the design-system .cv-loading.is-prominent + .cv-spin */
 .firstrun .ledrow .path { flex: 1; font: 12px/1.4 ui-monospace, Menlo, monospace; color: var(--zs-muted); overflow: hidden; text-overflow: ellipsis; }
 .firstrun .ledrow .n { font: 700 12px/1 ui-monospace, Menlo, monospace; }
 
