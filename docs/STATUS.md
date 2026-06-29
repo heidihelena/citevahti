@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.43.0 — supply-chain hardening & whole-package typing: CI security scanners (CodeQL, pip-audit, OSV, Scorecard), SBOM + lockfile, mypy zero-backlog, plus defusedxml/TSA-scheme security fixes
+## Status: v0.44.0 — a local-first review panel non-technical researchers can drive: navigable surfaces (Review · Manuscripts · Checks · Atlas · Output · Settings), "Choose a file…" intake, "Show in Finder" on every written file, a readable review-record timeline, a minimal design system, an accessibility pass, and a 28-test frontend behaviour suite. Engine, safety, and write-path behaviour unchanged.
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

@@ -6,15 +6,53 @@ previous one.
 
 ## [Unreleased]
 
+## 0.44.0 — a local-first review panel non-technical researchers can drive (2026-06-30)
+
+The panel was rebuilt around the people using it in pilots — clinicians and PhD researchers
+who never open a terminal. The review screen is now a set of clear, navigable sections; you
+add a manuscript by choosing a file (or pasting); every result names where it landed with a
+"Show in Finder" button; and the whole review is a timestamped, tamper-evident record you can
+reopen. No engine, safety, or write-path behaviour changed — this is the front door.
+
+### Added
+- **Navigable surfaces.** The single scrolling panel is now six labelled sections —
+  **Review · Manuscripts · Checks · Atlas · Output · Settings** — with a persistent claims
+  queue, so a task is always one obvious click away instead of buried in a tool menu.
+- **"Choose a file…" manuscript intake.** You start a review by picking your Word/Markdown
+  file (or dragging it onto the window, or pasting the text) — no command line. A
+  plain-language *"On your Mac · nothing uploaded"* banner states the privacy posture up front.
+- **"Show in Finder" on every written file.** Exports and saved records return a result card
+  that names the file and reveals it in the OS file manager (`/api/reveal`, constrained to the
+  project folder, loopback + CSRF-gated, reveal-only — it never launches the file).
+- **Review record timeline.** The hash-chained audit log is surfaced as a readable,
+  timestamped list of what you reviewed and in what order (`/api/audit/log`, a read-only
+  projection) — exportable for a supervisor, co-author, journal, or registry.
+- **Setup recovery & claim hand-off.** Opening the panel in a fresh folder offers one-click
+  setup; a claim can be handed off to your chat assistant and picked back up later.
+- **A minimal design system** — typography, spacing, buttons, cards, badges, and consistent
+  empty/error/loading states — applied across the panel.
+- **A frontend behaviour-test suite** (`frontend-tests/`): 28 tests that drive the *real*
+  shipped panel — unit/component/error/accessibility on `node:test` + jsdom, plus full-flow and
+  interactive-a11y tests in a real browser via Playwright; runnable under pytest.
+
+### Changed
+- **"Run unit tests" → "Check claims."** The primary action now says what it does in the
+  researcher's language.
+- **The running version shows on the BETA chip** (`BETA · vX.Y.Z`, from `/api/health`), so a
+  stale build is obvious at a glance.
+- **The panel JavaScript was decomposed** from one ~2,300-line file into ~20 focused modules
+  plus a thin shell — no behaviour change, far easier to maintain.
+
+### Accessibility
+- Dialogs are named and focus-trapping (`aria-modal` + `aria-labelledby`), and close on
+  Escape; errors announce via a live `role="alert"` region; form controls are labelled; the
+  audit/review-record badge is a keyboard-reachable button; content order is screen-reader sane.
+
 ### Fixed
-- **The running version now shows on the panel's BETA chip** (`BETA · vX.Y.Z`, from
-  `/api/health`) — so a stale build is obvious at a glance instead of silently hiding new
-  features.
-- **No more empty "white stripe" in the panel.** The evidence pane was a blank vertical band
-  until you clicked a claim; the layout is now single-column until a claim is selected, then the
-  evidence pane appears beside it. The empty agent/notification footer (a 46px blank bar) is
-  collapsed until it actually has a message.
-- **The desktop app no longer identifies as "Python" on macOS.** `citevahti-app` now relabels the
+- **No more empty "white stripe" in the panel.** The layout is single-column until a claim is
+  selected, then the evidence pane appears beside it; the empty footer bar is collapsed until
+  it has a message.
+- **The desktop app no longer identifies as "Python" on macOS.** `citevahti-app` relabels the
   menu-bar/Dock name to *CiteVahti* (a no-op off macOS or without pyobjc; never blocks launch).
 
 ## 0.43.0 — supply-chain hardening & whole-package typing (2026-06-28)
