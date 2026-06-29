@@ -135,11 +135,53 @@ function renderAuditBadge() {
   const a = state.audit;
   if (!a) { el.className = "auditbadge"; el.textContent = ""; return; }
   el.className = "auditbadge " + (a.intact ? "ok" : "bad");
-  el.textContent = a.intact ? `⛓ audit ✓ ${a.entries}` : "⛓ audit ⚠ tampered";
-  // clean accessible name (the ⛓/✓ glyphs read poorly); the button re-verifies on activate
-  el.setAttribute("aria-label", (a.intact ? `Audit log intact, ${a.entries} entries`
-                                          : "Audit log TAMPERED") + " — click to re-verify");
+  // "review record" is what a researcher values (provenance), not "audit chain"
+  el.textContent = a.intact ? `✓ Review record · ${a.entries}` : "⚠ Review record changed";
+  el.setAttribute("aria-label", (a.intact ? `Review record intact — ${a.entries} steps logged`
+                                          : "Review record changed outside CiteVahti") + " — open it");
 }
+
+/* The review record (audit trail) as a plain-language, timestamped timeline — the
+ * provenance a clinician/registry cares about, not a hash-chain integrity badge. */
+const REVIEW_EVENTS = {
+  "store.init": "Project created", "claim.write": "Claim added",
+  "intake.write": "Searched the literature", "candidate.link": "Linked evidence to a claim",
+  "claim_support.save": "Recorded a support rating", "claim_support.ai": "AI gave a second opinion",
+  "claim_support.adjudicate": "Adjudicated a disagreement",
+  "decision.final": "Recorded a decision", "decision.record": "Recorded a decision",
+  "zotero.transaction.commit": "Cited to Zotero", "writeback.commit": "Cited to Zotero",
+  "document.edit": "Edited the manuscript", "claim.revise": "Reworded a claim",
+  "transaction.undo": "Undid a step",
+};
+function humanEvent(ev) {
+  return REVIEW_EVENTS[ev] || String(ev).replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+async function openReviewRecord() {
+  const box = modalShell("reviewRecordModal");
+  box.innerHTML = loadingHTML("Loading your review record…", { card: true });
+  try {
+    const r = await api("GET", "/api/audit/log");
+    const rows = (r.entries || []).map((e) => {
+      const p = e.payload || {};
+      const det = [p.claim_type && claimTypeLabel(p.claim_type), p.comparison_status,
+                   p.final_decision || p.decision, p.citekey && "@" + p.citekey].filter(Boolean);
+      const when = e.ts ? new Date(e.ts).toLocaleString() : "";
+      return `<div class="rr-row"><span class="rr-when">${esc(when)}</span>
+        <span class="rr-what">${esc(humanEvent(e.event))}${det.length ? ` <span class="note">· ${esc(det.join(" · "))}</span>` : ""}</span></div>`;
+    }).join("");
+    const head = r.intact ? `<span class="tag ok">record intact ✓</span>`
+                          : `<span class="tag nodoi">⚠ changed outside CiteVahti</span>`;
+    box.innerHTML = `<div class="modal-card test">
+      <div class="modal-head"><h2 class="modal-title" id="reviewRecordModal-title">Review record</h2><button class="chip-btn" data-act="close-record" aria-label="Close">✕</button></div>
+      <div class="note">${head} · ${r.total} step(s) — a timestamped, tamper-evident record of what you reviewed, in order. On your Mac.</div>
+      <div class="rr-list">${rows || '<div class="note">No steps logged yet.</div>'}</div>
+      <div class="modal-foot">
+        <button class="btn ghost" data-act="export-record">⬇ Export review record (PDF/zip)</button>
+        <button class="btn primary" data-act="close-record">Done</button></div></div>`;
+  } catch (e) { box.innerHTML = `<div class="modal-card"><div class="err">${esc(e.message)}</div>
+    <div class="modal-foot"><button class="btn ghost" data-act="close-record">Close</button></div></div>`; }
+}
+function closeReviewRecord() { closeModalEl($("#reviewRecordModal")); }
 
 async function loadManuscripts(preferId) {
   const data = await api("GET", "/api/manuscripts");
@@ -308,8 +350,14 @@ registerActions({
   "run-tests": () => runTests(false), "run-tests-online": () => runTests(true),
   "resolve-dois": () => runScan("resolve-dois"), "recheck-library": () => runScan("recheck-library"),
   "scan-retractions": () => runScan("scan-retractions"), "scan-licenses": () => runScan("scan-licenses"),
-  // Setup recovery + claim-extraction hand-off
-  "setup-folder": setupFolder, "copy-handoff": copyHandoff,
+  // Intake (native file picker) + claim-extraction hand-off + setup recovery
+  "choose-file": importWord, "setup-folder": setupFolder, "copy-handoff": copyHandoff,
+  "stop-awaiting": finishLater,
+  // Output: reveal a written file in the OS file manager
+  reveal: (el) => revealFile(el.dataset.reveal),
+  // Review record (audit timeline)
+  "close-record": closeReviewRecord,
+  "export-record": () => { closeReviewRecord(); renderSurface("output"); exportPacket(); },
   // Settings surface
   "check-update": checkForUpdates,
   "toggle-theme": (el) => { const d = toggleTheme(); el.textContent = d ? "◑ Light theme" : "◑ Dark theme"; },
@@ -348,7 +396,7 @@ document.addEventListener("change", (e) => {
   // the Settings-surface copy of the keyboard-shortcuts toggle
   if (e.target.id === "hkToggle2") return void setHotkeysOff(e.target.checked);
 });
-$("#auditBadge").addEventListener("click", () => loadAudit());
+$("#auditBadge").addEventListener("click", () => { loadAudit(); openReviewRecord(); });
 $("#legendBtn").addEventListener("click", () => {
   const el = $("#legend"), opening = el.hasAttribute("hidden");
   el.toggleAttribute("hidden");
@@ -406,14 +454,13 @@ async function citeExport() {
     }
     const r = await api("POST", "/api/manuscripts/cite-export",
                         { manuscript_id: state.activeMs, docx: true });
-    let msg = `Cited ${r.injected} accepted claim(s)`
-      + (r.skipped ? `, ${r.skipped} skipped` : "")
-      + (r.bbt_keys ? ` · ${r.bbt_keys} matched your Zotero citekeys` : "")
-      + `. Wrote ${r.markdown_path}` + (r.bib_path ? " + references.bib" : "")
+    const wrote = `${r.injected} citation${r.injected === 1 ? "" : "s"} added`
+      + (r.bib_path ? " + references.bib" : "")
       + (r.docx_status === "ok" ? " + Word .docx"
-         : r.docx_status && r.docx_status !== "no_citations"
-           ? " (Word export unavailable — the .md + .bib are ready to convert)" : "");
-    notify(msg, { kind: "ok" });
+         : r.docx_status && r.docx_status !== "no_citations" ? " (.md + .bib ready to convert)" : "");
+    setAgentLine(`Cite-stable export: ${esc(wrote)}.`);
+    outputResult(savedToFolderCard(`Cite-stable manuscript — ${wrote}`, r.markdown_path),
+      `Cite-stable manuscript saved: ${wrote}.`);
     (r.warnings || []).forEach((w) => console.warn("cite-export:", w));
   } catch (e) { notify("Cite-stable export failed: " + e.message, { retry: () => citeExport() }); }
 }

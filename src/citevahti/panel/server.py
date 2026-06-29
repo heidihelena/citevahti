@@ -23,6 +23,8 @@ import json
 import os
 import re
 import secrets
+import subprocess
+import sys
 import time
 import uuid
 from html import escape as esc_html
@@ -593,6 +595,20 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, {"intact": bool(store.audit.verify()),
                          "entries": len(store.audit.entries())}
 
+        # Human-readable "review record" timeline: the audit log projected to seq/ts/event
+        # plus a small whitelist of payload fields (no secrets/config identifiers leak).
+        # Newest first, capped. Read-only — never mutates.
+        if method == "GET" and path == "/api/audit/log":
+            store = engine._open_store(root)
+            keep = ("claim_id", "claim_type", "candidate_id", "comparison_status",
+                    "decision", "final_decision", "citekey", "title_year", "kind", "filename",
+                    "transaction_id")
+            rows = [{"seq": e.seq, "ts": e.ts, "event": e.event,
+                     "payload": {k: e.payload[k] for k in keep if k in e.payload}}
+                    for e in store.audit.entries()]
+            return 200, {"entries": rows[::-1][:300], "total": len(rows),
+                         "intact": bool(store.audit.verify())}
+
         # ---- de-identified warehouse (local, opt-in, default-off) -----------
         if method == "GET" and path == "/api/warehouse":
             s = engine.warehouse_status(root=root)
@@ -688,6 +704,24 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             mdir = _req(body, "dir")
             prefs.set_manuscripts_dir(root, mdir)
             return 200, {"ok": True, "manuscripts_dir": prefs.get_manuscripts_dir(root)}
+
+        # Local-first "Show in Finder": reveal a file (or open a folder) the panel just
+        # wrote. The path is constrained to the project root — a page cannot reveal arbitrary
+        # files — and it is CSRF-gated like every POST. _reveal_in_os never launches the file.
+        if method == "POST" and path == "/api/reveal":
+            root_resolved = Path(root).expanduser().resolve()
+            try:
+                target = Path(_req(body, "path")).expanduser().resolve()
+            except (OSError, RuntimeError) as exc:
+                raise HttpError(400, "invalid path", code="bad_path") from exc
+            if target != root_resolved and root_resolved not in target.parents:
+                raise HttpError(403, "that path is outside your project folder", code="forbidden",
+                                remediation="Only files inside your project folder can be revealed.")
+            if not target.exists():
+                raise HttpError(404, "file not found", code="not_found",
+                                remediation="It may have been moved or deleted.")
+            _reveal_in_os(target)
+            return 200, {"ok": True, "revealed": str(target)}
 
         # is Pandoc ready (without downloading)? — lets the UI warn before a first-run fetch
         if method == "GET" and path == "/api/pandoc/status":
@@ -850,6 +884,31 @@ def _req(body: dict, key: str):
     if key not in body or body[key] in (None, ""):
         raise HttpError(400, f"missing required field: {key}")
     return body[key]
+
+
+def _reveal_in_os(target: Path) -> None:
+    """Reveal a file (or open a folder) in the OS file manager — the local-first
+    "Show in Finder" affordance. Caller MUST have validated ``target`` is inside the
+    project root. Uses ``open -R`` (reveal, never launches the file's app) on macOS;
+    Explorer ``/select`` on Windows; opens the containing folder via xdg-open on Linux.
+    No shell, list args, short timeout."""
+    is_dir = target.is_dir()
+    if sys.platform == "darwin":
+        cmd = ["open", str(target)] if is_dir else ["open", "-R", str(target)]
+    elif os.name == "nt":  # pragma: no cover - Windows-only
+        cmd = ["explorer", str(target)] if is_dir else ["explorer", "/select,", str(target)]
+    else:  # pragma: no cover - Linux/other: open the containing folder
+        folder = target if is_dir else target.parent
+        cmd = ["xdg-open", str(folder)]
+    try:
+        # noqa justified: the executable is a fixed literal ("open"/"explorer"/"xdg-open"),
+        # the only dynamic arg is a path the caller validated to be inside the project root,
+        # and there is no shell. See the /api/reveal handler for the validation.
+        subprocess.run(cmd, timeout=5, check=False,  # noqa: S603
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (FileNotFoundError, OSError, subprocess.SubprocessError) as exc:
+        raise HttpError(500, "couldn't open the file manager", code="reveal_failed",
+                        remediation="Open your project folder manually.") from exc
 
 
 def _safe_md_name(raw: str) -> str:

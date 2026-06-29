@@ -71,7 +71,15 @@
   padding: var(--zs-space-xl); margin: var(--zs-space-lg) 0; background: var(--zs-paper); }
 .cv-card.is-warn, .firstrun .panel-box.wrong-ledger {
   border-color: var(--zs-supported-border); background: var(--zs-supported-bg); }
+.cv-card.is-ok { border-color: var(--zs-partial-border); background: var(--zs-partial-bg); }
+.cv-card.is-ok > .lbl.ok, .note.ok { color: var(--zs-partial-text); }
 .cv-card > .lbl, .surfacepad .seg > .lbl, .firstrun .panel-box > .lbl { margin-bottom: var(--zs-space); }
+/* review-record timeline (the audit trail as plain language) */
+.rr-list { max-height: 60vh; overflow: auto; margin-top: var(--zs-space); display: flex; flex-direction: column; }
+.rr-row { display: flex; gap: var(--zs-space-lg); padding: 6px 2px; border-bottom: 1px solid var(--zs-line); font-size: var(--zs-text-sm); }
+.rr-row:last-child { border-bottom: 0; }
+.rr-when { flex: none; width: 150px; color: var(--zs-muted); font: 11px/1.5 ui-monospace, Menlo, monospace; }
+.rr-what { color: var(--zs-ink); }
 
 /* 6 · Status badge — bracketed status code / metadata chip (one component, six hues) */
 .cv-badge { display: inline-flex; align-items: center; gap: var(--zs-space-2xs);

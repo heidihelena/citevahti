@@ -104,5 +104,12 @@ def discover_ledgers(active_root: Optional[str] = None) -> list[dict]:
         seen.add(str(ledger))
         claims_dir = ledger / "claims"
         n = len(list(claims_dir.glob("claim-*.json"))) if claims_dir.is_dir() else 0
-        out.append({"root": str(ledger.parent), "ledger": str(ledger), "claims": n})
+        # last-activity time for a "Your reviews" recency label: the audit log is touched on
+        # every event, so it tracks real work better than the directory mtime.
+        audit = ledger / "audit_log.jsonl"
+        try:
+            mtime = (audit if audit.exists() else ledger).stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        out.append({"root": str(ledger.parent), "ledger": str(ledger), "claims": n, "mtime": mtime})
     return out

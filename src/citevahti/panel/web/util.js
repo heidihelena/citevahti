@@ -56,3 +56,27 @@ function downloadJson(obj, filename) {
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
 }
+
+// A project's human name = the folder it lives in (not the full path).
+function projectName(root) { return String(root || "").replace(/[/\\]+$/, "").split(/[/\\]/).pop() || root; }
+
+// "just now" / "2 hours ago" / "3 days ago" from a unix-seconds timestamp (server mtime).
+function relTime(secs) {
+  if (!secs) return "";
+  const d = Math.max(0, (Date.now() / 1000) - secs);
+  if (d < 90) return "just now";
+  const mins = Math.round(d / 60);
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+  const days = Math.round(hrs / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  return new Date(secs * 1000).toLocaleDateString();
+}
+
+// Reveal a panel-written file in the OS file manager (Finder). Path must be one the server
+// gave us (an export result); the server re-validates it is inside the project folder.
+async function revealFile(path) {
+  try { await api("POST", "/api/reveal", { path }); }
+  catch (e) { notify(e.message, { kind: "error" }); }
+}

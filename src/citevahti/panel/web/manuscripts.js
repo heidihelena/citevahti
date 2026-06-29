@@ -5,52 +5,54 @@
  * Formerly the first-run takeover that overwrote #split; now it renders into its own
  * surface container so it's reachable any time via the header nav (renderSurface). */
 async function renderManuscripts() {
-  let ledgers = [];
-  try { ledgers = (await api("GET", "/api/ledgers")).ledgers || []; } catch {}
-  const others = ledgers.filter((l) => l.claims > 0 && l.root !== state.ctx.root);
-  const rows = ledgers.map((l) =>
-    `<div class="ledrow"><span class="path">${esc(l.root)}</span><span class="n">${l.claims} claims</span>
-      ${l.root !== state.ctx.root && l.claims > 0 ? `<button class="btn ghost" data-switch="${esc(l.root)}">Switch here</button>` : (l.root === state.ctx.root ? `<span class="note">active</span>` : "")}</div>`).join("");
+  let ledgers = [], active = state.ctx ? state.ctx.root : "";
+  try { const lg = await api("GET", "/api/ledgers"); ledgers = lg.ledgers || []; active = lg.active || active; } catch {}
+  const projects = ledgers.filter((l) => l.claims > 0).sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+  const rows = projects.map((l) => {
+    const here = l.root === active;
+    const meta = `${l.claims} claim${l.claims === 1 ? "" : "s"}${relTime(l.mtime) ? " · " + esc(relTime(l.mtime)) : ""}`;
+    return `<div class="ledrow"><span class="path"><b>${esc(projectName(l.root))}</b>
+      <span class="note">· ${meta}</span></span>
+      ${here ? `<span class="note">open now</span>` : `<button class="btn ghost" data-switch="${esc(l.root)}">Open</button>`}</div>`;
+  }).join("");
   $("#manuscripts").innerHTML = `<div class="firstrun">
-    <div class="beta-banner"><b>CiteVahti is in beta — free to use.</b> Local-first: your manuscript
-      and ratings stay on your device unless you choose to use an external AI model.</div>
-    <h2>Start your review</h2>
-    <p class="note"><b>1.</b> Add your manuscript → <b>2.</b> extract claims (in your chat client) →
-      <b>3.</b> review the first claim. The panel never calls an AI itself.</p>
-    ${others.length ? `<div class="panel-box wrong-ledger">
-      <div class="lbl">Looking for earlier work?</div>
-      <p class="note">This ledger (<b>${esc(state.ctx.root)}</b>) is empty — your claims may be in another ledger:</p>
-      ${rows}</div>` : ""}
-    <div class="panel-box">
-      <div class="lbl">1 · Add your manuscript</div>
-      <p class="note"><b>Drag a <code>.md</code> or <code>.docx</code> onto this window</b>, or paste your
-      Markdown below — CiteVahti saves it and remembers where it lives. You'll get the exact prompt to
-      paste into your chat client to extract claims next.</p>
-      <input id="pasteName" type="text" aria-label="Manuscript filename" placeholder="filename, e.g. my-draft.md" />
-      <textarea id="pasteBody" class="revbox" aria-label="Manuscript Markdown" placeholder="# Title&#10;&#10;Paste your Markdown here…"></textarea>
-      <div class="actions"><button class="btn primary" id="pasteSave">Save my document</button></div>
-      <div id="pasteResult"></div>
+    <h2>${projects.length ? "Your reviews" : "Start your review"}</h2>
+    ${projects.length ? `<div class="cv-card"><div class="lbl">Reviews on this Mac</div>${rows}</div>` : ""}
+    <div class="cv-card">
+      <div class="lbl">${projects.length ? "Add another manuscript" : "1 · Add your manuscript"}</div>
+      <p class="note">Choose your Word or Markdown file, or drag it onto this window. It stays on your Mac —
+        you'll get a prompt to paste into your chat assistant, which pulls out the claims.</p>
+      <div class="actions"><button class="btn primary" data-act="choose-file">📄 Choose a file…</button></div>
+      <details class="firstrun-more"><summary>…or paste the text instead</summary>
+        <input id="pasteName" type="text" aria-label="Filename" placeholder="filename, e.g. my-draft.md" />
+        <textarea id="pasteBody" class="revbox" aria-label="Manuscript text" placeholder="# Title&#10;&#10;Paste your Markdown here…"></textarea>
+        <div class="actions"><button class="btn" id="pasteSave">Save pasted text</button></div>
+        <div id="pasteResult"></div>
+      </details>
     </div>
     <details class="firstrun-more">
       <summary>I don't have a manuscript yet</summary>
-      <div class="panel-box">
+      <div class="cv-card">
         <div class="lbl">Screen a topic</div>
-        <p class="note">Hand your chat client a screening prompt for a topic — it proposes candidate
+        <p class="note">Hand your chat assistant a screening prompt for a topic — it proposes candidate
         claims to assess and nearby evidence. <b>Leads, not verdicts</b>; you still rate each one first.</p>
         <input id="screenTopic" type="text" aria-label="Topic to screen" placeholder="e.g. low-dose CT screening in heavy smokers" />
-        <div class="actions"><button class="btn ghost" id="screenTopicBtn" title="Copy the screen_topic prompt to paste into your chat client">⧉ Copy screen-topic prompt</button></div>
+        <div class="actions"><button class="btn ghost" id="screenTopicBtn" title="Copy the screen_topic prompt to paste into your chat assistant">⧉ Copy screen-topic prompt</button></div>
         <div id="screenResult" class="note"></div>
       </div>
-      <div class="panel-box">
-        <div class="lbl">Add claims directly · connect sources</div>
-        <p class="note">From your chat client run the <b>run_claim_tests</b> prompt, or use the CLI:
-        <br><code>citevahti claim-add --text "…" --type interpretation</code></p>
+      <div class="cv-card">
+        <div class="lbl">Connect your reference sources</div>
+        <p class="note">So CiteVahti can write accepted citations to your library and search PubMed for you.</p>
         <div class="actions">
           <button class="btn ghost" data-connect="zotero">Connect Zotero</button>
           <button class="btn ghost" data-connect="pubmed">Connect PubMed</button>
         </div>
       </div>
-    </details></div>`;
+    </details>
+    <div class="beta-banner cv-mt-lg"><b>On your Mac · nothing uploaded.</b> Your manuscript, ratings, and
+      review record stay in this project's folder unless you turn on an external AI model in Settings.
+      CiteVahti is in beta — free to use.</div>
+  </div>`;
 }
 
 
@@ -121,7 +123,7 @@ function renderHandoff(r) {
       <textarea class="revbox" readonly onclick="this.select()">${esc(prompt)}</textarea>
       <div class="actions"><button class="btn ghost" data-act="copy-handoff">⧉ Copy prompt</button></div>
     </div>
-    <div class="cv-loading is-prominent cv-mt-lg"><span class="cv-spin" aria-hidden="true"></span>
+    <div class="cv-loading is-prominent cv-mt-lg" id="awaitState"><span class="cv-spin" aria-hidden="true"></span>
       <span><b>Waiting for claims…</b> keep this panel open — your review opens automatically the moment they arrive.</span></div>
     <p class="note">Already reviewing another project? The <b>Manuscripts</b> tab lets you switch.</p>
   </div>`;
@@ -155,13 +157,33 @@ function startAwaitingClaims() {
       }
     } catch { /* folder may still be initialising — keep waiting */ }
     if (!state.awaiting) return;
-    if (tries >= 150) { stopAwaitingClaims(); return; }   // ~10 min cap (150 × 4s)
+    if (tries === 22) showAwaitHelp();                     // ~90s, still nothing — never a dead spinner
+    if (tries >= 150) { stopAwaitingClaims(); awaitStopped(); return; }   // ~10 min cap (150 × 4s)
     state.awaitTimer = setTimeout(poll, 4000);
   };
   state.awaitTimer = setTimeout(poll, 4000);
 }
 
 function stopAwaitingClaims() { state.awaiting = false; if (state.awaitTimer) clearTimeout(state.awaitTimer); state.awaitTimer = null; }
+
+// After ~90s with no claims, swap the spinner for a help card (and keep polling): the most
+// likely cause is the chat assistant isn't running or the prompt wasn't pasted.
+function showAwaitHelp() {
+  const el = $("#awaitState"); if (!el || el.dataset.help) return;
+  el.dataset.help = "1"; el.className = "cv-error cv-mt-lg";
+  el.innerHTML = `<div><b>Still waiting for your chat assistant.</b> Make sure <b>Claude is open</b>
+    and that you <b>pasted the prompt</b> above — I'll keep checking in the background.
+    <div class="actions cv-mt"><button class="btn" data-act="copy-handoff">⧉ Copy the prompt again</button>
+      <button class="btn ghost" data-act="stop-awaiting">Save &amp; finish later</button></div></div>`;
+}
+// User chose to stop, or the 10-min cap hit: a calm resolution — never an endless spinner.
+function awaitStopped() {
+  const el = $("#awaitState"); if (!el) return;
+  el.dataset.help = "1"; el.className = "note cv-mt-lg";
+  el.innerHTML = `Your manuscript is saved. When your assistant has pulled out the claims, reopen this
+    project (or press <b>↻ Reload claims</b>) and your review will be here.`;
+}
+function finishLater() { stopAwaitingClaims(); awaitStopped(); }
 
 /* ---- surface modal-content helpers (folded in from app.js, slice b) ----
  * The Output/Prompts/Checks/Atlas/Settings modal bodies that the shells above host
