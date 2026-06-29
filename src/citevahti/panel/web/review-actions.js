@@ -163,3 +163,50 @@ function primary() {
   if (ph === "done") { const n = nextPending(); return n ? () => selectClaim(n) : null; }
   return null;
 }
+
+/* The review keyboard map — registered with the global keydown listener in events.js,
+ * which has already handled the modal trap, the input guard, and claim Enter/Space and
+ * checked hotkeysOff. Returns true once a key is handled (so events.js preventDefaults). */
+registerKeys((e) => {
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;   // letter keys are CapsLock-proof
+  if (key === "?") { $("#legendBtn").click(); e.preventDefault(); return true; }              // ? help
+  if (key === "u") {                                                                          // u undo last write/edit
+    if (recoverableTxn()) { zundo(); e.preventDefault(); return true; }
+    if (state.docTxn) { docUndo(); e.preventDefault(); return true; }
+  }
+  // claim navigation/rating only makes sense on the review workspace; on other surfaces
+  // (Checks, Settings, …) the manuscript isn't shown, so don't move the selection underneath.
+  if (state.surface !== "workspace") return false;
+  const ids = claimOrder(); if (!ids.length) return false;   // document order, matching the eye
+  const i = ids.indexOf(state.activeClaim);
+  if (key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); e.preventDefault(); return true; }
+  if (key === "k" || e.key === "ArrowUp") { selectClaim(ids[Math.max(i - 1, 0)]); e.preventDefault(); return true; }
+  const cand = activeCand(); if (!cand) return false;
+  if (e.shiftKey && key === "d") { unlinkCandidate(); e.preventDefault(); return true; }       // ⇧D guarded remove
+  const ph = phaseOf(cand);
+  if (ph === "rate" && /^[1-7]$/.test(e.key)) { rate(SUPPORT[+e.key - 1][0]); e.preventDefault(); return true; }   // 1–7 support rating
+  if (ph === "decide") {                                                                       // verdict keys: oo / o / r / d
+    if (key === "r") { recordDecision("needs_second_review"); e.preventDefault(); return true; }
+    if (key === "d") { recordDecision("reject"); e.preventDefault(); return true; }            // (⇧D handled above)
+    if (key === "o") {
+      if (e.repeat) { e.preventDefault(); return true; }   // ignore auto-repeat so a held "o" isn't read as "oo"
+      if (oTimer) { clearTimeout(oTimer); oTimer = null; recordDecision("accept"); }                         // "oo" → [oo]
+      else { oTimer = setTimeout(() => { oTimer = null; recordDecision("accepted_with_caution"); }, 300); }   // "o"  → [o]
+      e.preventDefault(); return true;
+    }
+  }
+  if (ph === "write") {
+    if (key === "s") {                                                                         // s stage = preview (no-op if already staged)
+      if (!state.pendingZtoken && !state.pendingDocToken) {
+        const code = cand.evidence && cand.evidence.final_decision;
+        if (code === "needs_second_review") docPreview("revise");
+        else if (code === "reject") docPreview("strike");
+        else zpreview();
+      }
+      e.preventDefault(); return true;
+    }
+    if (key === "a") { const p = primary(); if (p) p(); e.preventDefault(); return true; }      // a apply / add to Zotero
+  }
+  if (e.key === "Enter") { const p = primary(); if (p) { p(); e.preventDefault(); return true; } }  // ↵ primary action
+  return false;
+});

@@ -49,3 +49,45 @@ document.addEventListener("click", (e) => {
   const zs = e.target.closest("[data-zsave]"); if (zs) return void zsave(zs.dataset.zsave, zs);
   const act = e.target.closest("[data-act]"); if (act) (_actions[act.dataset.act] || (() => {}))(act, e);
 });
+
+/* Keyboard. The universal parts live here — the modal Escape/Tab focus-trap, the input
+ * guard, and Enter/Space activation of a focused claim span. The review/navigation keys
+ * (j/k, 1–7, o/r/d, s/a, ↵, ? , u) are owned by the card and registered via registerKeys();
+ * each handler returns true once it handles the event. */
+const _keyHandlers = [];
+function registerKeys(fn) { _keyHandlers.push(fn); }
+document.addEventListener("keydown", (e) => {
+  // modal-first: Escape dismisses the open dialog; Tab is trapped inside it
+  const openModal = document.querySelector(".modal");
+  if (openModal) {
+    if (e.key === "Escape") {
+      const close = { whModal: closeWarehouse, aiModal: closeAiSettings,
+                      browseModal: closeBrowse, testModal: closeTests,
+                      connectModal: closeConnectModal, exportModal: closeExportModal,
+                      importModal: closeImportModal }[openModal.id];
+      (close || (() => closeModalEl(openModal)))();
+      return e.preventDefault();
+    }
+    if (e.key === "Tab") {
+      const f = [...openModal.querySelectorAll(
+        'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+        .filter((el) => !el.disabled && el.offsetParent !== null);
+      if (f.length) {
+        const first = f[0], last = f[f.length - 1];
+        if (document.activeElement === openModal) { first.focus(); return e.preventDefault(); }
+        if (e.shiftKey && document.activeElement === first) { last.focus(); return e.preventDefault(); }
+        if (!e.shiftKey && document.activeElement === last) { first.focus(); return e.preventDefault(); }
+      }
+    }
+  }
+  // guard non-Element targets (e.matches absent) so synthetic/dispatched events never throw
+  if (e.target.matches && e.target.matches("input, textarea, select")) return;
+  // a focused claim span is role="button": Enter/Space must activate it (intrinsic button
+  // behaviour for keyboard users — works even when shortcuts are turned off).
+  const focusedClaim = e.target.closest && e.target.closest("[data-claim]");
+  if (focusedClaim && (e.key === "Enter" || e.key === " ")) {
+    selectClaim(focusedClaim.dataset.claim); return e.preventDefault();
+  }
+  if (state.hotkeysOff) return;                          // user turned shortcuts off (writing mode)
+  for (const h of _keyHandlers) { if (h(e)) return; }    // component-owned keys (card etc.)
+});
