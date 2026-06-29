@@ -153,18 +153,24 @@ def main() -> None:
             browser = p.chromium.launch()
             ctx = browser.new_context(viewport=VIEWPORT, device_scale_factor=SCALE)
             page = ctx.new_page()
+            # the card shows different phases (blind Rate / done stepper); wait on any of them
+            card_ready = "#card .revbox, #card .next, #card .actions, #card .done-banner"
             # 0. the "what's next" banner over the manuscript (no claim focused)
             _shoot(page, f"{demo_base}/?theme=light", "#nextstep:not([hidden])",
                    out / "00-next-step.png")
             # 1. review surface — the blind Rate card open over the manuscript, light mode
-            _shoot(page, f"{demo_base}/?theme=light{focus_q}", ".stepper",
+            _shoot(page, f"{demo_base}/?theme=light{focus_q}", card_ready,
                    out / "01-review-surface.png", click_first_claim=not focus, focus=focus)
             # 2. the verdict legend, open over the manuscript
             _shoot(page, f"{demo_base}/?theme=light&legend=1", "#legend:not([hidden])",
                    out / "02-legend.png")
-            # 3. first run on an empty ledger — the paste-a-manuscript box
-            _shoot(page, f"{empty_base}/?theme=light", "textarea",
-                   out / "03-first-run.png")
+            # 3. first run — the Manuscripts surface "Choose a file…" intake on an empty ledger
+            page.goto(f"{empty_base}/?theme=light", wait_until="networkidle")
+            page.click('.surfnav-tab[data-surface="manuscripts"]')
+            page.wait_for_selector("#manuscripts:not([hidden])", timeout=5000)
+            page.wait_for_timeout(400)
+            page.screenshot(path=str(out / "03-first-run.png"))
+            print(f"wrote {out / '03-first-run.png'}")
             # 4. the Rate → Reveal → Decide → Write stepper — the right-hand card,
             #    cropped, on a claim carried to a verdict (the core interaction)
             decided = _decided_claim(demo)
@@ -172,23 +178,23 @@ def main() -> None:
             page.goto(f"{demo_base}/?theme=light{decided_q}", wait_until="networkidle")
             if not decided:
                 page.wait_for_selector(".claim", timeout=5000); page.click(".claim")
-            page.wait_for_selector(".stepper", timeout=5000)
+            page.wait_for_selector(card_ready, timeout=5000)
             page.wait_for_timeout(400)
             page.locator("#card").screenshot(path=str(out / "04-rate-reveal-decide-write.png"))
             print(f"wrote {out / '04-rate-reveal-decide-write.png'}")
-            # 6. AI second-opinion settings — Off / Local AI / My API key
+            # 6. AI second-opinion settings — rendered inline in the Settings surface
             page.goto(f"{demo_base}/?theme=light", wait_until="networkidle")
-            page.click("#aiSettings")
+            page.click('.surfnav-tab[data-surface="settings"]')
             page.wait_for_selector("#aiModal .modal-card", timeout=5000)
             page.wait_for_timeout(400)
             page.locator("#aiModal .modal-card").screenshot(path=str(out / "06-ai-settings.png"))
             print(f"wrote {out / '06-ai-settings.png'}")
-            # 7. the citation-integrity report export
+            # 7. the review record / export — the Output surface
             page.goto(f"{demo_base}/?theme=light", wait_until="networkidle")
-            page.click("#report")
-            page.wait_for_selector("#exportModal .modal-card", timeout=5000)
+            page.click('.surfnav-tab[data-surface="output"]')
+            page.wait_for_selector("#output:not([hidden])", timeout=5000)
             page.wait_for_timeout(400)
-            page.locator("#exportModal .modal-card").screenshot(path=str(out / "07-report-export.png"))
+            page.locator("#output").screenshot(path=str(out / "07-report-export.png"))
             print(f"wrote {out / '07-report-export.png'}")
             browser.close()
     finally:
