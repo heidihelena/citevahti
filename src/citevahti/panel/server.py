@@ -664,6 +664,18 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             view["claim_states"] = {r.claim_id: _claim_state(r) for r in rows}
             return 200, view
 
+        # No-terminal setup: initialise the ledger for the folder the panel was opened in,
+        # so a user who launched in a fresh directory can start the review without running
+        # `citevahti init` in a shell. Takes no input (uses the current root), idempotent.
+        if method == "POST" and path == "/api/setup":
+            from ..state import CiteVahtiStore
+            store = CiteVahtiStore(root)
+            created = not store.exists()
+            if created:
+                store.init()
+            return 200, {"ok": True, "created": created,
+                         "root": str(Path(root).expanduser())}
+
         if method == "POST" and path == "/api/manuscripts/bind":
             mdir = _req(body, "dir")
             prefs.set_manuscripts_dir(root, mdir)
