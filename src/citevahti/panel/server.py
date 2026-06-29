@@ -710,16 +710,9 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         # files — and it is CSRF-gated like every POST. _reveal_in_os never launches the file.
         if method == "POST" and path == "/api/reveal":
             root_resolved = Path(root).expanduser().resolve()
-            raw_path = _req(body, "path")
-            if not isinstance(raw_path, str):
-                raise HttpError(400, "invalid path", code="bad_path")
-            candidate = Path(raw_path)
-            if candidate.is_absolute() or ".." in candidate.parts:
-                raise HttpError(400, "invalid path", code="bad_path",
-                                remediation="Use a relative path inside your project folder.")
             try:
-                target = (root_resolved / candidate).expanduser().resolve()
-            except (OSError, RuntimeError, ValueError) as exc:
+                target = Path(_req(body, "path")).expanduser().resolve()
+            except (OSError, RuntimeError) as exc:
                 raise HttpError(400, "invalid path", code="bad_path") from exc
             # Containment barrier: the fully-resolved target must live inside the resolved
             # project root. This is the check that stops a page from revealing arbitrary
