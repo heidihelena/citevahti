@@ -30,12 +30,30 @@ on your computer, you can use CiteVahti.
 - **Builds a reusable evidence map** so you don't re-do the same checks next project.
 - **Stays private by default** — everything lives in a folder on your Mac or PC.
 
-## Start in one click — no terminal
+## Get started in 2 minutes — no terminal, ever
 
-Most people should use the **Claude Desktop extension**. Your AI assistant runs the review
-for you through it — there's nothing to install from a command line.
+**On a Mac, use the desktop app.** It's a normal app: download it, open it, review.
 
-1. Download the CiteVahti extension **for your computer** from the
+1. Download **`citevahti-<version>-macos-arm64.app.zip`** from the
+   [latest release](https://github.com/heidihelena/citevahti/releases/latest).
+2. Unzip it and drag **`CiteVahti.app`** into your **Applications** folder, then open it
+   like any other app. *(It's signed and notarized — it opens with no security warnings.)*
+3. Choose a folder to keep your reviews in when it asks.
+4. Drag your manuscript (`.docx` or `.md`) onto the window. The panel walks you through the
+   rest, one step at a time — there's nothing to memorise.
+
+Want an AI assistant to help pre-screen citations? Whenever you're ready, click the
+**CiteVahti menu-bar icon → Start Agent Server**. CiteVahti first explains exactly what an
+assistant can and cannot do — and either way, you rate every claim yourself and make every
+final call.
+
+### Or: use it inside Claude Desktop
+
+If you already work in Claude, install CiteVahti as a one-click extension and drive the
+review by chatting. *(This is also the path on Windows and Linux, where the desktop app
+isn't available yet.)*
+
+1. Download the extension **for your computer** from the
    [latest release](https://github.com/heidihelena/citevahti/releases/latest):
    - **macOS** (Apple Silicon) — `citevahti-<version>-macos-arm64.mcpb` *(signed + notarized)*
    - **Windows** — `citevahti-<version>-windows-x64.mcpb`
@@ -50,54 +68,8 @@ for you through it — there's nothing to install from a command line.
 > "Open Anyway"**. After that it installs and runs normally.
 
 <details>
-<summary><b>Other ways to install</b> (a standalone app window, or the terminal)</summary>
+<summary><b>Updating</b> — your review data is never touched; only the program is replaced</summary>
 
-### Desktop app — a real window, no terminal, ever
-
-`CiteVahti.app` is a local desktop supervisor for two services: the review panel (for you)
-and an optional local AI-agent server (for a chat client to help screen citations — it can
-only *propose*; you still rate every claim yourself before anything is recorded). Both run
-only on your own computer (`127.0.0.1`), write their own logs, and shut down cleanly when you
-quit. A menu-bar icon always shows whether the panel and agent server are running.
-
-1. Download **`citevahti-<version>-macos-arm64.app.zip`** from the
-   [latest release](https://github.com/heidihelena/citevahti/releases/latest), unzip it, and
-   drag `CiteVahti.app` to your Applications folder.
-2. **Double-click** `CiteVahti.app` to open it — from Finder, the Dock, or Launchpad. No
-   terminal is ever part of launching, restarting, or updating it. *(It's notarized and
-   stapled, so unlike the `.mcpb` zip above it normally opens with no security prompt at
-   all.)*
-3. Choose a folder for your reviews when asked, and — if you'd like a chat client to help
-   screen citations — say yes to the one-time "Enable AI agent server?" prompt (you can turn
-   this on or off anytime from the menu-bar icon).
-4. Drag a `.docx` or `.md` onto the window to begin.
-
-### From source (developers/contributors)
-
-```bash
-pip install "citevahti[app]"
-citevahti-app
-```
-
-The same supervised app as above, run from a local checkout instead of the packaged
-`.app` — useful for development, not the no-terminal path most people want.
-
-### Terminal
-
-```bash
-pip install "citevahti[mcp]"
-citevahti run
-```
-
-CiteVahti opens the review panel on your machine at `127.0.0.1` and tells you the one next
-thing to do.
-
-### Updating
-
-Your review data is never touched by an update — only the program is replaced.
-
-- **pip:** `pip install --no-cache-dir --upgrade "citevahti[mcp]"`, then `pip show citevahti`
-  to confirm the version.
 - **Desktop app:** quit `CiteVahti.app`, download the newest
   `citevahti-<version>-macos-arm64.app.zip` from the
   [latest release](https://github.com/heidihelena/citevahti/releases/latest), and replace the
@@ -108,6 +80,54 @@ Your review data is never touched by an update — only the program is replaced.
   [latest release](https://github.com/heidihelena/citevahti/releases/latest). Ask your
   assistant to run the **`status`** tool to confirm the running version. *(macOS Intel: install
   via `pip install "citevahti[mcp]"`, or run the Apple-Silicon `.mcpb` under Rosetta.)*
+- **pip:** `pip install --no-cache-dir --upgrade "citevahti[mcp]"`, then `pip show citevahti`
+  to confirm the version.
+
+</details>
+
+<details>
+<summary><b>For developers &amp; technical readers</b> — pip, CLI, architecture, security</summary>
+
+Everything below assumes a terminal; none of it is needed to use the app.
+
+**Try it on synthetic data** (nothing of yours touched — builds an invented ledger and
+opens the panel showing every claim state):
+
+```bash
+pip install "citevahti[mcp]"
+citevahti demo
+```
+
+**Run the review panel from the terminal:**
+
+```bash
+pip install "citevahti[mcp]"
+citevahti run
+```
+
+CiteVahti opens the review panel on your machine at `127.0.0.1` and tells you the one next
+thing to do.
+
+**Run the desktop app from source** (the same supervised shell as the packaged `.app`):
+
+```bash
+pip install "citevahti[app]"
+citevahti-app
+```
+
+**What the app actually runs:** `CiteVahti.app` is a thin shell supervising two local
+processes — the review panel engine (for you) and an optional MCP agent server (for a chat
+client; it can suggest and stage, but it can never rate for you, see your rating first, or
+make the final call). Both bind only to `127.0.0.1`, write rotating logs (menu-bar icon →
+*Open Logs Folder*), exit on their own if the app dies, and shut down cleanly when you quit.
+The agent server is off until you enable it and can be stopped anytime from the menu bar.
+
+**Deeper reading:**
+
+- [Architecture](docs/ARCHITECTURE.md) · [CLI reference](docs/CLI.md)
+- [Safety invariants](docs/SAFETY_INVARIANTS.md) · [Security policy](SECURITY.md)
+- [Building the desktop app / extension](desktop-extension/BUILD.md)
+- [Status & capabilities](docs/STATUS.md) · [Dependencies / SBOM](docs/SBOM.md)
 
 </details>
 
@@ -229,19 +249,17 @@ evaluation that uses it should **disclose the tool use and the developer relatio
 relevant.** Ready-to-adapt disclosure text and the full statement are in
 [docs/DISCLOSURE.md](docs/DISCLOSURE.md).
 
-## Documentation
+## Learn more
 
-- [Quickstart](docs/QUICKSTART.md)
-- [CLI reference](docs/CLI.md)
-- [Safety invariants](docs/SAFETY_INVARIANTS.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Reporting in your methods section](docs/REPORTING.md)
-- [Status & capabilities](docs/STATUS.md)
-- [Known limitations](docs/KNOWN_LIMITATIONS.md)
+- [Quickstart — your first citation check, step by step](docs/QUICKSTART.md)
 - [Writing good (atomic) claims](docs/WRITING_GOOD_CLAIMS.md)
+- [Reporting in your methods section](docs/REPORTING.md)
+- [Known limitations](docs/KNOWN_LIMITATIONS.md)
 - [Responsibility, disclosure & conflict of interest](docs/DISCLOSURE.md)
 - [Contributor privacy](docs/CONTRIBUTOR_PRIVACY.md)
-- [Dependencies / SBOM](docs/SBOM.md)
+
+*Technical documentation (architecture, CLI, safety invariants, SBOM) lives under the
+"For developers" toggle above and in [docs/](docs/).*
 
 ## Feedback & support
 
@@ -254,7 +272,8 @@ CiteVahti is a free beta and your feedback shapes it.
 - **Anything private or security-related?** Email **privacy@vahtian.com** — please don't open a
   public issue.
 
-New here? Try `citevahti demo` (or the [3-minute path](docs/QUICKSTART.md)) first.
+New here? Open the app and drag a manuscript in — or follow the
+[Quickstart](docs/QUICKSTART.md) step by step.
 
 ## Companion: FullVahti
 
