@@ -14,12 +14,15 @@ rm -rf "$BUILD" && mkdir -p "$BUILD"
 echo "==> Creating isolated build venv ..."
 python3 -m venv "$BUILD/venv"
 "$BUILD/venv/bin/pip" install --quiet --upgrade pip
+# [keyring] is deliberate: the agent's Zotero write path reads the key from the OS
+# keychain (credentials.py) — a key the user stored via the panel's "Connect Zotero".
+# Without keyring frozen in, the binary can only see the CITEVAHTI_* env escape hatches.
 if [ "$VERSION" = "local" ]; then
-  echo "==> Installing citevahti[mcp] from the local checkout (..) + pyinstaller ..."
-  "$BUILD/venv/bin/pip" install --quiet "..[mcp]" pyinstaller
+  echo "==> Installing citevahti[mcp,keyring] from the local checkout (..) + pyinstaller ..."
+  "$BUILD/venv/bin/pip" install --quiet "..[mcp,keyring]" pyinstaller
 else
-  echo "==> Installing citevahti[mcp]==${VERSION} + pyinstaller ..."
-  "$BUILD/venv/bin/pip" install --quiet "citevahti[mcp]==${VERSION}" pyinstaller
+  echo "==> Installing citevahti[mcp,keyring]==${VERSION} + pyinstaller ..."
+  "$BUILD/venv/bin/pip" install --quiet "citevahti[mcp,keyring]==${VERSION}" pyinstaller
 fi
 
 echo "==> Freezing standalone binary ..."
@@ -28,6 +31,7 @@ echo "==> Freezing standalone binary ..."
   --collect-submodules mcp.server \
   --collect-data mcp \
   --collect-submodules citevahti \
+  --collect-submodules keyring \
   --exclude-module mcp.cli \
   --exclude-module typer \
   server/pyi_entry.py

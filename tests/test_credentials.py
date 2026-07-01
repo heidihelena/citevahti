@@ -51,3 +51,24 @@ def test_get_credential_store_backends():
     # constructing the keyring backend needs the optional `keyring` extra
     pytest.importorskip("keyring")
     assert isinstance(get_credential_store("system_keyring"), KeyringCredentialStore)
+
+
+def test_missing_keyring_error_never_says_pip_install_in_a_frozen_app(monkeypatch):
+    """In a frozen bundle, `pip install keyring` can never fix anything — the message must
+    say "update the app / packaging bug", not hand a no-terminal user a terminal command
+    that cannot work (the exact dead end a pilot user hit)."""
+    import sys
+
+    from citevahti.credentials import CredentialError
+
+    monkeypatch.setitem(sys.modules, "keyring", None)   # simulate the extra being absent
+
+    # source install: the pip hint is correct and stays
+    with pytest.raises(CredentialError, match="pip install keyring"):
+        KeyringCredentialStore()
+
+    # frozen bundle: no pip advice, points at updating the app instead
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    with pytest.raises(CredentialError, match="newest CiteVahti release") as exc:
+        KeyringCredentialStore()
+    assert "pip install" not in str(exc.value)
