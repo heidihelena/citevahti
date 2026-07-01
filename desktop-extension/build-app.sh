@@ -86,16 +86,17 @@ echo "==> Freezing the citevahti-mcp sidecar (agent-server interface) ..."
   server/pyi_entry.py
 
 # Verify the artifacts contain what they claim (silent omission is the classic packaging
-# bug — this exact check would have caught the missing-keyring Zotero regression). The
-# keyring package must be importable inside BOTH frozen sidecars: the engine stores the
-# key at "Connect Zotero", the mcp sidecar reads it for agent-gated writes.
+# bug — this exact check would have caught the missing-keyring Zotero regression). keyring
+# is pure Python, so it lands in the PYZ archive, not as an _internal/ folder — the
+# authoritative record is the PYZ table of contents PyInstaller writes under work/.
+# Require the macOS Keychain backend specifically: that's the one "Connect Zotero" needs.
 for SIDECAR in citevahti-engine citevahti-mcp; do
-  if ! ls "$BUILD/dist-bin/$SIDECAR/_internal/keyring" >/dev/null 2>&1; then
-    echo "ERROR: keyring is missing from the frozen $SIDECAR — Zotero connect would fail" >&2
+  if ! grep -q "'keyring.backends.macOS'" "$BUILD/work/$SIDECAR/PYZ-00.toc"; then
+    echo "ERROR: keyring (macOS backend) missing from the frozen $SIDECAR — Zotero connect would fail" >&2
     exit 1
   fi
 done
-echo "==> verified: keyring frozen into both sidecars"
+echo "==> verified: keyring (incl. macOS Keychain backend) frozen into both sidecars"
 
 # Both sidecars live INSIDE the shell's own bundle as whole --onedir folders (three
 # executables, one .app) — the shell resolves the nested executable at runtime as a sibling

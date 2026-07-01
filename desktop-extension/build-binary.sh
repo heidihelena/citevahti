@@ -36,6 +36,15 @@ echo "==> Freezing standalone binary ..."
   --exclude-module typer \
   server/pyi_entry.py
 
+# keyring is pure Python → lives in the PYZ archive; the TOC under work/ is the
+# authoritative record of what was frozen (platform-neutral check: the core backend
+# module — each OS resolves its own concrete backend from there at runtime).
+if ! grep -q "'keyring.backend'" "$BUILD/work/citevahti-mcp/PYZ-00.toc"; then
+  echo "ERROR: keyring missing from the frozen citevahti-mcp — keychain-stored Zotero keys would be unreachable" >&2
+  exit 1
+fi
+echo "==> verified: keyring frozen into citevahti-mcp"
+
 cp "$BUILD/dist/citevahti-mcp" server/citevahti-mcp
 chmod +x server/citevahti-mcp
 echo "==> Binary at server/citevahti-mcp"

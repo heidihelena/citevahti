@@ -27,7 +27,9 @@ async function openPrompts() {
       <button class="chip-btn" data-prompts-close="1" aria-label="Close">✕</button></div>
     <div class="note">Preprogrammed skills — copy one for your chat client, or run it against
       your configured model (a local Ollama model keeps everything on your machine). The model
-      is advisory; you still rate and decide. It never sets a rating or writes anything.</div>
+      is advisory; you still rate and decide. It never sets a rating or writes anything.
+      <b>Replies here are advice only</b> — a connected chat client (e.g. Claude Desktop) runs
+      the skills with real tools, and <b>Checks</b> runs the claim tests themselves.</div>
     ${cards}
     <div id="promptsResult" class="note"></div>
     <div class="chatbox">
@@ -126,6 +128,16 @@ async function sendChat(message, label) {
       if (b) b.onclick = () => { const pm = $("#promptsModal"); if (pm) closeModalEl(pm); openAiSettings(); };
     } else {
       pending.textContent = r.reply || "(no reply)";
+      if (label) {
+        // Honesty line for prompt RUNS: a bare model can only narrate these skills, and a
+        // reply that *describes* running the claim tests reads as if they actually ran (a
+        // real pilot-user confusion). Say plainly what did and did not happen, and where
+        // the real run lives.
+        pending.insertAdjacentHTML("afterend",
+          `<div class="note chat-advisory">Advice only — nothing was run or recorded.
+            To really run claim tests use <b>Checks</b>; a connected chat client
+            (e.g. Claude Desktop) can run the full skill with tools.</div>`);
+      }
     }
   } catch (e) { pending.textContent = "chat failed: " + e.message; }
   log.scrollTop = log.scrollHeight;
