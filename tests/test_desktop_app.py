@@ -2,8 +2,9 @@
 (``citevahti-engine``, ``citevahti-mcp``). Fakes stand in for both the OS webview and the
 sidecar supervisors — real subprocesses, real PyObjC menu bars, and real dialogs are out of
 scope for headless unit tests (see the module docstring in ``desktop.py``); what's tested
-here is the injectable orchestration: root resolution, start/stop ordering, first-run
-consent, and app-state derivation.
+here is the injectable orchestration: root resolution, start/stop ordering, the
+moment-of-intent agent-server consent gate, window re-heal on engine restart/error, and
+app-state derivation.
 """
 
 from __future__ import annotations
@@ -236,37 +237,70 @@ def test_boot_cancelled_folder_picker_does_not_start_engine(tmp_path, monkeypatc
     assert shell.app_state == desktop.NO_PROJECT
 
 
-# ---- first-run MCP consent -----------------------------------------------------
-def test_first_run_consent_enable_starts_mcp_after_engine(tmp_path, monkeypatch):
+# ---- MCP consent: at the moment of intent, never at first launch ----------------
+def test_boot_never_prompts_and_never_starts_mcp_when_pref_unset(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    project = tmp_path / "project"
+    CiteVahtiStore(project).init()
+    monkeypatch.chdir(project)
+
+    def _boom():
+        raise AssertionError("boot must never show the consent prompt")
+
+    shell = _make_shell(tmp_path, consent_prompt=_boom)
+    shell.on_started()
+
+    assert shell.mcp is None
+    from citevahti import appprefs
+    assert appprefs.get_mcp_autostart() is None   # untouched — no choice was made
+
+
+def test_start_agent_server_asks_consent_then_starts_and_persists(tmp_path, monkeypatch):
     _isolate(monkeypatch, tmp_path)
     project = tmp_path / "project"
     CiteVahtiStore(project).init()
     monkeypatch.chdir(project)
     order = []
-    shell = _make_shell(tmp_path, consent_prompt=lambda: True, order_log=order)
+    prompts = []
 
+    def _consent():
+        prompts.append(True)
+        return True
+
+    shell = _make_shell(tmp_path, consent_prompt=_consent, order_log=order)
     shell.on_started()
+    shell.toggle_mcp()   # the user's "Start Agent Server" click
 
+    assert prompts == [True]   # asked exactly once, at the click
     assert order == [("engine", "start"), ("mcp", "start")]   # engine first, then mcp
     from citevahti import appprefs
     assert appprefs.get_mcp_autostart() is True
 
 
-def test_first_run_consent_decline_does_not_start_mcp_and_persists(tmp_path, monkeypatch):
+def test_consent_decline_persists_nothing_and_asks_again_next_time(tmp_path, monkeypatch):
     _isolate(monkeypatch, tmp_path)
     project = tmp_path / "project"
     CiteVahtiStore(project).init()
     monkeypatch.chdir(project)
-    shell = _make_shell(tmp_path, consent_prompt=lambda: False)
+    prompts = []
 
+    def _decline():
+        prompts.append(False)
+        return False
+
+    shell = _make_shell(tmp_path, consent_prompt=_decline)
     shell.on_started()
 
+    shell.toggle_mcp()   # "Not Now"
     assert shell.mcp is None
     from citevahti import appprefs
-    assert appprefs.get_mcp_autostart() is False
+    assert appprefs.get_mcp_autostart() is None   # "Not Now" genuinely means not now
+
+    shell.toggle_mcp()   # a later click asks again rather than staying silently declined
+    assert prompts == [False, False]
 
 
-def test_prior_autostart_true_skips_the_prompt(tmp_path, monkeypatch):
+def test_prior_autostart_true_starts_mcp_at_boot_without_a_prompt(tmp_path, monkeypatch):
     _isolate(monkeypatch, tmp_path)
     project = tmp_path / "project"
     CiteVahtiStore(project).init()
@@ -280,6 +314,38 @@ def test_prior_autostart_true_skips_the_prompt(tmp_path, monkeypatch):
     shell = _make_shell(tmp_path, consent_prompt=_boom)
     shell.on_started()
     assert shell.mcp is not None and shell.mcp.state == SidecarSupervisor.RUNNING
+
+
+def test_reenable_after_stop_does_not_reprompt(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    project = tmp_path / "project"
+    CiteVahtiStore(project).init()
+    monkeypatch.chdir(project)
+    prompts = []
+
+    def _consent():
+        prompts.append(True)
+        return True
+
+    shell = _make_shell(tmp_path, consent_prompt=_consent)
+    shell.on_started()
+    shell.toggle_mcp()   # enable (consents)
+    shell.toggle_mcp()   # stop
+    shell.toggle_mcp()   # re-enable — consent was already given once
+    assert prompts == [True]
+    assert shell.mcp.state == SidecarSupervisor.RUNNING
+
+
+def test_restart_mcp_without_a_session_routes_through_the_consent_gate(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    project = tmp_path / "project"
+    CiteVahtiStore(project).init()
+    monkeypatch.chdir(project)
+    shell = _make_shell(tmp_path, consent_prompt=lambda: False)
+    shell.on_started()
+
+    shell.restart_mcp()   # never started this session, never consented -> gate applies
+    assert shell.mcp is None
 
 
 # ---- Copy MCP Connection Info gating -------------------------------------------
@@ -308,6 +374,7 @@ def test_choose_project_folder_stops_mcp_then_engine_before_switching(tmp_path, 
     order = []
     shell = _make_shell(tmp_path, consent_prompt=lambda: True, order_log=order)
     shell.on_started()
+    shell.toggle_mcp()   # user enables the agent server (consents at the click)
     order.clear()
 
     new_folder = tmp_path / "new-project"
@@ -337,6 +404,57 @@ def test_choose_project_folder_cancelled_leaves_current_project_untouched(tmp_pa
     assert shell.engine.calls.count("stop") == 0
 
 
+# ---- window re-heal: the window must track the engine, not just the menu bar ----
+def test_engine_restart_reloads_the_panel_into_the_window(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    project = tmp_path / "project"
+    CiteVahtiStore(project).init()
+    monkeypatch.chdir(project)
+    shell = _make_shell(tmp_path, consent_prompt=lambda: False)
+    shell.on_started()
+    assert shell._window.urls_loaded == ["http://127.0.0.1:0/engine"]
+
+    # A crash + supervised restart: the page loaded before the crash points at a dead
+    # port/CSRF session, so the RUNNING transition must push a fresh load.
+    shell.engine._transition(SidecarSupervisor.STARTING)
+    shell.engine._transition(SidecarSupervisor.RUNNING)
+    assert shell._window.urls_loaded == ["http://127.0.0.1:0/engine"] * 2
+
+
+def test_engine_error_mid_session_takes_over_the_window(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    project = tmp_path / "project"
+    CiteVahtiStore(project).init()
+    monkeypatch.chdir(project)
+    shell = _make_shell(tmp_path, consent_prompt=lambda: False)
+    shell.on_started()
+    assert shell._window.html_loaded == []
+
+    shell.engine._transition(SidecarSupervisor.ERROR)
+    assert any("trouble starting" in h for h in shell._window.html_loaded)
+
+
+def test_boot_does_not_double_load_the_panel(tmp_path, monkeypatch):
+    # The boot-time RUNNING transition happens before the first _load_panel_url, so the
+    # re-heal hook must stay quiet then — exactly one load at startup.
+    _isolate(monkeypatch, tmp_path)
+    project = tmp_path / "project"
+    CiteVahtiStore(project).init()
+    monkeypatch.chdir(project)
+    shell = _make_shell(tmp_path, consent_prompt=lambda: False)
+    shell.on_started()
+    assert shell._window.urls_loaded == ["http://127.0.0.1:0/engine"]
+
+
+# ---- sidecar commands carry the parent-death watchdog flag ----------------------
+def test_sidecar_commands_pass_our_pid_for_the_parent_watchdog():
+    engine_cmd = desktop._engine_cmd("/some/root")
+    mcp_cmd = desktop._mcp_cmd("/some/root")
+    for cmd in (engine_cmd, mcp_cmd):
+        assert "--parent-pid" in cmd
+        assert cmd[cmd.index("--parent-pid") + 1] == str(os.getpid())
+
+
 # ---- quit: idempotent, MCP before engine ---------------------------------------
 def test_quit_stops_mcp_before_engine_and_is_idempotent(tmp_path, monkeypatch):
     _isolate(monkeypatch, tmp_path)
@@ -346,6 +464,7 @@ def test_quit_stops_mcp_before_engine_and_is_idempotent(tmp_path, monkeypatch):
     order = []
     shell = _make_shell(tmp_path, consent_prompt=lambda: True, order_log=order)
     shell.on_started()
+    shell.toggle_mcp()   # user enables the agent server (consents at the click)
     order.clear()
 
     shell.quit()

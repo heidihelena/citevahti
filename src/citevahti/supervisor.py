@@ -60,7 +60,7 @@ class SidecarSupervisor:
         wedge_threshold: int = 3,
         stop_timeout: float = 5.0,
         clock: Callable[[], float] = time.monotonic,
-        sleep: Callable[[float], None] = time.sleep,
+        sleep: Optional[Callable[[float], None]] = None,
     ) -> None:
         self.name = name
         self.cmd = cmd
@@ -77,7 +77,6 @@ class SidecarSupervisor:
         self.wedge_threshold = wedge_threshold
         self.stop_timeout = stop_timeout
         self._clock = clock
-        self._sleep = sleep
 
         self.state = self.NOT_STARTED
         self.attempt = 0
@@ -86,6 +85,11 @@ class SidecarSupervisor:
         self._spawned_at: Optional[float] = None
         self._monitor_thread: Optional[threading.Thread] = None
         self._stop_flag = threading.Event()
+        # The default sleep is the stop flag's wait(), not time.sleep: a stop() request
+        # must be able to interrupt a 30s backoff, or quit-during-a-crash-loop leaves the
+        # monitor thread asleep past stop()'s join timeout and it respawns a sidecar into
+        # an already-quit app (an orphan). Tests inject their own no-op sleep.
+        self._sleep = sleep if sleep is not None else self._interruptible_sleep
 
     # ---- public lifecycle -----------------------------------------------------
     def start(self) -> None:
@@ -128,6 +132,9 @@ class SidecarSupervisor:
             self._check_running()
 
     # ---- internals --------------------------------------------------------------
+    def _interruptible_sleep(self, seconds: float) -> None:
+        self._stop_flag.wait(seconds)
+
     def _set_state(self, new_state: str) -> None:
         if new_state == self.state:
             return
@@ -156,10 +163,29 @@ class SidecarSupervisor:
             self.process.wait(timeout=self.stop_timeout)
 
     def _probe_healthy(self) -> bool:
+        if not self._heartbeat_is_our_childs():
+            return False
         try:
             return bool(self.health_probe())
         except Exception:  # noqa: BLE001 — a flaky probe must read as "not healthy yet"
             return False
+
+    def _heartbeat_is_our_childs(self) -> bool:
+        """Refuse to count another process's runtime heartbeat as our child's health.
+
+        The runtime handshake file only proves *some* live process bound a port for this
+        root — after a Force Quit or shell crash, that can be last session's orphan, whose
+        heartbeat would otherwise let this supervisor report RUNNING while its own child
+        is dead or still starting. When both a handshake pid and our child's pid are
+        known, they must match. (Test fakes without a ``pid`` attribute skip the check.)
+        """
+        data = runtime_state.read_runtime_file(self.runtime_name)
+        if data is None or self.process is None:
+            return True   # nothing to compare yet — let the probe decide
+        child_pid = getattr(self.process, "pid", None)
+        if child_pid is None or not isinstance(data.get("pid"), int):
+            return True
+        return data["pid"] == child_pid
 
     def _check_starting(self) -> None:
         if self.process is None or self._spawned_at is None:   # STARTING implies _spawn() ran
@@ -197,6 +223,8 @@ class SidecarSupervisor:
             return
         idx = min(self.attempt - 1, len(self.backoff_schedule) - 1)
         self._sleep(self.backoff_schedule[idx])
+        if self._stop_flag.is_set():
+            return   # stop() won the race mid-backoff — never spawn into a quitting app
         self._spawn()
 
     def _start_monitor_thread(self) -> None:

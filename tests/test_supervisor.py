@@ -6,9 +6,12 @@ thread with tiny real intervals to prove the threading glue itself is wired corr
 
 from __future__ import annotations
 
+import os
 import time
 
+import pytest
 
+from citevahti import runtime_state
 from citevahti.supervisor import SidecarSupervisor
 
 
@@ -22,6 +25,7 @@ class FakePopen:
         self.terminated = False
         self.killed = False
         self.wait_calls = []
+        self.pid = None   # set an int to exercise the runtime-heartbeat identity check
 
     def poll(self):
         return None if self.alive else self.exit_code
@@ -189,6 +193,66 @@ def test_on_state_change_exception_does_not_crash_supervisor():
     sup = _make(health_probe=lambda: True, on_state_change=_boom)
     sup._spawn()
     sup.check_once()   # must not raise
+    assert sup.state == sup.RUNNING
+
+
+def test_stop_requested_during_backoff_prevents_a_respawn():
+    """The quit-during-a-crash-loop race: if stop() is requested while _handle_failure is
+    in its backoff sleep, the supervisor must NOT spawn a fresh sidecar afterwards — that
+    child would be orphaned by the quitting app."""
+    clock = FakeClock()
+    popens = [FakePopen(), FakePopen()]
+    sup = _make(popens=popens, health_probe=lambda: False, clock=clock,
+                sleep=lambda s: sup._stop_flag.set())   # a concurrent stop() lands mid-backoff
+    sup._spawn()
+    clock.advance(11)   # exceed the startup timeout -> failure -> backoff -> (stop) -> ?
+    sup.check_once()
+    assert sup.process is popens[0]   # the second popen was never consumed
+
+
+def test_default_backoff_sleep_is_interruptible_by_stop():
+    """Production (no injected sleep) waits on the stop flag, so a pending stop() never
+    sits behind a 30s time.sleep. With the flag pre-set, the 30s backoff returns at once."""
+    clock = FakeClock()
+    spawns = []
+
+    def factory(cmd):
+        spawns.append(cmd)
+        return FakePopen()
+
+    sup = SidecarSupervisor(
+        "engine", ["citevahti-engine"], health_probe=lambda: False,
+        popen_factory=factory, backoff_schedule=(30,), clock=clock)
+    sup._spawn()
+    sup._stop_flag.set()
+    clock.advance(11)   # exceed the 10s default startup timeout
+    t0 = time.monotonic()
+    sup.check_once()   # startup timed out -> _handle_failure -> backoff "sleep"
+    assert time.monotonic() - t0 < 5.0   # the 30s backoff was interrupted by the flag
+    assert len(spawns) == 1   # and the post-stop respawn guard held
+
+
+@pytest.mark.security
+def test_probe_distrusts_a_foreign_runtime_heartbeat(tmp_path, monkeypatch):
+    """After a Force Quit / shell crash, an orphaned sidecar's runtime handshake file is
+    still live. Its heartbeat must not let a supervisor report its OWN child healthy —
+    the handshake pid has to match the child the supervisor actually spawned."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdgcfg"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    # The "orphan": a live pid (this test process) that is not the supervisor's child.
+    runtime_state.write_runtime_file(
+        "engine", url="http://127.0.0.1:1/orphan", pid=os.getpid(), root="/r",
+        started_at="2026-07-01T00:00:00")
+    p = FakePopen()
+    p.pid = 424242   # our child's pid — not the one in the handshake file
+    sup = _make(popens=[p], health_probe=lambda: True)
+    sup._spawn()
+    sup.check_once()
+    assert sup.state == sup.STARTING   # a green probe wasn't enough: wrong heartbeat pid
+
+    # Once the child itself owns the handshake, the same probe counts.
+    p.pid = os.getpid()
+    sup.check_once()
     assert sup.state == sup.RUNNING
 
 

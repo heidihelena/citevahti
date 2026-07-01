@@ -5,20 +5,26 @@ folder picker, and two supervised sidecars — never a browser tab, never a Term
 then — once the native GUI loop is live — resolves or asks for a project folder, starts
 the ``citevahti-engine`` sidecar (the review panel + project store, see ``engine.py``),
 waits for it to report healthy, and loads its panel URL into the window. If the user has
-enabled it (opt-in, asked once on first run), it also starts the ``citevahti-mcp`` sidecar
-in ``streamable-http`` mode (the agent-facing interface — see ``agent/mcp_server.py``) so a
-chat client can help screen citations, without ever bypassing the human-rates-first
-boundary already enforced by ``agent/policy.py``.
+enabled it, it also starts the ``citevahti-mcp`` sidecar in ``streamable-http`` mode (the
+agent-facing interface — see ``agent/mcp_server.py``) so a chat client can help screen
+citations, without ever bypassing the human-rates-first boundary already enforced by
+``agent/policy.py``. Enabling is opt-in **at the moment of intent**: the consent dialog
+appears the first time the user chooses "Start Agent Server", never as a first-launch
+prompt — a question asked before the product means anything can't be answered informedly,
+and declining ("Not Now") persists nothing, so it genuinely means *not now*.
 
 Both sidecars are supervised by a :class:`~citevahti.supervisor.SidecarSupervisor` (crash
 detection, restart with backoff, clean stop) rather than run as background threads inside
 this process — a thread can't be killed or restarted independently the way a subprocess
 can, which is the whole reason this file no longer calls ``launch_panel`` directly.
 
-The PyObjC/AppKit pieces (menu-bar item, quit notification observer) are best-effort,
-guarded, macOS-only shims with no meaningful headless test coverage — there is no Cocoa run
-loop in CI. They're kept deliberately thin; the logic worth testing (root resolution,
-start/stop ordering, app-state derivation) lives in plain, injectable methods on
+The PyObjC/AppKit pieces (menu-bar item, quit notification observer, consent alert) are
+best-effort, guarded, macOS-only shims with no meaningful headless test coverage — there is
+no Cocoa run loop in CI. AppKit is main-thread-only, and pywebview runs the ``start()``
+callback on a background thread, so every AppKit touch here goes through
+:func:`_dispatch_on_main` (or arrives on the main thread already, as menu actions do).
+They're kept deliberately thin; the logic worth testing (root resolution, start/stop
+ordering, app-state derivation) lives in plain, injectable methods on
 :class:`CiteVahtiShell` instead. Manual verification is via the ``run``/``verify`` skill
 against a built ``.app``.
 """
@@ -26,6 +32,7 @@ against a built ``.app``.
 from __future__ import annotations
 
 import atexit
+import os
 import sys
 import time
 from pathlib import Path
@@ -89,19 +96,24 @@ def derive_app_state(engine_state: str, mcp_state: str, *, root_selected: bool,
 
 
 # ---- sidecar command + health-probe builders --------------------------------
+# Both sidecars get --parent-pid so they exit on their own if this shell dies without
+# running quit() (Force Quit, a GUI-layer crash) — see parentwatch.py. Without it, an
+# invisible engine/agent server outlives the app the user believes controls it.
 def _engine_cmd(root: str) -> list[str]:
+    tail = ["--root", root, "--parent-pid", str(os.getpid())]
     binary = paths.bundled_binary("citevahti-engine")
     if binary is not None:
-        return [str(binary), "--root", root]
-    return paths.dev_fallback_cmd("citevahti.engine") + ["--root", root]
+        return [str(binary)] + tail
+    return paths.dev_fallback_cmd("citevahti.engine") + tail
 
 
 def _mcp_cmd(root: str) -> list[str]:
+    tail = ["--root", root, "--transport", "streamable-http",
+            "--parent-pid", str(os.getpid())]
     binary = paths.bundled_binary("citevahti-mcp")
     if binary is not None:
-        return [str(binary), "--root", root, "--transport", "streamable-http"]
-    return (paths.dev_fallback_cmd("citevahti.agent.mcp_server")
-            + ["--root", root, "--transport", "streamable-http"])
+        return [str(binary)] + tail
+    return paths.dev_fallback_cmd("citevahti.agent.mcp_server") + tail
 
 
 def _engine_health_probe(root: str) -> Callable[[], bool]:
@@ -172,6 +184,7 @@ class CiteVahtiShell:
         self.engine: Optional[SidecarSupervisor] = None
         self.mcp: Optional[SidecarSupervisor] = None
         self._window = None
+        self._panel_loaded = False
         self._quit_started = False
         self._quit_observer: object = None   # keeps a strong ref to the PyObjC observer alive
         self.on_state_refresh: Callable[[], None] = lambda: None   # menu-bar hook
@@ -213,7 +226,8 @@ class CiteVahtiShell:
             self._show_engine_error()
             return
         self._load_panel_url()
-        self._maybe_start_mcp_after_consent()
+        if appprefs.get_mcp_autostart():
+            self._start_mcp()   # a previously-enabled agent server comes back on its own
 
     def _pick_folder(self) -> Optional[str]:
         if self.folder_picker is not None:
@@ -235,7 +249,7 @@ class CiteVahtiShell:
         if not store.exists():
             store.init()
         self.root = folder
-        self.engine = self._engine_supervisor_factory(folder, self._on_any_state_change)
+        self.engine = self._engine_supervisor_factory(folder, self._on_engine_state_change)
         self.engine.start()
 
     def _wait_for_engine_running(self, timeout: float = _SIDECAR_STARTUP_TIMEOUT + 5.0) -> bool:
@@ -249,14 +263,6 @@ class CiteVahtiShell:
                 return False
             time.sleep(0.05)
         return False
-
-    def _maybe_start_mcp_after_consent(self) -> None:
-        autostart = appprefs.get_mcp_autostart()
-        if autostart is None:
-            autostart = self._ask_mcp_consent()
-            appprefs.set_mcp_autostart(autostart)
-        if autostart:
-            self._start_mcp()
 
     def _ask_mcp_consent(self) -> bool:
         if self.consent_prompt is not None:
@@ -284,6 +290,21 @@ class CiteVahtiShell:
         except Exception:  # noqa: BLE001 — a UI refresh must never crash a supervisor
             pass
 
+    def _on_engine_state_change(self, old_state: str, new_state: str) -> None:
+        """Keep the *window* honest about the engine, not just the menu bar. An automatic
+        restart re-binds a fresh port and a fresh CSRF session, so the page loaded before
+        the crash is dead even though the menu row says "running" — reload it. And a
+        mid-session ERROR must take over the window; a status row in a menu the user has
+        never opened is not a visible failure."""
+        try:
+            if new_state == SidecarSupervisor.RUNNING and self._panel_loaded:
+                self._load_panel_url()
+            elif new_state == SidecarSupervisor.ERROR:
+                self._show_engine_error()
+        except Exception:  # noqa: BLE001 — window upkeep must never crash a supervisor
+            pass
+        self._on_any_state_change(old_state, new_state)
+
     # ---- window content -------------------------------------------------------
     def _load_panel_url(self) -> None:
         data = runtime_state.read_runtime_file("engine")
@@ -291,6 +312,7 @@ class CiteVahtiShell:
             self._show_engine_error()
             return
         self._window.load_url(data["url"])
+        self._panel_loaded = True
 
     def _show_no_project(self) -> None:
         if self._window is not None:
@@ -320,12 +342,19 @@ class CiteVahtiShell:
             self._start_mcp()
 
     def toggle_mcp(self) -> None:
+        """Start/stop the agent server. Consent lives HERE — at the moment of intent —
+        not in a first-launch prompt (a modal before the user has rated a single claim
+        can't produce an informed answer). The pref stays tri-state: ``None`` means the
+        dialog was never accepted, so declining persists nothing and a later "Start Agent
+        Server" click simply asks again; only an actual choice is ever written."""
         wanted = self.mcp is not None and self.mcp.state in (
             SidecarSupervisor.RUNNING, SidecarSupervisor.STARTING, SidecarSupervisor.ERROR)
         if wanted:
             appprefs.set_mcp_autostart(False)
             self._stop_mcp()
         else:
+            if appprefs.get_mcp_autostart() is None and not self._ask_mcp_consent():
+                return
             appprefs.set_mcp_autostart(True)
             self._start_mcp()
 
@@ -344,7 +373,7 @@ class CiteVahtiShell:
         if self.mcp is not None:
             self.mcp.restart()
         else:
-            self._start_mcp()
+            self.toggle_mcp()   # never started this session — route through the consent gate
 
     def open_logs_folder(self) -> None:
         try:
@@ -369,24 +398,50 @@ class CiteVahtiShell:
 
 
 def _native_consent_dialog() -> bool:
-    """The one-time "Enable AI agent server?" prompt. Best-effort PyObjC; any failure
-    (headless test run, missing AppKit) defaults to the safe answer: don't enable it."""
+    """The "let an AI assistant connect?" consent prompt, shown from the "Start Agent
+    Server" menu action — i.e. on the Cocoa main thread (NSAlert is main-thread-only; do
+    not call this from a supervisor or pywebview worker thread). Best-effort PyObjC; any
+    failure (headless test run, missing AppKit) defaults to the safe answer: don't enable.
+
+    The wording states only what ``agent/policy.py`` actually enforces — the assistant
+    can search, stage evidence, and give its own rating (recorded blind), but it can never
+    rate for you, apply a change without your approval, or make the final call. It must
+    not claim more (e.g. "nothing is recorded until you rate") than the engine guarantees.
+    """
     if sys.platform != "darwin":
         return False
     try:
         from AppKit import NSAlert, NSAlertFirstButtonReturn
         alert = NSAlert.alloc().init()
-        alert.setMessageText_("Enable AI agent server?")
+        alert.setMessageText_("Let an AI assistant connect to CiteVahti?")
         alert.setInformativeText_(
-            "CiteVahti can run a local AI-agent interface so an assistant can help screen "
-            "citations for you — you still rate every claim yourself before anything is "
-            "recorded. It runs only on this computer (127.0.0.1) and you can turn it off "
-            "anytime from the menu-bar icon.")
+            "A chat assistant (like Claude) will be able to help screen citations: search, "
+            "stage evidence, and give its own rating — recorded blind, hidden from you "
+            "until you have rated. It can never rate for you, change anything without "
+            "your approval, or make the final call. This runs only on this computer, and "
+            "you can turn it off anytime from the CiteVahti menu-bar icon.")
         alert.addButtonWithTitle_("Enable")
         alert.addButtonWithTitle_("Not Now")
         return alert.runModal() == NSAlertFirstButtonReturn
     except Exception:
         return False
+
+
+def _dispatch_on_main(fn: Callable[[], None]) -> None:
+    """Run ``fn`` on the Cocoa main thread. AppKit (NSStatusBar, NSAlert, menu mutation)
+    is main-thread-only, but pywebview invokes its ``start()`` callback — where the menu
+    bar is built and supervisor state changes arrive — on a background thread; calling
+    AppKit there is undefined behaviour that may render fine on one machine and freeze or
+    crash on another. Off macOS (or without PyObjC) this degrades to a direct call, which
+    is correct for the guarded no-op shims and for headless tests."""
+    if sys.platform != "darwin":
+        fn()
+        return
+    try:
+        from PyObjCTools import AppHelper
+        AppHelper.callAfter(fn)
+    except Exception:  # noqa: BLE001 — no PyObjC means the AppKit shims no-op anyway
+        fn()
 
 
 def _copy_to_clipboard(text: str) -> None:
@@ -490,8 +545,9 @@ def _build_menu_bar(shell: CiteVahtiShell):
             toggle_item.setTitle_("Stop Agent Server" if agent_running
                                    else "Start Agent Server")
 
-        shell.on_state_refresh = refresh
-        refresh()
+        # Supervisor monitor threads drive state changes; menu mutation must hop to main.
+        shell.on_state_refresh = lambda: _dispatch_on_main(refresh)
+        refresh()   # _build_menu_bar itself runs on the main thread (see run_app)
         return item
     except Exception:
         return None
@@ -604,8 +660,11 @@ def run_app(*, webview=None,
         pass
 
     def _on_started() -> None:
-        _build_menu_bar(shell)
-        _install_quit_observer(shell)
+        # pywebview runs this on a background thread. The AppKit pieces hop to the main
+        # thread; the boot itself (which blocks up to ~35s waiting on the engine) must
+        # stay OFF the main thread or the whole UI beachballs during startup.
+        _dispatch_on_main(lambda: _build_menu_bar(shell))
+        _dispatch_on_main(lambda: _install_quit_observer(shell))
         shell.on_started()
 
     icon = _icon_path()

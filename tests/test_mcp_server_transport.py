@@ -42,16 +42,17 @@ def test_main_has_no_host_flag_loopback_is_hardcoded():
 def test_main_streamable_http_delegates_with_root_and_port(monkeypatch, tmp_path):
     seen = {}
 
-    def _fake_serve(root, preferred_port):
+    def _fake_serve(root, preferred_port, parent_pid=None):
         seen["root"] = root
         seen["port"] = preferred_port
+        seen["parent_pid"] = parent_pid
         return 0
 
     monkeypatch.setattr(mcp_server, "_serve_streamable_http", _fake_serve)
     rc = mcp_server.main(["--root", str(tmp_path), "--transport", "streamable-http",
-                          "--port", "9999"])
+                          "--port", "9999", "--parent-pid", "777"])
     assert rc == 0
-    assert seen == {"root": str(tmp_path.resolve()), "port": 9999}
+    assert seen == {"root": str(tmp_path.resolve()), "port": 9999, "parent_pid": 777}
 
 
 def test_pick_loopback_port_returns_preferred_when_free():

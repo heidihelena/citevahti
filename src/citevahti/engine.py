@@ -45,6 +45,9 @@ def main(argv=None) -> int:
     parser.add_argument("--port", type=int, default=8765,
                         help="preferred panel port; falls back to an available loopback "
                              "port if it's held by something that isn't a CiteVahti panel")
+    parser.add_argument("--parent-pid", type=int, default=None,
+                        help="exit when this supervising process dies (passed by the "
+                             "CiteVahti.app shell; standalone runs leave it unset)")
     args = parser.parse_args(argv)
 
     root = resolve_root(args.root)
@@ -70,6 +73,11 @@ def main(argv=None) -> int:
 
     stop_event = threading.Event()
     _install_signal_handlers(stop_event)
+    if args.parent_pid:
+        # After the SIGTERM handler exists, so an orphaning takes the clean path below.
+        from .parentwatch import watch_parent
+
+        watch_parent(args.parent_pid)
     stop_event.wait()
 
     logger.info("shutting down")

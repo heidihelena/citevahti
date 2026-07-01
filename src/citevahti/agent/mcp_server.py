@@ -142,7 +142,8 @@ def _pick_loopback_port(preferred: int) -> int:
         return probe.getsockname()[1]
 
 
-def _serve_streamable_http(root: str, preferred_port: int) -> int:
+def _serve_streamable_http(root: str, preferred_port: int,
+                           parent_pid: "int | None" = None) -> int:
     """The desktop app's agent-server sidecar path: loopback ``streamable-http``, with the
     same runtime-file handshake + rotating log the ``citevahti-engine`` sidecar uses.
 
@@ -180,6 +181,12 @@ def _serve_streamable_http(root: str, preferred_port: int) -> int:
 
     signal.signal(signal.SIGTERM, _handler)
     signal.signal(signal.SIGINT, _handler)
+    if parent_pid:
+        # After the SIGTERM handler exists, so an orphaning clears the handshake file —
+        # an agent server must never outlive the shell the user thinks controls it.
+        from ..parentwatch import watch_parent
+
+        watch_parent(parent_pid)
     try:
         build_server(root=root, host="127.0.0.1", port=port).run(transport="streamable-http")
     finally:
@@ -208,11 +215,14 @@ def main(argv=None) -> int:
     parser.add_argument("--port", type=int, default=8766,
                         help="preferred loopback port for --transport streamable-http (falls "
                              "back to an available port if taken); ignored for stdio")
+    parser.add_argument("--parent-pid", type=int, default=None,
+                        help="exit when this supervising process dies (passed by the "
+                             "CiteVahti.app shell; standalone and stdio runs leave it unset)")
     args = parser.parse_args(argv)
     root = str(Path(args.root).expanduser().resolve())
 
     if args.transport == "streamable-http":
-        return _serve_streamable_http(root, args.port)
+        return _serve_streamable_http(root, args.port, parent_pid=args.parent_pid)
 
     from .. import __version__
     # stdout is the MCP protocol channel — startup diagnostics go to stderr. The version
