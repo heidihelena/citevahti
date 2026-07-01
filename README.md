@@ -50,19 +50,37 @@ for you through it — there's nothing to install from a command line.
 > "Open Anyway"**. After that it installs and runs normally.
 
 <details>
-<summary><b>Other ways to install</b> (standalone app, or the terminal)</summary>
+<summary><b>Other ways to install</b> (a standalone app window, or the terminal)</summary>
 
-### Desktop app — a real window, no Claude Desktop
+### Desktop app — a real window, no terminal, ever
 
-A standalone CiteVahti window (not a browser tab). Installing uses the terminal once; after
-that you just launch the app:
+`CiteVahti.app` is a local desktop supervisor for two services: the review panel (for you)
+and an optional local AI-agent server (for a chat client to help screen citations — it can
+only *propose*; you still rate every claim yourself before anything is recorded). Both run
+only on your own computer (`127.0.0.1`), write their own logs, and shut down cleanly when you
+quit. A menu-bar icon always shows whether the panel and agent server are running.
+
+1. Download **`citevahti-<version>-macos-arm64.app.zip`** from the
+   [latest release](https://github.com/heidihelena/citevahti/releases/latest), unzip it, and
+   drag `CiteVahti.app` to your Applications folder.
+2. **Double-click** `CiteVahti.app` to open it — from Finder, the Dock, or Launchpad. No
+   terminal is ever part of launching, restarting, or updating it. *(It's notarized and
+   stapled, so unlike the `.mcpb` zip above it normally opens with no security prompt at
+   all.)*
+3. Choose a folder for your reviews when asked, and — if you'd like a chat client to help
+   screen citations — say yes to the one-time "Enable AI agent server?" prompt (you can turn
+   this on or off anytime from the menu-bar icon).
+4. Drag a `.docx` or `.md` onto the window to begin.
+
+### From source (developers/contributors)
 
 ```bash
 pip install "citevahti[app]"
 citevahti-app
 ```
 
-Then drag a `.docx` or `.md` onto the window to begin.
+The same supervised app as above, run from a local checkout instead of the packaged
+`.app` — useful for development, not the no-terminal path most people want.
 
 ### Terminal
 
@@ -80,6 +98,11 @@ Your review data is never touched by an update — only the program is replaced.
 
 - **pip:** `pip install --no-cache-dir --upgrade "citevahti[mcp]"`, then `pip show citevahti`
   to confirm the version.
+- **Desktop app:** quit `CiteVahti.app`, download the newest
+  `citevahti-<version>-macos-arm64.app.zip` from the
+  [latest release](https://github.com/heidihelena/citevahti/releases/latest), and replace the
+  old `CiteVahti.app` in Applications with it. Your reviews live in the project folder you
+  chose, not inside the app, so nothing is lost.
 - **Claude Desktop extension:** remove the existing CiteVahti extension, fully quit and reopen
   Claude Desktop, then add the newest `.mcpb` from the
   [latest release](https://github.com/heidihelena/citevahti/releases/latest). Ask your

@@ -48,6 +48,7 @@ citevahti = "citevahti.cli:main"
 citevahti-mcp = "citevahti.agent.mcp_server:main"
 citevahti-panel = "citevahti.panel.server:main"
 citevahti-app = "citevahti.desktop:main"
+citevahti-engine = "citevahti.engine:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -117,5 +118,6 @@ disable_error_code = ["annotation-unchecked"]
 
 # Optional/untyped third-party deps with no stubs or py.typed marker.
 [[tool.mypy.overrides]]
-module = ["tufup.*", "pypandoc.*", "asn1crypto.*", "keyring.*", "mcp.*", "Foundation.*"]
+module = ["tufup.*", "pypandoc.*", "asn1crypto.*", "keyring.*", "mcp.*", "starlette.*",
+          "Foundation.*", "AppKit.*", "objc.*", "PyObjCTools.*"]
 ignore_missing_imports = true

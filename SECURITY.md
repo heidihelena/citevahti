@@ -40,6 +40,8 @@ regression group — run it alone with `pytest -m security`:
 | Decision-file tamper detection | a hand-edited `accept` slipping past the audit | `test_decision_tamper_integrity.py` |
 | Read-only views never mutate the ledger | a "report" silently writing/auditing | `test_readonly_tools_dont_mutate.py` |
 | Timestamp client: refuse a non-`http(s)` `tsa_url` before opening it | SSRF / local-file read via a `file://` config-supplied TSA URL | `test_timestamp.py::test_rfc3161_rejects_non_http_tsa_url_without_touching_the_filesystem` |
+| Sidecars exit when the shell dies (`--parent-pid` watchdog) | an orphaned engine/agent server invisibly outliving the app after a Force Quit or shell crash | `test_parentwatch.py` |
+| Supervisor requires the runtime heartbeat's pid to be its own child's | an orphan's heartbeat impersonating a healthy sidecar (masking the real child's death) | `test_supervisor.py::test_probe_distrusts_a_foreign_runtime_heartbeat` |
 
 These complement — they don't replace — the full [safety-invariant](docs/SAFETY_INVARIANTS.md)
 table, which the whole offline suite guards. Adding a security control? Mark its test

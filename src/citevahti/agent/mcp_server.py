@@ -27,8 +27,14 @@ from .prompts import (
 )
 
 
-def build_server(name: str = "citevahti", *, root: str = "."):
+def build_server(name: str = "citevahti", *, root: str = ".", host: str = "127.0.0.1",
+                  port: int = 8766):
     """Build a FastMCP server with the constrained tools bound to ``root``.
+
+    ``host``/``port`` only matter for the ``streamable-http`` transport (the ``stdio``
+    transport used by the Claude Desktop ``.mcpb`` ignores them) — ``host`` is never
+    surfaced as a flag on ``main()``, always ``127.0.0.1``, the same loopback-only
+    invariant enforced elsewhere in CiteVahti.
 
     Raises a clear error if the ``mcp`` package isn't installed.
     """
@@ -39,7 +45,19 @@ def build_server(name: str = "citevahti", *, root: str = "."):
             "the 'mcp' package is required to serve (pip install 'citevahti[mcp]')") from exc
 
     assert_safe_surface(TOOLS.keys())          # defense in depth at serve time
-    server = FastMCP(name)
+    server = FastMCP(name, host=host, port=port)
+
+    # A plain identity/liveness check for the desktop app's supervisor (SidecarSupervisor)
+    # to confirm — over streamable-http only — that a given port really is *this* project's
+    # CiteVahti MCP sidecar, not merely something else that happens to answer on it.
+    @server.custom_route("/health", methods=["GET"])
+    async def _health(request):  # pragma: no cover — exercised via the streamable-http app
+        from starlette.responses import JSONResponse
+
+        from .. import __version__
+        return JSONResponse({
+            "ok": True, "service": "citevahti-mcp", "root": root, "version": __version__,
+        })
 
     # The user-controlled prompt that choreographs the blinded claim-test loop. It
     # adds NO new capability — it only instructs the chat LLM in how to drive the
@@ -102,6 +120,80 @@ def build_server(name: str = "citevahti", *, root: str = "."):
     return server
 
 
+def _pick_loopback_port(preferred: int) -> int:
+    """Try ``preferred`` first; fall back to an OS-assigned loopback port if it's taken.
+
+    Always reads back the real bound port via ``getsockname()`` rather than assuming
+    success means "the preferred port" — ``preferred=0`` is itself a valid "any free port"
+    request, and a bare ``return preferred`` would wrongly hand back ``0`` instead of the
+    port the OS actually assigned.
+
+    A brief bind-then-release probe (not a held socket) — the same small TOCTOU window
+    every "pick a free port" helper has, acceptable here since the only thing racing for
+    this port is this single local user's own previous CiteVahti MCP process.
+    """
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(("127.0.0.1", preferred))
+        except OSError:
+            probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+def _serve_streamable_http(root: str, preferred_port: int,
+                           parent_pid: "int | None" = None) -> int:
+    """The desktop app's agent-server sidecar path: loopback ``streamable-http``, with the
+    same runtime-file handshake + rotating log the ``citevahti-engine`` sidecar uses.
+
+    FastMCP's ``run(transport="streamable-http")`` doesn't hand back the internal uvicorn
+    server, so there's no handle to ask for a graceful in-flight-request drain on
+    ``SIGTERM``/``SIGINT`` — this does a clean-enough shutdown instead (clear the runtime
+    handshake file, then exit immediately), which is the guarantee that actually matters
+    for a single local user's own agent sidecar with no other clients' connections to
+    protect.
+    """
+    import os
+    import signal
+    from datetime import datetime, timezone
+
+    from .. import applog, runtime_state
+
+    logger = applog.get_logger("mcp")
+
+    existing = runtime_state.read_runtime_file("mcp")
+    if existing is not None and existing.get("root") == root:
+        logger.info(f"already running for {root} at {existing.get('url')}; "
+                    "not starting a second instance")
+        return 0
+
+    port = _pick_loopback_port(preferred_port)
+    url = f"http://127.0.0.1:{port}"
+    logger.info(f"citevahti-mcp (streamable-http): root={root} url={url}")
+    runtime_state.write_runtime_file(
+        "mcp", url=url, pid=os.getpid(), root=root,
+        started_at=datetime.now(timezone.utc).isoformat())
+
+    def _handler(signum, frame):
+        runtime_state.clear_runtime_file("mcp")
+        os._exit(0)
+
+    signal.signal(signal.SIGTERM, _handler)
+    signal.signal(signal.SIGINT, _handler)
+    if parent_pid:
+        # After the SIGTERM handler exists, so an orphaning clears the handshake file —
+        # an agent server must never outlive the shell the user thinks controls it.
+        from ..parentwatch import watch_parent
+
+        watch_parent(parent_pid)
+    try:
+        build_server(root=root, host="127.0.0.1", port=port).run(transport="streamable-http")
+    finally:
+        runtime_state.clear_runtime_file("mcp")
+    return 0
+
+
 def main(argv=None) -> int:
     import argparse
     import sys
@@ -116,8 +208,22 @@ def main(argv=None) -> int:
     # cwd-relative default would never find the ledger `citevahti init` created.
     parser.add_argument("--root", default=default_root(),
                         help="project root holding .citevahti/ (default: $CITEVAHTI_ROOT or your home folder)")
+    parser.add_argument("--transport", choices=["stdio", "streamable-http"], default="stdio",
+                        help="'stdio' (default — the Claude Desktop .mcpb path) or "
+                             "'streamable-http' (loopback only; the desktop app's supervised "
+                             "agent-server sidecar path)")
+    parser.add_argument("--port", type=int, default=8766,
+                        help="preferred loopback port for --transport streamable-http (falls "
+                             "back to an available port if taken); ignored for stdio")
+    parser.add_argument("--parent-pid", type=int, default=None,
+                        help="exit when this supervising process dies (passed by the "
+                             "CiteVahti.app shell; standalone and stdio runs leave it unset)")
     args = parser.parse_args(argv)
     root = str(Path(args.root).expanduser().resolve())
+
+    if args.transport == "streamable-http":
+        return _serve_streamable_http(root, args.port, parent_pid=args.parent_pid)
+
     from .. import __version__
     # stdout is the MCP protocol channel — startup diagnostics go to stderr. The version
     # lets you confirm a re-uploaded .mcpb is the latest build (Claude Desktop caches it).
