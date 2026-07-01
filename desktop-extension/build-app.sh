@@ -26,12 +26,16 @@ rm -rf "$BUILD" && mkdir -p "$BUILD"
 echo "==> Creating isolated build venv ..."
 python3 -m venv "$BUILD/venv"
 "$BUILD/venv/bin/pip" install --quiet --upgrade pip
+# [keyring] is NOT optional here: the panel's "Connect Zotero" and the agent's Zotero
+# write path both store/read the key via the OS keychain (credentials.py). A frozen app
+# can never be fixed by `pip install keyring` on the user's machine — omitting it here
+# shipped a build whose Zotero connect failed at the very last step (after key validation).
 if [ "$VERSION" = "local" ]; then
-  echo "==> Installing citevahti[app,mcp] from the local checkout (..) + pyinstaller ..."
-  "$BUILD/venv/bin/pip" install --quiet "..[app,mcp]" pyinstaller
+  echo "==> Installing citevahti[app,mcp,keyring] from the local checkout (..) + pyinstaller ..."
+  "$BUILD/venv/bin/pip" install --quiet "..[app,mcp,keyring]" pyinstaller
 else
-  echo "==> Installing citevahti[app,mcp]==${VERSION} + pyinstaller ..."
-  "$BUILD/venv/bin/pip" install --quiet "citevahti[app,mcp]==${VERSION}" pyinstaller
+  echo "==> Installing citevahti[app,mcp,keyring]==${VERSION} + pyinstaller ..."
+  "$BUILD/venv/bin/pip" install --quiet "citevahti[app,mcp,keyring]==${VERSION}" pyinstaller
 fi
 
 # App icon: PyInstaller wants .icns on macOS, .ico on Windows; fall back to the panel PNG.
@@ -62,6 +66,7 @@ echo "==> Freezing the citevahti-engine sidecar (review panel + project store) .
   --distpath "$BUILD/dist-bin" --workpath "$BUILD/work" --specpath "$BUILD" \
   --collect-data citevahti \
   --collect-submodules citevahti \
+  --collect-submodules keyring \
   app/pyi_engine_entry.py
 
 # Same PyInstaller flags as build-binary.sh's citevahti-mcp freeze (the .mcpb's binary
@@ -75,9 +80,23 @@ echo "==> Freezing the citevahti-mcp sidecar (agent-server interface) ..."
   --collect-submodules mcp.server \
   --collect-data mcp \
   --collect-submodules citevahti \
+  --collect-submodules keyring \
   --exclude-module mcp.cli \
   --exclude-module typer \
   server/pyi_entry.py
+
+# Verify the artifacts contain what they claim (silent omission is the classic packaging
+# bug — this exact check would have caught the missing-keyring Zotero regression). keyring
+# is pure Python, so it lands in the PYZ archive, not as an _internal/ folder — the
+# authoritative record is the PYZ table of contents PyInstaller writes under work/.
+# Require the macOS Keychain backend specifically: that's the one "Connect Zotero" needs.
+for SIDECAR in citevahti-engine citevahti-mcp; do
+  if ! grep -q "'keyring.backends.macOS'" "$BUILD/work/$SIDECAR/PYZ-00.toc"; then
+    echo "ERROR: keyring (macOS backend) missing from the frozen $SIDECAR — Zotero connect would fail" >&2
+    exit 1
+  fi
+done
+echo "==> verified: keyring (incl. macOS Keychain backend) frozen into both sidecars"
 
 # Both sidecars live INSIDE the shell's own bundle as whole --onedir folders (three
 # executables, one .app) — the shell resolves the nested executable at runtime as a sibling

@@ -12,6 +12,7 @@ The env vars are for runtime injection (CI/headless) only, not persistence.
 from __future__ import annotations
 
 import os
+import sys
 from typing import Optional, Protocol, runtime_checkable
 
 SERVICE = "CiteVahti"
@@ -55,6 +56,14 @@ class KeyringCredentialStore:
         try:
             import keyring  # noqa: F401
         except Exception as exc:  # noqa: BLE001
+            if getattr(sys, "frozen", False):
+                # A frozen app bundle: `pip install` can never reach it, so that advice is
+                # actively misleading. This state means the BUILD omitted keyring (there's
+                # a build-time guard against it in build-app.sh / build-binary.sh).
+                raise CredentialError(
+                    "This CiteVahti build is missing its secure-storage component, so the "
+                    "key can't be saved. Please install the newest CiteVahti release — "
+                    "and report this if it repeats (it's a packaging bug, not yours).") from exc
             raise CredentialError(
                 "the 'keyring' package is required for system_keyring storage; "
                 "install it (e.g. `pip install keyring`) or use env vars "
