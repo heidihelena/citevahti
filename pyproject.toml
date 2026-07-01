@@ -118,6 +118,6 @@ disable_error_code = ["annotation-unchecked"]
 
 # Optional/untyped third-party deps with no stubs or py.typed marker.
 [[tool.mypy.overrides]]
-module = ["tufup.*", "pypandoc.*", "asn1crypto.*", "keyring.*", "mcp.*", "Foundation.*",
-          "AppKit.*", "objc.*", "PyObjCTools.*"]
+module = ["tufup.*", "pypandoc.*", "asn1crypto.*", "keyring.*", "mcp.*", "starlette.*",
+          "Foundation.*", "AppKit.*", "objc.*", "PyObjCTools.*"]
 ignore_missing_imports = true
