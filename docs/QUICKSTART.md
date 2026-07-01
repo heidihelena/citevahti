@@ -3,7 +3,8 @@
 *A product of [Vahtian](https://vahtian.com).* This guide assumes **no prior terminal
 experience**. You'll take one sentence from your manuscript, find a paper that should
 support it, judge whether it really does, and save an **audited, undoable** reference into
-Zotero. Every command is something you **copy and paste** — nothing to memorise.
+Zotero. On the easiest paths there is **nothing to type at all**; on the terminal route,
+every command is something you **copy and paste** — nothing to memorise.
 
 > **What CiteVahti is (and isn't).** It records a documented **human → AI → adjudication**
 > workflow. *You* are always the decider. It never writes silently, never invents
@@ -19,9 +20,10 @@ Zotero. Every command is something you **copy and paste** — nothing to memoris
 | I want to… | Go to |
 |---|---|
 | **Just see it work** (3 min, nothing real) | [See it work in 3 minutes](#see-it-work-in-3-minutes) |
-| **Check my manuscript, no terminal** | [The easiest path (Claude Desktop)](#the-easiest-path-no-terminal-at-all-claude-desktop) |
-| **Use Zotero** for verified write-back | the terminal route below + connect Zotero |
-| **Use a local / private AI** second opinion | the terminal route below + AI settings |
+| **Check my manuscript, no terminal** (Mac) | [The easiest path (the desktop app)](#the-easiest-path-the-desktop-app-macos) |
+| **Work inside Claude Desktop** — also the Windows / Linux path | [Use it inside Claude Desktop](#or-use-it-inside-claude-desktop) |
+| **Use Zotero** for verified write-back | any path — click **Connect Zotero** in the panel ([§3](#3-connect-your-sources-in-the-panel)) |
+| **Use a local / private AI** second opinion | any path — the panel's **Settings → AI second opinion** |
 | **Audit / export / report** for a supervisor or journal | [REPORTING.md](REPORTING.md) |
 
 New here? Skim the **[known limitations](KNOWN_LIMITATIONS.md)** and how to keep
@@ -34,6 +36,9 @@ natural.
 The fastest way to understand CiteVahti is to watch it run on an invented example —
 **no Zotero, no AI, no network, nothing of yours touched**:
 
+- **The desktop app (Mac):** install it (below), open it, and drag any paragraph or
+  manuscript (`.docx` or `.md`) onto the window. The panel walks you through the rest,
+  one step at a time.
 - **Claude Desktop:** install the extension (below), then type `run_claim_tests` and
   paste any paragraph.
 - **Have the terminal?** `pip install "citevahti[mcp]"`, then `citevahti demo` — it
@@ -43,19 +48,49 @@ The fastest way to understand CiteVahti is to watch it run on an invented exampl
 
 ---
 
-## The easiest path: no terminal at all (Claude Desktop)
+## The easiest path: the desktop app (macOS)
 
-If you use **Claude Desktop**, you don't need a terminal:
+**On a Mac, use the desktop app.** It's a normal app: download it, open it, review — no
+terminal, ever.
 
-1. Download the CiteVahti extension **for your computer** from the [latest release](https://github.com/heidihelena/citevahti/releases/latest) — `citevahti-<version>-macos-arm64.mcpb` (Apple Silicon, signed + notarized), `…-windows-x64.mcpb`, or `…-linux-x64.mcpb`.
-2. Double-click it. Claude Desktop installs it and asks once for a folder to keep your work in.
-   - *macOS first open:* if you see a one-time security prompt (the `.mcpb` is a zip macOS can't pre-stamp, even though the app inside is signed + notarized), **right-click → Open**, or allow it in **System Settings → Privacy & Security → "Open Anyway"**.
-3. In the chat, type **`run_claim_tests`** and paste a paragraph of your manuscript.
+1. Download **`citevahti-<version>-macos-arm64.app.zip`** from the
+   [latest release](https://github.com/heidihelena/citevahti/releases/latest).
+2. Unzip it and drag **`CiteVahti.app`** into your **Applications** folder, then open it
+   like any other app. *(It's signed and notarized — it opens with no security warnings.)*
+3. Choose a folder to keep your reviews in when it asks.
+4. Drag your manuscript (`.docx` or `.md`) onto the window. The panel walks you through the
+   rest, one step at a time — there's nothing to memorise.
+
+Want an AI assistant to help pre-screen citations? Whenever you're ready, click the
+**CiteVahti menu-bar icon → Start Agent Server**. CiteVahti first explains exactly what an
+assistant can and cannot do — and either way, you rate every claim yourself and make every
+final call. **You can stop reading here.**
+
+### Or: use it inside Claude Desktop
+
+If you already work in Claude, install CiteVahti as a one-click extension and drive the
+review by chatting. *(This is also the path on Windows and Linux, where the desktop app
+isn't available yet.)*
+
+1. Download the extension **for your computer** from the
+   [latest release](https://github.com/heidihelena/citevahti/releases/latest):
+   - **macOS** (Apple Silicon) — `citevahti-<version>-macos-arm64.mcpb` *(signed + notarized)*
+   - **Windows** — `citevahti-<version>-windows-x64.mcpb`
+   - **Linux** — `citevahti-<version>-linux-x64.mcpb`
+2. **Double-click** the downloaded file to add it to Claude Desktop.
+3. Choose a folder for your reviews when asked.
+4. In the chat, type **`run_claim_tests`** and paste a paragraph of your manuscript.
 
 The assistant finds candidate papers and opens the rating panel in your browser when it's
-your turn to rate. The runtime is bundled — no Python, no setup. **You can stop reading here.**
+your turn to rate. The runtime is bundled — no Python, no setup.
 
-The rest of this guide is the **terminal route** (more control, works with any chat client).
+> **First time on macOS** you may see a one-time security prompt — the extension is a zip,
+> which macOS can't pre-stamp even though the app inside is signed and notarized. If it
+> appears: **right-click the file → Open**, or go to **System Settings → Privacy & Security →
+> "Open Anyway"**. After that it installs and runs normally.
+
+The rest of this guide is the **terminal route** — for developers and power users (more
+control, works with any chat client).
 
 ---
 
