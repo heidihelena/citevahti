@@ -59,10 +59,19 @@ no browser and no Python required.
   freeze) and pulls the pywebview backend with `--collect-all webview`.
 - Emits the **unsigned** bundle. Signing + notarization is the same Developer ID + notarytool
   flow as the binary `.mcpb`, run in CI with the founder's Apple secrets — it is not part of
-  this script. macOS needs `icon.icns` (Windows `icon.ico`) for the app icon; falls back to
-  `icon.png`. Verified to here: the `[app]` extra resolves and the app imports under real
-  pywebview; the windowed freeze + signed multi-platform bundles are produced on a build
-  machine (the native window needs a display to confirm at runtime).
+  this script. macOS uses the committed `icon.icns` (generated from `icon.png` via
+  `sips`/`iconutil`); Windows uses `icon.ico`, else it falls back to `icon.png`. The `--icon`
+  path is passed **absolute** (PyInstaller resolves it relative to the generated `.spec`, not
+  the CWD). After the freeze the script stamps the real version + `com.vahtian.citevahti`
+  bundle id into `Info.plist` (PyInstaller defaults the version to `0.0.0`).
+- **Shipped automatically on release** by the `macos-app` job in
+  [`desktop-extension-build.yml`](../.github/workflows/desktop-extension-build.yml): it runs
+  `build-app.sh`, deep-signs the `.app` (Developer ID + hardened runtime + `entitlements.plist`),
+  notarizes, **staples** the ticket (a `.app` can be stapled — unlike the `.mcpb` zip — so
+  Gatekeeper passes offline), and attaches `citevahti-<version>-macos-arm64.app.zip` to the
+  release. Without the signing secrets it uploads an unsigned artifact only. **First run should
+  be validated by hand** (`workflow_dispatch` with the release tag) — deep-signing a PyInstaller
+  bundle under the hardened runtime is the step most likely to need a tweak.
 
 > **Not in the checkout.** The binary and `dist/*.mcpb` are **gitignored build artifacts**, so a
 > fresh clone has neither until you run `./build-binary.sh` (or download a release asset).

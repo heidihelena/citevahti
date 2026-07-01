@@ -27,19 +27,38 @@ else
 fi
 
 # App icon: PyInstaller wants .icns on macOS, .ico on Windows; fall back to the panel PNG.
+# The path must be ABSOLUTE — PyInstaller resolves --icon relative to the .spec (which we
+# write under --specpath build/app), not this script's CWD, so a bare "icon.png" is not found.
 ICON_ARG=()
-if [ -f icon.icns ]; then ICON_ARG=(--icon icon.icns)
-elif [ -f icon.ico ]; then ICON_ARG=(--icon icon.ico)
-elif [ -f icon.png ]; then ICON_ARG=(--icon icon.png); fi
+if [ -f icon.icns ]; then ICON_ARG=(--icon "$PWD/icon.icns")
+elif [ -f icon.ico ]; then ICON_ARG=(--icon "$PWD/icon.ico")
+elif [ -f icon.png ]; then ICON_ARG=(--icon "$PWD/icon.png"); fi
 
 echo "==> Freezing windowed app (panel web assets bundled via --collect-data) ..."
 "$BUILD/venv/bin/pyinstaller" --windowed --name CiteVahti \
   --distpath "$BUILD/dist" --workpath "$BUILD/work" --specpath "$BUILD" \
+  --osx-bundle-identifier com.vahtian.citevahti \
   --collect-data citevahti \
   --collect-submodules citevahti \
   --collect-all webview \
   "${ICON_ARG[@]}" \
   app/pyi_app_entry.py
+
+# Stamp the real version into the .app Info.plist (PyInstaller defaults it to 0.0.0, which
+# would ship a wrong-versioned bundle — the same "which build am I running" bug the .mcpb
+# fixed). Read it from the frozen package so it always matches what's inside.
+APP="$BUILD/dist/CiteVahti.app"
+if [ -d "$APP" ]; then
+  VER=$("$BUILD/venv/bin/python" -c "import citevahti; print(citevahti.__version__)")
+  PL="$APP/Contents/Info.plist"
+  # Set if the key exists, else Add — PyInstaller writes CFBundleShortVersionString but not
+  # CFBundleVersion, and `Set` on a missing key errors.
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VER" "$PL" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $VER" "$PL"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VER" "$PL" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $VER" "$PL"
+  echo "==> stamped CiteVahti.app version = $VER"
+fi
 
 echo "==> App bundle built under $BUILD/dist/"
 ls -la "$BUILD/dist" || true
