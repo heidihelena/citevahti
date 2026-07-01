@@ -11,7 +11,8 @@ The precedence is:
 1. an explicit ``--root`` (anything but ``"."``),
 2. ``$CITEVAHTI_ROOT``,
 3. the current directory **if it already holds a ledger** (you're clearly working here),
-4. the last-used root **if it still holds a ledger** (so chat and panel agree),
+4. the last-used root **if it still holds a ledger** and isn't a leaked temp-dir
+   ledger from an unisolated test run (so chat and panel agree),
 5. the home directory.
 
 Bare cwd is never the fallback: the MCP server is launched by the desktop app from an
@@ -24,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -43,26 +45,66 @@ def _global_state_path() -> Path:
     return base / "citevahti" / "state.json"
 
 
+def _in_system_temp(path: Path) -> bool:
+    """True when ``path`` lives in the system temp tree — ``tempfile.gettempdir()``,
+    ``/tmp``, ``/var/tmp``, or macOS's per-user ``/var/folders/…``. Real projects never
+    live there; test and e2e harnesses always do."""
+    try:
+        resolved = path.expanduser().resolve()
+    except OSError:
+        return False
+    # noqa rationale: nothing is stored at these paths — they only classify a
+    # recorded root as temp-tree so it can be refused.
+    for base in (Path(tempfile.gettempdir()), Path("/tmp"), Path("/var/tmp")):  # noqa: S108
+        try:
+            if resolved.is_relative_to(base.resolve()):
+                return True
+        except OSError:
+            continue
+    # macOS per-user temp: $TMPDIR points inside /var/folders but the exact directory
+    # varies per boot/user, so a recorded path may not sit under the CURRENT
+    # gettempdir() — match the fixed prefix instead.
+    return str(resolved).startswith(("/private/var/folders/", "/var/folders/"))
+
+
+def _leaked_temp_root(root: Path) -> bool:
+    """A temp-tree root recorded in the REAL config is a leak: some e2e/test run drove
+    the engine without isolating ``XDG_CONFIG_HOME``/``HOME``, and honouring it would
+    silently open a throwaway test ledger instead of the user's project. When the state
+    file itself is temp-isolated (as pytest and well-behaved harnesses arrange), temp
+    roots are legitimate and kept."""
+    return _in_system_temp(root) and not _in_system_temp(_global_state_path())
+
+
 def remember_root(root: str) -> None:
     """Record the active root so the next launch — on any surface — defaults here
-    instead of an empty ledger. Best-effort; never blocks startup."""
+    instead of an empty ledger. Best-effort; never blocks startup. A temp-tree root is
+    never recorded in the real config (``_leaked_temp_root``): an e2e ledger must not
+    become the app's default project."""
     try:
+        resolved = Path(root).expanduser().resolve()
+        if _leaked_temp_root(resolved):
+            return
         p = _global_state_path()
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps({"last_root": str(Path(root).expanduser().resolve())}, indent=2),
-                     encoding="utf-8")
+        p.write_text(json.dumps({"last_root": str(resolved)}, indent=2), encoding="utf-8")
     except OSError:
         pass
 
 
 def recall_root() -> Optional[str]:
-    """The last-used root, but only if it still holds a ledger (else ``None``)."""
+    """The last-used root, but only if it still holds a ledger and isn't a leaked
+    temp-dir ledger (else ``None``)."""
     try:
         data = json.loads(_global_state_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     r = data.get("last_root")
-    return r if (r and has_ledger(r)) else None
+    if not (r and has_ledger(r)):
+        return None
+    if _leaked_temp_root(Path(r)):    # a leftover e2e/test ledger, not the user's project
+        return None
+    return r
 
 
 # ---- the one resolver -------------------------------------------------------

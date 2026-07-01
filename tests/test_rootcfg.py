@@ -4,6 +4,8 @@ answer "what am I working on" the same way. Precedence: explicit --root → $CIT
 
 from __future__ import annotations
 
+import json
+import tempfile
 from pathlib import Path
 
 from citevahti import rootcfg
@@ -75,4 +77,53 @@ def test_recents_ignored_if_ledger_gone(monkeypatch, tmp_path):
     bare.mkdir(exist_ok=True)
     monkeypatch.chdir(bare)
     assert rootcfg.recall_root() is None
+    assert rootcfg.resolve_root() == str(home)
+
+
+# ---- leaked temp-dir roots (the cv-e2e-* incident) ---------------------------
+# An e2e run that drove the real engine without isolating XDG_CONFIG_HOME wrote its
+# throwaway ledger into the user's real state.json, and the installed app then opened
+# the stale test ledger. Temp roots are refused unless the state file itself is
+# temp-isolated (as pytest and well-behaved harnesses arrange).
+
+def _pretend_real_config(monkeypatch):
+    """Make ``_in_system_temp`` report the state file as NOT temp — as if it were the
+    user's real ``~/.config`` — while every other path keeps its true classification.
+    (tmp_path itself lives in the system temp tree, so this is the only way to exercise
+    the unisolated case from a test.)"""
+    state = rootcfg._global_state_path().expanduser().resolve()
+    true_impl = rootcfg._in_system_temp
+    monkeypatch.setattr(
+        rootcfg, "_in_system_temp",
+        lambda p: False if p.expanduser().resolve() == state else true_impl(p))
+
+
+def test_in_system_temp_classification():
+    assert rootcfg._in_system_temp(Path(tempfile.gettempdir()) / "cv-e2e-abc123")
+    assert rootcfg._in_system_temp(Path("/var/folders/ab/cdef/T/cv-e2e-abc123"))
+    assert rootcfg._in_system_temp(Path("/private/var/folders/ab/cdef/T/cv-e2e-x"))
+    assert not rootcfg._in_system_temp(Path.home() / "Documents" / "CiteVahti")
+
+
+def test_leaked_temp_root_not_remembered(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    good = _ledger(tmp_path / "good")
+    rootcfg.remember_root(str(good))
+    assert rootcfg.recall_root() == str(good.resolve())   # temp-isolated state: fine
+    leaked = _ledger(tmp_path / "cv-e2e-leak")
+    _pretend_real_config(monkeypatch)
+    rootcfg.remember_root(str(leaked))      # refused — would leak into the real config
+    data = json.loads(rootcfg._global_state_path().read_text(encoding="utf-8"))
+    assert data["last_root"] == str(good.resolve())
+
+
+def test_leaked_temp_root_not_recalled(monkeypatch, tmp_path):
+    home = _isolate(monkeypatch, tmp_path)
+    leaked = _ledger(tmp_path / "cv-e2e-leak")
+    rootcfg.remember_root(str(leaked))      # an old engine already wrote the leak
+    _pretend_real_config(monkeypatch)
+    bare = tmp_path / "bare"
+    bare.mkdir(exist_ok=True)
+    monkeypatch.chdir(bare)
+    assert rootcfg.recall_root() is None    # falls through instead of opening the leak
     assert rootcfg.resolve_root() == str(home)
