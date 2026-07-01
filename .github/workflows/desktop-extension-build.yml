@@ -1,7 +1,8 @@
-name: Build desktop extension (.mcpb)
+name: Build desktop bundles (.mcpb + macOS app)
 
 # Builds the no-Python CiteVahti .mcpb on Windows, Linux, and macOS (PyInstaller can't
-# cross-compile, so each OS is built on its own runner).
+# cross-compile, so each OS is built on its own runner) — plus the standalone native
+# macOS desktop app (CiteVahti.app) in the `macos-app` job.
 # Windows/Linux binaries are UNSIGNED (beta): Windows may show a SmartScreen warning;
 # Linux has no notarization concept.
 #
@@ -273,6 +274,134 @@ jobs:
           xcrun notarytool submit "out/${{ steps.ver.outputs.asset }}" \
             --key /tmp/AuthKey.p8 --key-id "$KEY_ID" --issuer "$ISSUER" --wait
           rm -f /tmp/AuthKey.p8
+      - name: Upload build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: ${{ steps.ver.outputs.asset }}
+          path: desktop-extension/out/${{ steps.ver.outputs.asset }}
+      - name: Attach to release (signed + notarized only)
+        if: ${{ steps.sign.outputs.enabled == 'true' && (github.event_name == 'release' || inputs.release_tag != '') }}
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b  # v3
+        with:
+          tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
+          files: desktop-extension/out/${{ steps.ver.outputs.asset }}
+
+  # macOS — the standalone NATIVE DESKTOP APP (CiteVahti.app: the loopback panel in a native
+  # webview window, no Claude Desktop, no Python). Separate artifact from the .mcpb above.
+  # Built by build-app.sh, then Developer-ID signed (deep, hardened runtime, same entitlements
+  # as the .mcpb), notarized, and STAPLED (a .app can be stapled, unlike the .mcpb zip → the
+  # ticket is offline-verifiable). Attached only when the signing secrets are present; without
+  # them Gatekeeper would block the downloaded app, so it's an artifact only.
+  macos-app:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop-extension
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+        with:
+          ref: ${{ inputs.release_tag != '' && inputs.release_tag || github.ref }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: '3.11'
+      - name: Detect signing secrets
+        id: sign
+        env:
+          CERT: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+        run: |
+          if [ -n "$CERT" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::macOS signing secrets are not set — building an UNSIGNED CiteVahti.app (artifact only, not attached to the release). See desktop-extension/BUILD.md."
+          fi
+      - name: Read version
+        id: ver
+        run: |
+          VERSION=$(python -c "import json; print(json.load(open('manifest.binary.json'))['version'])")
+          echo "asset=citevahti-$VERSION-macos-${{ matrix.arch }}.app.zip" >> "$GITHUB_OUTPUT"
+      - name: Build CiteVahti.app (unsigned) from this checkout
+        run: ./build-app.sh local
+      - name: Import Developer ID certificate
+        if: steps.sign.outputs.enabled == 'true'
+        env:
+          CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KP="actions-$RANDOM"
+          python3 - <<'PY'
+          import base64, os, sys
+          raw = "".join(os.environ["CERT_P12_BASE64"].split())
+          try:
+              data = base64.b64decode(raw, validate=True)
+          except Exception as e:
+              sys.exit(f"::error::MACOS_CERT_P12_BASE64 is not valid base64 ({e}).")
+          if not data:
+              sys.exit("::error::decoded .p12 is empty.")
+          open("/tmp/cert.p12", "wb").write(data)
+          print(f"decoded {len(data)} bytes")
+          PY
+          security create-keychain -p "$KP" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KP" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KP" build.keychain
+          rm -f /tmp/cert.p12
+      - name: Codesign the .app (deep, Developer ID, hardened runtime, entitlements)
+        if: steps.sign.outputs.enabled == 'true'
+        env:
+          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          APP="build/app/dist/CiteVahti.app"
+          codesign --force --deep --options runtime --timestamp \
+            --entitlements entitlements.plist --sign "$SIGN_IDENTITY" "$APP"
+          codesign --verify --strict --verbose=2 "$APP"
+      - name: Zip for notarization (ditto preserves the bundle)
+        run: |
+          mkdir -p out
+          ditto -c -k --keepParent "build/app/dist/CiteVahti.app" "out/${{ steps.ver.outputs.asset }}"
+      - name: Notarize + staple (App Store Connect API key)
+        if: steps.sign.outputs.enabled == 'true'
+        env:
+          KEY_P8: ${{ secrets.MACOS_NOTARY_KEY_P8 }}
+          KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
+        run: |
+          python3 - <<'PY'
+          import base64, os, re, sys, textwrap
+          val = os.environ["KEY_P8"].strip()
+          try:
+              if "PRIVATE KEY" in val:
+                  body = "".join(re.sub(r"-----[^-]*-----", "", val).split())
+                  der = base64.b64decode(body)
+              else:
+                  der = base64.b64decode("".join(val.split()), validate=True)
+                  inner = der.decode("ascii", "ignore")
+                  if "PRIVATE KEY" in inner:
+                      der = base64.b64decode("".join(re.sub(r"-----[^-]*-----", "", inner).split()))
+          except Exception as e:
+              sys.exit(f"::error::MACOS_NOTARY_KEY_P8 could not be parsed ({e}).")
+          pem = ("-----BEGIN PRIVATE KEY-----\n"
+                 + "\n".join(textwrap.wrap(base64.b64encode(der).decode(), 64))
+                 + "\n-----END PRIVATE KEY-----\n")
+          open("/tmp/AuthKey.p8", "w").write(pem)
+          print("rebuilt AuthKey.p8")
+          PY
+          # notarize the zipped bundle, then STAPLE the .app (unlike the .mcpb, a .app takes a
+          # stapled ticket → Gatekeeper passes offline) and re-zip the stapled app.
+          xcrun notarytool submit "out/${{ steps.ver.outputs.asset }}" \
+            --key /tmp/AuthKey.p8 --key-id "$KEY_ID" --issuer "$ISSUER" --wait
+          rm -f /tmp/AuthKey.p8
+          xcrun stapler staple "build/app/dist/CiteVahti.app"
+          ditto -c -k --keepParent "build/app/dist/CiteVahti.app" "out/${{ steps.ver.outputs.asset }}"
       - name: Upload build artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
