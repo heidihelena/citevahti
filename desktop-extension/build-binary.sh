@@ -31,6 +31,7 @@ echo "==> Freezing standalone binary ..."
   --collect-submodules mcp.server \
   --collect-data mcp \
   --collect-submodules citevahti \
+  --collect-data citevahti \
   --collect-submodules keyring \
   --exclude-module mcp.cli \
   --exclude-module typer \
@@ -44,6 +45,15 @@ if ! grep -q "'keyring.backend'" "$BUILD/work/citevahti-mcp/PYZ-00.toc"; then
   exit 1
 fi
 echo "==> verified: keyring frozen into citevahti-mcp"
+
+# The standalone binary is the panel's own HTTP server (launch_panel serves
+# citevahti/panel/web/ as package data). Unlike pure-Python modules, data files
+# land in the build *.toc entries as paths, not in the PYZ archive — check there.
+if ! grep -rq "panel/web/index.html" "$BUILD/work/citevahti-mcp/"*.toc; then
+  echo "ERROR: panel web assets missing from frozen citevahti-mcp — panel would be blank" >&2
+  exit 1
+fi
+echo "==> verified: panel web assets frozen into citevahti-mcp"
 
 cp "$BUILD/dist/citevahti-mcp" server/citevahti-mcp
 chmod +x server/citevahti-mcp
