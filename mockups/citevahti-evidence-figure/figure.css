@@ -1,0 +1,64 @@
+/* Publication-figure system. Screen chrome uses the panel design tokens; the
+ * figure itself is a self-contained SVG (literal colours) built in figure.js.
+ * The @media print block isolates the figure sheet so "Save as PDF" yields just
+ * the figure at its chosen column width. */
+
+:root {
+  --zs-ink: #1A1A1F; --zs-paper: #FFFFFF; --zs-surface: #F7F7F9; --zs-surface-2: #ECECEF;
+  --zs-line: #E2E2E7; --zs-muted: #6B6B73;
+  --zs-brand: #6B4E9E; --zs-brand-strong: #4B1778; --zs-brand-bg: #E7DCFF; --zs-mark: #E4D8FB;
+  --zs-space-xs: 4px; --zs-space-sm: 6px; --zs-space: 8px; --zs-space-md: 10px; --zs-space-lg: 12px;
+  --zs-space-xl: 16px; --zs-space-2xl: 24px;
+  --zs-radius-sm: 6px; --zs-radius: 8px; --zs-radius-md: 10px; --zs-radius-pill: 999px;
+  --zs-text-2xs: 10px; --zs-text-xs: 11px; --zs-text-sm: 12px; --zs-text: 13px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--zs-surface); color: var(--zs-ink);
+  font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+.wrap { max-width: 1000px; margin: 0 auto; padding: 0 var(--zs-space-xl); }
+.pageintro { padding-top: var(--zs-space-xl); padding-bottom: var(--zs-space-xl); }
+h1 { font-size: 20px; font-weight: 700; margin: 0 0 var(--zs-space-xs); }
+.sub { color: var(--zs-muted); font-size: var(--zs-text-sm); margin: 0 0 var(--zs-space-lg); }
+.sub b { color: var(--zs-ink); }
+
+.toolbar { display: flex; align-items: flex-end; gap: var(--zs-space-lg); flex-wrap: wrap;
+  padding: var(--zs-space-lg); border: 1px solid var(--zs-line); border-radius: var(--zs-radius-md);
+  background: var(--zs-paper); }
+.grp { display: flex; flex-direction: column; gap: var(--zs-space-xs); }
+.grp-lbl { font: 700 var(--zs-text-2xs)/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--zs-muted); }
+.spacer { flex: 1; }
+
+.seg-ctl { display: inline-flex; border: 1px solid var(--zs-line); border-radius: var(--zs-radius-pill);
+  background: var(--zs-paper); overflow: hidden; }
+.seg-ctl button { border: 0; background: transparent; color: var(--zs-muted); cursor: pointer;
+  font: 600 var(--zs-text-sm)/1 inherit; padding: 7px 12px; }
+.seg-ctl button[aria-pressed="true"] { background: var(--zs-brand-bg); color: var(--zs-brand-strong); }
+
+.btn { border: 1px solid var(--zs-line); background: var(--zs-paper); color: var(--zs-ink);
+  border-radius: var(--zs-radius); cursor: pointer; font: 600 var(--zs-text-sm)/1 inherit; padding: 9px 13px; }
+.btn:hover { border-color: var(--zs-brand); }
+.btn.primary { background: var(--zs-brand); color: #fff; border-color: var(--zs-brand); }
+
+/* the sheet is sized to the chosen column width (mm), like the real printed figure */
+.sheet-wrap { padding-top: var(--zs-space-xl); padding-bottom: var(--zs-space-xl); }
+.sheet { --fig-w: 183mm; width: var(--fig-w); max-width: 100%; margin: 0 auto;
+  background: #fff; border: 1px solid var(--zs-line); border-radius: var(--zs-radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,.10); padding: 8mm; }
+.figure svg { display: block; width: 100%; height: auto; }
+
+.cap-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--zs-space-sm); }
+.caption { color: var(--zs-ink); font-size: var(--zs-text-sm); line-height: 1.6;
+  background: var(--zs-paper); border: 1px solid var(--zs-line); border-radius: var(--zs-radius);
+  padding: var(--zs-space-lg); margin: 0; }
+
+/* PRINT — isolate the figure sheet; yields the figure alone at its column width */
+@media print {
+  @page { margin: 12mm; }
+  body { background: #fff; }
+  .pageintro, .toolbar { display: none !important; }
+  .sheet-wrap { padding: 0; }
+  .sheet { box-shadow: none; border: 0; padding: 0; width: var(--fig-w); }
+}

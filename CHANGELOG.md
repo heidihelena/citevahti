@@ -6,6 +6,22 @@ previous one.
 
 ## [Unreleased]
 
+### Added
+- **Local evidence map in the Atlas tab.** The Atlas tab was titled "Local evidence map"
+  but only rendered the de-identified warehouse; it now leads with the real, read-only
+  claim↔evidence graph, with the warehouse/Contribution flow demoted to a secondary modal
+  (fixing the long-standing title mismatch). Nodes are your claims and the cited papers
+  tested against them (papers cited for several claims are one shared node); each link is
+  coloured **and** dash-styled by your decision (accept / caution / needs-review / reject /
+  unrated), so it reads in greyscale too. Retracted sources are flagged with a ⊘ ring,
+  independent of any rating. Click a node to inspect its links. An **AI view** recolours by
+  the AI's second opinion — but only where you've already judged a link; unjudged links stay
+  blinded, never leaking an AI value before yours. Built from data the engine already keeps
+  (`GET /api/evidence-map`, read-only — no rating, decision, or write path touched).
+- **Publication figure export.** From the map, export the graph as a standalone, print-grade
+  **SVG** (or print to PDF) sized to journal column widths, with the legend, N, retraction
+  key and honest-framing note baked into the figure and an auto-generated caption.
+
 ## 0.44.3 — CiteVahti.app signing: leave Python.framework alone (2026-07-02)
 
 Packaging-only patch; no engine, safety, or write-path behaviour changed. Second half of the

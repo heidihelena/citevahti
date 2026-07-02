@@ -706,3 +706,83 @@ a.doi:hover { text-decoration: underline; }
 .qcode.s-r { color: var(--zs-revise-text); }
 .qcode.s-d { color: var(--zs-delete-text); }
 .qtext { color: var(--zs-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ============================================================================
+   Atlas evidence map (evidence-map.js) — Spine graph + publication figure export.
+   Interactive graph is theme-aware (tokens); the exported SVG uses literal colours
+   (built in JS) so the downloaded file is standalone. Verdict is encoded by colour
+   AND dash so it survives greyscale — same rule as the manuscript.
+   ========================================================================== */
+.em-wrap { display: block; }
+.em-bar { display: flex; align-items: center; gap: var(--zs-space-lg); flex-wrap: wrap;
+  margin: var(--zs-space) 0 var(--zs-space-lg); }
+.em-count { white-space: nowrap; }
+
+/* segmented control (used by the mode toggle + the figure modal) */
+.seg-ctl { display: inline-flex; border: 1px solid var(--zs-line); border-radius: var(--zs-radius-pill);
+  overflow: hidden; background: var(--zs-paper); }
+.seg-ctl .chip-btn { border: 0; border-radius: 0; background: transparent; }
+.seg-ctl .chip-btn[aria-pressed="true"] { background: var(--zs-brand-bg); color: var(--zs-brand-strong); }
+
+.em-stage { position: relative; border: 1px solid var(--zs-line); border-radius: var(--zs-radius-lg);
+  background: var(--zs-paper); padding: var(--zs-space-lg); overflow: hidden; }
+.em-svg { display: block; width: 100%; height: auto; }
+
+/* edges — colour via token class, dash/width set inline per verdict */
+.em-edge { fill: none; stroke-linecap: round; transition: opacity var(--zs-dur); }
+.em-supported { stroke: var(--zs-supported-border); }
+.em-partial   { stroke: var(--zs-partial-border); }
+.em-revise    { stroke: var(--zs-revise-border); }
+.em-reject    { stroke: var(--zs-delete-border); }
+.em-pending   { stroke: var(--zs-brand); }
+.em-ghost     { stroke: var(--zs-muted); opacity: .55; }
+
+.em-hdr { font: 700 var(--zs-text-2xs)/1 ui-monospace, Menlo, monospace; letter-spacing: .06em;
+  text-transform: uppercase; fill: var(--zs-muted); }
+.em-node { cursor: pointer; }
+.em-halo { fill: none; stroke: var(--zs-brand); opacity: 0; transition: opacity var(--zs-dur); }
+.em-node.sel .em-halo, .em-node.adj .em-halo { opacity: .9; }
+.em-node.em-claim .em-disc { fill: var(--zs-brand-bg); stroke: var(--zs-brand); stroke-width: 2; }
+.em-node.em-paper .em-disc { fill: var(--zs-paper); stroke: var(--zs-muted); stroke-width: 1.5; }
+.em-nlabel { font: 700 11px/1 -apple-system, BlinkMacSystemFont, sans-serif; fill: var(--zs-ink); }
+.em-nsub { font: 400 9.5px/1 -apple-system, BlinkMacSystemFont, sans-serif; fill: var(--zs-muted); }
+.em-node.em-retracted .em-disc { stroke: var(--zs-delete-border); }
+.em-node.em-retracted .em-nlabel { fill: var(--zs-delete-text); }
+.em-retr-ring { fill: none; stroke: var(--zs-delete-border); stroke-width: 1.2; stroke-dasharray: 2 2; }
+
+/* selection focus: dim the rest */
+.em-stage.has-sel .em-edge:not(.on) { opacity: .12; }
+.em-stage.has-sel .em-node:not(.sel):not(.adj) { opacity: .3; }
+
+/* inspect flyout (mirrors the mockup detail card) */
+.em-detail { position: absolute; top: var(--zs-space-lg); right: var(--zs-space-lg); width: 300px;
+  max-width: calc(100% - var(--zs-space-2xl)); background: var(--zs-paper); border: 1px solid var(--zs-line);
+  border-radius: var(--zs-radius-lg); box-shadow: var(--zs-shadow-2); padding: var(--zs-space-lg);
+  font-size: var(--zs-text-sm); display: none; }
+.em-detail.show { display: block; }
+.em-detail h3 { margin: 0 0 var(--zs-space-xs); font-size: var(--zs-text); }
+.em-detail .em-kind { font: 700 var(--zs-text-2xs)/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
+  color: var(--zs-muted); margin-bottom: var(--zs-space-sm); }
+.em-detail .em-close { position: absolute; top: var(--zs-space); right: var(--zs-space); border: 0;
+  background: transparent; color: var(--zs-muted); cursor: pointer; font-size: 15px; }
+.em-detail .em-meta { color: var(--zs-muted); font-size: var(--zs-text-xs); margin: var(--zs-space-xs) 0 var(--zs-space); }
+.em-edgerow { display: flex; align-items: center; gap: var(--zs-space-sm); padding: 5px 0; border-top: 1px solid var(--zs-line); }
+.em-edgerow:first-of-type { border-top: 0; }
+.em-txt { flex: 1; min-width: 0; }
+.em-txt b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.em-txt span { display: block; color: var(--zs-muted); font-size: var(--zs-text-xs); }
+.em-txt span.em-ai.muted { font-style: italic; }
+.em-tag-ok { color: var(--zs-partial-text); font-style: normal; font-weight: 600; }
+.em-tag-warn { color: var(--zs-delete-text); font-style: normal; font-weight: 600; }
+.em-retr-flag { display: flex; gap: var(--zs-space-xs); align-items: center; color: var(--zs-delete-text);
+  background: var(--zs-delete-bg); border: 1px solid var(--zs-delete-border); border-radius: var(--zs-radius-sm);
+  padding: 4px var(--zs-space); font-size: var(--zs-text-xs); font-weight: 600; margin: var(--zs-space-xs) 0; }
+
+/* figure export modal */
+.em-figcard { width: min(760px, 94vw); }
+.em-figbar { display: flex; align-items: center; gap: var(--zs-space); flex-wrap: wrap; margin-bottom: var(--zs-space-lg); }
+.em-figholder { border: 1px solid var(--zs-line); border-radius: var(--zs-radius); background: #fff; padding: var(--zs-space); }
+.em-figholder svg { display: block; width: 100%; height: auto; }
+.em-capwrap { margin-top: var(--zs-space-lg); }
+.em-cap { max-height: 120px; overflow: auto; border: 1px solid var(--zs-line); border-radius: var(--zs-radius);
+  padding: var(--zs-space); background: var(--zs-surface); }
