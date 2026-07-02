@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.44.0 — a local-first review panel non-technical researchers can drive: navigable surfaces (Review · Manuscripts · Checks · Atlas · Output · Settings), "Choose a file…" intake, "Show in Finder" on every written file, a readable review-record timeline, a minimal design system, an accessibility pass, and a 28-test frontend behaviour suite. Engine, safety, and write-path behaviour unchanged.
+## Status: v0.44.1 — patch: the standalone (Route B) .mcpb shipped without the panel's web assets, so the review panel opened blank; the binary build now freezes them in and fails loudly if they're missing. Everything else unchanged from 0.44.0.
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

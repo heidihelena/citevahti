@@ -74,18 +74,41 @@ jobs:
       - name: Install deps (from this checkout, not PyPI)
         run: |
           python -m pip install --upgrade pip
-          pip install "..[mcp]" pyinstaller
+          pip install "..[mcp,keyring]" pyinstaller
       - name: Freeze standalone binary
         run: |
           pyinstaller --onefile --name citevahti-mcp \
             --collect-submodules mcp.server \
             --collect-data mcp \
             --collect-submodules citevahti \
+            --collect-data citevahti \
+            --collect-submodules keyring \
             --hidden-import pypandoc \
             --hidden-import docx \
             --exclude-module mcp.cli \
             --exclude-module typer \
             server/pyi_entry.py
+      # Fail loudly if the freeze is missing what the standalone .mcpb needs at runtime:
+      # keyring (keychain-stored Zotero keys) lives in the PYZ archive as a module; the
+      # panel web assets are DATA files that land in the *.toc entries as paths. This
+      # binary is the panel's own HTTP server — without the assets the panel is blank.
+      - name: Verify freeze (keyring + panel web assets)
+        run: |
+          python - <<'PY'
+          import pathlib, sys
+          tocs = list(pathlib.Path("build/citevahti-mcp").glob("*.toc"))
+          if not tocs:
+              sys.exit("::error::no PyInstaller TOC files under build/citevahti-mcp — freeze layout changed?")
+          blob = "".join(t.read_text(errors="replace") for t in tocs)
+          blob = blob.replace("\\\\", "/").replace("\\", "/")   # windows-path tolerant
+          missing = [what for what, needle in
+                     (("keyring modules", "'keyring.backend'"),
+                      ("panel web assets", "panel/web/index.html")) if needle not in blob]
+          if missing:
+              sys.exit(f"::error::frozen citevahti-mcp is missing {', '.join(missing)} — "
+                       "the .mcpb would ship with a blank panel or dead Zotero connect.")
+          print("verified: keyring + panel web assets frozen into citevahti-mcp")
+          PY
       - name: Stage + generate per-OS manifest
         env:
           PLATFORM: ${{ matrix.platform }}
@@ -168,18 +191,38 @@ jobs:
       - name: Install deps (from this checkout, not PyPI)
         run: |
           python -m pip install --upgrade pip
-          pip install "..[mcp]" pyinstaller
+          pip install "..[mcp,keyring]" pyinstaller
       - name: Freeze standalone binary
         run: |
           pyinstaller --onefile --name citevahti-mcp \
             --collect-submodules mcp.server \
             --collect-data mcp \
             --collect-submodules citevahti \
+            --collect-data citevahti \
+            --collect-submodules keyring \
             --hidden-import pypandoc \
             --hidden-import docx \
             --exclude-module mcp.cli \
             --exclude-module typer \
             server/pyi_entry.py
+      # Same fail-loud freeze check as the win/linux job (see the comment there).
+      - name: Verify freeze (keyring + panel web assets)
+        run: |
+          python - <<'PY'
+          import pathlib, sys
+          tocs = list(pathlib.Path("build/citevahti-mcp").glob("*.toc"))
+          if not tocs:
+              sys.exit("::error::no PyInstaller TOC files under build/citevahti-mcp — freeze layout changed?")
+          blob = "".join(t.read_text(errors="replace") for t in tocs)
+          blob = blob.replace("\\\\", "/").replace("\\", "/")
+          missing = [what for what, needle in
+                     (("keyring modules", "'keyring.backend'"),
+                      ("panel web assets", "panel/web/index.html")) if needle not in blob]
+          if missing:
+              sys.exit(f"::error::frozen citevahti-mcp is missing {', '.join(missing)} — "
+                       "the .mcpb would ship with a blank panel or dead Zotero connect.")
+          print("verified: keyring + panel web assets frozen into citevahti-mcp")
+          PY
       - name: Import Developer ID certificate
         if: steps.sign.outputs.enabled == 'true'
         env:
