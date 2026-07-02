@@ -80,6 +80,7 @@ echo "==> Freezing the citevahti-mcp sidecar (agent-server interface) ..."
   --collect-submodules mcp.server \
   --collect-data mcp \
   --collect-submodules citevahti \
+  --collect-data citevahti \
   --collect-submodules keyring \
   --exclude-module mcp.cli \
   --exclude-module typer \
@@ -95,8 +96,15 @@ for SIDECAR in citevahti-engine citevahti-mcp; do
     echo "ERROR: keyring (macOS backend) missing from the frozen $SIDECAR — Zotero connect would fail" >&2
     exit 1
   fi
+  # Both sidecars serve the panel's static assets (the engine for the app window; the mcp
+  # sidecar when an agent calls open_review_panel) — data files land in the *.toc as
+  # panel/web/... paths, not in the PYZ like modules. Missing assets = a blank panel.
+  if ! grep -rq "panel/web/index.html" "$BUILD/work/$SIDECAR/"*.toc; then
+    echo "ERROR: panel web assets missing from the frozen $SIDECAR — panel would be blank" >&2
+    exit 1
+  fi
 done
-echo "==> verified: keyring (incl. macOS Keychain backend) frozen into both sidecars"
+echo "==> verified: keyring (incl. macOS Keychain backend) + panel web assets frozen into both sidecars"
 
 # Both sidecars live INSIDE the shell's own bundle as whole --onedir folders (three
 # executables, one .app) — the shell resolves the nested executable at runtime as a sibling
@@ -108,6 +116,26 @@ if [ -d "$APP" ]; then
   cp -R "$BUILD/dist-bin/citevahti-mcp" "$MACOS_DIR/citevahti-mcp"
   chmod +x "$MACOS_DIR/citevahti-engine/citevahti-engine" "$MACOS_DIR/citevahti-mcp/citevahti-mcp"
   echo "==> copied citevahti-engine/ + citevahti-mcp/ into $MACOS_DIR"
+
+  # codesign --deep refuses dotted directories under Contents/MacOS ("bundle format
+  # unrecognized" on e.g. _internal/click-8.4.2.dist-info) — the exact failure the first
+  # CI signing run of this sidecar layout died on. Apply PyInstaller's own trick (see the
+  # shell's Frameworks/python3__dot__11): rename the real directory with dots mangled to
+  # __dot__ and leave a same-name relative symlink — codesign seals the symlink as a
+  # symlink, the bootloader and importlib.metadata (keyring backend discovery) follow it,
+  # and any Mach-O inside stays in a code location where --deep still signs it.
+  find "$MACOS_DIR/citevahti-engine" "$MACOS_DIR/citevahti-mcp" -depth -type d -name "*.*" \
+  | while IFS= read -r D; do
+      B=$(basename "$D"); P=$(dirname "$D"); M="${B//./__dot__}"
+      mv "$D" "$P/$M"
+      ln -s "$M" "$D"
+    done
+  LEFT=$(find "$MACOS_DIR/citevahti-engine" "$MACOS_DIR/citevahti-mcp" -type d -name "*.*" | wc -l | tr -d ' ')
+  if [ "$LEFT" != "0" ]; then
+    echo "ERROR: $LEFT dotted director(ies) still under Contents/MacOS — codesign --deep would fail" >&2
+    exit 1
+  fi
+  echo "==> mangled dotted sidecar dirs for codesign (real dir __dot__-renamed + symlink)"
 fi
 
 # Stamp the real version into the .app Info.plist (PyInstaller defaults it to 0.0.0, which

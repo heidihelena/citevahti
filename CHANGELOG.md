@@ -6,6 +6,28 @@ previous one.
 
 ## [Unreleased]
 
+## 0.44.2 — CiteVahti.app: sign the sidecar bundle, and its agent sidecar had the blank-panel bug too (2026-07-02)
+
+Packaging-only patch; no engine, safety, or write-path behaviour changed. Completes 0.44.1:
+that release's `CiteVahti.app` never shipped because the CI codesign step failed on the new
+sidecar bundle layout.
+
+### Fixed
+- **`codesign --deep` failed on the sidecar bundle layout, so no signed `CiteVahti.app` could
+  be built.** The two `--onedir` sidecars (`citevahti-engine`, `citevahti-mcp`) live inside
+  `Contents/MacOS/`, and codesign treats their dotted directories (`*.dist-info`,
+  `python3.11`) as unrecognized nested bundles. `build-app.sh` now applies PyInstaller's own
+  trick (the same one the shell bundle already uses for `python3__dot__11`): rename the real
+  directory with dots mangled to `__dot__` and leave a same-name symlink — codesign seals the
+  symlink as a symlink, and the bootloader and `importlib.metadata` (keyring backend
+  discovery) follow it. Verified on a locally signed bundle: `codesign --verify --strict`
+  passes, both sidecars serve the panel, and the keychain-stored Zotero key is readable
+  through the symlinked `keyring` metadata.
+- **The app's `citevahti-mcp` sidecar had the 0.44.1 blank-panel bug too.** Its freeze flags
+  were copied from `build-binary.sh` *including* the missing `--collect-data citevahti`, so an
+  agent calling `open_review_panel` against the app's sidecar got the same blank page. Fixed,
+  and the fail-loud freeze guard now checks the panel web assets in **both** sidecars.
+
 ## 0.44.1 — the standalone .mcpb panel was blank (2026-07-02)
 
 Packaging-only patch; no engine, safety, or write-path behaviour changed.
