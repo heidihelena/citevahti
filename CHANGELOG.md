@@ -19,6 +19,14 @@ Packaging-only patch; no engine, safety, or write-path behaviour changed.
   missing from the freeze manifest, the same way it already guards the keyring modules. The
   desktop app (which serves the panel from the `citevahti-engine` sidecar) and the
   Python-route `.mcpb` were unaffected.
+- **The CI-built release `.mcpb` assets had the same gap — plus no keyring.** The release
+  workflow (`desktop-extension-build.yml`) freezes the binary with its own PyInstaller
+  invocations, which were missing `--collect-data citevahti` *and* never got the 0.44.0
+  keyring fix (that landed only in the local build scripts) — so the win/linux/mac `.mcpb`
+  files attached to releases shipped with a blank panel and a dead keychain path for
+  "Connect Zotero". All three CI freeze invocations now match the local script
+  (`[mcp,keyring]` install, `--collect-data citevahti`, `--collect-submodules keyring`) and
+  a platform-neutral **"Verify freeze"** step fails the workflow if either is missing.
 - New offline regression test (`tests/test_panel_static_assets.py`): every asset the panel
   server promises to serve exists on disk, and every local script/stylesheet `index.html`
   references is on the server's allow-list — catching both the blank page and the sibling
