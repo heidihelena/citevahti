@@ -6,6 +6,24 @@ previous one.
 
 ## [Unreleased]
 
+## 0.44.3 — CiteVahti.app signing: leave Python.framework alone (2026-07-02)
+
+Packaging-only patch; no engine, safety, or write-path behaviour changed. Second half of the
+0.44.2 signing fix: that release's `CiteVahti.app` still didn't ship because CI builds with a
+*framework* Python.
+
+### Fixed
+- **`codesign --verify --strict` failed on the CI-built app after 0.44.2's dotted-dir
+  mangling.** The CI runner's Python is a framework build, so each sidecar's `_internal`
+  contains a real `Python.framework` — a genuine nested bundle codesign recognizes and signs
+  inside-out on its own. 0.44.2's blanket mangling renamed it too, which broke that ordering:
+  the framework's `_CodeSignature` was written after the outer seal ("a sealed resource is
+  missing or invalid / file added … `_CodeSignature/CodeResources`"). The mangle step now
+  **excludes `*.framework` subtrees** and only renames non-bundle dotted directories
+  (`*.dist-info`, the stdlib `python3.11` dir). Reproduced and verified locally by building
+  with a framework Python (Homebrew `python@3.11`): strict verify passes, both signed
+  sidecars serve the panel, and the keychain-stored Zotero key resolves.
+
 ## 0.44.2 — CiteVahti.app: sign the sidecar bundle, and its agent sidecar had the blank-panel bug too (2026-07-02)
 
 Packaging-only patch; no engine, safety, or write-path behaviour changed. Completes 0.44.1:
