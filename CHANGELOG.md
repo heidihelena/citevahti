@@ -6,6 +6,27 @@ previous one.
 
 ## [Unreleased]
 
+## 0.44.1 — the standalone .mcpb panel was blank (2026-07-02)
+
+Packaging-only patch; no engine, safety, or write-path behaviour changed.
+
+### Fixed
+- **The review panel opened blank from the standalone (Route B) `.mcpb`.** The frozen
+  `citevahti-mcp` binary collected the `citevahti` *code* but not its *data files*, so the
+  panel's web assets (`citevahti/panel/web/`) weren't in the executable — every static file
+  404'd when `open_review_panel` served the panel from inside the binary. `build-binary.sh`
+  now passes `--collect-data citevahti` and **fails the build loudly** if the panel assets are
+  missing from the freeze manifest, the same way it already guards the keyring modules. The
+  desktop app (which serves the panel from the `citevahti-engine` sidecar) and the
+  Python-route `.mcpb` were unaffected.
+- New offline regression test (`tests/test_panel_static_assets.py`): every asset the panel
+  server promises to serve exists on disk, and every local script/stylesheet `index.html`
+  references is on the server's allow-list — catching both the blank page and the sibling
+  one-file-404s bug.
+
+Note for already-installed extensions: Claude Desktop caches the old `.mcpb` — **remove the
+CiteVahti extension and install the new one**; reinstalling over the top does not refresh it.
+
 ## 0.44.0 — a local-first review panel non-technical researchers can drive (2026-06-30)
 
 The panel was rebuilt around the people using it in pilots — clinicians and PhD researchers
