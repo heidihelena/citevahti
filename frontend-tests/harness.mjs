@@ -16,7 +16,7 @@ const WEB = path.resolve(HERE, "..", "src", "citevahti", "panel", "web");
 // the exact load order index.html uses
 const FILES = ["state.js", "util.js", "api.js", "modal.js", "feedback.js", "events.js", "card.js",
   "card-phases.js", "card-edit.js", "review-actions.js", "connect.js", "search.js", "workspace.js",
-  "manuscripts.js", "checks.js", "atlas.js", "output.js", "settings.js", "prompts.js", "app.js"];
+  "manuscripts.js", "checks.js", "evidence-map.js", "atlas.js", "output.js", "settings.js", "prompts.js", "app.js"];
 
 // pure / output functions exposed for unit tests (their string output is user-facing)
 const EXPOSE = ["relTime", "projectName", "humanEvent", "citeOf", "claimTypeLabel",

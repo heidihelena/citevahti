@@ -1314,6 +1314,73 @@ def triage(*, root: Optional[str] = None):
     return _triage(report)
 
 
+# final_decision (schemas/decision.py) -> the four verdict hues + unrated. Kept in one
+# place so the panel map and any future export agree on the mapping.
+_MAP_VERDICT = {"accept": "accept", "accepted_with_caution": "caution",
+                "needs_second_review": "review", "reject": "reject"}
+
+
+def evidence_map(*, root: Optional[str] = None) -> dict:
+    """Read-only claim<->evidence graph for the panel's Atlas map (and figure export).
+
+    Nodes are claims and the *deduplicated* cited papers (one node per PMID/DOI, so a
+    paper cited for several claims is a single shared node). Each edge is one
+    (claim, candidate) pair carrying the human support rating, the **blinded** AI support
+    (``"hidden"`` until the human has rated — the blinding rule is applied once, in
+    ClaimReportService, never re-derived here), the final decision mapped to a verdict
+    hue, and the retraction / staleness flags. A retracted paper is flagged independent
+    of any rating. Mutates nothing; decides nothing."""
+    from .report import ClaimReportService
+
+    store = _open_store(root)
+    rep = ClaimReportService(store).report()
+
+    def paper_key(pmid, doi, title):
+        if pmid:
+            return f"pmid:{pmid}"
+        if doi:
+            return f"doi:{str(doi).strip().lower()}"
+        return f"title:{(title or '').strip().lower()[:80]}"
+
+    papers: dict[str, dict] = {}
+    edges: list[dict] = []
+    claims: list[dict] = []
+    for row in rep.rows:
+        claims.append({"id": row.claim_id, "text": row.claim_text,
+                       "type": row.claim_type, "location": row.manuscript_location,
+                       "state": row.state, "code": row.code.strip(),
+                       "untestable": bool(row.untestable_reason)})
+        # candidate metadata (journal/year) for nicer paper labels; best-effort
+        try:
+            cands = {c.candidate_id: c for c in store.load_candidates(row.claim_id).candidates}
+        except Exception:
+            cands = {}
+        for ev in row.evidence:
+            pid = paper_key(ev.pmid, ev.doi, ev.title)
+            node = papers.get(pid)
+            if node is None:
+                c = cands.get(ev.candidate_id)
+                papers[pid] = {"id": pid, "title": ev.title, "pmid": ev.pmid, "doi": ev.doi,
+                               "journal": getattr(c, "journal", None), "year": getattr(c, "year", None),
+                               "retracted": bool(ev.retracted)}
+            else:
+                node["retracted"] = node["retracted"] or bool(ev.retracted)
+                if not node.get("title") and ev.title:
+                    node["title"] = ev.title
+            edges.append({"claim_id": row.claim_id, "paper_id": pid,
+                          "human_support": ev.human_support, "ai_support": ev.ai_support,
+                          "decision": _MAP_VERDICT.get(ev.final_decision or "", "unrated"),
+                          "final_decision": ev.final_decision, "agreement": ev.agreement,
+                          "stale": bool(ev.stale)})
+
+    prov = rep.provenance
+    return {"claims": claims, "papers": list(papers.values()), "edges": edges,
+            "counts": {"claims": len(claims), "papers": len(papers), "links": len(edges)},
+            "generated_at": rep.generated_at, "warnings": rep.warnings,
+            "retraction_source": getattr(prov, "retraction_source", None),
+            "last_retraction_scan_at": getattr(prov, "last_retraction_scan_at", None)}
+
+
 def check_paragraph(text: str, *, root: Optional[str] = None):
     """Check-a-paragraph: for a snippet you just wrote, which sentences map to claims
     you've already vetted, which need attention, and which are new/untracked. Read-only,

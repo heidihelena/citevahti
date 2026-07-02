@@ -49,7 +49,8 @@ _STATIC = {"/": "index.html", "/index.html": "index.html",
            "/card-edit.js": "card-edit.js", "/review-actions.js": "review-actions.js",
            "/connect.js": "connect.js", "/search.js": "search.js",
            "/workspace.js": "workspace.js",
-           "/manuscripts.js": "manuscripts.js", "/checks.js": "checks.js", "/atlas.js": "atlas.js",
+           "/manuscripts.js": "manuscripts.js", "/checks.js": "checks.js",
+           "/evidence-map.js": "evidence-map.js", "/atlas.js": "atlas.js",
            "/output.js": "output.js", "/settings.js": "settings.js", "/prompts.js": "prompts.js",
            "/app.js": "app.js", "/styles.css": "styles.css",
            "/favicon.svg": "favicon.svg",
@@ -510,6 +511,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         # risk-first triage: the few claims worth attention now, worst-first (read-only).
         if method == "GET" and path == "/api/triage":
             return 200, engine.triage(root=root).model_dump()
+
+        # local claim<->evidence graph for the Atlas map + figure export (read-only).
+        if method == "GET" and path == "/api/evidence-map":
+            return 200, engine.evidence_map(root=root)
 
         # user-initiated update check: ONE outbound call to PyPI, made only when this
         # endpoint is hit (the panel calls it on a button click, never on load), so it

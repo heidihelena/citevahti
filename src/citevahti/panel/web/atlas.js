@@ -1,12 +1,26 @@
 /* CiteVahti panel — Atlas surface — the local evidence map + de-identified Atlas contribution (warehouse).
  * Split out of surfaces.js; classic script, loads before app.js. */
 
-/* ---------- Atlas surface (local evidence map + contribution) ----------
- * Hosts the warehouse modal inline; its ✕/Done route back via leaveModal(). */
+/* ---------- Atlas surface ----------
+ * Primary content is the local evidence map (evidence-map.js). The de-identified
+ * warehouse + Atlas contribution flow is a secondary section, opened as a modal so
+ * the two concerns are clearly separated (this tab used to show only the warehouse
+ * under a "Local evidence map" title — now the title matches the content). */
 function renderAtlasSurface() {
   const host = $("#atlas"); if (!host) return;
-  host.innerHTML = "";
-  openWarehouse(host);
+  host.innerHTML = `<div class="surfacepad">
+    <h2>Local evidence map</h2>
+    <p class="note"><b>Stored on this computer. Nothing uploaded.</b> Every claim in your ledger and the
+      papers tested against it — read-only, built from your own claims, ratings and decisions.</p>
+    <div id="emHost"></div>
+    <div class="cv-card">
+      <div class="lbl">De-identified warehouse · Atlas contribution</div>
+      <p class="note cv-m0">An opt-in, de-identified record of your claim-test work (claim <b>hash</b>, public
+        PMID/DOI, ratings) — stored locally, nothing uploaded. Build a contribution bundle to download.</p>
+      <div class="actions cv-mt"><button class="btn ghost" data-act="open-warehouse">Open warehouse & contribution…</button></div>
+    </div>
+  </div>`;
+  if (typeof renderEvidenceMapInto === "function") renderEvidenceMapInto($("#emHost"));
 }
 
 
@@ -23,7 +37,7 @@ function renderWarehouse(box, st) {
   const on = !!st.enabled, text = !!st.include_claim_text;
   const bundle = state.lastBundle;
   box.innerHTML = `<div class="modal-card wh">
-    <div class="modal-head"><h2 class="modal-title" id="whModal-title">Local evidence map</h2><button class="chip-btn" data-wh-close="1" aria-label="Close">✕</button></div>
+    <div class="modal-head"><h2 class="modal-title" id="whModal-title">De-identified warehouse · Atlas contribution</h2><button class="chip-btn" data-wh-close="1" aria-label="Close">✕</button></div>
     <div class="note"><b>Stored on this computer. Nothing uploaded.</b> An opt-in, de-identified record of your
       claim-test work — claim <b>hash</b> (not text), public PMID/DOI, and the ratings. Off by default.</div>
     <label class="wh-toggle"><input type="checkbox" id="whEnabled" ${on ? "checked" : ""}>
@@ -96,3 +110,6 @@ async function whAction(act) {
 }
 
 function closeWarehouse() { leaveModal("whModal", () => { state.lastBundle = null; }); }
+
+/* the Atlas surface opens the warehouse/contribution flow as a modal (no host) */
+if (typeof registerActions === "function") registerActions({ "open-warehouse": () => openWarehouse() });
