@@ -117,25 +117,32 @@ if [ -d "$APP" ]; then
   chmod +x "$MACOS_DIR/citevahti-engine/citevahti-engine" "$MACOS_DIR/citevahti-mcp/citevahti-mcp"
   echo "==> copied citevahti-engine/ + citevahti-mcp/ into $MACOS_DIR"
 
-  # codesign --deep refuses dotted directories under Contents/MacOS ("bundle format
-  # unrecognized" on e.g. _internal/click-8.4.2.dist-info) — the exact failure the first
-  # CI signing run of this sidecar layout died on. Apply PyInstaller's own trick (see the
-  # shell's Frameworks/python3__dot__11): rename the real directory with dots mangled to
-  # __dot__ and leave a same-name relative symlink — codesign seals the symlink as a
+  # codesign --deep refuses NON-BUNDLE dotted directories under Contents/MacOS ("bundle
+  # format unrecognized" on e.g. _internal/click-8.4.2.dist-info) — the exact failure the
+  # first CI signing run of this sidecar layout died on. Apply PyInstaller's own trick (see
+  # the shell's Frameworks/python3__dot__11): rename the real directory with dots mangled
+  # to __dot__ and leave a same-name relative symlink — codesign seals the symlink as a
   # symlink, the bootloader and importlib.metadata (keyring backend discovery) follow it,
   # and any Mach-O inside stays in a code location where --deep still signs it.
+  # *.framework subtrees are EXCLUDED: a framework is a real bundle codesign recognizes
+  # and signs inside-out on its own — mangling one (as the first attempt did to the CI
+  # python's Python.framework) breaks that ordering and the outer seal fails strict
+  # verification with "a sealed resource is missing or invalid / file added ...
+  # _CodeSignature/CodeResources". (grep, not -prune: -depth disables -prune in find.)
   find "$MACOS_DIR/citevahti-engine" "$MACOS_DIR/citevahti-mcp" -depth -type d -name "*.*" \
+  | { grep -vE '\.framework(/|$)' || true; } \
   | while IFS= read -r D; do
       B=$(basename "$D"); P=$(dirname "$D"); M="${B//./__dot__}"
       mv "$D" "$P/$M"
       ln -s "$M" "$D"
     done
-  LEFT=$(find "$MACOS_DIR/citevahti-engine" "$MACOS_DIR/citevahti-mcp" -type d -name "*.*" | wc -l | tr -d ' ')
+  LEFT=$(find "$MACOS_DIR/citevahti-engine" "$MACOS_DIR/citevahti-mcp" -type d -name "*.*" \
+         | grep -cvE '\.framework(/|$)' || true)
   if [ "$LEFT" != "0" ]; then
-    echo "ERROR: $LEFT dotted director(ies) still under Contents/MacOS — codesign --deep would fail" >&2
+    echo "ERROR: $LEFT non-framework dotted director(ies) still under Contents/MacOS — codesign --deep would fail" >&2
     exit 1
   fi
-  echo "==> mangled dotted sidecar dirs for codesign (real dir __dot__-renamed + symlink)"
+  echo "==> mangled dotted sidecar dirs for codesign (real dir __dot__-renamed + symlink; frameworks untouched)"
 fi
 
 # Stamp the real version into the .app Info.plist (PyInstaller defaults it to 0.0.0, which
