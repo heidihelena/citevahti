@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.44.1 — patch: the standalone (Route B) .mcpb shipped without the panel's web assets, so the review panel opened blank; the binary build now freezes them in and fails loudly if they're missing. Everything else unchanged from 0.44.0.
+## Status: v0.44.2 — patch pair: 0.44.1 fixed the blank review panel in the standalone (Route B) .mcpb (panel web assets weren't frozen in); 0.44.2 makes CiteVahti.app signable again (codesign chokes on dotted dirs in the sidecar layout — now mangled + symlinked, PyInstaller's own trick) and gives the app's agent sidecar the same panel-assets fix. All builds now fail loudly if panel assets or keyring are missing from a freeze. Everything else unchanged from 0.44.0.
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
