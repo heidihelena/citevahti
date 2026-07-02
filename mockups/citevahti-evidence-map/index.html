@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CiteVahti — local evidence map (mockup)</title>
+    <link rel="stylesheet" href="styles.css?v=1" />
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Local evidence map</h1>
+      <p class="sub"><b>Stored on this computer. Nothing uploaded.</b> Every claim in your manuscript
+        and the papers tested against it — edges coloured by your decision. Read-only; built from the
+        ledger the engine already keeps (claims, candidates, ratings, decisions). Static mockup.</p>
+
+      <div class="bar">
+        <div class="seg-ctl" id="switch" role="group" aria-label="Layout">
+          <button data-v="constellation" aria-pressed="true">Constellation</button>
+          <button data-v="spine" aria-pressed="false">Spine</button>
+          <button data-v="orbit" aria-pressed="false">Orbit</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="seg-ctl ai-modes" id="aiModes" role="group" aria-label="AI second opinion">
+          <button data-m="off" aria-pressed="true">Your decisions</button>
+          <button data-m="overlay" aria-pressed="false">+ AI 25%</button>
+          <button data-m="view" aria-pressed="false">AI view</button>
+        </div>
+        <button class="chip-btn" id="theme" type="button">◐ Light</button>
+      </div>
+
+      <div class="legend" id="legend"></div>
+
+      <div class="bar" id="orbitRail" style="display:none;gap:6px"></div>
+
+      <div class="mode-banner" id="aiBanner" hidden></div>
+
+      <div class="stage" id="stage">
+        <div class="host"></div>
+        <div class="detail" aria-live="polite"></div>
+      </div>
+
+      <p class="note">Click a node to focus it — its links light up and the panel lists each cited
+        paper with its support rating and verdict. Click empty space to clear. <b>Constellation</b> is the
+        whole-corpus overview; <b>Spine</b> lines claims up against their papers; <b>Orbit</b> puts one
+        claim in focus (pick it from the rail). No decision is inferred here — an <code>unrated</code>
+        (dashed, lilac) edge is a candidate you haven't judged yet. Toggle <b>AI second opinion</b> to
+        overlay the AI's blind support rating as a faint <b>25%</b> parallel strand — same hue when it
+        concurs with you, a different faint hue when it diverges. It's a suggestion, never a verdict;
+        your decision is always the solid edge.</p>
+    </div>
+
+    <script src="data.js?v=1"></script>
+    <script src="app.js?v=1"></script>
+  </body>
+</html>

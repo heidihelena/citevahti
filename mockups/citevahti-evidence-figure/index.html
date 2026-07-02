@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CiteVahti — evidence-map figure (publication)</title>
+    <link rel="stylesheet" href="figure.css?v=1" />
+  </head>
+  <body>
+    <div class="wrap pageintro">
+      <h1>Evidence-map figure — publication system</h1>
+      <p class="sub">The Spine layout hardened into a <b>directly publishable</b> figure: colour <b>and</b>
+        dash both encode the verdict (legible in greyscale and for colour-vision-deficient readers),
+        the legend, N, retraction key and honest-framing note live <b>inside</b> the figure, and it
+        exports as vector <b>SVG</b> or prints to <b>PDF</b> at real journal column widths. Static mockup;
+        the live panel would build the same figure from the ledger.</p>
+
+      <div class="toolbar">
+        <div class="grp"><span class="grp-lbl">Width</span>
+          <div class="seg-ctl" id="widthCtl" role="group" aria-label="Column width">
+            <button data-w="single" aria-pressed="false">Single 89mm</button>
+            <button data-w="onehalf" aria-pressed="false">1.5 · 120mm</button>
+            <button data-w="double" aria-pressed="true">Double 183mm</button>
+          </div>
+        </div>
+        <div class="grp"><span class="grp-lbl">Mapping</span>
+          <div class="seg-ctl" id="modeCtl" role="group" aria-label="Mapping">
+            <button data-m="adjudicated" aria-pressed="true">Adjudicated</button>
+            <button data-m="ai" aria-pressed="false">AI view</button>
+          </div>
+        </div>
+        <div class="grp"><span class="grp-lbl">Ink</span>
+          <div class="seg-ctl" id="inkCtl" role="group" aria-label="Ink">
+            <button data-ink="colour" aria-pressed="true">Colour</button>
+            <button data-ink="mono" aria-pressed="false">Greyscale</button>
+          </div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn primary" id="dlSvg" type="button">⬇ Download SVG</button>
+        <button class="btn" id="printPdf" type="button">🖶 Print / PDF</button>
+      </div>
+    </div>
+
+    <!-- the figure sheet: sized to the chosen column width, print-isolated -->
+    <div class="wrap sheet-wrap">
+      <div class="sheet" id="sheet"><div class="figure" id="figure"></div></div>
+    </div>
+
+    <div class="wrap pageintro">
+      <div class="cap-head"><span class="grp-lbl">Figure caption — copy for submission</span>
+        <button class="btn" id="copyCap" type="button">Copy caption</button></div>
+      <p class="caption" id="caption"></p>
+    </div>
+
+    <script src="data.js?v=1"></script>
+    <script src="figure.js?v=1"></script>
+  </body>
+</html>

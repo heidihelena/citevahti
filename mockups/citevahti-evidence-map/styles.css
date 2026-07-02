@@ -1,0 +1,165 @@
+/* CiteVahti — local evidence map (mockup). Static, read-only, offline: no CDN,
+ * no graph library — plain SVG. Tokens are copied verbatim from the panel
+ * (src/citevahti/panel/web/styles.css :root + .zs-dark) so the map inherits the
+ * exact colours, spacing and radii of the shipping design system. Graph-only
+ * classes live below the token block. Light by default; .zs-dark is the override. */
+
+:root {
+  --zs-ink: #1A1A1F; --zs-paper: #FFFFFF; --zs-surface: #F7F7F9; --zs-surface-2: #ECECEF;
+  --zs-line: #E2E2E7; --zs-muted: #6B6B73;
+  --zs-brand: #6B4E9E; --zs-brand-strong: #4B1778; --zs-brand-bg: #E7DCFF; --zs-brand-contrast: #FFFFFF;
+  --zs-panel: #F4EFFC; --zs-mark: #E4D8FB;
+  --zs-supported-bg: #FFE9A8; --zs-supported-border: #C98A00; --zs-supported-text: #5A4300;
+  --zs-partial-bg: #C9F2EA; --zs-partial-border: #1E9E8A; --zs-partial-text: #08544A;
+  --zs-revise-bg: #E7DBFF; --zs-revise-border: #8B6FC9; --zs-revise-text: #432C7A;
+  --zs-delete-bg: #FBD7E4; --zs-delete-border: #C24D7E; --zs-delete-text: #7A1F45;
+
+  --zs-space-2xs: 2px; --zs-space-xs: 4px; --zs-space-sm: 6px; --zs-space: 8px;
+  --zs-space-md: 10px; --zs-space-lg: 12px; --zs-space-xl: 16px; --zs-space-2xl: 24px;
+  --zs-radius-xs: 4px; --zs-radius-sm: 6px; --zs-radius: 8px; --zs-radius-md: 10px;
+  --zs-radius-lg: 12px; --zs-radius-pill: 999px;
+  --zs-text-2xs: 10px; --zs-text-xs: 11px; --zs-text-sm: 12px; --zs-text: 13px; --zs-text-lg: 14px;
+  --zs-shadow-1: 0 6px 18px rgba(0,0,0,.12);
+  --zs-shadow-2: 0 8px 24px rgba(0,0,0,.14);
+  --zs-dur: .15s;
+}
+.zs-dark {
+  --zs-ink: #ECECEF; --zs-paper: #0F0F12; --zs-surface: #0B0B0E; --zs-surface-2: #1A1A20;
+  --zs-line: #2A2A31; --zs-muted: #9A9AA4;
+  --zs-brand: #B79AE6; --zs-brand-strong: #E7D8FF; --zs-brand-bg: #2E2447; --zs-brand-contrast: #1B1230;
+  --zs-panel: #16131E; --zs-mark: #342A4D;
+  --zs-supported-bg: #3E3210; --zs-supported-border: #C99A1E; --zs-supported-text: #FFE2A0;
+  --zs-partial-bg: #0F332E; --zs-partial-border: #3FB3A0; --zs-partial-text: #B7F0E5;
+  --zs-revise-bg: #2E2350; --zs-revise-border: #8A6FD0; --zs-revise-text: #E3D6FF;
+  --zs-delete-bg: #3E1B2C; --zs-delete-border: #C8537F; --zs-delete-text: #FCC9DC;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--zs-surface); color: var(--zs-ink);
+  font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+/* ---- surface chrome (mirrors the panel surface header) ---- */
+.wrap { max-width: 1080px; margin: 0 auto; padding: var(--zs-space-2xl) var(--zs-space-xl); }
+h1 { font-size: 20px; font-weight: 700; margin: 0 0 var(--zs-space-xs); }
+.sub { color: var(--zs-muted); font-size: var(--zs-text-sm); margin: 0 0 var(--zs-space-xl); }
+.sub b { color: var(--zs-ink); }
+
+.bar { display: flex; align-items: center; gap: var(--zs-space); flex-wrap: wrap;
+  margin-bottom: var(--zs-space-lg); }
+.spacer { flex: 1; }
+
+/* variant switcher — segmented control */
+.seg-ctl { display: inline-flex; border: 1px solid var(--zs-line); border-radius: var(--zs-radius-pill);
+  background: var(--zs-paper); overflow: hidden; }
+.seg-ctl button { border: 0; background: transparent; color: var(--zs-muted); cursor: pointer;
+  font: 600 var(--zs-text-sm)/1 inherit; padding: 8px 14px; }
+.seg-ctl button[aria-pressed="true"] { background: var(--zs-brand-bg); color: var(--zs-brand-strong); }
+
+.chip-btn { border: 1px solid var(--zs-line); background: var(--zs-paper); color: var(--zs-ink);
+  border-radius: var(--zs-radius); cursor: pointer; font: 600 var(--zs-text-sm)/1 inherit; padding: 7px 10px; }
+.chip-btn:hover { border-color: var(--zs-brand); }
+
+/* legend */
+.legend { display: flex; gap: var(--zs-space-lg); flex-wrap: wrap; align-items: center;
+  padding: var(--zs-space) var(--zs-space-lg); margin-bottom: var(--zs-space-lg);
+  border: 1px solid var(--zs-line); border-radius: var(--zs-radius-md); background: var(--zs-paper); }
+.legchip { display: inline-flex; align-items: center; gap: var(--zs-space-sm);
+  font-size: var(--zs-text-xs); color: var(--zs-muted); }
+.legchip .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid; }
+.legchip code { font: 700 var(--zs-text-2xs)/1 ui-monospace, Menlo, monospace;
+  padding: 1px 3px; border-radius: var(--zs-radius-xs); border: 1px solid var(--zs-line); }
+.legend .sep { flex: 1; }
+.legend .meta { font-size: var(--zs-text-xs); color: var(--zs-muted); }
+
+/* hue tokens shared by dots / nodes / edges */
+.h-supported { --hue: var(--zs-supported-border); --hue-bg: var(--zs-supported-bg); --hue-tx: var(--zs-supported-text); }
+.h-partial   { --hue: var(--zs-partial-border);   --hue-bg: var(--zs-partial-bg);   --hue-tx: var(--zs-partial-text); }
+.h-revise    { --hue: var(--zs-revise-border);    --hue-bg: var(--zs-revise-bg);    --hue-tx: var(--zs-revise-text); }
+.h-delete    { --hue: var(--zs-delete-border);    --hue-bg: var(--zs-delete-bg);    --hue-tx: var(--zs-delete-text); }
+.h-pending   { --hue: var(--zs-brand);            --hue-bg: var(--zs-mark);         --hue-tx: var(--zs-brand-strong); }
+
+/* ---- graph stage ---- */
+.stage { position: relative; border: 1px solid var(--zs-line); border-radius: var(--zs-radius-lg);
+  background: var(--zs-paper); overflow: hidden; }
+.stage svg { display: block; width: 100%; height: auto; }
+
+/* SVG element styling (fill/stroke set via currentColor + hue vars on the node) */
+.edge { fill: none; stroke-linecap: round; transition: opacity var(--zs-dur), stroke-width var(--zs-dur); }
+.node { cursor: pointer; }
+.node .halo { fill: none; stroke: var(--zs-brand); opacity: 0; transition: opacity var(--zs-dur); }
+.node.sel .halo, .node.adj .halo { opacity: .9; }
+.node text { font: 600 11px/1 -apple-system, BlinkMacSystemFont, sans-serif; fill: var(--zs-ink); }
+.node .sub { font-weight: 400; fill: var(--zs-muted); font-size: 9.5px; }
+.node.claim .disc { fill: var(--zs-brand-bg); stroke: var(--zs-brand); stroke-width: 2; }
+.node.paper .disc { fill: var(--zs-paper); stroke: var(--zs-muted); stroke-width: 1.5; }
+
+/* AI second opinion — the faint 25% parallel strand. Deliberately subordinate to
+   the solid human edge: a suggestion, never a verdict. */
+.edge.ai { opacity: .25; }
+.stage.has-sel .edge.ai:not(.on) { opacity: .06; }
+.stage.has-sel .edge.ai.on { opacity: .25; }
+
+/* awaiting-judgement ghost edge (AI view, link you haven't judged) */
+.edge.ghost { opacity: .5; }
+
+/* retracted source — a FACT from the retraction scan, shown always */
+.node.retracted .disc { stroke: var(--zs-delete-border); stroke-width: 2; }
+.retr-ring { fill: none; stroke: var(--zs-delete-border); stroke-width: 1.4; stroke-dasharray: 2 2; }
+.retr-badge { font: 700 8.5px/1 ui-monospace, Menlo, monospace; fill: var(--zs-delete-text); }
+.retr-mark { color: var(--zs-delete-border); }
+
+/* AI-mode banner (explains the mode; states the blinding rule in words) */
+.mode-banner { margin-bottom: var(--zs-space-lg); padding: var(--zs-space) var(--zs-space-lg);
+  border: 1px solid var(--zs-brand); border-radius: var(--zs-radius-md); background: var(--zs-mark);
+  color: var(--zs-brand-strong); font-size: var(--zs-text-sm); }
+
+/* the AI-mode segmented control reuses .seg-ctl; nudge spacing before the theme button */
+.ai-modes { margin-right: var(--zs-space); }
+
+/* dimmed when a selection is active */
+.stage.has-sel .edge:not(.on) { opacity: .1; }
+.stage.has-sel .node:not(.sel):not(.adj) { opacity: .28; }
+
+/* bipartite (Spine) columns */
+.col-head { font: 700 var(--zs-text-2xs)/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
+  letter-spacing: .05em; fill: var(--zs-muted); }
+
+/* ---- detail flyout ---- */
+.detail { position: absolute; top: var(--zs-space-lg); right: var(--zs-space-lg); width: 300px;
+  max-width: calc(100% - var(--zs-space-2xl)); background: var(--zs-paper);
+  border: 1px solid var(--zs-line); border-radius: var(--zs-radius-lg); box-shadow: var(--zs-shadow-2);
+  padding: var(--zs-space-lg); font-size: var(--zs-text-sm); display: none; }
+.detail.show { display: block; }
+.detail h3 { margin: 0 0 var(--zs-space-xs); font-size: var(--zs-text); }
+.detail .kind { font: 700 var(--zs-text-2xs)/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
+  color: var(--zs-muted); margin-bottom: var(--zs-space-sm); }
+.detail .close { position: absolute; top: var(--zs-space); right: var(--zs-space); border: 0;
+  background: transparent; color: var(--zs-muted); cursor: pointer; font-size: 15px; }
+.detail .meta { color: var(--zs-muted); font-size: var(--zs-text-xs); margin: var(--zs-space-xs) 0 var(--zs-space); }
+.detail .edgerow { display: flex; align-items: center; gap: var(--zs-space-sm); padding: 5px 0;
+  border-top: 1px solid var(--zs-line); }
+.detail .edgerow:first-of-type { border-top: 0; }
+.detail .edgerow .txt { flex: 1; min-width: 0; }
+.detail .edgerow .txt b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.detail .edgerow .txt span { display: block; color: var(--zs-muted); font-size: var(--zs-text-xs); }
+.detail .edgerow .txt span.ai { opacity: .9; }
+.detail .edgerow .txt span.ai em { font-style: normal; font-weight: 600; }
+.detail .edgerow .txt span.ai.muted { font-style: italic; opacity: .8; }
+.tag-ok { color: var(--zs-partial-text); }
+.tag-warn { color: var(--zs-delete-text); }
+.tag-pending { color: var(--zs-brand); }
+.tag-muted { color: var(--zs-muted); }
+.detail .retr-flag { display: flex; gap: var(--zs-space-xs); align-items: center;
+  color: var(--zs-delete-text); background: var(--zs-delete-bg); border: 1px solid var(--zs-delete-border);
+  border-radius: var(--zs-radius-sm); padding: 4px var(--zs-space); font-size: var(--zs-text-xs);
+  font-weight: 600; margin: var(--zs-space-xs) 0; }
+
+/* status badge — same component as the panel */
+.cv-badge { display: inline-flex; align-items: center; gap: var(--zs-space-2xs); flex: none;
+  font: 700 var(--zs-text-xs)/1 ui-monospace, Menlo, monospace; padding: 2px 6px;
+  border: 1px solid var(--hue, var(--zs-line)); border-radius: var(--zs-radius-xs);
+  color: var(--hue-tx, var(--zs-muted)); background: var(--hue-bg, var(--zs-surface-2)); }
+
+.note { color: var(--zs-muted); font-size: var(--zs-text-sm); margin-top: var(--zs-space-lg); }
+.note code { font-family: ui-monospace, Menlo, monospace; font-size: var(--zs-text-xs); }
