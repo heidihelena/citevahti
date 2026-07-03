@@ -4,7 +4,22 @@ from __future__ import annotations
 
 import sys
 
+import pytest
+
 from citevahti import paths
+
+# Captured at import time, before any fixture runs: this module asserts the REAL
+# platform resolution that conftest's autouse ``_isolate_host_state`` deliberately
+# replaces for every other test. These tests only build path strings under fake
+# HOME/XDG env vars — they never create or write the directories.
+_REAL_LOG_DIR = paths.log_dir
+_REAL_RUNTIME_DIR = paths.runtime_dir
+
+
+@pytest.fixture(autouse=True)
+def _real_path_resolution(monkeypatch):
+    monkeypatch.setattr("citevahti.paths.log_dir", _REAL_LOG_DIR)
+    monkeypatch.setattr("citevahti.paths.runtime_dir", _REAL_RUNTIME_DIR)
 
 
 def test_log_dir_macos(monkeypatch):

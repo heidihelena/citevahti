@@ -6,6 +6,20 @@ from typing import Any, Optional
 
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _isolate_host_state(tmp_path, monkeypatch):
+    """No test may touch the real user's log or runtime-handshake directories.
+
+    Running the suite on a machine where CiteVahti.app was live wrote pytest engine
+    runs straight into the user's ``~/Library/Logs/CiteVahti/engine.log``
+    (2026-07-02). Individual tests already isolate what they know they use; this is
+    the backstop for the path a test doesn't realize it exercises. Tests that assert
+    on these locations simply monkeypatch over it, as before.
+    """
+    monkeypatch.setattr("citevahti.paths.log_dir", lambda: tmp_path / "_host_logs")
+    monkeypatch.setattr("citevahti.paths.runtime_dir", lambda: tmp_path / "_host_runtime")
+
 from citevahti.probe.client import HttpResponse, ProbeTransportError
 from citevahti.schemas.common import ItemRef
 from citevahti.schemas.frame import Domain, Frame, Level, Outcome, Scheme, Study

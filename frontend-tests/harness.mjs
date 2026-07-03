@@ -14,7 +14,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.resolve(HERE, "..", "src", "citevahti", "panel", "web");
 
 // the exact load order index.html uses
-const FILES = ["state.js", "util.js", "api.js", "modal.js", "feedback.js", "events.js", "card.js",
+const FILES = ["reconnect.js", "state.js", "util.js", "api.js", "modal.js", "feedback.js", "events.js", "card.js",
   "card-phases.js", "card-edit.js", "review-actions.js", "connect.js", "search.js", "workspace.js",
   "manuscripts.js", "checks.js", "evidence-map.js", "atlas.js", "output.js", "settings.js", "prompts.js", "app.js"];
 
@@ -44,6 +44,7 @@ export function makeFetch(routes, log) {
 }
 
 const DEFAULTS = () => ({
+  "GET /api/ping": { ok: true, boot_id: "test-boot" },
   "GET /api/session": { csrf_token: "test-token" },
   "GET /api/context": { root: "/x/demo", claim_total: 0, manuscripts_dir: "/x/demo/manuscripts" },
   "GET /api/health": { connections: {}, can_write: [], version: "9.9.9" },

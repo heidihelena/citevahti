@@ -116,12 +116,25 @@ def _mcp_cmd(root: str) -> list[str]:
     return paths.dev_fallback_cmd("citevahti.agent.mcp_server") + tail
 
 
+# Liveness probing must be cheap and tolerant. /api/health is NOT a liveness endpoint —
+# its live Zotero/PubMed connection checks routinely take >1 s, and probing it on a 1 s
+# timeout declared a healthy engine "wedged" three times in a minute on a busy machine
+# (2026-07-02), killing it and stranding the panel window each time. Probe the constant-
+# time /api/ping instead, with a timeout sized for a loaded machine, not a fast one.
+_PROBE_TIMEOUT = 3.0
+
+
 def _engine_health_probe(root: str) -> Callable[[], bool]:
     def probe() -> bool:
         data = runtime_state.read_runtime_file("engine")
         if data is None or data.get("root") != root:
             return False
-        return is_citevahti_panel(data["url"])
+        try:
+            import httpx
+            resp = httpx.get(f"{data['url']}/api/ping", timeout=_PROBE_TIMEOUT)
+        except Exception:
+            return False
+        return resp.status_code == 200 and resp.json().get("ok") is True
     return probe
 
 
@@ -132,7 +145,7 @@ def _mcp_health_probe(root: str) -> Callable[[], bool]:
             return False
         try:
             import httpx
-            resp = httpx.get(f"{data['url']}/health", timeout=1.0)
+            resp = httpx.get(f"{data['url']}/health", timeout=_PROBE_TIMEOUT)
             body = resp.json()
         except Exception:
             return False
@@ -148,18 +161,27 @@ def _mcp_health_probe(root: str) -> Callable[[], bool]:
 _SIDECAR_STARTUP_TIMEOUT = 30.0
 
 
+# How many consecutive failed probes (at ~1 s intervals) before a sidecar is declared
+# wedged and restarted. The default 3 proved trigger-happy: three slow seconds on a busy
+# machine murdered a perfectly healthy engine (2026-07-02). A genuinely wedged sidecar is
+# still wedged ten seconds later; a machine under momentary load is not.
+_SIDECAR_WEDGE_THRESHOLD = 10
+
+
 def _default_engine_supervisor(root: str, on_state_change=None) -> SidecarSupervisor:
     return SidecarSupervisor(
         "engine", _engine_cmd(root), _engine_health_probe(root),
         on_state_change=on_state_change, logger=applog.get_logger("app"),
-        runtime_name="engine", startup_timeout=_SIDECAR_STARTUP_TIMEOUT)
+        runtime_name="engine", startup_timeout=_SIDECAR_STARTUP_TIMEOUT,
+        wedge_threshold=_SIDECAR_WEDGE_THRESHOLD)
 
 
 def _default_mcp_supervisor(root: str, on_state_change=None) -> SidecarSupervisor:
     return SidecarSupervisor(
         "mcp", _mcp_cmd(root), _mcp_health_probe(root),
         on_state_change=on_state_change, logger=applog.get_logger("app"),
-        runtime_name="mcp", startup_timeout=_SIDECAR_STARTUP_TIMEOUT)
+        runtime_name="mcp", startup_timeout=_SIDECAR_STARTUP_TIMEOUT,
+        wedge_threshold=_SIDECAR_WEDGE_THRESHOLD)
 
 
 # ---- the shell ---------------------------------------------------------------
@@ -298,17 +320,23 @@ class CiteVahtiShell:
         never opened is not a visible failure."""
         try:
             if new_state == SidecarSupervisor.RUNNING and self._panel_loaded:
+                self.logger.info("engine is RUNNING again — reloading the panel window")
                 self._load_panel_url()
             elif new_state == SidecarSupervisor.ERROR:
                 self._show_engine_error()
         except Exception:  # noqa: BLE001 — window upkeep must never crash a supervisor
-            pass
+            # ... but it must never fail SILENTLY either: this exact swallow hid why a
+            # restarted engine's window stayed frozen in the field (2026-07-02).
+            self.logger.exception("window upkeep after engine state change failed")
         self._on_any_state_change(old_state, new_state)
 
     # ---- window content -------------------------------------------------------
     def _load_panel_url(self) -> None:
         data = runtime_state.read_runtime_file("engine")
         if data is None or self._window is None:
+            self.logger.warning(
+                "cannot load the panel URL (%s) — showing the engine-error page",
+                "no engine runtime file" if data is None else "no window attached")
             self._show_engine_error()
             return
         self._window.load_url(data["url"])

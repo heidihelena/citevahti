@@ -75,7 +75,7 @@ def test_panel_get_endpoints_and_agent_reads_dont_touch_the_audited_ledger(tmp_p
     mid = dispatch(root, "GET", "/api/manuscripts", None)[1]["manuscripts"][0]["manuscript_id"]
     before = _audited_fingerprint(tmp_path)
 
-    for path in ("/api/context", "/api/claims", "/api/triage", "/api/manuscripts",
+    for path in ("/api/ping", "/api/context", "/api/claims", "/api/triage", "/api/manuscripts",
                  f"/api/manuscript/{mid}", f"/api/claims/{cid}",
                  f"/api/claims/{cid}/history", "/api/next", "/api/prompts", "/api/draft-context"):
         status, _ = dispatch(root, "GET", path, None)

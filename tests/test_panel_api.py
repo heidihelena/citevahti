@@ -1511,3 +1511,21 @@ def test_claim_detail_carries_panel_x_of_n(tmp_path):
     panel = two["candidates"][0]["panel"]
     assert panel and panel["n_raters"] == 2
     assert panel["headline"] == "1 of 2 support" and panel["tier"] == "review"
+
+
+# ---- /api/ping: the cheap liveness beacon ------------------------------------
+def test_ping_is_a_cheap_liveness_beacon_with_a_stable_boot_id(tmp_path):
+    """/api/ping answers instantly with a per-process boot id — the app supervisor's
+    liveness probe and the page's reconnect watchdog (web/reconnect.js) both depend
+    on it. It must not call the engine or the network (probing the expensive
+    /api/health as liveness killed a healthy engine in the field, 2026-07-02), so it
+    answers even on an empty root with no ledger."""
+    status, body = dispatch(str(tmp_path), "GET", "/api/ping", None)
+    assert status == 200
+    assert body["ok"] is True
+    assert body["boot_id"]
+    status2, body2 = dispatch(str(tmp_path), "GET", "/api/ping", None)
+    assert status2 == 200
+    # stable within one serving process: only a RESTART may change it (that change is
+    # exactly what tells a stale page to reload itself)
+    assert body2["boot_id"] == body["boot_id"]

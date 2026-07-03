@@ -6,6 +6,29 @@ previous one.
 
 ## [Unreleased]
 
+### Fixed
+- **The desktop app's supervisor killed healthy engines, and the stranded panel window
+  never recovered** (seen live 2026-07-02: three "wedged" restarts in a minute on a busy
+  machine, then a frozen panel that ignored every click and key). Three-layer fix:
+  - **A cheap liveness endpoint.** New read-only `GET /api/ping` (constant-time, no
+    engine call, no network) with a per-process `boot_id`. The supervisor's probe now
+    hits it instead of `/api/health` — whose live Zotero/PubMed connection checks
+    routinely exceed the old 1 s probe timeout — with a 3 s timeout, and the wedge
+    threshold rises from 3 to 10 consecutive misses: momentary load no longer murders a
+    healthy engine, while a genuinely wedged one is still replaced within ~10 s.
+  - **The page heals itself.** A new liveness watchdog (`panel/web/reconnect.js`, loaded
+    before all other panel scripts) polls `/api/ping`: on connection loss it says so in
+    an overlay ("your claims and ratings are safe on disk") instead of silently ignoring
+    input; when the backend returns under a **new** `boot_id` (a replaced engine ⇒ fresh
+    CSRF session), the page reloads itself rather than keep driving a dead session.
+    Works in the app's webview and in a plain browser tab alike.
+  - **No more silent window upkeep.** The shell's reload-on-engine-restart path now logs
+    what it does — and logs the exception when it fails, instead of swallowing it.
+- **The test suite wrote into the real user's app logs.** Running `pytest` on a machine
+  where CiteVahti.app was open appended pytest engine runs to
+  `~/Library/Logs/CiteVahti/engine.log`. An autouse fixture now redirects the log and
+  runtime-handshake directories to a temp dir for every test as a backstop.
+
 ### Added
 - **Local evidence map in the Atlas tab.** The Atlas tab was titled "Local evidence map"
   but only rendered the de-identified warehouse; it now leads with the real, read-only
