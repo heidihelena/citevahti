@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.44.3 — patch series: 0.44.1 fixed the blank review panel in the standalone (Route B) .mcpb (panel web assets weren't frozen in); 0.44.2 made CiteVahti.app's sidecar layout signable (non-bundle dotted dirs mangled + symlinked, PyInstaller's own trick) and gave the app's agent sidecar the same panel-assets fix; 0.44.3 excludes Python.framework from that mangling (a real nested bundle codesign signs inside-out itself — CI builds with a framework Python). All builds now fail loudly if panel assets or keyring are missing from a freeze. Everything else unchanged from 0.44.0.
+## Status: v0.45.0 — the Atlas tab now shows the real local evidence map (claim↔evidence graph, decision-coloured links, retraction flags, blinded AI view, publication-grade SVG figure export), and the app became self-healing: the supervisor no longer kills healthy engines under momentary load (cheap /api/ping liveness probe, tolerant threshold), and the panel page detects a dead or replaced backend and reloads itself instead of silently ignoring input. Engine, safety, and write-path behaviour unchanged.
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →

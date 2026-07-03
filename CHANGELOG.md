@@ -6,6 +6,13 @@ previous one.
 
 ## [Unreleased]
 
+## 0.45.0 — the local evidence map, and a panel that heals itself (2026-07-03)
+
+A feature and a field fix. The Atlas tab now shows the real claim↔evidence graph with a
+publication-grade figure export; and the desktop app no longer kills healthy engines under
+load — while the panel page detects a dead or replaced backend and recovers by itself
+instead of silently ignoring every click.
+
 ### Fixed
 - **The desktop app's supervisor killed healthy engines, and the stranded panel window
   never recovered** (seen live 2026-07-02: three "wedged" restarts in a minute on a busy
