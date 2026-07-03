@@ -143,6 +143,13 @@ if [ -d "$APP" ]; then
     exit 1
   fi
   echo "==> mangled dotted sidecar dirs for codesign (real dir __dot__-renamed + symlink; frameworks untouched)"
+
+  # "It froze" is not "it works": run both sidecars from INSIDE the bundle the way the
+  # product does (engine = the app window's server; mcp = an agent's open_review_panel)
+  # on ephemeral ports with throwaway roots — never a live instance, never a real ledger.
+  echo "==> Smoke test: both sidecars serve the panel from inside the bundle ..."
+  python3 smoke_frozen_panel.py "$MACOS_DIR/citevahti-engine/citevahti-engine" --mode engine
+  python3 smoke_frozen_panel.py "$MACOS_DIR/citevahti-mcp/citevahti-mcp" --mode mcp
 fi
 
 # Stamp the real version into the .app Info.plist (PyInstaller defaults it to 0.0.0, which

@@ -109,6 +109,11 @@ jobs:
                        "the .mcpb would ship with a blank panel or dead Zotero connect.")
           print("verified: keyring + panel web assets frozen into citevahti-mcp")
           PY
+      # "It froze" is not "it works": run the binary through the real open_review_panel
+      # path and fetch the panel over HTTP before packing anything (ephemeral port,
+      # throwaway root). The 0.44.x series shipped three builds that only failed here.
+      - name: Smoke-run the frozen binary (serves the panel)
+        run: python smoke_frozen_panel.py "dist/${{ matrix.binname }}"
       - name: Stage + generate per-OS manifest
         env:
           PLATFORM: ${{ matrix.platform }}
@@ -262,6 +267,10 @@ jobs:
             --entitlements entitlements.plist --sign "$SIGN_IDENTITY" dist/citevahti-mcp
           codesign --verify --strict --verbose=2 dist/citevahti-mcp
           ./dist/citevahti-mcp --help >/dev/null && echo "signed binary runs"
+      # Run the SIGNED binary through the real panel path (hardened runtime + onefile
+      # can produce a signed binary that runs but can't serve) before packing/notarizing.
+      - name: Smoke-run the frozen binary (serves the panel)
+        run: python smoke_frozen_panel.py dist/citevahti-mcp
       - name: Stage + generate macOS manifest
         run: |
           python - <<'PY'
@@ -407,6 +416,14 @@ jobs:
           codesign --force --deep --options runtime --timestamp \
             --entitlements entitlements.plist --sign "$SIGN_IDENTITY" "$APP"
           codesign --verify --strict --verbose=2 "$APP"
+      # Run both SIGNED sidecars from inside the bundle the way the product does —
+      # engine = the app window's server, mcp = an agent's open_review_panel — before
+      # spending a notary round-trip. Ephemeral ports, throwaway roots.
+      - name: Smoke-run both sidecars (serve the panel; signed when signing is enabled)
+        run: |
+          APP="build/app/dist/CiteVahti.app"
+          python smoke_frozen_panel.py "$APP/Contents/MacOS/citevahti-engine/citevahti-engine" --mode engine
+          python smoke_frozen_panel.py "$APP/Contents/MacOS/citevahti-mcp/citevahti-mcp" --mode mcp
       - name: Zip for notarization (ditto preserves the bundle)
         run: |
           mkdir -p out

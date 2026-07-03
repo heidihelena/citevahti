@@ -31,6 +31,8 @@ codesign --verify --strict --verbose=2 "$BIN"
 # sanity: confirm the binary STILL RUNS after signing (onefile + hardened runtime can break it)
 echo "==> post-sign smoke test (must still print help):"
 "./$BIN" --help >/dev/null && echo "   OK — signed binary runs" || { echo "   FAILED — signed binary won't run; revisit entitlements / consider --onedir"; exit 1; }
+echo "==> post-sign smoke test (panel over MCP stdio) — before spending a notary round-trip:"
+python3 smoke_frozen_panel.py "$BIN"
 
 echo "==> re-pack the .mcpb so it contains the SIGNED binary"
 STAGE="build/stage-signed"
