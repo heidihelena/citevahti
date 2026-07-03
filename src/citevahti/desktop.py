@@ -40,7 +40,6 @@ from typing import Callable, Optional
 
 from . import appprefs, applog, paths, runtime_state
 from .rootcfg import has_ledger, remember_root, resolve_root
-from .start import is_citevahti_panel
 from .state import CiteVahtiStore
 from .supervisor import SidecarSupervisor
 
