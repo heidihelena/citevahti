@@ -501,6 +501,7 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, {"root": str(Path(root).expanduser()),
                          "claim_total": rep.total,
                          "manuscripts_dir": prefs.get_manuscripts_dir(root),
+                         "auto_update_check": prefs.get_auto_update_check(root),
                          "vocabulary": workflow.vocabulary()}   # verdicts/states/phases (single source)
 
         # project-level "what's next" — the one next action for the whole project,
@@ -531,10 +532,18 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, engine.evidence_map(root=root)
 
         # user-initiated update check: ONE outbound call to PyPI, made only when this
-        # endpoint is hit (the panel calls it on a button click, never on load), so it
-        # doesn't weaken the local-first/no-silent-egress posture. Read-only, no install.
+        # endpoint is hit (a button click — or once at panel open IF the user turned on
+        # the default-off Settings checkbox), so the local-first/no-silent-egress
+        # posture holds: the launch-time call exists only by explicit, disclosed opt-in.
+        # Read-only, no install.
         if method == "GET" and path == "/api/check-update":
             return 200, engine.check_update()
+
+        # the opt-in switch for the launch-time check above (panel.json UI-state pref;
+        # default OFF — see prefs.get_auto_update_check)
+        if method == "POST" and path == "/api/prefs/update-check":
+            prefs.set_auto_update_check(root, bool(body.get("enabled")))
+            return 200, {"enabled": prefs.get_auto_update_check(root)}
 
         if method == "POST" and path == "/api/report/packet":
             return 200, engine.export_review_packet(root=root)

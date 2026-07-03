@@ -35,6 +35,7 @@ async function boot() {
   await loadHealth();
   loadAudit();
   const nav = $("#surfnav"); if (nav) nav.hidden = false;   // the surface router is live now
+  maybeAutoUpdateCheck();   // fire-and-forget; only acts if the user opted in (Settings)
   // An empty ledger opens on the Manuscripts surface (intake); otherwise the review
   // workspace. Either way both surfaces stay reachable from the header nav.
   if (!state.ctx.claim_total) return renderSurface("manuscripts");
@@ -365,6 +366,27 @@ registerActions({
 });
 // User-initiated update check: the ONLY moment the panel talks to PyPI, and only on this
 // click — never on load — so it doesn't weaken the no-silent-egress posture. Read-only.
+/* Launch-time update check — STRICTLY opt-in (Settings checkbox, default off): one
+ * request to pypi.org per panel open, only when the user chose it. Failure is silent —
+ * a courtesy check must never disturb boot — and success is a quiet header badge, not
+ * a toast. */
+async function maybeAutoUpdateCheck() {
+  if (!state.ctx || !state.ctx.auto_update_check) return;
+  try {
+    const r = await api("GET", "/api/check-update");
+    if (r.checked && r.update_available) renderUpdateBadge(r.latest);
+  } catch { /* offline or PyPI unreachable — say nothing */ }
+}
+
+function renderUpdateBadge(latest) {
+  const host = $(".beta-badge");
+  if (!host || $("#updateBadge")) return;
+  host.insertAdjacentHTML("afterend",
+    ` <button id="updateBadge" class="linklike"
+        title="A newer CiteVahti is on PyPI — open Settings for the update steps">⬆ ${esc(latest)} available</button>`);
+  $("#updateBadge").addEventListener("click", () => renderSurface("settings"));
+}
+
 async function checkForUpdates() {
   const tm = $("#toolsmenu"); if (tm) tm.removeAttribute("open");
   notify("Checking PyPI for a newer version…", { kind: "ok", sticky: true });
@@ -395,6 +417,19 @@ document.addEventListener("change", (e) => {
   if (e.target.id === "aiEndpoint") return void aiConfigure({ endpoint: e.target.value.trim() });
   // the Settings-surface copy of the keyboard-shortcuts toggle
   if (e.target.id === "hkToggle2") return void setHotkeysOff(e.target.checked);
+  // opt-in launch-time update check (Settings) — persisted server-side in panel.json
+  if (e.target.id === "autoUpdChk") {
+    const enabled = e.target.checked;
+    return void api("POST", "/api/prefs/update-check", { enabled })
+      .then((r) => {
+        state.ctx.auto_update_check = r.enabled;
+        notify(r.enabled
+          ? "Will check PyPI for a newer version once each time the panel opens."
+          : "Launch-time update check off — the ⬆ Check for updates button still works.",
+          { kind: "ok" });
+      })
+      .catch((err) => { e.target.checked = !enabled; notify(err.message); });
+  }
 });
 $("#auditBadge").addEventListener("click", () => { loadAudit(); openReviewRecord(); });
 $("#legendBtn").addEventListener("click", () => {

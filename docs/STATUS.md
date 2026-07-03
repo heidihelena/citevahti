@@ -44,7 +44,10 @@ was an earlier, narrower scope.) The one other outbound call is **opt-in and use
 running `check-update`, clicking the panel's **Check for updates** button, or calling the
 `check_update` agent tool makes a single request to the public PyPI API to see whether a newer
 release exists — it sends no data about you and never installs anything; pair it with
-`status`, which reports the version you're *running*. The signed-update channel for the
+`status`, which reports the version you're *running*. One **optional, default-off** Settings
+checkbox extends this: when you tick "also check once each time the panel opens", the panel
+makes that same single PyPI request at launch and shows a quiet ⬆ badge if a newer version
+exists — untick it and the launch-time call stops. The signed-update channel for the
 desktop app (`docs/AUTO_UPDATE.md`) is the same shape: it contacts the configured update
 server **only on the frozen app, only when auto-update is configured** (off by default), sends
 no data about you, and never applies an update without your say-so.

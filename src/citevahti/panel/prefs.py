@@ -113,3 +113,16 @@ def discover_ledgers(active_root: Optional[str] = None) -> list[dict]:
             mtime = 0.0
         out.append({"root": str(ledger.parent), "ledger": str(ledger), "claims": n, "mtime": mtime})
     return out
+
+
+def get_auto_update_check(root: str) -> bool:
+    """Opt-in, default OFF: whether the panel may make ONE update check against PyPI
+    when it opens. Off = the documented no-launch-time-phone-home posture; turning it
+    on is an explicit, disclosed choice made in the Settings surface."""
+    return bool(load_panel(root).get("auto_update_check", False))
+
+
+def set_auto_update_check(root: str, enabled: bool) -> None:
+    data = load_panel(root)
+    data["auto_update_check"] = bool(enabled)
+    save_panel(root, data)
