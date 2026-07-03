@@ -6,6 +6,15 @@ previous one.
 
 ## [Unreleased]
 
+### Added
+- **Opt-in launch-time update check.** A new Settings checkbox — **default off** — makes
+  the panel ask PyPI once, when it opens, whether a newer CiteVahti exists; a quiet ⬆
+  badge appears in the header when one does (clicking it opens Settings with the update
+  steps). Off, nothing changes: the documented no-launch-time-phone-home posture holds,
+  and the manual **Check for updates** button keeps working as before. The choice is
+  stored per-project (`panel.json`), the check sends nothing about you, and a failed
+  check stays silent — a courtesy lookup must never disturb boot.
+
 ### Fixed
 - **Three silent panel dead-ends now say what's wrong and what works** (each cost a real
   reviewer real time before being reported):

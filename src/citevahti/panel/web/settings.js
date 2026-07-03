@@ -16,9 +16,13 @@ function renderSettingsSurface() {
     </div>
     <div class="seg">
       <div class="lbl">Updates</div>
-      <p class="note">Check PyPI for a newer CiteVahti release. Read-only and only when you click — it
-        sends nothing about you and never installs.</p>
+      <p class="note">Check PyPI for a newer CiteVahti release. Read-only — it sends nothing
+        about you and never installs. By default it runs only when you click.</p>
       <div class="actions"><button class="btn ghost" data-act="check-update">⬆ Check for updates</button></div>
+      <label class="hkoff"><input type="checkbox" id="autoUpdChk"
+        ${state.ctx && state.ctx.auto_update_check ? "checked" : ""}/> also check once each time
+        the panel opens (one request to pypi.org; a quiet ⬆ badge appears if a newer
+        version exists)</label>
     </div>
     <div id="settingsAi"></div>
   </div>`;

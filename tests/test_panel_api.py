@@ -1529,3 +1529,20 @@ def test_ping_is_a_cheap_liveness_beacon_with_a_stable_boot_id(tmp_path):
     # stable within one serving process: only a RESTART may change it (that change is
     # exactly what tells a stale page to reload itself)
     assert body2["boot_id"] == body["boot_id"]
+
+
+def test_auto_update_check_pref_defaults_off_and_toggles(tmp_path):
+    """The launch-time update check is OPT-IN: default off (the documented
+    no-launch-time-phone-home posture), flipped only via the Settings checkbox
+    (POST /api/prefs/update-check), and carried to the page in /api/context."""
+    _setup(tmp_path)
+    root = str(tmp_path)
+    assert dispatch(root, "GET", "/api/context", None)[1]["auto_update_check"] is False
+
+    status, body = dispatch(root, "POST", "/api/prefs/update-check", {"enabled": True})
+    assert status == 200 and body["enabled"] is True
+    assert dispatch(root, "GET", "/api/context", None)[1]["auto_update_check"] is True
+
+    status, body = dispatch(root, "POST", "/api/prefs/update-check", {"enabled": False})
+    assert status == 200 and body["enabled"] is False
+    assert dispatch(root, "GET", "/api/context", None)[1]["auto_update_check"] is False
