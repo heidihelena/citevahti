@@ -506,3 +506,66 @@ def test_missing_pywebview_gives_an_install_hint(monkeypatch):
     monkeypatch.setitem(sys.modules, "webview", None)
     with pytest.raises(RuntimeError, match=r"citevahti\[app\]"):
         desktop._import_webview()
+
+
+# ---- sidecar liveness probing: cheap, tolerant, never /api/health ----------------
+def test_engine_probe_pings_the_cheap_endpoint_with_a_tolerant_timeout(tmp_path, monkeypatch):
+    """The probe must hit /api/ping (constant-time), never /api/health (live Zotero/
+    PubMed checks, routinely >1 s) — and give a loaded machine room to answer. The
+    old health-on-1s probe declared a healthy engine wedged 3× in a minute
+    (2026-07-02), and every kill stranded the panel window."""
+    _isolate(monkeypatch, tmp_path)
+    runtime_state.write_runtime_file(
+        "engine", url="http://127.0.0.1:65432", pid=os.getpid(), root=str(tmp_path),
+        started_at="2026-07-02T00:00:00")
+    calls = {}
+
+    class _Resp:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"ok": True}
+
+    def fake_get(url, timeout):
+        calls["url"], calls["timeout"] = url, timeout
+        return _Resp()
+
+    import httpx
+    monkeypatch.setattr(httpx, "get", fake_get)
+    probe = desktop._engine_health_probe(str(tmp_path))
+    assert probe() is True
+    assert calls["url"].endswith("/api/ping"), "liveness must never probe the expensive /api/health"
+    assert calls["timeout"] >= 3.0
+
+
+def test_engine_probe_fails_closed_on_connection_error_and_foreign_root(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    probe = desktop._engine_health_probe(str(tmp_path))
+    assert probe() is False                      # no runtime file yet
+
+    runtime_state.write_runtime_file(
+        "engine", url="http://127.0.0.1:65432", pid=os.getpid(), root="/somewhere/else",
+        started_at="2026-07-02T00:00:00")
+    assert probe() is False                      # another project's engine is not our health
+
+    runtime_state.write_runtime_file(
+        "engine", url="http://127.0.0.1:65432", pid=os.getpid(), root=str(tmp_path),
+        started_at="2026-07-02T00:00:00")
+
+    import httpx
+
+    def refuse(url, timeout):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(httpx, "get", refuse)
+    assert probe() is False
+
+
+def test_sidecar_supervisors_tolerate_transient_probe_misses(tmp_path, monkeypatch):
+    """wedge_threshold=3 at ~1 s polls killed a HEALTHY engine on a busy machine; the
+    shell must configure a tolerance momentary load can survive. A genuinely wedged
+    sidecar is still wedged ten seconds later."""
+    _isolate(monkeypatch, tmp_path)
+    assert desktop._default_engine_supervisor(str(tmp_path)).wedge_threshold >= 10
+    assert desktop._default_mcp_supervisor(str(tmp_path)).wedge_threshold >= 10

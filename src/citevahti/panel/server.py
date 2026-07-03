@@ -41,8 +41,15 @@ from . import manuscript as M
 from . import prefs
 
 WEB_DIR = Path(__file__).parent / "web"
+
+# Changes on every serving-process restart. The page's liveness watchdog (web/reconnect.js)
+# compares it across /api/ping beats: a NEW boot_id means the engine was replaced underneath
+# the page (fresh CSRF session, fresh state) and the page must reload itself.
+_BOOT_ID = uuid.uuid4().hex
+
 _STATIC = {"/": "index.html", "/index.html": "index.html",
            # classic scripts loaded before app.js, in dependency order
+           "/reconnect.js": "reconnect.js",
            "/state.js": "state.js", "/util.js": "util.js", "/api.js": "api.js",
            "/modal.js": "modal.js", "/feedback.js": "feedback.js", "/events.js": "events.js",
            "/card.js": "card.js", "/card-phases.js": "card-phases.js",
@@ -314,6 +321,13 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
     body = body or {}
     try:
         # ---- reads ----------------------------------------------------------
+        if method == "GET" and path == "/api/ping":
+            # Cheap liveness: no engine call, no network. /api/health is NOT a liveness
+            # probe — its live Zotero/PubMed connection checks routinely take >1 s, and
+            # probing it on a 1 s timeout got a healthy engine killed by the app's
+            # supervisor (2026-07-02) and the panel window stranded on a dead session.
+            return 200, {"ok": True, "boot_id": _BOOT_ID}
+
         if method == "GET" and path == "/api/health":
             return 200, agent.tools.status(root=root)
 
