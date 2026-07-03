@@ -95,8 +95,10 @@ If your change touches a security control (loopback panel, agent surface, decisi
 integrity, a write path), it belongs in the `security` group — mark its test
 `@pytest.mark.security` and add a row to the table in `SECURITY.md`.
 
-When building distributable artifacts, **verify the artifact contains what it claims** —
-silent omission is the classic packaging bug:
+When building distributable artifacts, **verify the artifact contains what it claims AND
+runs the way the product runs it** — the 0.44.x series shipped three consecutive builds
+that froze and signed cleanly, then failed only in a user's hands (blank panel from
+missing package data; an unsignable sidecar layout; a mangled `Python.framework`):
 
 - **Wheel** — the panel UI ships as package data. Confirm `citevahti/panel/web/{index.html,
   app.js,styles.css}` are inside the `.whl` (the publish workflow already asserts this; if you
@@ -106,6 +108,22 @@ silent omission is the classic packaging bug:
   After signing a binary, **smoke-test that it still runs** — a hardened runtime + onefile
   freeze can produce a signed binary that won't launch (`sign-notarize.sh` does this check;
   keep it).
+- **Smoke-RUN the frozen artifact** — `desktop-extension/smoke_frozen_panel.py` drives the
+  frozen binary through the real `open_review_panel` MCP path (or the engine sidecar via
+  `--mode engine`) and fetches the panel expecting 200s — on an ephemeral port with a
+  throwaway root. The build scripts and all four release-build CI jobs run it; if you add a
+  freeze target or a new must-serve asset, extend it. Never point a smoke or test at the
+  product's default port — a live CiteVahti may own it (that mistake got the founder's
+  running engine killed mid-session once).
+- **Workflow ≠ build scripts.** `desktop-extension-build.yml` does NOT call `build-binary.sh`
+  or `build-app.sh` — it has its own PyInstaller invocations. Any freeze-flag change must
+  land in BOTH or it silently doesn't ship (this is exactly how the blank-panel `.mcpb` and
+  the keyring-less release assets happened).
+- **Verify macOS signing on the CI-identical layout.** CI's `setup-python` is a FRAMEWORK
+  build; many local pythons aren't, and the difference changes what PyInstaller freezes and
+  how codesign walks the bundle (v0.44.2's fix passed locally and failed on CI for exactly
+  this reason). Reproduce with Homebrew `python@3.11` via a PATH shim before trusting a
+  local signing pass.
 - **Manifest parity** — the `.mcpb` advertises prompts in `desktop-extension/manifest.json` +
   `manifest.binary.json`. Adding an MCP prompt means adding it there too, or Claude Desktop
   can't discover it. The parity test guards this; don't hardcode an expected prompt set in the

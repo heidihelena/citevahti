@@ -62,6 +62,12 @@ echo "==> Binary at server/citevahti-mcp"
 echo "==> Smoke test (--help) ..."
 server/citevahti-mcp --help || { echo "BINARY SMOKE TEST FAILED"; exit 1; }
 
+# "It froze" is not "it works": run the binary through the real open_review_panel path
+# and fetch the panel over HTTP (ephemeral port, throwaway root — never touches a live
+# CiteVahti instance). The 0.44.x series shipped three builds that only failed here.
+echo "==> Smoke test (panel over MCP stdio) ..."
+python3 smoke_frozen_panel.py server/citevahti-mcp
+
 echo "==> Staging binary bundle (keeps tracked manifest.json untouched) ..."
 STAGE="build/stage"
 rm -rf "$STAGE" && mkdir -p "$STAGE/server"

@@ -6,6 +6,19 @@ previous one.
 
 ## [Unreleased]
 
+### Added
+- **Every frozen artifact is now smoke-RUN before it ships.** A new cross-platform
+  smoke (`desktop-extension/smoke_frozen_panel.py`, stdlib-only) drives the frozen
+  `citevahti-mcp` over MCP stdio through the real `open_review_panel` path — and the
+  app's sidecars the way the shell runs them — then fetches `/api/ping`, `index.html`,
+  `app.js`, `styles.css` and `reconnect.js` expecting 200s, on an ephemeral port with a
+  throwaway root (it can never touch a live CiteVahti instance) and a hard watchdog.
+  Wired into all four release-build jobs (win/linux/mac `.mcpb` + `CiteVahti.app`,
+  after codesign and before packing/notarizing) **and** the local `build-binary.sh` /
+  `build-app.sh` / `sign-notarize.sh`, so the scripts and the workflow can't drift
+  apart on this again. "It froze" is not "it works": the 0.44.x series shipped three
+  consecutive builds that only failed in a user's hands — this gate catches all three.
+
 ## 0.45.0 — the local evidence map, and a panel that heals itself (2026-07-03)
 
 A feature and a field fix. The Atlas tab now shows the real claim↔evidence graph with a
