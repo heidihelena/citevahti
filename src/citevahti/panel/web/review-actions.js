@@ -177,7 +177,21 @@ registerKeys((e) => {
   // claim navigation/rating only makes sense on the review workspace; on other surfaces
   // (Checks, Settings, …) the manuscript isn't shown, so don't move the selection underneath.
   if (state.surface !== "workspace") return false;
-  const ids = claimOrder(); if (!ids.length) return false;   // document order, matching the eye
+  const ids = claimOrder();                                  // document order, matching the eye
+  if (!ids.length) {
+    // Review keys with no claims to act on: a silent no-op reads as "my shortcuts are
+    // broken" (it read exactly that way in the field, 2026-07-02). Say why — once.
+    if (/^[jk1-7ordsa]$/.test(key) || e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (!state._hintedNoClaims) {
+        state._hintedNoClaims = true;
+        notify("Keyboard shortcuts act on claims — this manuscript has none yet. " +
+               "Run the run_claim_tests prompt in your chat, or add one with ＋ Claim.",
+               { kind: "ok" });
+      }
+      e.preventDefault(); return true;
+    }
+    return false;
+  }
   const i = ids.indexOf(state.activeClaim);
   if (key === "j" || e.key === "ArrowDown") { selectClaim(ids[Math.min(i + 1, ids.length - 1)]); e.preventDefault(); return true; }
   if (key === "k" || e.key === "ArrowUp") { selectClaim(ids[Math.max(i - 1, 0)]); e.preventDefault(); return true; }

@@ -6,6 +6,19 @@ previous one.
 
 ## [Unreleased]
 
+### Fixed
+- **Three silent panel dead-ends now say what's wrong and what works** (each cost a real
+  reviewer real time before being reported):
+  - a manuscript whose **file can't be found** names the file and the folder the panel
+    looked in ("move or copy it there, or open your document") instead of only a tiny
+    "document not open" chip — while chat-saved §-style claims keep the gentler
+    "open your document" guidance;
+  - a real manuscript with **zero claims** explains that nothing has been extracted yet
+    and names both paths that work (`run_claim_tests` in your chat client, or ＋ Claim)
+    instead of rendering inert prose;
+  - pressing a **review keyboard shortcut with no claims** to act on shows a one-time
+    hint instead of silently doing nothing ("my beloved keyboard shortcuts are all off").
+
 ### Added
 - **Every frozen artifact is now smoke-RUN before it ships.** A new cross-platform
   smoke (`desktop-extension/smoke_frozen_panel.py`, stdlib-only) drives the frozen

@@ -74,10 +74,27 @@ function renderDoc() {
   }).join("");
   doc.innerHTML = html;
   if (v.mode === "reconstructed") {
-    doc.insertAdjacentHTML("beforebegin", "");
+    // Say WHAT is missing and WHERE the panel looked — a founder lost an evening to a
+    // manuscript file that had merely moved out of the bound folder, because the only
+    // signal was a tiny "document not open" chip (2026-07-02).
+    const folder = (state.ctx && state.ctx.manuscripts_dir) || "your bound manuscripts folder";
+    const isFile = /\.(md|markdown|txt|docx)$/i.test(v.manuscript_id || "");
+    const missing = isFile
+      ? `The file <b>${esc(v.manuscript_id)}</b> wasn't found in <b>${esc(folder)}</b> —
+         move or copy it there, or <button class="linklike" id="reconOpen">📁 open your document</button>,
+         and your claims light up highlighted in place.`
+      : `These claims were saved from chat without a manuscript file. To review them inside
+         your document, <button class="linklike" id="reconOpen">📁 open your document</button>.`;
     $("#doc").innerHTML = `<div class="recon-note">✓ Your claims, ratings, and saved citations are stored automatically — nothing here is lost.
-      Below are your saved claims. To see each one highlighted inside your original manuscript,
-      <button class="linklike" id="reconOpen">📁 open your document</button>.</div>` + html;
+      ${missing}</div>` + html;
+  } else if (!claimOrder().length) {
+    // A real document with ZERO claims renders as inert prose: rating, deciding and every
+    // keyboard shortcut have nothing to act on — and the panel alone cannot extract
+    // claims. Say so, and say what does work (the same founder evening, part two).
+    $("#doc").innerHTML = `<div class="recon-note">No claims yet — this manuscript hasn't
+      been through a claim test. Extract claims by running the <b>run_claim_tests</b> prompt
+      in your chat client (e.g. Claude Desktop), or add one by hand with <b>＋ Claim</b>.
+      Rating and keyboard shortcuts wake up once claims exist.</div>` + html;
   }
   // unmatched claims (file mode): show as a side list so none are lost
   const un = (v.unmatched || []);
