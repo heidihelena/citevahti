@@ -94,8 +94,8 @@
     "publish": "vsce publish --no-dependencies"
   },
   "devDependencies": {
-    "@types/vscode": "^1.125.0",
     "@types/node": "^26",
+    "@types/vscode": "~1.85.0",
     "@vscode/vsce": "^3.9.2",
     "typescript": "^6.0"
   }
