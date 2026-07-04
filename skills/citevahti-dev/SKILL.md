@@ -131,7 +131,37 @@ the entry point instead of the Desktop app.
 | "keyring unavailable" | `pip install keyring` or use env `CITEVAHTI_ZOTERO_WRITE_KEY` |
 | Duplicate write refused | Expected — dedupe fails closed. `--allow-duplicate` only if verified. |
 
-## Safety invariants (enforced in code, 631 offline tests)
+## Worked example — verify one claim end to end
+
+A researcher pastes: *"Adjuvant immunotherapy improves disease-free survival in
+resected stage II–III NSCLC [needs citation]."*
+
+```
+# 1. capture the claim
+citevahti claim-add "Adjuvant immunotherapy improves disease-free survival in resected stage II–III NSCLC"
+#   → claim_id: claim-20260704-...
+
+# 2. find candidate papers (PubMed; abstracts included for the blinded rater)
+citevahti literature-search --query "adjuvant immunotherapy resected NSCLC disease-free survival" --max-results 5
+citevahti claim-link-candidates <claim-id>        # stage the candidates as evidence
+
+# 3. the HUMAN rates first — the AI rating stays sealed until this is committed
+citevahti claim-support-commit-human <claim-id> --rating supports --fit "population + outcome match"
+citevahti claim-support-compare <claim-id>        # now the AI second opinion is revealed
+
+# 4. human-owned decision, then a previewed, undoable Zotero write
+citevahti claim-decide <claim-id> --final accept
+citevahti claim-commit <claim-id> --commit         # prints the write, asks [y/N], then writes + audits
+
+# 5. the record
+citevahti claim-report        # per-claim states; agreement-report for human↔AI κ
+```
+
+The same loop runs conversationally through the `run_claim_tests` MCP prompt (the
+agent may pre-screen and record its rating first — you never see it until yours is in)
+and visually in the loopback review panel.
+
+## Safety invariants (enforced in code; full offline test suite, 1000+ tests)
 
 - Zotero local API read-only / GET-only
 - AI rating advisory only — never sets `final_value`
