@@ -1,6 +1,6 @@
 {
   "name": "citevahti",
-  "version": "0.1.0",
+  "version": "0.45.0",
   "description": "CiteVahti — citation integrity for manuscripts. Human-first blinded claim verification with PubMed, decision-gated Zotero write-back, and a hash-chained audit trail; plus an AI-assisted drafting skill that writes only from verified claims.",
   "author": "Vahtian (heidihelena)",
   "license": "Apache-2.0",

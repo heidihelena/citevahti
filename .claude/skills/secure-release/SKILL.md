@@ -137,7 +137,7 @@ The release loop is **token-free**: no PyPI secret is stored anywhere. Publishin
 PyPI Trusted Publishing (OIDC) when you publish a GitHub Release. `main` is branch-protected
 and needs three CI checks green. Read `docs/RELEASING.md` for the full runbook; the steps:
 
-1. **Bump the version in lockstep across all five files** (a mismatch ships a wrong-versioned
+1. **Bump the version in lockstep across all six files** (a mismatch ships a wrong-versioned
    artifact, and the user can't tell what's running — which is exactly the bug 0.34.3 fixed by
    surfacing the version):
    - `pyproject.toml`
@@ -145,6 +145,8 @@ and needs three CI checks green. Read `docs/RELEASING.md` for the full runbook; 
    - `vscode-extension/package.json`
    - `desktop-extension/manifest.json`
    - `desktop-extension/manifest.binary.json`
+   - `.claude-plugin/plugin.json` (the Claude plugin manifest — it silently drifted to a
+     stale 0.1.0 while the product was at 0.45.0, which reads as abandoned; keep it in step)
 2. **Add the `CHANGELOG.md` `## X.Y.Z` section** and bump the `docs/STATUS.md` header line.
 3. **Open a PR off a branch** (never push release commits straight to `main` — it's protected).
    Stage explicit paths; do **not** `git add -A` — this repo carries untracked local/foreign
