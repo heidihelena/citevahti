@@ -73,5 +73,6 @@ stated assumptions, for you to check — not a guarantee.
 
 ## Contact
 
-Questions, issues, or a privacy request: **<https://github.com/heidihelena/citevahti/issues>**,
-or the contact details at **<https://vahtian.com/citevahti>**.
+Privacy questions or requests: **<privacy@vahtian.com>**. For bug reports and general
+support you can also use **<https://github.com/heidihelena/citevahti/issues>** or
+**<https://vahtian.com/citevahti>**.
