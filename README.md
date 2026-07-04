@@ -206,19 +206,22 @@ To update later, re-pull the same name (`ollama pull qwen2.5`).
 
 </details>
 
-## Your privacy
+## Privacy Policy
 
-CiteVahti is local-first.
+CiteVahti is local-first. Full policy: **<https://vahtian.com/citevahti/privacy>**
+(source: [`docs/PRIVACY.md`](docs/PRIVACY.md)). In short:
 
+- **No telemetry, no analytics, no account** — CiteVahti collects nothing about you and
+  nothing for us, and never phones home.
 - Your manuscript, ratings, and review record stay in a folder on your computer.
 - The panel runs only on your own machine (loopback, `127.0.0.1`).
 - AI is optional and blinded; local and bring-your-own-key modes are supported.
 - Changes to Zotero or your manuscript always require a preview and your confirmation, and can
   be undone.
-- **No telemetry.** The only outbound calls are the literature services you choose to search
-  (PubMed, OpenAlex, Semantic Scholar, Crossref), your Zotero if you connect it, and — *only
-  when you ask* — a single check to PyPI for a newer version (no data about you is sent, and
-  nothing is installed automatically).
+- **The only outbound calls** are the literature services you choose to search (PubMed,
+  OpenAlex, Semantic Scholar, Crossref), your Zotero if you connect it, and — *only when you
+  ask* — a single check to PyPI for a newer version (no data about you is sent, and nothing is
+  installed automatically).
 
 ## What CiteVahti writes
 

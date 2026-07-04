@@ -7,6 +7,15 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Published privacy policy + reviewer examples** (toward Anthropic's software directory).
+  A full [`docs/PRIVACY.md`](docs/PRIVACY.md) (canonical home
+  `https://vahtian.com/citevahti/privacy`) states plainly what CiteVahti handles: no
+  telemetry, no account, everything local; the only egress is the literature services you
+  search, your Zotero if connected, and the optional PyPI update check. Both `.mcpb`
+  manifests now carry a `privacy_policies` link, and the README's privacy section points at
+  the hosted policy. A new [`docs/DIRECTORY_EXAMPLES.md`](docs/DIRECTORY_EXAMPLES.md) gives
+  three runnable example prompts against the zero-setup `citevahti demo` ledger, so the
+  workflow can be evaluated with no Zotero, no key, and no network.
 - **Every MCP tool now advertises a title and safety hints.** The 19 agent tools carry a
   human-readable `title` and MCP annotations (`readOnlyHint` / `destructiveHint` /
   `idempotentHint` / `openWorldHint`), so a Claude Desktop-style host can tell a read
