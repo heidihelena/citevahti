@@ -9,6 +9,7 @@ this module is cheap; the SDK is only needed to actually serve.
 from __future__ import annotations
 
 from . import TOOLS, assert_safe_surface
+from .annotations import annotations_kwargs, assert_annotations_complete
 from .prompts import (
     CHECK_PARAGRAPH_PROMPT_DESCRIPTION,
     CHECK_PARAGRAPH_PROMPT_NAME,
@@ -115,8 +116,9 @@ def build_server(name: str = "citevahti", *, root: str = ".", host: str = "127.0
         )
         return tool
 
+    assert_annotations_complete(TOOLS.keys())   # every tool has a title + safety hints
     for tool_name, fn in TOOLS.items():
-        server.tool(name=tool_name)(_bind(fn))
+        server.tool(name=tool_name, **annotations_kwargs(tool_name))(_bind(fn))
     return server
 
 

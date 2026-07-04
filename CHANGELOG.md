@@ -7,6 +7,15 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Every MCP tool now advertises a title and safety hints.** The 19 agent tools carry a
+  human-readable `title` and MCP annotations (`readOnlyHint` / `destructiveHint` /
+  `idempotentHint` / `openWorldHint`), so a Claude Desktop-style host can tell a read
+  (search, report, preview) from a write and can confirm before the one external write —
+  `commit_write`, the decision-gated Zotero write-back, marked destructive + open-world.
+  The read-only labels are honest by test: any tool marked read-only is cross-checked
+  against the ones proven to leave the ledger byte-identical. (These are advisory hints
+  for clients; CiteVahti's real enforcement stays the constrained surface and the
+  token-confirmed write path.) A hard requirement for Anthropic's software directory.
 - **Opt-in launch-time update check.** A new Settings checkbox — **default off** — makes
   the panel ask PyPI once, when it opens, whether a newer CiteVahti exists; a quiet ⬆
   badge appears in the header when one does (clicking it opens Settings with the update
