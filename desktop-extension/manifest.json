@@ -14,6 +14,7 @@
   "documentation": "https://github.com/heidihelena/citevahti",
   "support": "https://github.com/heidihelena/citevahti/issues",
   "license": "Apache-2.0",
+  "privacy_policies": ["https://vahtian.com/citevahti/privacy"],
   "keywords": ["citation", "research", "evidence", "zotero", "pubmed", "manuscript", "mcp"],
   "server": {
     "type": "python",
