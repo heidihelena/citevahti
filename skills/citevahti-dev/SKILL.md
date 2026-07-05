@@ -131,7 +131,7 @@ the entry point instead of the Desktop app.
 | "keyring unavailable" | `pip install keyring` or use env `CITEVAHTI_ZOTERO_WRITE_KEY` |
 | Duplicate write refused | Expected — dedupe fails closed. `--allow-duplicate` only if verified. |
 
-## Worked example — verify one claim end to end
+## Worked example — check one claim end to end
 
 A researcher pastes: *"Adjuvant immunotherapy improves disease-free survival in
 resected stage II–III NSCLC [needs citation]."*
