@@ -7,6 +7,17 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Three downstream Claude Code skills** — `citevahti-screen` (sweep a reference list for
+  retractions + claim–source mismatches before a reviewer does), `citevahti-review` (a
+  read-only peer-review/editor pass over someone else's manuscript, library-free via
+  `claim-verify`), and `citevahti-report` (package a finished audit: methods paragraph,
+  integrity summary, evidence appendix, audit-chain check). They join `citevahti-dev` and
+  `citevahti-writing` in `.claude-plugin/plugin.json`. Each references only real commands
+  (verified end-to-end against the demo ledger), states the honest claim vocabulary
+  (`[oo]` accepted, not "verified"), and keeps the house trust-language + safety boundaries
+  (check/assess never verify/prove; not a medical device; the human is the decider). Guarded
+  by `tests/test_plugin_skills.py` (manifest↔disk parity, frontmatter-name match, and a
+  trust-language check on the new skills).
 - **Published privacy policy + reviewer examples** (toward Anthropic's software directory).
   A full [`docs/PRIVACY.md`](docs/PRIVACY.md) (canonical home
   `https://vahtian.com/citevahti/privacy`) states plainly what CiteVahti handles: no
