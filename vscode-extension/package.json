@@ -49,7 +49,7 @@
       },
       {
         "command": "citevahti.verifyClaims",
-        "title": "CiteVahti: Verify claims"
+        "title": "CiteVahti: Check claims"
       },
       {
         "command": "citevahti.connectZotero",

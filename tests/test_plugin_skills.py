@@ -39,22 +39,17 @@ def test_skill_frontmatter_name_matches_its_directory():
             f"{s}: frontmatter name {m.group(1).strip()!r} != dir {Path(s).name!r}"
 
 
-# Skills this change introduced; the house trust-language rule (say check/assess, never
-# verify/prove in prose) is enforced on them here. The two older skills predate this guard
-# and carry legacy trust-language + a user-quoted "Verify" + the VS Code command label
-# "CiteVahti: Verify claims"; cleaning those up is tracked separately, not conflated here.
-_GUARDED_SKILLS = ("skills/citevahti-report", "skills/citevahti-screen", "skills/citevahti-review")
-
-
-def test_new_skills_obey_house_trust_language():
-    """PROSE in the newly-added skills must not promise verification/proof. Exempt: the
-    command identifiers claim-verify / verify-audit (function-name exception), and any
-    line that forbids/negates the word (a FORBIDDEN section says 'NEVER … verified')."""
-    banned = re.compile(r"(verif(?:y|ied|ication)|proven?|prove[sd]?|guarantee[sd]?)", re.I)
+def test_all_skills_obey_house_trust_language():
+    """PROSE in every listed skill must not promise verification/proof. Exempt: the
+    command identifiers claim-verify / verify-audit (function-name / hyphenated-CLI-token
+    exception), and any line that forbids/negates the word (a FORBIDDEN section says
+    'NEVER … verified'). The leading \\b keeps clinical prose like 'improves survival'
+    from tripping the 'proves' alternative."""
+    banned = re.compile(r"\b(verif(?:y|ied|ication)|proven?|prove[sd]?|guarantee[sd]?)", re.I)
     negated = re.compile(r"\b(never|not|n't|no|forbidden|don't|without|avoid|instead of)\b",
                          re.I)
     offenders: list[str] = []
-    for s in _GUARDED_SKILLS:
+    for s in _listed_skills():
         for i, line in enumerate((_REPO / s / "SKILL.md").read_text(encoding="utf-8").splitlines(), 1):
             if negated.search(line):
                 continue

@@ -36,7 +36,7 @@ live in CiteVahti — the extension never writes to Zotero itself.
    cd vscode-extension && npm install && npm run compile
    ```
    Then press **F5** to launch an Extension Development Host, open a manuscript,
-   and run **CiteVahti: Verify claims** (Command Palette).
+   and run **CiteVahti: Check claims** (Command Palette).
 
 ## The review loop (interactive)
 Expand a claim to see its candidate evidence cards. Each card shows the paper, the

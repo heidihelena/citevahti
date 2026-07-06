@@ -40,7 +40,7 @@ Present with draft:
 
 Ask:
 - "Does the language match the strength of the evidence?"
-- "Unfilled slots — verify now or mark as [u] untestable?"
+- "Unfilled slots — check now or mark as [u] untestable?"
 
 Do NOT move to next section until researcher confirms.
 
@@ -59,12 +59,12 @@ After confirmation:
 | Claim granularity | Sentence, abstract only | Claim×paper blinded rating |
 | Zotero tags | cite:abstract-only, cite:closer-look | Synced via CiteVahti |
 | Writing readiness | After import + human review | After [oo] / [o] decision |
-| Strength | Weaker — abstract only | Stronger — verified |
+| Strength | Weaker — abstract only | Stronger — full-text checked |
 
 Prefer MatchVahti-sourced claims for writing. Lite captures always flag `cite:abstract-only`.
 
 ## cite:abstract-only + closer-look workflow
 
-1. Tag present → flag in draft: `[@citekey] ⚠ abstract-only — verify before submission`
+1. Tag present → flag in draft: `[@citekey] ⚠ abstract-only — check before submission`
 2. `cite:closer-look` also present → run `vahtian_fulltext.py` to fetch PDF → then CiteVahti claim check
 3. Never silently drop the flag

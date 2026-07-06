@@ -6,7 +6,7 @@
 > inline review layer in `../citevahti-inline/` (ADR-0002). Keep this only as an
 > on-palette reference, or as a possible secondary companion panel.
 
-A static, no-build mockup of the four-tab surface (Setup / Verify claims /
+A static, no-build mockup of the four-tab surface (Setup / Check claims /
 Evidence / Changes), skinned to **ADR-0002**. Open `index.html` in a browser
 (light + dark via `prefers-color-scheme`).
 

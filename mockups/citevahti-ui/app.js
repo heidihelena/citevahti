@@ -6,7 +6,7 @@
 
 const FIT = {
   supported: { code: "oo", label: "Supported", cls: "zs-supported",
-    tip: "Marked as usable evidence — directly supports the claim. Adds the verified citation to Zotero through the decision-gated, undoable transaction." },
+    tip: "Marked as usable evidence — directly supports the claim. Adds the checked citation to Zotero through the decision-gated, undoable transaction." },
   partial: { code: "o ", label: "Partly supported", cls: "zs-partial",
     tip: "Partial fit — supports a narrower or adjacent claim. Cite with caution or revise the claim wording." },
   revise: { code: "r ", label: "Revise", cls: "zs-revise",
@@ -22,7 +22,7 @@ const MARK_EYE = {
 
 const claims = [
   { text: "Low-dose CT screening reduces lung cancer mortality in high-risk populations.",
-    citation: "None", status: "revise", action: "Verify claim" },
+    citation: "None", status: "revise", action: "Check claim" },
   { text: "Smoking-related comorbidities detected on LDCT can shape screening implementation.",
     citation: "PMID 42217822", status: "supported", action: "Add to Zotero" },
   { text: "Prehabilitation improves surgical readiness for early-stage lung cancer resections.",
@@ -202,7 +202,7 @@ function renderAudit() {
 }
 
 function setActiveTab(tabId) {
-  const titles = { setup: "Connection & safety", claims: "Verify claims", evidence: "Find evidence", changes: "Review changes" };
+  const titles = { setup: "Connection & safety", claims: "Check claims", evidence: "Find evidence", changes: "Review changes" };
   document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === tabId));
   document.querySelectorAll("[data-tab-link]").forEach((b) => b.classList.toggle("active", b.dataset.tabLink === tabId));
   document.querySelector("#page-title").textContent = titles[tabId] || "CiteVahti";

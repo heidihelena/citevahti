@@ -1,18 +1,18 @@
 ---
 name: citevahti-writing
-description: Use when a researcher wants to draft or extend manuscript text using verified citations, when they have reviewed evidence in MatchVahti or MatchVahti-Lite and marked places in a paper needing a reference, or when AI-assisted writing should draw only on claims that passed the human → AI → adjudication workflow
+description: Use when a researcher wants to draft or extend manuscript text using checked citations, when they have reviewed evidence in MatchVahti or MatchVahti-Lite and marked places in a paper needing a reference, or when AI-assisted writing should draw only on claims that passed the human → AI → adjudication workflow
 ---
 
-# CiteVahti Writing — AI-Assisted Drafting from Verified Evidence
+# CiteVahti Writing — AI-Assisted Drafting from Checked Evidence
 
 ## Overview
 
 Coordinates the **MatchVahti → CiteVahti → AI writing** chain.
 The researcher reviews evidence first, marks citation slots, CiteVahti
-verifies and commits to Zotero, then AI drafts prose — drawing only on
+checks and commits to Zotero, then AI drafts prose — drawing only on
 claims the human has already adjudicated.
 
-**The AI writes from verified evidence. It never invents citations.**
+**The AI writes from checked evidence. It never invents citations.**
 
 ## The chain
 
@@ -25,9 +25,9 @@ MatchVahti-Lite (browser)     MatchVahti (app)
         └─────────────┬─────────────────┘
                       ↓
             CiteVahti (.citevahti/ ledger)
-              claim verified → [oo] accepted → Zotero
+              claim checked → [oo] accepted → Zotero
                       ↓
-            AI drafts prose from verified claims only
+            AI drafts prose from checked claims only
               human reviews → accepts / edits / rejects
                       ↓
             Manuscript with auditable citation trail
@@ -36,9 +36,9 @@ MatchVahti-Lite (browser)     MatchVahti (app)
 ## Triggers
 
 Use when:
-- "Write a paragraph about X, I've verified the references"
+- "Write a paragraph about X, I've checked the references"
 - "Draft the discussion based on what I found in MatchVahti"
-- "I marked [needs citation] — find and verify, then draft"
+- "I marked [needs citation] — find and check, then draft"
 - "Expand this sentence with the evidence I cited"
 - `[oo]` / `cite:closer-look` tags in Zotero mentioned
 - Manuscript has `[REF]` / `<!-- cite: -->` / `(XXX et al.)` slots
@@ -68,7 +68,7 @@ and the full MatchVahti-Lite vs MatchVahti comparison.
 MatchVahti-Lite exports carry this tag. Never silently drop it:
 
 ```
-[@citekey] ⚠ abstract-only — verify against full text before submission
+[@citekey] ⚠ abstract-only — check against full text before submission
 ```
 
 If `cite:closer-look` is also present: remind researcher to run
@@ -99,6 +99,6 @@ Next step:           [citevahti-dev / MatchVahti / full-text fetch / submission]
 
 ## Cross-skill references
 
-**REQUIRED:** `citevahti-dev` — for claim verification before this skill runs
+**REQUIRED:** `citevahti-dev` — for claim checking before this skill runs
 **REQUIRED REFERENCE:** `citevahti-writing-reference.md` — drafting rules and step detail
 **BACKGROUND:** MatchVahti-Lite at vahtian.com/matchvahti-lite/
