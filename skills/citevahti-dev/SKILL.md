@@ -1,6 +1,6 @@
 ---
 name: citevahti-dev
-description: Use when verifying manuscript claims against evidence, checking whether a citation actually supports what it is cited for, adding audited references to Zotero, generating a citation-integrity report, or when a researcher mentions claims, citations, PubMed, Zotero, PRISMA, blinded rating, or peer review of evidence
+description: Use when checking manuscript claims against evidence, assessing whether a citation actually supports what it is cited for, adding audited references to Zotero, generating a citation-integrity report, or when a researcher mentions claims, citations, PubMed, Zotero, PRISMA, blinded rating, or peer review of evidence
 ---
 
 # CiteVahti — Citation Integrity for Manuscripts
@@ -26,7 +26,7 @@ Nothing is written to Zotero without explicit preview → confirm → commit.
 
 Use when:
 - "Check if this citation supports the claim"
-- "Verify my references" / "citation integrity"
+- "Check my references" / "citation integrity"
 - "Add to Zotero" after evidence review
 - "PRISMA" / "systematic review" / "evidence synthesis"
 - "Citation-integrity report" for manuscript methods
@@ -35,7 +35,7 @@ Use when:
 - Desk rejection for citation quality
 
 Do NOT use for: general PubMed search without a manuscript claim, Zotero
-library management unrelated to claim verification, screening / inclusion decisions.
+library management unrelated to claim checking, screening / inclusion decisions.
 
 ## Setup paths
 
@@ -62,7 +62,7 @@ for the chat client. For hands-on terminal use, run `citevahti-panel` instead.
 
 ### Path C — VS Code inline
 
-Install `.vsix`, set `citevahti.cliPath`, run **CiteVahti: Verify claims**
+Install `.vsix`, set `citevahti.cliPath`, run **CiteVahti: Check claims**
 from Command Palette.
 
 ## Core workflow
@@ -129,7 +129,7 @@ the entry point instead of the Desktop app.
 | "Zotero isn't connected" | Run `citevahti connect-zotero` |
 | PubMed search rejected | `citevahti onboard --ncbi-email you@uni.edu` |
 | "keyring unavailable" | `pip install keyring` or use env `CITEVAHTI_ZOTERO_WRITE_KEY` |
-| Duplicate write refused | Expected — dedupe fails closed. `--allow-duplicate` only if verified. |
+| Duplicate write refused | Expected — dedupe fails closed. `--allow-duplicate` only if checked. |
 
 ## Worked example — check one claim end to end
 
