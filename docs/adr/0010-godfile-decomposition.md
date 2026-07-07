@@ -1,6 +1,6 @@
 # ADR-0010 — God-file decomposition: staged, characterization-first, write-boundary-led
 
-- **Status:** Proposed (2026-07-07)
+- **Status:** Accepted (2026-07-07)
 - **Date:** 2026-07-07
 - **Builds on:** [ADR-0001](0001-citation-integrity-architecture.md) (the write/security
   boundary — capability without power, the token-confirmed Zotero write path) and
@@ -129,7 +129,60 @@ import main`).
 - **The lazy-import pattern is now documented as intentional**, not a smell — future work
   will not "clean it up" into eager imports and reintroduce load-time coupling.
 
-## 5. Not in scope
+## 5. Security invariants to pin before each move (the perimeter addendum)
+
+The decomposition is safe **because the security perimeter is not in the code being moved**.
+Each invariant is enforced above or beside the target files, not inside them:
+
+| Invariant | Enforced in | Moved by this plan? |
+|---|---|---|
+| Agent can't call a dangerous verb | `agent/policy.py` allow-list + `assert_safe_surface()` (runs at import) | **No** — `agent/` untouched |
+| CSRF / Host / loopback / Origin | the HTTP handler `do_GET`/`do_POST` (`_reject_bad_host()` + `_reject_unsafe_mutation()`), **above** `dispatch()` | **No** — the choke point stays in the handler |
+| Mutations only via CSRF-gated POST | `do_GET` → `dispatch(…, "GET", …)` is read-only; every state change goes through the POST guard | **No** |
+| Blinding order (AI value hidden until the human commits) | rating **services** + `blinded_rating_view()` | **No** — services already separate |
+| Tamper-evident ledger | audit log in `state/` | **No** |
+| Read tools don't mutate | `test_readonly_tools_dont_mutate.py` (name-based; survives re-export) | **No** |
+
+`dispatch(root, method, path, body)` is **pure post-authorization routing** — the request has
+already cleared Host + CSRF by the time it runs. Splitting it into a route table is therefore
+security-neutral *by construction*, provided the four rules below hold.
+
+### 5a. Rules every move must obey (perimeter cannot regress)
+
+1. **The mutation choke point stays above the route table.** `_reject_unsafe_mutation` stays in
+   the HTTP handler; route handlers receive already-authorized `(root, method, path, body)`.
+   Never push the CSRF check down into per-route modules — one forgotten route becomes a hole.
+2. **No route reachable via GET may mutate.** The perimeter assumes GET is read-only; a
+   state-changing GET bypasses CSRF entirely.
+3. **The CSRF token stays a per-handler closure** (it is minted per server process in the
+   handler scope today). A refactor that makes routes "standalone importable" must not hoist
+   the token to module/global scope — that is a downgrade.
+4. **Assert the whole set, not members.** The perimeter tests are name/path-based; the
+   characterization net must freeze the *entire* mutating-route list and the *entire*
+   `agent.TOOLS` name-set, so a relocated route or tool cannot silently fall out of coverage
+   while CI stays green.
+
+### 5b. The one new test that converts "trust the refactor" into "CI enforces the perimeter"
+
+Before the panel split, add a **CSRF-rejection test parametrized over the full mutating-route
+list**: for every state-changing `(method, path)`, a request with a missing/wrong
+`X-CiteVahti-Token` (or cross-origin `Origin`) must be rejected **before** any handler runs.
+Because it is parametrized over the enumerated route set (rule 4), a newly-split route
+physically cannot skip the guard without failing this test. Pair it with a "no mutating GET"
+assertion (rule 2) and the frozen `agent.TOOLS` name-set (§3 PR 0).
+
+### 5c. Net security judgement
+
+Security **neutral-to-positive** if §5a is pinned as tests before any code moves — and a clear
+**win** for the write surface: `tools/writeback.py` turns "everything that can mutate an
+external library / the ledger / config" from scattered-across-1,650-lines into one small,
+separately-reviewed file, so a newly-added write capability shows up in a diff a reviewer is
+watching (strengthening ADR-0001). Security **negative only** if done as a blind "move code,
+keep the existing tests green" exercise — because today's tests prove *behaviour shape* (does
+the route exist? does the read tool mutate?) more than they prove *every* perimeter property
+per route. The addendum closes that gap.
+
+## 6. Not in scope
 
 - No new features, no behaviour changes, no dependency changes.
 - No `tools/registry.py` (the agent registry already exists in `agent/`).
