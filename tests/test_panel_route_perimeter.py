@@ -69,7 +69,13 @@ FROZEN_DYNAMIC_GET_BRANCHES = 5
 
 
 def _src_posts() -> set[str]:
-    return set(re.findall(r'method == "POST" and path == "([^"]+)"', _SRC.read_text()))
+    """Static POST routes in BOTH forms: legacy dispatch() if-branches AND the
+    _POST_ROUTES table entries (ADR-0010 panel split — the conversion must keep the
+    frozen inventory identical, so both registration forms count)."""
+    src = _SRC.read_text()
+    branches = set(re.findall(r'method == "POST" and path == "([^"]+)"', src))
+    table = set(re.findall(r'^    "([^"]+)": _post_\w+', src, re.M))
+    return branches | table
 
 
 def _src_gets() -> set[str]:
