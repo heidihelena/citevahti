@@ -19,8 +19,18 @@ from ..schemas.common import ItemRef, LibrarySelector
 from ..schemas.config import Endpoints
 from ..schemas.rating import Subject
 
-# Read-only Zotero/citation group moved to tools/zotero_read.py (ADR-0010 PR 1a);
-# re-exported so the public citevahti.tools.<name> surface is unchanged.
+# Read-only groups split out (ADR-0010 PR 1a/1b); re-exported so the public
+# citevahti.tools.<name> surface is unchanged. Shared factory helpers live in ._common
+# (imported here so the ~60 in-facade callers, and the staying stateful functions, resolve
+# them) — the neutral module the group files depend on without a cycle back to the facade.
+from ._common import _intake_service, _open_store, _pubmed_provider  # noqa: F401
+from .search import (  # noqa: F401
+    check_update,
+    openalex_search,
+    resolve_dois,
+    resolve_dois_by_title,
+    semanticscholar_search,
+)
 from .zotero_read import (  # noqa: F401
     cite,
     pandoc_status,
@@ -100,36 +110,6 @@ def claim_check(claim_text: str, citekeys: list[str], context: Optional[str] = N
 
 
 # ---- step 5: literature_search + import_results (PubMed) ----------------
-def _intake_service(root: Optional[str], library, endpoints, provider, library_index):
-    import os
-
-    from ..intake import IntakeService, ZoteroLibraryIndex
-    from ..pubmed import PubMedProvider
-    from ..state import CiteVahtiStore
-    from ..zotero import ZoteroService
-
-    from ..credentials import NCBI_API_KEY, get_credential_store, resolve_secret
-
-    store = CiteVahtiStore(root or os.getcwd())
-    if not store.exists():
-        raise ValueError(f"{store.dir} is not initialized; run `citevahti init` first")
-    http = HttpxClient()
-    if provider is None:
-        cfg = store.load_config()
-        # email: env override -> onboarded config value
-        email = os.environ.get(cfg.pubmed.email_env) or cfg.pubmed.contact_email
-        # NCBI key: env escape hatch -> OS keyring (never from config)
-        try:
-            cred_store = get_credential_store(getattr(cfg, "secrets_backend", "system_keyring"))
-        except Exception:  # noqa: BLE001
-            cred_store = None
-        api_key = resolve_secret(NCBI_API_KEY, cred_store) or os.environ.get(cfg.pubmed.api_key_env)
-        provider = PubMedProvider(http, email, api_key)
-    if library_index is None:
-        library_index = ZoteroLibraryIndex(ZoteroService(http, endpoints), library)
-    return IntakeService(store, provider=provider, library_index=library_index)
-
-
 def literature_search(query: str, question_id: Optional[str] = None, max_results: int = 20,
                       date_range: Optional[dict] = None, include_abstracts: bool = False,
                       library: LibrarySelector = "personal", *, root: Optional[str] = None,
@@ -142,42 +122,6 @@ def literature_search(query: str, question_id: Optional[str] = None, max_results
                                  library=library)
 
 
-def _pubmed_provider(root: Optional[str], http=None):
-    """Build a PubMedProvider with the onboarded NCBI email/key (same resolution the
-    intake path uses) — used for DOI resolution outside a full literature_search."""
-    import os
-
-    from ..credentials import NCBI_API_KEY, get_credential_store, resolve_secret
-    from ..pubmed import PubMedProvider
-
-    cfg = _open_store(root).load_config()
-    email = os.environ.get(cfg.pubmed.email_env) or cfg.pubmed.contact_email
-    try:
-        cred_store = get_credential_store(getattr(cfg, "secrets_backend", "system_keyring"))
-    except Exception:  # noqa: BLE001
-        cred_store = None
-    api_key = resolve_secret(NCBI_API_KEY, cred_store) or os.environ.get(cfg.pubmed.api_key_env)
-    return PubMedProvider(http or HttpxClient(), email, api_key)
-
-
-def resolve_dois(pmids: list, *, root: Optional[str] = None, http=None, provider=None) -> dict:
-    """Resolve missing DOIs from PMIDs via NCBI — authoritative, never a guess.
-
-    Returns ``{pmid: doi}`` only for records that actually have a DOI. Offline or on
-    any NCBI error it returns ``{}`` (resolution is best-effort and never blocks the
-    rest of the workflow). No fuzzy/title matching: a wrong DOI is worse than none."""
-    ids = [str(p) for p in (pmids or []) if p]
-    if not ids:
-        return {}
-    if provider is None:
-        provider = _pubmed_provider(root, http)
-    try:
-        hits = provider.fetch_records(ids)
-    except Exception:  # noqa: BLE001 — NCBI down / offline -> resolve nothing
-        return {}
-    return {h.pmid: h.doi for h in hits if h.pmid and h.doi}
-
-
 def _iter_candidate_collections(store, root):
     """Yield each claim's candidate collection (skipping claims with none)."""
     for row in claim_report(root=root).rows:
@@ -185,31 +129,6 @@ def _iter_candidate_collections(store, root):
             yield store.load_candidates(row.claim_id)
         except Exception:  # noqa: BLE001 — a claim with no linked candidates
             continue
-
-
-def resolve_dois_by_title(titles: list, *, root: Optional[str] = None, http=None, client=None) -> dict:
-    """CrossRef title → DOI for candidates lacking any identifier. Strict matching
-    (a wrong DOI is worse than none); returns ``{title: doi}`` only for strong
-    matches. Best-effort: offline/ambiguous titles are simply omitted."""
-    wanted = {t for t in (titles or []) if t}
-    if not wanted:
-        return {}
-    if client is None:
-        from ..crossref import CrossrefClient
-        try:
-            mailto = _open_store(root).load_config().pubmed.contact_email
-        except Exception:  # noqa: BLE001
-            mailto = None
-        client = CrossrefClient(http=http, mailto=mailto)
-    out = {}
-    for t in sorted(wanted):
-        try:
-            doi = client.doi_for_title(t)
-        except Exception:  # noqa: BLE001
-            doi = None
-        if doi:
-            out[t] = doi
-    return out
 
 
 def backfill_candidate_dois(*, root: Optional[str] = None, http=None, include_title: bool = True) -> dict:
@@ -274,34 +193,6 @@ def recheck_library(library="personal", *, root: Optional[str] = None,
             cc.candidates = new
             store.save_candidates(cc)
     return {"flagged": flagged, "checked": checked}
-
-
-def openalex_search(query: str, max_results: int = 15, *, root: Optional[str] = None,
-                    http=None, client=None) -> list:
-    """OpenAlex search → normalized hits (the API-backed alternative to Scholar)."""
-    if client is None:
-        from ..openalex import OpenAlexClient
-        try:
-            mailto = _open_store(root).load_config().pubmed.contact_email
-        except Exception:  # noqa: BLE001
-            mailto = None
-        client = OpenAlexClient(http=http, mailto=mailto)
-    try:
-        return client.search(query, max_results)
-    except Exception:  # noqa: BLE001
-        return []
-
-
-def semanticscholar_search(query: str, max_results: int = 15, *, root: Optional[str] = None,
-                           http=None, client=None) -> list:
-    """Semantic Scholar search → normalized hits (another broad, API-backed source)."""
-    if client is None:
-        from ..semscholar import SemanticScholarClient
-        client = SemanticScholarClient(http=http)
-    try:
-        return client.search(query, max_results)
-    except Exception:  # noqa: BLE001
-        return []
 
 
 def scan_retractions(*, root: Optional[str] = None, http=None, client=None) -> dict:
@@ -422,16 +313,6 @@ def import_results(source: dict, format: str, question_id: Optional[str] = None,
 
 
 # ---- step 6: snapshot / corpus_diff / surveillance / map_bootstrap -------
-def _open_store(root: Optional[str]):
-    import os
-
-    from ..state import CiteVahtiStore
-    store = CiteVahtiStore(root or os.getcwd())
-    if not store.exists():
-        raise ValueError(f"{store.dir} is not initialized; run `citevahti init` first")
-    return store
-
-
 def _corpus_source(endpoints: Optional[Endpoints]):
     from ..bbt.client import BbtClient
     from ..corpus import ZoteroCorpusSource
@@ -1309,14 +1190,6 @@ def check_paragraph(text: str, *, root: Optional[str] = None):
     no AI — the everyday in-the-writing loop. Returns a per-sentence status + tally."""
     from ..report.paragraph import check_paragraph as _check
     return _check(_open_store(root), text or "")
-
-
-def check_update(*, http=None) -> dict:
-    """Ask PyPI whether a newer CiteVahti release is published. Read-only, never installs;
-    user-initiated (no launch-time or timed phone-home). Contacts pypi.org only when
-    called. Returns current/latest/update_available + a plain-language message."""
-    from ..update_check import check_update as _check
-    return _check(http=http)
 
 
 def draft_context(*, root: Optional[str] = None) -> dict:
