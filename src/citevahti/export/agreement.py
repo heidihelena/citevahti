@@ -17,7 +17,7 @@ from typing import Any, Optional
 
 from .. import __version__
 from ..schemas.common import Provenance
-from ..schemas.export import AgreementCounts, AgreementGroup, AgreementReport
+from ..schemas.export import AgreementCounts, AgreementGroup, AgreementReport, ModelScore
 from ..state.store import _atomic_write
 from ..util import config_hash, sha256_hex, utc_now_iso
 from .kappa import cohen_kappa, raw_agreement, weighted_kappa
@@ -75,6 +75,7 @@ class AgreementReportService:
         for key, recs in groups:
             report.groups.append(self._group_metrics(key, recs, metrics, report))
         report.overall = self._counts(records)
+        report.model_scoreboard = self._model_scoreboard(records)
         report.method_transparency_markdown = self._transparency(report)
 
         if persist:
@@ -202,6 +203,43 @@ class AgreementReportService:
                 "final_value_categories": counts.final_value_categories}
         return grp
 
+    # ---- per-model complementary-catch scoreboard (ADR-0009 §3b) --------
+    def _model_scoreboard(self, records) -> list[ModelScore]:
+        """Per identifiable model: validated divergences ("catches") vs times
+        overruled. A catch = the model was DISCORDANT with the human and the human's
+        adjudicated final matched the AI value — the model was right where the human's
+        first take was not. Agreement scores nothing here; this is the cheese-hole
+        signal, not conformity. Read-only; derived from existing records."""
+        by_model: dict[tuple[str, str], ModelScore] = {}
+        for rec in records:
+            ai = rec.ai_rating
+            if ai is None:
+                continue
+            key = (ai.provenance.model_id, ai.provenance.model_snapshot)
+            ms = by_model.get(key)
+            if ms is None:
+                ms = ModelScore(model_id=key[0], model_snapshot=key[1])
+                by_model[key] = ms
+            ms.ratings += 1
+            status = rec.comparison.status
+            if status == "concordant":
+                ms.concordant += 1
+            elif status == "discordant":
+                ms.discordant += 1
+                final = rec.adjudication.final_value
+                if final is None:
+                    ms.pending += 1
+                elif final == ai.value:
+                    ms.catches += 1
+                else:
+                    ms.overruled += 1
+            elif status == "ai_abstained":
+                ms.abstained += 1
+        for ms in by_model.values():
+            resolved = ms.catches + ms.overruled
+            ms.catch_rate = round(ms.catches / resolved, 3) if resolved else None
+        return sorted(by_model.values(), key=lambda m: (m.model_id, m.model_snapshot))
+
     # ---- AI provenance summary ------------------------------------------
     def _ai_summary(self, records) -> dict:
         ai = [r.ai_rating for r in records if r.ai_rating is not None]
@@ -316,6 +354,18 @@ class AgreementReportService:
                       f"- scheme: {g.scheme_id}", f"- metrics: {g.metrics}"]
             for w in g.warnings:
                 lines.append(f"- warning: {w}")
+            lines.append("")
+        if report.model_scoreboard:
+            lines += ["## Model scoreboard — complementary catches", "",
+                      "_A **catch** is a validated divergence: the model disagreed with the human "
+                      "and the human's adjudicated final matched the AI. Agreement scores nothing "
+                      "here. Descriptive; not a verdict on any model._", "",
+                      "| model | ratings | catches | overruled | pending | catch-rate |",
+                      "|---|---|---|---|---|---|"]
+            for m in report.model_scoreboard:
+                rate = "n/a" if m.catch_rate is None else f"{m.catch_rate:.3f}"
+                lines.append(f"| {m.model_id} ({m.model_snapshot}) | {m.ratings} | {m.catches} "
+                             f"| {m.overruled} | {m.pending} | {rate} |")
             lines.append("")
         lines += [report.method_transparency_markdown]
         if report.warnings:

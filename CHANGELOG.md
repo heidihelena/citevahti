@@ -7,6 +7,17 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Per-model complementary-catch scoreboard** in `agreement_report` — the local precursor
+  to ADR-0009's Atlas model scoreboard, and the first piece of the model-rating
+  differentiator. For each identifiable model it tallies **catches** (the model *diverged*
+  from the human and the human's adjudicated final matched the AI — a validated divergence,
+  the AI right where the human's first take wasn't), **overruled**, **pending**,
+  concordances, and a catch-rate. Derived entirely from existing rating records — **no new
+  write path, no record-schema change**, and nothing written when `persist=False` (the
+  read-views-don't-mutate invariant holds, `tests/test_readonly_tools_dont_mutate.py`).
+  Agreement scores nothing here, by design (the cheese-hole principle: a model that only
+  agrees adds no defence). Surfaced in the report JSON + markdown; locked by
+  `tests/test_model_scoreboard.py`.
 - **Population / PICO mismatch flag** (`text.py`, `claimcheck` service) — the highest-value
   citation error the engine didn't catch: a source that supports the claimed *relation* but
   in a different *population* ("works in adults" cited for a paediatric claim; a mouse study

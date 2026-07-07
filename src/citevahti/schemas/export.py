@@ -49,6 +49,26 @@ class AgreementGroup(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class ModelScore(BaseModel):
+    """Per-model complementary-catch tally (ADR-0009 §3b — the local scoreboard
+    precursor). A **catch** is a *validated divergence*: the model disagreed with the
+    human and the human's adjudicated final matched the AI. Agreement earns nothing
+    here — a model that never usefully diverges scores zero catches. Read-only,
+    derived from existing rating records; nothing new is written."""
+
+    model_config = ConfigDict(extra="forbid", protected_namespaces=())
+    model_id: str
+    model_snapshot: str
+    ratings: int = 0
+    concordant: int = 0
+    discordant: int = 0
+    catches: int = 0          # discordant AND resolved final == the AI value
+    overruled: int = 0        # discordant, resolved, final != the AI value
+    pending: int = 0          # discordant, not yet adjudicated
+    abstained: int = 0
+    catch_rate: Optional[float] = None   # catches / (catches + overruled), None if no resolved discordances
+
+
 class AgreementReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
     run_id: str
@@ -57,6 +77,7 @@ class AgreementReport(BaseModel):
     grouped_by: list[str] = Field(default_factory=list)
     overall: AgreementCounts = Field(default_factory=AgreementCounts)
     groups: list[AgreementGroup] = Field(default_factory=list)
+    model_scoreboard: list[ModelScore] = Field(default_factory=list)
     ai_provenance_summary: dict = Field(default_factory=dict)
     method_transparency_markdown: str = ""
     formats_written: list[str] = Field(default_factory=list)
