@@ -23,10 +23,13 @@ for anything high-stakes (a thesis defense, a submission, a reviewer response).
   strongest for **biomedical/indexed journal** literature. **Books, clinical
   guidelines, grey literature, institutional reports, and non-indexed sources**
   may not be found, and a claim cited to one of those can't be machine-checked.
-- **Full text vs abstract.** CiteVahti stages candidate papers and shows each
-  paper's own **abstract** (blinding-safe) for you to read before rating. It does
-  **not** fetch or parse the **full text** for you — your support judgment is only
-  as good as what you actually read.
+- **Full text vs abstract.** Where Zotero has **indexed** the attached PDF,
+  CiteVahti selects candidate passages from that **full text** — scoring
+  multi-sentence windows and preferring the section where evidence usually lives
+  (Results/Conclusions), each passage labelled with its section. It does **not**
+  fetch or parse PDFs Zotero has **not** indexed (attach and index the PDF in
+  Zotero first), and it does not read figures or tables. Your support judgment is
+  still only as good as the passage you actually read.
 
 ## Identifiers
 - **Retraction** and **duplicate** checks key on **DOI/PMID only**. An item with

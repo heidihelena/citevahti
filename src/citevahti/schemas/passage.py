@@ -23,6 +23,7 @@ class RetrievedPassage(BaseModel):
     quote: str
     text_hash: str
     retrieval_method: RetrievalMethod
+    section: Optional[str] = None        # e.g. "Results" — where in the paper the passage sits
     score: Optional[float] = None
     provenance: Provenance
 
