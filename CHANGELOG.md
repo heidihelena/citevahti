@@ -6,6 +6,16 @@ previous one.
 
 ## [Unreleased]
 
+### Changed
+- **Eval gate reframed — "precision is a gate, sensitivity is a dial."**
+  `validation/claimcheck/acceptance-thresholds.md` (and the `citevahti-eval` skill) now
+  gate **precision only**; recall is **published as an operating-point curve, not gated**.
+  The rationale is an inverted-U: too few flags miss errors, but over-flagging is *worse* —
+  it breaks the reviewer's flow and trains them to ignore the tool — so there is no
+  universal sensitivity threshold to clear, and improvement cycles chase missed
+  *high-value* mismatches rather than raw flag volume. Recorded in the file's append-only
+  change log (v0 → v0.1, still pre-registration — no ledger scored yet).
+
 ### Added
 - **The beta → production skill set** — five maintainer-facing Claude Code skills in
   `.claude-plugin/plugin.json`, per the plan of record in

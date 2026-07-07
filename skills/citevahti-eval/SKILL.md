@@ -79,12 +79,20 @@ after seeing the numbers is the exact failure this skill exists to prevent. (The
 file is a *proposed v0* — confirm or adjust the floors before the first scored run, since
 no ledger has been scored yet; after the first gated run they freeze.)
 
+**Precision is a gate; sensitivity is a dial.** There is no single correct sensitivity —
+the right amount of flagging is per-user and per-context, and follows an inverted-U: too
+few flags miss errors, but too many is **worse**, because over-flagging breaks the
+reviewer's flow and trains them to ignore the tool. So the gate floors **precision only**
+(a raised flag must be worth interrupting for); **recall is published as an operating-point
+curve, not gated** — improvement cycles chase missed *high-value* mismatches, never raw
+flag volume. Full statement in `acceptance-thresholds.md`.
+
 At release time (`citevahti-release` calls this as its first gate):
 
-- **PASS** — every pre-registered floor met → release proceeds; numbers go to the
-  eval-results page with the release.
-- **FAIL** — any floor missed → **no release.** File the gap, run an improvement cycle,
-  re-measure on the *same protocol*.
+- **PASS** — Gate 0 passes and every *hard* (precision) floor met → release proceeds;
+  the numbers and the operating-point curve go to the eval-results page with the release.
+- **FAIL** — any hard floor missed → **no release.** File the gap, run an improvement
+  cycle, re-measure on the *same protocol*.
 
 **Kill criterion (from the production plan, `docs/BETA_TO_PRODUCTION.md`):** if
 mismatch-detection precision stays below the pre-registered floor after **two
@@ -95,7 +103,8 @@ pre-commitment; do not renegotiate it mid-cycle.
 ## Publishing the numbers
 
 Every scored run that gates a release gets published — precision, recall, F1 per
-detector, κ, N, the four class counts, the correlated-error count, and the date +
+detector, the **precision/recall operating-point curve** (so a reader can locate their own
+sensitivity), κ, N, the four class counts, the correlated-error count, and the date +
 version measured. Include what *failed* or was excluded; a results page with only
 flattering rows is exactly the certification theater the brand forbids.
 

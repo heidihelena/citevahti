@@ -16,6 +16,20 @@ a run you are about to gate on, and log every change below.**
 - **Unit of analysis:** a human-adjudicated `(claim, passage)` relation
   ∈ {supports, contradicts, neither}, per `README.md`.
 
+## The one principle: precision is a gate, sensitivity is a dial
+
+There is no single correct sensitivity. Different reviewers, fields, and manuscripts want
+different amounts of flagging, and the right amount is an **inverted-U**: too few flags
+miss real errors, but **too many is worse** — over-flagging breaks the reviewer's flow and
+trains them to ignore the tool (alert fatigue). "In-flow" is the target, not maximum
+recall.
+
+So this file gates exactly **one** thing: **precision** — that a flag, when raised, is
+trustworthy enough to be worth interrupting for. It does **not** gate a sensitivity level.
+Recall is **published as an operating-point curve** so each user can choose where they sit;
+it is never maximized toward a number. Chasing recall past the flow point is a regression,
+not a win.
+
 ## Gate 0 — ground-truth validity (must pass, or there are no metrics)
 
 | Check | Floor | Why |
@@ -29,17 +43,17 @@ If Gate 0 fails, the run does not produce a release verdict — it produces a
 
 ## Gate 1 — detector floors (the release gate)
 
-Scored against the adjudicated gold. Precision is gated (a false call is the harmful
-direction — see rationale); recall is **published, not hidden**, with a target that drives
-improvement cycles rather than hard-blocking the first release.
+Scored against the adjudicated gold. **Precision is the only gate** (a false flag is the
+harmful direction — see the principle above). Recall is **published as an operating-point
+curve, not gated**: it locates the user's sensitivity dial, it is never a bar to clear.
 
 | Metric | Floor | Gate? | Rationale |
 |---|---|---|---|
 | Contradictions leaking into SUPPORT | **exactly 0** | **hard** | A contradicting source returned as support is false reassurance — the worst failure. This is the shipped polarity-guard invariant (`tests/test_claimcheck_polarity.py`); the ledger must confirm it holds on real gold, not just unit fixtures. |
-| **Mismatch (contradiction) detector — precision** | **≥ 0.80** | **hard — this is the kill-criterion metric** | When CiteVahti flags a claim–source mismatch, it should usually be right; false alarms train users to ignore flags. `docs/BETA_TO_PRODUCTION.md`'s kill criterion is defined on *this* number. |
+| **Mismatch (contradiction) detector — precision** | **≥ 0.80** | **hard — this is the kill-criterion metric** | When CiteVahti flags a claim–source mismatch, it should usually be right; over-flagging trains users to ignore flags and is the worse side of the inverted-U. `docs/BETA_TO_PRODUCTION.md`'s kill criterion is defined on *this* number. |
 | Support detector — precision | **≥ 0.85** | **hard** | A pair shown as a support-candidate that does not actually support is the reassurance failure a citation tool exists to prevent; held slightly higher than mismatch precision. |
-| Mismatch detector — recall | ≥ 0.60 (**target**, published) | soft | The lexical floor is deliberately conservative; missed mismatches are the honest weak point. Report the number every release; a miss opens an improvement cycle, it does not alone block release 1. |
-| Support detector — recall | ≥ 0.60 (**target**, published) | soft | Same posture; reported, not hidden. |
+| Mismatch detector — recall @ the gated precision | published, **not gated** | none | Report the recall reached *at* the precision floor, plus the full precision/recall curve. Missed mismatches are the honest weak point; improvement cycles target missed **high-value** mismatches — never by pushing false-alarm volume past the flow point. |
+| Support detector — recall @ the gated precision | published, **not gated** | none | Same posture: reported as an operating point the user reads, not a bar the release clears. |
 
 ## Gate 2 — the AI advisor is measured, never trusted into the gate
 
@@ -62,8 +76,9 @@ documented exclusions, never as silent misses.
 ## The verdict rule
 
 - **PASS** — Gate 0 passes **and** every *hard* floor in Gate 1 is met → release may
-  proceed (`citevahti-release` gate 0). Publish all numbers, including the soft-target
-  recalls and the advisor figures, with N, κ, class counts, date, and version.
+  proceed (`citevahti-release` gate 0). Publish all numbers, including the
+  recall-at-precision, the full precision/recall operating-point curve, and the advisor
+  figures, with N, κ, class counts, date, and version.
 - **FAIL** — any hard floor missed → **no release.** File the gap, run an improvement
   cycle, re-measure on this same protocol.
 - **Kill criterion** (`docs/BETA_TO_PRODUCTION.md`) — if mismatch-detector precision stays
@@ -75,3 +90,4 @@ documented exclusions, never as silent misses.
 | Date | Change | Reason | Made before or after a gated run? |
 |---|---|---|---|
 | 2026-07-07 | Initial proposed v0 (floors above) | First pre-registration; scaffolds the gate ahead of the first filled ledger | Before — no run has been scored |
+| 2026-07-07 | Reframed to v0.1: precision is the sole gate; recall published as an operating-point curve rather than a soft target; added the "precision is a gate, sensitivity is a dial" inverted-U principle (over-flagging is worse than under-flagging; no universal sensitivity) | Maintainer steer — the right sensitivity is per-user/per-context; in-flow beats maximum recall | Before — no run has been scored |
