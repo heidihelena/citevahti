@@ -15,7 +15,7 @@ from typing import Optional
 
 from ..probe.client import HttpxClient
 from ..schemas.bibsync import ExportFormat
-from ..schemas.common import ItemRef, LibrarySelector
+from ..schemas.common import LibrarySelector
 from ..schemas.config import Endpoints
 
 # Read-only groups split out (ADR-0010 PR 1a/1b); re-exported so the public
@@ -23,6 +23,11 @@ from ..schemas.config import Endpoints
 # (imported here so the ~60 in-facade callers, and the staying stateful functions, resolve
 # them) — the neutral module the group files depend on without a cycle back to the facade.
 from ._common import _intake_service, _open_store, _pubmed_provider  # noqa: F401
+from .lexical import (  # noqa: F401
+    claim_check,
+    claim_lexical_check,
+    extract,
+)
 from .support import (  # noqa: F401
     decide,
     get_support_rating,
@@ -118,40 +123,6 @@ def bib_sync(targets: dict, output_dir: Optional[str] = None,
         paths, output_dir=output_dir, export_format=export_format,
         include_cited_only=include_cited_only, make_master=make_master,
         fail_on_orphans=fail_on_orphans, library=library)
-
-
-# ---- step 4: extract + claim_check --------------------------------------
-def _text_source(endpoints: Optional[Endpoints]):
-    from ..bbt.client import BbtClient
-    from ..retrieval import ZoteroApiTextSource
-    from ..zotero import ZoteroService
-
-    http = HttpxClient()
-    return ZoteroApiTextSource(ZoteroService(http, endpoints), BbtClient(http, endpoints))
-
-
-def extract(subject: ItemRef, fields: Optional[list[str]] = None, mode: str = "assistive",
-            require_passage: bool = False, library: LibrarySelector = "personal", *,
-            source=None, endpoints: Optional[Endpoints] = None):
-    """Assistive, deterministic field extraction. Returns an ExtractResult.
-    Never guesses; never writes to the evidence map."""
-    from ..extract import ExtractService
-
-    src = source or _text_source(endpoints)
-    return ExtractService(src).extract(subject, fields, mode=mode,
-                                       require_passage=require_passage, library=library)
-
-
-def claim_check(claim_text: str, citekeys: list[str], context: Optional[str] = None,
-                require_page: bool = False, library: LibrarySelector = "personal", *,
-                source=None, endpoints: Optional[Endpoints] = None):
-    """Deterministic lexical claim support. Returns a ClaimCheckResult.
-    Never asserts truth; never invents keys; exact citekey resolution only."""
-    from ..claimcheck import ClaimCheckService
-
-    src = source or _text_source(endpoints)
-    return ClaimCheckService(src).check(claim_text, citekeys, context=context,
-                                        require_page=require_page, library=library)
 
 
 # ---- step 5: literature_search + import_results (PubMed) ----------------
@@ -313,37 +284,6 @@ def scan_licenses(*, root: Optional[str] = None, http=None, client=None) -> dict
                        {"checked": checked, "filled": filled,
                         "source": "openalex.open_access"})
     return {"filled": filled, "checked": checked}
-
-
-def claim_lexical_check(claim_text: str, text: str) -> dict:
-    """Deterministic lexical overlap between a claim and a passage (the candidate's
-    abstract/full text). Reuses the same content-token logic as ``claim_check``.
-
-    NEVER asserts truth — only whether the claim's key terms appear in the text. The
-    panel shows it AFTER the human's blind rating so it can't bias it."""
-    from ..retrieval.text import (content_tokens, coverage_score,
-                                 polarity_conflict, polarity_cue, segment_sentences)
-    claim_terms = content_tokens(claim_text or "")
-    if not claim_terms or not (text or "").strip():
-        return {"available": False}
-    text_terms = content_tokens(text)
-    cov = coverage_score(claim_text, text)
-    # Direction guard (same rule as claim_check): a sentence can overlap the claim's
-    # terms yet assert the OPPOSITE polarity ("did not reduce" vs "reduced"). Surface
-    # it as an inspectable "may contradict" cue — never a verdict, never hidden.
-    opposing = next((s for _a, _b, s in segment_sentences(text)
-                     if polarity_conflict(claim_text, s)), None)
-    cue = polarity_cue(claim_text, opposing) if opposing else None
-    return {
-        "available": True,
-        "coverage": round(cov, 2),
-        "status": "terms_present" if cov >= 0.5 else "terms_missing",
-        "present": sorted(t for t in claim_terms if t in text_terms),
-        "missing": sorted(t for t in claim_terms if t not in text_terms),
-        "contradiction": opposing is not None,
-        "polarity_cue": cue,
-        "opposing_quote": opposing,
-    }
 
 
 def import_results(source: dict, format: str, question_id: Optional[str] = None,
