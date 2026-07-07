@@ -74,6 +74,12 @@ layer. **A low-value model → suggest a better-covering one** (panel *Settings 
 opinion*). `agreement_report` (METHODS.md) already carries the model-provenance and
 human↔AI comparison this builds on. Anonymous models are not rated (no stable identity).
 
+The read-only **`model_advisor`** tool executes this rating: it ranks the identifiable
+models by catch-rate over an evidence floor of resolved divergences, recommends the
+best-evidenced one, stays silent on any model without enough resolved divergences to
+judge, and — given a named model that rates low — suggests a better-evidenced alternative.
+It scores complementary value, never agreement, and adjudicates nothing.
+
 ### 3c. Atlas — pooled scoreboard and divergence maps (later)
 
 The pooled corpus aggregates 3b across contributors into a **model scoreboard** (which

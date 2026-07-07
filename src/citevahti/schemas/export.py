@@ -69,6 +69,27 @@ class ModelScore(BaseModel):
     catch_rate: Optional[float] = None   # catches / (catches + overruled), None if no resolved discordances
 
 
+class ModelAdvice(BaseModel):
+    """Which identifiable model to trust as an AI second opinion, from the live
+    complementary-catch scoreboard (ADR-0009 §3b). Ranks by *complementary value*
+    (validated catches over resolved divergences), never by agreement — a model
+    that only echoes the human ranks nowhere. Stays silent on any model without
+    enough resolved divergences to judge it (the evidence floor), and when a named
+    model rates low it names a better-evidenced alternative. Read-only; a derived
+    view over existing rating records that writes nothing."""
+
+    model_config = ConfigDict(extra="forbid", protected_namespaces=())
+    ranked: list[ModelScore] = Field(default_factory=list)   # well-evidenced, best complementary value first
+    recommended: Optional[str] = None        # "model_id (snapshot)" of the top-ranked model, or None
+    under_evidenced: list[str] = Field(default_factory=list)  # models below the floor — no opinion yet
+    asked_about: Optional[str] = None        # the model_id queried, if any
+    asked_catch_rate: Optional[float] = None  # its aggregate catch-rate across snapshots, if resolved
+    suggestion: Optional[str] = None         # switch advice when the queried model rates low
+    min_resolved: int = 0                    # resolved-divergence floor to be ranked at all
+    low_catch_rate: float = 0.0              # at/below this (with enough evidence) counts as "rates low"
+    notes: list[str] = Field(default_factory=list)
+
+
 class AgreementReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
     run_id: str

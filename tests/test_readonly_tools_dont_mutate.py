@@ -58,6 +58,8 @@ def test_readonly_tools_leave_the_ledger_byte_identical(tmp_path):
     engine.claim_report(root=root)
     engine.triage(root=root)
     engine.methods_statement(root=root)
+    engine.model_advisor(root=root)
+    engine.model_advisor("claude-opus-4-8", root=root)
     engine.check_paragraph("Structured follow-up reduces avoidable readmissions.", root=root)
 
     after = _ledger_fingerprint(tmp_path)
@@ -81,7 +83,7 @@ def test_panel_get_endpoints_and_agent_reads_dont_touch_the_audited_ledger(tmp_p
         status, _ = dispatch(root, "GET", path, None)
         assert status == 200, f"{path} -> {status}"
     for name, args in (("status", ()), ("verify_claims", ()), ("triage", ()),
-                       ("methods", ()), ("claim_bond_status", (cid,))):
+                       ("methods", ()), ("model_advisor", ()), ("claim_bond_status", (cid,))):
         if name in agent.TOOLS:
             agent.TOOLS[name](*args, root=root)
 

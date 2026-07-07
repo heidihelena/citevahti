@@ -19,6 +19,7 @@ ALLOWED_AGENT_TOOLS = (
     "triage",                    # read-only risk-first "what needs your attention" list
     "check_paragraph",           # read-only: match a pasted snippet's sentences to vetted claims
     "methods",                   # read-only: submission methods paragraph + PRISMA LLM-discovery disclosure
+    "model_advisor",             # read-only: which AI second-opinion model to trust (validated catches, not agreement)
     "open_review_panel",         # bring up the human's loopback rating surface (no rating power)
     "verify_claims",             # read-only 4-state citation-integrity report
     "pubmed_search",             # staged, exact-query-preserving PubMed search

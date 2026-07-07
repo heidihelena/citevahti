@@ -17,7 +17,7 @@ from citevahti.agent.annotations import TOOL_META, assert_annotations_complete
 # a mutating tool mislabeled read-only would tell a client (and a user) it's safe to
 # run without confirmation when it isn't.
 _PROVEN_READONLY = {
-    "status", "verify_claims", "triage", "methods", "claim_bond_status",
+    "status", "verify_claims", "triage", "methods", "model_advisor", "claim_bond_status",
     # read-only by construction (search/fetch/preview; no ledger write)
     "check_update", "check_paragraph", "pubmed_search", "get_provenance", "preview_write",
 }

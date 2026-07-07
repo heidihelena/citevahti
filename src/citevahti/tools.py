@@ -672,6 +672,15 @@ def agreement_report(filters: Optional[dict] = None, metrics: Optional[list[str]
         filters=filters, metrics=metrics, output_formats=output_formats, output_dir=output_dir)
 
 
+def model_advisor(model_id: Optional[str] = None, *, root: Optional[str] = None):
+    """Which identifiable AI model to trust as a second opinion, from the live
+    complementary-catch scoreboard. Read-only, writes nothing. Ranks by validated
+    catches (not agreement); pass ``model_id`` and, if it rates low, it suggests a
+    better-evidenced alternative."""
+    from .export import AgreementReportService
+    return AgreementReportService(_open_store(root)).advise_models(model_id)
+
+
 # ---- step 9: guarded write-back -----------------------------------------
 def _writeback(root, *, service=None, dedupe_index=None, tag_reader=None):
     if service is not None:

@@ -2,8 +2,8 @@
 
 Roadmap item #6. MCP clients consume tool results as machine-readable data; a tool that
 returned a bare string (or a non-serializable object) would break that contract and could
-smuggle unstructured content past the schema. Today all 19 tools already return dicts — this
-locks it so a future tool can't quietly regress.
+smuggle unstructured content past the schema. Every tool in the surface already returns a
+dict — this locks it so a future tool can't quietly regress.
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ def test_tool_outputs_are_json_serializable_dicts(tmp_path):
         "triage": lambda: agent.tools.triage(root=root),
         "verify_claims": lambda: agent.tools.verify_claims(root=root),
         "methods": lambda: agent.tools.methods(root=root),
+        "model_advisor": lambda: agent.tools.model_advisor(root=root),
         "check_paragraph": lambda: agent.tools.check_paragraph("A sentence to check.", root=root),
     }
     for name, call in calls.items():
