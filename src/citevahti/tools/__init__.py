@@ -23,6 +23,17 @@ from ..schemas.config import Endpoints
 # (imported here so the ~60 in-facade callers, and the staying stateful functions, resolve
 # them) — the neutral module the group files depend on without a cycle back to the facade.
 from ._common import _intake_service, _open_store, _pubmed_provider  # noqa: F401
+from .warehouse import (  # noqa: F401
+    aggregate_ratings,
+    atlas_contribution_preview,
+    atlas_revoke,
+    prisma_ledger,
+    warehouse_configure,
+    warehouse_emit,
+    warehouse_export,
+    warehouse_purge,
+    warehouse_status,
+)
 from .corpus import (  # noqa: F401
     corpus_diff,
     map_bootstrap,
@@ -108,10 +119,6 @@ from .zotero_read import (  # noqa: F401
 )
 
 
-def _todo(step: int, tool: str):
-    raise NotImplementedError(f"{tool}: scheduled for build order step {step}; not yet approved")
-
-
 # ---- step 3: bib_sync + evidence_map ------------------------------------
 def bib_sync(targets: dict, output_dir: Optional[str] = None,
              export_format: ExportFormat = "bibtex", include_cited_only: bool = True,
@@ -141,19 +148,7 @@ def bib_sync(targets: dict, output_dir: Optional[str] = None,
 
 
 # ---- step 7: dual-rating engine + assess + retraction + prisma ----------
-def prisma_ledger(question_id: str, action: str, payload: Optional[dict] = None, *,
-                  root: Optional[str] = None):
-    """Human-only PRISMA flow accounting. AI votes are rating_id references only."""
-    from ..prisma import PrismaLedgerService
-    return PrismaLedgerService(_open_store(root)).prisma_ledger(question_id, action, payload)
-
-
 # ---- step 8: evidence_export + agreement_report -------------------------
-def aggregate_ratings(frame_id: str, actor_ids: Optional[list[str]] = None):
-    """Refuses to aggregate across mismatched frame_version or scheme_id."""
-    _todo(8, "aggregate_ratings")
-
-
 def evidence_export(selection: Optional[dict] = None, formats: Optional[list[str]] = None,
                     include_provenance: bool = False, include_ai_values: bool = False,
                     output_dir: Optional[str] = None, *, root: Optional[str] = None):
@@ -347,24 +342,6 @@ def zotero_oauth_finish(oauth_token: str, token_secret: str, verifier: str, *,
 
 
 # ---- ADR-0001 step 3: claim-support dual rating --------------------------
-def warehouse_status(*, root: Optional[str] = None):
-    """De-identified validation warehouse status (read-only)."""
-    from ..warehouse import ValidationWarehouseService
-    return ValidationWarehouseService(_open_store(root)).status()
-
-
-def warehouse_emit(claim_id: str, candidate_id: str, *, root: Optional[str] = None):
-    """Emit one de-identified validation record for a (claim, candidate). No-op if disabled."""
-    from ..warehouse import ValidationWarehouseService
-    return ValidationWarehouseService(_open_store(root)).emit_for_decision(claim_id, candidate_id)
-
-
-def warehouse_export(output_path: Optional[str] = None, *, root: Optional[str] = None):
-    """Export the de-identified validation records."""
-    from ..warehouse import ValidationWarehouseService
-    return ValidationWarehouseService(_open_store(root)).export(output_path)
-
-
 _PACKET_README = (
     "CiteVahti review packet\n"
     "=======================\n\n"
@@ -420,53 +397,6 @@ def export_report_docx(output_path: Optional[str] = None, *, root: Optional[str]
     with open(out, "wb") as f:
         f.write(data)
     return {"output_file": out, "claim_count": rep.total}
-
-
-def warehouse_purge(*, root: Optional[str] = None):
-    """Erase the validation warehouse (consent withdrawal)."""
-    from ..warehouse import ValidationWarehouseService
-    return ValidationWarehouseService(_open_store(root)).purge()
-
-
-def warehouse_configure(*, enabled: Optional[bool] = None,
-                        include_claim_text: Optional[bool] = None,
-                        auto_emit: Optional[bool] = None, domain: Optional[str] = None,
-                        root: Optional[str] = None):
-    """Set the warehouse opt-ins (enable / include-claim-text / auto-emit / domain).
-
-    The warehouse is default-off; this is the explicit consent toggle. Only the
-    fields passed are changed. Returns the resulting status.
-    """
-    from ..warehouse import ValidationWarehouseService
-
-    store = _open_store(root)
-    cfg = store.load_config()
-    wh = cfg.validation_warehouse
-    if enabled is not None:
-        wh.enabled = bool(enabled)
-    if include_claim_text is not None:
-        wh.include_claim_text = bool(include_claim_text)
-    if auto_emit is not None:
-        wh.auto_emit = bool(auto_emit)
-    if domain is not None:
-        wh.domain = domain or None
-    store.save_config(cfg)
-    return ValidationWarehouseService(store).status()
-
-
-# ---- AtlasVahti contribution (consented, de-identified, revocable) ----------
-def atlas_contribution_preview(*, allow_claim_text: bool = False,
-                               root: Optional[str] = None) -> dict:
-    """Build a de-identified contribution bundle from the warehouse. No transmission."""
-    from ..atlas import build_contribution_bundle
-    return build_contribution_bundle(root=root, allow_claim_text=allow_claim_text)
-
-
-def atlas_revoke(contribution_id: str, *, reason: Optional[str] = None,
-                 root: Optional[str] = None) -> dict:
-    """Build a revocation (purge) request referencing a prior contribution."""
-    from ..atlas import build_revocation
-    return build_revocation(contribution_id, reason=reason, root=root)
 
 
 # ---- ADR-0001 step 5: decision-gated write transactions + undo -----------
