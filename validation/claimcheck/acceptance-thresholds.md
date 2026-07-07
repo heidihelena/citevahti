@@ -44,9 +44,10 @@ can't silently check against a stale number.
 The lexical layer is **expected** to miss these — they are covered by the other cheese
 slices, not by this one, so they are surfaced per-phenomenon and never gated:
 
-- **`paraphrase_support`** — synonymy/inflection drops token overlap below threshold
-  (e.g. "heart attack" vs "myocardial infarction"). Reported recall loss, by design; the
-  AI-model layer covers it.
+- **`paraphrase_support`** — the *long tail* of synonymy the curated map doesn't cover.
+  Common biomedical equivalents (heart attack ≈ myocardial infarction, hypertension ≈ high
+  blood pressure) are now folded by the synonym map, but open paraphrase (e.g. meditation ≈
+  mindfulness) still drops below threshold — by design, the AI-model layer's job.
 - **`semantic_contradiction`** — a contradiction sharing no relation tokens at all.
 
 `antonym_contradiction` **used to be listed here** and is **no longer a hole**: the
@@ -57,18 +58,20 @@ now catches opposite-direction contradictions with no negation cue ("increased" 
 Naming holes is the point (ADR-0009): a results view that hid them would misrepresent a
 one-slice floor as a complete detector.
 
-## Current baseline (frozen 2026-07-07, n = 55)
+## Current baseline (frozen 2026-07-07, n = 57)
 
 | Detector | Precision | Recall |
 |---|---|---|
-| Support | 1.000 | 0.882 |
+| Support | 1.000 | 0.943 |
 | Contradiction | 1.000 | 0.889 |
 | Population-mismatch flag | 1.000 | 1.000 |
 | Certainty/overclaim flag | 0.833 | 1.000 |
 
 Negated-contradiction leaks: **0**. The support/contradiction detectors hold **1.000
-precision** (neither cries wolf); support recall reached 0.882 after the inflectional
-**stemmer** folded morphology. The **population-mismatch flag** scores 1.000/1.000 — the
+precision** (neither cries wolf); support recall reached 0.943 after the inflectional
+**stemmer** folded morphology and a small curated **synonym map** resolved common
+biomedical equivalents (heart attack ≈ myocardial infarction, hypertension ≈ high blood
+pressure). The **population-mismatch flag** scores 1.000/1.000 — the
 important number being 0 false flags on its controls. The **certainty/overclaim flag** is
 the one below 1.000 precision (0.833): recall is perfect, but one deliberately-included
 hard control (a hedge word attached to a covariate, not the relation) is a false positive
@@ -94,3 +97,4 @@ into this lexical regression policy.
 | 2026-07-07 | **v3 — conservative inflectional stemmer in the coverage-matching path. Support recall 0.688 → 0.812, precision held at 1.000; baseline re-frozen (n=37).** | close the inflection/morphology recall misses the eval flagged; measured precision-safe |
 | 2026-07-07 | **v4 — population/PICO mismatch flag (age/sex/species) added to the floor as an advisory warning (ADR-0009 "floor flags, AI confirms"); scored by a new population detector (P 1.000 / R 1.000 over 10 cases, 0 false flags on controls). Baseline re-frozen (n=47).** | item 2/5 — catch the highest-value error class (right relation, wrong population); measured, conservative (silent on implicit populations) |
 | 2026-07-07 | **v5 — certainty/overclaim flag (claim asserts plainly, source hedges: correlational / weak-effect) added as an advisory warning; new certainty detector P 0.833 / R 1.000 over 8 cases (one known covariate-association FP, kept as a hard control). High-precision cue set (no bare modals on the passage side). Baseline re-frozen (n=55).** | item 5/5 — catch overclaim (the "overstated" support value); measured, precision-first, FP mode named not hidden |
+| 2026-07-07 | **v6 — small curated biomedical **synonym map** (heart attack ≈ myocardial infarction, hypertension ≈ high blood pressure, type-2 diabetes ≈ T2DM, …) folded in the coverage-matching path. Support recall 0.882 → 0.943, precision held at 1.000; baseline re-frozen (n=57).** | better-science: stop a student dropping a good citation because the source used a synonym; high-precision (unambiguous pairs only), long-tail paraphrase stays the AI layer's job |

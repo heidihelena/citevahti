@@ -2,11 +2,11 @@
   "certainty_precision": 0.833,
   "certainty_recall": 1.0,
   "contradiction_precision": 1.0,
-  "contradiction_recall": 0.889,
-  "n": 55,
+  "contradiction_recall": 0.895,
+  "n": 57,
   "negation_leaks": 0,
   "population_precision": 1.0,
   "population_recall": 1.0,
   "support_precision": 1.0,
-  "support_recall": 0.882
+  "support_recall": 0.943
 }

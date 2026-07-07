@@ -7,6 +7,17 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Biomedical synonym normalization in claim matching** (`text.py`) — the first
+  *better-science* improvement: the lexical layer was synonymy-blind, so "heart attack"
+  didn't match "myocardial infarction" and a genuinely-supporting source was returned as
+  no-support — risking a student **dropping a good citation**. A small, curated,
+  high-precision map folds unambiguous biomedical equivalents (heart attack ≈ myocardial
+  infarction, hypertension ≈ high blood pressure, type-2 diabetes ≈ T2DM, stroke ≈ CVA,
+  COPD, hand hygiene ≈ handwashing, physical activity ≈ exercise) to a canonical token in
+  the matching path only (`content_tokens` stays raw for display). Measured: **support
+  recall 0.882 → 0.943, precision held at 1.000**. Deliberately narrow — the long tail of
+  paraphrase (e.g. meditation ≈ mindfulness) stays the AI-model layer's job (ADR-0009).
+  Locked by `tests/test_synonyms.py`; `docs/EVALUATION.md` regenerated.
 - **`.zenodo.json`** — Zenodo archive metadata (title, Apache-2.0, creators, keywords) so
   the **next** GitHub release archives with correct metadata instead of GitHub's autoguess.
   The DOI + README badge follow at that release: Zenodo only archives releases published

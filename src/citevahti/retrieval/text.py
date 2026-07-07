@@ -58,9 +58,49 @@ def stem(token: str) -> str:
     return tok
 
 
+# --- Common biomedical synonyms / abbreviations (deterministic; no AI) --------
+# The lexical layer is synonymy-blind: "heart attack" does not match "myocardial
+# infarction", so a genuinely-supporting source is silently returned as
+# no-support — and a student may drop a good citation. This is a SMALL, curated,
+# HIGH-PRECISION map of unambiguous biomedical equivalents (not a thesaurus); each
+# variant folds to a canonical token so both sides match. Deliberately narrow —
+# the long tail of paraphrase stays the AI-model layer's job (ADR-0009). Applied
+# only for MATCHING (coverage_score); content_tokens stays raw. Extend with care:
+# only add pairs that are equivalent in *biomedical* usage, never near-synonyms.
+_SYNONYM_CANON: dict[str, tuple[str, ...]] = {
+    "myocardialinfarction": ("myocardial infarction", "heart attack"),
+    "hypertension": ("high blood pressure", "raised blood pressure", "htn"),
+    "type2diabetes": ("type 2 diabetes", "type ii diabetes", "t2dm",
+                      "adult-onset diabetes", "adult onset diabetes"),
+    "stroke": ("cerebrovascular accident", "cva"),
+    "copd": ("chronic obstructive pulmonary disease",),
+    "handhygiene": ("hand hygiene", "handwashing", "hand washing"),
+    "physicalactivity": ("physical activity", "exercise"),
+}
+# Built once: (regex, canonical), longest phrase first so multi-word variants win.
+_SYNONYM_RX: list[tuple[re.Pattern[str], str]] | None = None
+
+
+def _synonym_rules() -> list[tuple[re.Pattern[str], str]]:
+    global _SYNONYM_RX
+    if _SYNONYM_RX is None:
+        pairs = [(v, canon) for canon, variants in _SYNONYM_CANON.items() for v in variants]
+        pairs.sort(key=lambda p: -len(p[0]))
+        _SYNONYM_RX = [(re.compile(r"\b" + re.escape(v) + r"\b"), canon) for v, canon in pairs]
+    return _SYNONYM_RX
+
+
+def normalize_synonyms(text: str) -> str:
+    """Fold known biomedical variants to a canonical token (lowercased text in/out)."""
+    low = text.lower()
+    for rx, canon in _synonym_rules():
+        low = rx.sub(canon, low)
+    return low
+
+
 def content_stems(text: str) -> set[str]:
-    """Stemmed content tokens — the set used for lexical MATCHING."""
-    return {stem(t) for t in content_tokens(text)}
+    """Stemmed, synonym-normalised content tokens — the set used for MATCHING."""
+    return {stem(t) for t in content_tokens(normalize_synonyms(text))}
 
 
 def coverage_score(query: str, passage: str) -> float:
