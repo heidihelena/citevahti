@@ -58,10 +58,30 @@ def _setup(tmp_path):
     return store, claim.claim_id, cand_id
 
 
+# The exact agent surface, frozen as an independent literal (ADR-0010 PR 0). The
+# allow-list check below catches TOOLS drifting from policy; this catches BOTH changing in
+# lockstep during the god-file split. A new agent tool must be added here consciously.
+FROZEN_AGENT_TOOLS = {
+    "init", "getting_started", "status", "check_update", "triage", "check_paragraph",
+    "methods", "model_advisor", "open_review_panel", "verify_claims", "pubmed_search",
+    "propose_claim", "propose_revision", "link_candidates", "start_support_rating",
+    "submit_ai_support_rating", "preview_write", "commit_write", "undo", "get_provenance",
+    "claim_bond_status",
+}
+
+
 # ---- the surface contract --------------------------------------------------
 def test_surface_is_exactly_the_allow_list():
     assert set(agent.TOOLS) == set(policy.ALLOWED_AGENT_TOOLS)
     policy.assert_safe_surface(agent.TOOLS.keys())          # does not raise
+
+
+def test_surface_matches_the_frozen_literal():
+    """Independent freeze (ADR-0010 PR 0): the split must not add, drop, or rename a tool."""
+    actual = set(agent.TOOLS)
+    assert actual == FROZEN_AGENT_TOOLS, (
+        f"agent surface changed.\n  added:   {sorted(actual - FROZEN_AGENT_TOOLS)}"
+        f"\n  removed: {sorted(FROZEN_AGENT_TOOLS - actual)}")
 
 
 def test_a_non_allowed_tool_is_rejected():
