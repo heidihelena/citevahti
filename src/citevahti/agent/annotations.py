@@ -33,6 +33,8 @@ class ToolMeta:
 TOOL_META: dict[str, ToolMeta] = {
     # ---- read-only: search / fetch / report; never modify the ledger ----------
     "status": ToolMeta("Show CiteVahti status and connections", read_only=True),
+    "getting_started": ToolMeta("Show where to start and your single next step",
+                                read_only=True, open_world=True),
     "check_update": ToolMeta("Check PyPI for a newer CiteVahti release",
                              read_only=True, open_world=True),
     "triage": ToolMeta("List the claims that need your attention, worst first", read_only=True),

@@ -21,8 +21,10 @@ that is wasted. Fixing a doc that's actively wrong is always in scope.
 that channel docs still match the current version.
 
 **Do NOT use for:** live-helping one user (use `docs/QUICKSTART.md` +
-`citevahti-dev`'s troubleshooting table), or marketing copy (`citevahti-claims`
-audits that; this skill writes instructions).
+`citevahti-dev`'s troubleshooting table; on an AI client, the read-only
+`getting_started` tool returns the user's single next step from their real ledger
+state), or marketing copy (`citevahti-claims` audits that; this skill writes
+instructions).
 
 ## Sources of truth — generate FROM these, never from memory
 

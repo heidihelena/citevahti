@@ -7,6 +7,18 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **`getting_started` — low-friction onboarding on the AI surface** (agent + engine tool,
+  read-only) — the third *better-science* improvement. CiteVahti's state-aware "where am I,
+  what's my single next step" guide (`workflow.project_status`) already powered the panel's
+  one-banner-one-button, but a student on the **primary distribution path** — connecting
+  CiteVahti to their AI (Claude Desktop / Code) — couldn't reach it: `triage` is a
+  risk-first list that says nothing on an **empty or uninitialized** ledger, exactly where a
+  newcomer starts. `getting_started` surfaces the guide as the entry point: it speaks to
+  every state and always names one concrete next action — *create the ledger → paste a
+  paragraph → review the flagged claims → export the report* — grounded in the real ledger
+  state, plus any soft blockers (e.g. Zotero write not set up) that never block progress.
+  Read-only, degradation-safe offline; on the safe agent surface with `readOnlyHint`. Locked
+  by `tests/test_getting_started.py` and the read-only/annotation guards.
 - **`model_advisor` — pick a good AI second opinion** (agent + engine tool, read-only) —
   the second *better-science* improvement. A student (or their AI) can now ask *which
   identifiable model should I trust as a second rater?* and get an answer from **this

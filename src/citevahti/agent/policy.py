@@ -14,6 +14,7 @@ from __future__ import annotations
 # is unreachable by an agent.
 ALLOWED_AGENT_TOOLS = (
     "init",                      # create the project ledger (idempotent); every tool needs it
+    "getting_started",           # read-only state-aware "start here / what's my next step" guide
     "status",                    # read-only capability report
     "check_update",              # read-only, user-initiated PyPI version check (no install, no user data)
     "triage",                    # read-only risk-first "what needs your attention" list

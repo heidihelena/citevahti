@@ -82,8 +82,9 @@ def test_panel_get_endpoints_and_agent_reads_dont_touch_the_audited_ledger(tmp_p
                  f"/api/claims/{cid}/history", "/api/next", "/api/prompts", "/api/draft-context"):
         status, _ = dispatch(root, "GET", path, None)
         assert status == 200, f"{path} -> {status}"
-    for name, args in (("status", ()), ("verify_claims", ()), ("triage", ()),
-                       ("methods", ()), ("model_advisor", ()), ("claim_bond_status", (cid,))):
+    for name, args in (("status", ()), ("getting_started", ()), ("verify_claims", ()),
+                       ("triage", ()), ("methods", ()), ("model_advisor", ()),
+                       ("claim_bond_status", (cid,))):
         if name in agent.TOOLS:
             agent.TOOLS[name](*args, root=root)
 
