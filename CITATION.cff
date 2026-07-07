@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use CiteVahti in your work, please cite it using the metadata below."
+title: "CiteVahti — citation integrity for manuscripts"
+abstract: >-
+  CiteVahti runs unit tests on manuscript claims: it checks whether each cited
+  source actually supports the claim it is attached to. Human-first and blinded —
+  the researcher rates first, an AI second rating is revealed only afterward, and
+  disagreements are routed to explicit adjudication — with a hash-chained audit
+  trail and decision-gated, undoable Zotero write-back. Local-first and
+  single-user; it surfaces evidence for human adjudication and never issues a
+  verdict, certifies a manuscript, or writes silently.
+type: software
+authors:
+  - name: "Vahtian"
+    website: "https://vahtian.com"
+repository-code: "https://github.com/heidihelena/citevahti"
+url: "https://vahtian.com"
+license: Apache-2.0
+keywords:
+  - citation integrity
+  - manuscript
+  - systematic review
+  - PRISMA
+  - evidence synthesis
+  - peer review
+  - Zotero
+  - PubMed
+  - academic writing
+# No `version` / `date-released` field on purpose: this file is NOT part of the
+# six-file version lockstep in docs/RELEASING.md. When the Zenodo–GitHub
+# integration is enabled, Zenodo derives the version and release date from the
+# GitHub Release tag, so pinning them here would only create a seventh place to
+# drift. See the DOI step in skills/citevahti-release/SKILL.md.

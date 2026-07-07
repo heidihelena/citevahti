@@ -70,12 +70,15 @@ silently exists on one surface only is how the "abandoned adapter" impression st
 
 ### Gate 5 — DOI + rollback notes (production-push addition)
 
-- **Zenodo DOI per release.** Not yet wired up: set up the Zenodo–GitHub integration
-  once (enable the repo at zenodo.org/account/settings/github + commit a `CITATION.cff`),
-  after which each GitHub Release auto-mints a versioned DOI under a concept DOI. Until
-  that's done, this step is a no-op — but note it in the release PR so it doesn't
-  silently drop off. Once live: check that the DOI resolves, and put the concept DOI in
-  `README.md`/`CITATION.cff`, the versioned DOI in the release notes.
+- **Zenodo DOI per release.** `CITATION.cff` is committed (entity author; **no `version`
+  field on purpose** — Zenodo derives the version and date from the release tag, so it is
+  *not* a seventh lockstep file). One one-time step remains: enable the repo at
+  zenodo.org/account/settings/github. After that each GitHub Release auto-mints a
+  versioned DOI under a stable concept DOI. Until that toggle is flipped this step is a
+  no-op — note it in the release PR so it doesn't silently drop off. Once live: check that
+  the DOI resolves, put the **concept** DOI in `README.md` (and, if you add a
+  preferred-citation DOI to `CITATION.cff`, the concept DOI there), and the **versioned**
+  DOI in the release notes.
 - **Rollback notes.** One short block in the release notes: the last-known-good
   version, and the per-surface downgrade path — PyPI: `pip install citevahti==X.Y.Z`;
   `.mcpb`: remove + reinstall the prior release asset (Claude Desktop caches — a
