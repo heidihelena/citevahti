@@ -11,10 +11,10 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__
-from .probe import HttpxClient, run_probes
-from .rootcfg import default_root
-from .state import CiteVahtiStore
+from .. import __version__
+from ..probe import HttpxClient, run_probes
+from ..rootcfg import default_root
+from ..state import CiteVahtiStore
 
 
 def _cmd_init(args) -> int:
@@ -52,7 +52,7 @@ def _cmd_probe(args) -> int:
 
 
 def _cmd_verify_audit(args) -> int:
-    from .claims.decisions import decision_inconsistency
+    from ..claims.decisions import decision_inconsistency
     store = CiteVahtiStore(args.root)
     intact = store.audit.verify()
     print(f"audit chain intact: {intact} ({len(store.audit.entries())} entries)")
@@ -79,8 +79,8 @@ def _cmd_verify_audit(args) -> int:
 
 def _cmd_status(args) -> int:
     """Connection & Capabilities: the truth about what CiteVahti can do right now."""
-    from .capabilities import CapabilityStatusService
-    from .state import CiteVahtiStore as _Store
+    from ..capabilities import CapabilityStatusService
+    from ..state import CiteVahtiStore as _Store
 
     store = _Store(args.root)
     if not store.exists():
@@ -126,15 +126,15 @@ def _cmd_preflight(args) -> int:
     degrades to a safe default so the extension can render a checklist.
     """
     import json as _json
-    from .start import preflight_snapshot
+    from ..start import preflight_snapshot
 
     print(_json.dumps(preflight_snapshot(args.root, HttpxClient())))
     return 0
 
 
 def _cmd_start(args) -> int:
-    from .start import start
-    from .panel import prefs
+    from ..start import start
+    from ..panel import prefs
     root = args.root
     # avoid the empty-ledger trap: if this folder has no ledger, fall back to the
     # last-used root rather than serving a blank panel.
@@ -152,7 +152,7 @@ def _cmd_doctor(args) -> int:
 
     The humane counterpart to `status`/`probe`/`preflight` — for the researcher who's
     never opened a terminal and just needs to be told what to fix."""
-    from .start import preflight_snapshot, readiness_lines
+    from ..start import preflight_snapshot, readiness_lines
 
     snap = preflight_snapshot(args.root, HttpxClient())
     z, b = snap["zotero"], snap["better_bibtex"]
@@ -181,7 +181,7 @@ def _cmd_check_update(args) -> int:
     Contacts pypi.org only when you run it (no launch-time or background phone-home), sends
     no data about you, and just tells you whether a newer CiteVahti is published. Pairs with
     `doctor`/`status`, which report the version you're RUNNING."""
-    from .update_check import check_update
+    from ..update_check import check_update
     result = check_update()
     print(result["message"])
     # exit 0 whether up-to-date or update-available (both normal); only a FAILED check is
@@ -194,8 +194,8 @@ def _cmd_run(args) -> int:
 
     Resumable by construction — the ledger is the state, so re-running picks up exactly
     where you left off (same as `resume`)."""
-    from .start import preflight_snapshot, readiness_lines, start
-    from .state import CiteVahtiStore
+    from ..start import preflight_snapshot, readiness_lines, start
+    from ..state import CiteVahtiStore
 
     root = args.root
     store = CiteVahtiStore(root)
@@ -220,8 +220,8 @@ def _cmd_demo(args) -> int:
     import shutil
     from pathlib import Path
 
-    from .demo import build
-    from .start import start
+    from ..demo import build
+    from ..start import start
 
     root = Path(args.dir).expanduser()
     is_default = args.dir == _DEMO_DIR
@@ -244,8 +244,8 @@ def _cmd_demo(args) -> int:
 def _cmd_resume(args) -> int:
     """Resume where you left off: name the next pending action, then open the panel
     (its 'what's next' banner routes you straight to the claim)."""
-    from . import workflow
-    from .start import start
+    from .. import workflow
+    from ..start import start
 
     nxt = (workflow.project_status(args.root, HttpxClient()).get("next") or {})
     print(f"Resuming → {nxt.get('label', 'open the panel to continue.')}\n")
@@ -257,7 +257,7 @@ def _cmd_vocabulary(args) -> int:
     (so the VS Code extension stops hardcoding the verdict map)."""
     import json as _json
 
-    from . import workflow
+    from .. import workflow
     print(_json.dumps(workflow.vocabulary()))
     return 0
 
@@ -268,14 +268,14 @@ def _cmd_timestamp(args) -> int:
     Sends ONLY the audit-head hash to the configured RFC 3161 authority and stores the
     proof. Off unless `timestamp.provider` is configured; degrades honestly when offline.
     """
-    from .state import CiteVahtiStore
-    from .timestamp import (
+    from ..state import CiteVahtiStore
+    from ..timestamp import (
         FakeTimestampProvider,
         TimestampService,
         TimestampUnavailable,
         provider_from_config,
     )
-    from .timestamp.service import provider_for_proof
+    from ..timestamp.service import provider_for_proof
 
     store = CiteVahtiStore(args.root)
     if not store.exists():
@@ -325,7 +325,7 @@ def _cmd_timestamp(args) -> int:
 
 def _cmd_agent_tools(args) -> int:
     """Show the constrained agent (MCP) surface and the capabilities it can never have."""
-    from .agent import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, TOOLS
+    from ..agent import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, TOOLS
     print("CiteVahti agent surface (the ONLY tools an agent may call):")
     for name in ALLOWED_AGENT_TOOLS:
         lines = (TOOLS[name].__doc__ or "").strip().splitlines() if name in TOOLS else []
@@ -337,7 +337,7 @@ def _cmd_agent_tools(args) -> int:
 
 
 def _cmd_mcp_serve(args) -> int:
-    from .agent import mcp_server
+    from ..agent import mcp_server
     try:
         return mcp_server.main(["--root", args.root])
     except RuntimeError as exc:
@@ -346,8 +346,8 @@ def _cmd_mcp_serve(args) -> int:
 
 
 def _cmd_bib_sync(args) -> int:
-    from .bibsync import BbtBibProvider, BibSyncService
-    from .state import CiteVahtiStore as _Store
+    from ..bibsync import BbtBibProvider, BibSyncService
+    from ..state import CiteVahtiStore as _Store
 
     store = _Store(args.root)
     provider = BbtBibProvider(HttpxClient())
@@ -372,15 +372,15 @@ def _cmd_bib_sync(args) -> int:
 
 
 def _parse_library(s: str):
-    from .zotero.library import coerce_library
+    from ..zotero.library import coerce_library
     if s.startswith("group:"):
         return coerce_library({"kind": "group", "group_id": s.split(":", 1)[1]})
     return coerce_library(s)
 
 
 def _cmd_extract(args) -> int:
-    from . import tools
-    from .schemas.common import ItemRef
+    from .. import tools
+    from ..schemas.common import ItemRef
 
     lib = _parse_library(args.library)
     subject = ItemRef(zotero_key=args.item_key or "", citekey=args.citekey, library=lib)
@@ -399,7 +399,7 @@ def _cmd_extract(args) -> int:
 
 
 def _cmd_claim_check(args) -> int:
-    from . import tools
+    from .. import tools
 
     lib = _parse_library(args.library)
     res = tools.claim_check(args.claim, args.citekey or [], require_page=args.require_page,
@@ -430,7 +430,7 @@ def _cmd_claim_verify(args) -> int:
     claim-check for callers that already have the cited source's text (e.g. an external
     citation reviewer). Deterministic lexical overlap; never a verdict — see
     docs/INTEGRATION.md."""
-    from . import tools
+    from .. import tools
 
     if args.text is not None:
         text = args.text
@@ -455,7 +455,7 @@ def _cmd_claim_verify(args) -> int:
 
 
 def _cmd_claim_add(args) -> int:
-    from . import tools
+    from .. import tools
     claim = tools.add_claim(
         args.text, args.type, manuscript_location=args.location,
         manuscript_id=args.manuscript_id, extracted_by=args.extracted_by,
@@ -474,7 +474,7 @@ def _cmd_claim_add(args) -> int:
 
 
 def _cmd_claim_untestable(args) -> int:
-    from . import tools
+    from .. import tools
     reason = None if getattr(args, "clear", False) else args.reason
     claim = tools.claim_mark_untestable(args.claim_id, reason, root=args.root)
     if getattr(args, "json", False):
@@ -491,7 +491,7 @@ def _cmd_claim_untestable(args) -> int:
 
 
 def _cmd_claim_propose_revision(args) -> int:
-    from . import tools
+    from .. import tools
     claim = tools.propose_revision(
         args.claim_id, args.text, extracted_by=args.extracted_by,
         extraction_model=args.extraction_model, root=args.root)
@@ -505,7 +505,7 @@ def _cmd_claim_propose_revision(args) -> int:
 
 
 def _cmd_claim_accept_revision(args) -> int:
-    from . import tools
+    from .. import tools
     claim = tools.accept_revision(
         args.claim_id, expected_text=args.expected_text, root=args.root)
     print(f"revision applied to {claim.claim_id}")
@@ -514,14 +514,14 @@ def _cmd_claim_accept_revision(args) -> int:
 
 
 def _cmd_claim_reject_revision(args) -> int:
-    from . import tools
+    from .. import tools
     claim = tools.reject_revision(args.claim_id, root=args.root)
     print(f"revision rejected for {claim.claim_id}; claim unchanged")
     return 0
 
 
 def _cmd_claim_list(args) -> int:
-    from . import tools
+    from .. import tools
     claims = tools.list_claims(root=args.root)
     if getattr(args, "json", False):
         _emit_json(claims)
@@ -536,7 +536,7 @@ def _cmd_claim_list(args) -> int:
 
 
 def _cmd_claim_link_candidates(args) -> int:
-    from . import tools
+    from .. import tools
     rep = tools.link_candidates(args.claim_id, args.intake_batch_id,
                                 record_ids=args.record_id or None, root=args.root)
     if getattr(args, "json", False):
@@ -555,7 +555,7 @@ def _cmd_claim_link_candidates(args) -> int:
 
 
 def _cmd_candidate_list(args) -> int:
-    from . import tools
+    from .. import tools
     cc = tools.list_candidates(args.claim_id, root=args.root)
     if getattr(args, "json", False):
         _emit_json(cc)
@@ -575,7 +575,7 @@ def _cmd_candidate_list(args) -> int:
 
 
 def _fit_from_args(args):
-    from .schemas.claim_support import FitScores
+    from ..schemas.claim_support import FitScores
     if not any(v is not None for v in (args.population_fit, args.intervention_fit,
                                        args.outcome_fit, args.claim_fit)):
         return None
@@ -612,7 +612,7 @@ def _print_support(rec) -> None:
 
 
 def _cmd_support_start(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.support_start(args.claim_id, args.candidate_id, root=args.root))
     if rec:
         if getattr(args, "json", False):
@@ -623,7 +623,7 @@ def _cmd_support_start(args) -> int:
 
 
 def _cmd_support_commit_human(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.support_commit_human(
         args.rating_id, args.value, fit=_fit_from_args(args), rationale=args.rationale,
         committed_by=args.committed_by, root=args.root))
@@ -633,7 +633,7 @@ def _cmd_support_commit_human(args) -> int:
 
 
 def _cmd_support_run_ai(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.support_run_ai(args.rating_id, args.task_type, root=args.root))
     if rec:
         _emit_json(rec) if getattr(args, "json", False) else _print_support(rec)
@@ -641,7 +641,7 @@ def _cmd_support_run_ai(args) -> int:
 
 
 def _cmd_support_compare(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.support_compare(args.rating_id, root=args.root))
     if rec:
         _emit_json(rec) if getattr(args, "json", False) else _print_support(rec)
@@ -649,7 +649,7 @@ def _cmd_support_compare(args) -> int:
 
 
 def _cmd_support_adjudicate(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.support_adjudicate(
         args.rating_id, args.final_value, args.rationale, args.decider, root=args.root))
     if rec:
@@ -658,7 +658,7 @@ def _cmd_support_adjudicate(args) -> int:
 
 
 def _cmd_support_show(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.get_support_rating(args.rating_id, root=args.root))
     if rec:
         _emit_json(rec) if getattr(args, "json", False) else _print_support(rec)
@@ -674,7 +674,7 @@ def _print_panel(p, indent: str = "") -> None:
 
 
 def _cmd_support_panel(args) -> int:
-    from . import tools
+    from .. import tools
     res, rc = _safe(lambda: tools.support_panel(
         args.claim_id, getattr(args, "candidate_id", None), root=args.root))
     if not res:
@@ -695,7 +695,7 @@ def _cmd_support_panel(args) -> int:
 
 
 def _cmd_claim_decide(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.decide(
         args.claim_id, args.candidate_id, args.decision, args.reason,
         rating_id=args.rating_id, decided_by=args.decided_by, root=args.root))
@@ -720,8 +720,8 @@ def _cmd_test(args) -> int:
     """Run the manuscript unit-test suite — pass/fail per claim, exit non-zero on failure."""
     import json as _json
 
-    from . import tools
-    from .state import CiteVahtiStore as _Store
+    from .. import tools
+    from ..state import CiteVahtiStore as _Store
 
     store = _Store(args.root)
     if not store.exists():
@@ -759,7 +759,7 @@ def _cmd_test(args) -> int:
 
 def _cmd_check_paragraph(args) -> int:
     """Check-a-paragraph — paste what you just wrote; see what's vetted / needs you / new."""
-    from . import tools
+    from .. import tools
 
     text = args.text
     if not text and args.path:
@@ -789,7 +789,7 @@ def _cmd_check_paragraph(args) -> int:
 
 def _cmd_methods(args) -> int:
     """Methods statement — the submission-ready paragraph + PRISMA discovery disclosure."""
-    from . import tools
+    from .. import tools
 
     md, rc = _safe(lambda: tools.methods_statement(root=args.root))
     if md is None:
@@ -804,7 +804,7 @@ def _cmd_methods(args) -> int:
 
 def _cmd_triage(args) -> int:
     """Risk-first triage — the few claims worth your attention now, worst-first."""
-    from . import tools
+    from .. import tools
 
     t = tools.triage(root=args.root)
     if getattr(args, "json", False):
@@ -826,8 +826,8 @@ def _cmd_triage(args) -> int:
 
 def _cmd_risk(args) -> int:
     """Epistemic Risk Score — derived, advisory manuscript triage (never a gate)."""
-    from . import tools
-    from .risk import score_report
+    from .. import tools
+    from ..risk import score_report
 
     r = score_report(tools.claim_report(root=args.root))
     if getattr(args, "json", False):
@@ -851,7 +851,7 @@ def _cmd_risk(args) -> int:
 
 def _cmd_claim_report(args) -> int:
     """Citation-integrity test results: the 4-state claim report."""
-    from . import tools
+    from .. import tools
     rep = tools.claim_report(root=args.root)
     needs = rep.counts.get("needs_support", 0) + rep.counts.get("review_needed", 0)
     rc = 0 if needs == 0 else 1                       # CI-style: non-zero when attention needed
@@ -859,10 +859,10 @@ def _cmd_claim_report(args) -> int:
     if fmt == "json":
         out = rep.model_dump_json(indent=2)
     elif fmt == "md":
-        from .report import render_markdown
+        from ..report import render_markdown
         out = render_markdown(rep)
     elif fmt == "test":
-        from .report import render_test_report
+        from ..report import render_test_report
         out = render_test_report(rep)
     else:
         out = _claim_report_text(rep, getattr(args, "show_text", False))
@@ -893,7 +893,7 @@ def _claim_report_text(rep, show_text: bool) -> str:
 
 
 def _cmd_decision_list(args) -> int:
-    from . import tools
+    from .. import tools
     decisions = tools.list_decisions(args.claim_id, root=args.root)
     if getattr(args, "json", False):
         _emit_json(decisions)
@@ -926,7 +926,7 @@ def _print_txn(txn) -> None:
 def _cmd_claim_commit(args) -> int:
     import json as _json
 
-    from . import tools
+    from .. import tools
     if args.commit:
         # PREVIEW FIRST, ALWAYS. A write needs an approval token from a preview.
         # If a token is supplied (--confirm-token), the user already saw the preview
@@ -1003,8 +1003,8 @@ def _cmd_claim_commit(args) -> int:
 
 
 def _cmd_cite_export(args) -> int:
-    from . import tools
-    from .report.citation_export import write_outputs
+    from .. import tools
+    from ..report.citation_export import write_outputs
     res, rc = _safe(lambda: tools.cite_export(args.manuscript, root=args.root))
     if not res:
         return rc
@@ -1041,7 +1041,7 @@ def _cmd_cite_export(args) -> int:
 
 
 def _cmd_txn_list(args) -> int:
-    from . import tools
+    from .. import tools
     txns = tools.list_transactions(root=args.root)
     print(f"transactions: {len(txns)}")
     for t in txns:
@@ -1050,7 +1050,7 @@ def _cmd_txn_list(args) -> int:
 
 
 def _cmd_txn_show(args) -> int:
-    from . import tools
+    from .. import tools
     txn, rc = _safe(lambda: tools.get_transaction(args.transaction_id, root=args.root))
     if txn:
         _print_txn(txn)
@@ -1058,7 +1058,7 @@ def _cmd_txn_show(args) -> int:
 
 
 def _cmd_txn_undo(args) -> int:
-    from . import tools
+    from .. import tools
     txn, rc = _safe(lambda: tools.undo_transaction(args.transaction_id, root=args.root))
     if txn and getattr(args, "json", False):
         print(txn.model_dump_json(indent=2))
@@ -1082,7 +1082,7 @@ def _print_warehouse(rep) -> None:
 
 
 def _cmd_warehouse_status(args) -> int:
-    from . import tools
+    from .. import tools
     rep, rc = _safe(lambda: tools.warehouse_status(root=args.root))
     if rep:
         print("validation warehouse")
@@ -1091,7 +1091,7 @@ def _cmd_warehouse_status(args) -> int:
 
 
 def _cmd_warehouse_emit(args) -> int:
-    from . import tools
+    from .. import tools
     rep, rc = _safe(lambda: tools.warehouse_emit(args.claim_id, args.candidate_id, root=args.root))
     if rep:
         _print_warehouse(rep)
@@ -1099,7 +1099,7 @@ def _cmd_warehouse_emit(args) -> int:
 
 
 def _cmd_warehouse_export(args) -> int:
-    from . import tools
+    from .. import tools
     rep, rc = _safe(lambda: tools.warehouse_export(args.output, root=args.root))
     if rep:
         _print_warehouse(rep)
@@ -1107,7 +1107,7 @@ def _cmd_warehouse_export(args) -> int:
 
 
 def _cmd_warehouse_purge(args) -> int:
-    from . import tools
+    from .. import tools
     rep, rc = _safe(lambda: tools.warehouse_purge(root=args.root))
     if rep:
         _print_warehouse(rep)
@@ -1149,7 +1149,7 @@ def _report_intake(rec, root: str) -> int:
 
 
 def _cmd_literature_search(args) -> int:
-    from . import tools
+    from .. import tools
     rec = tools.literature_search(
         args.query, question_id=args.question_id, max_results=args.max_results,
         include_abstracts=args.include_abstracts, library=_parse_library(args.library),
@@ -1169,7 +1169,7 @@ def _cmd_literature_search(args) -> int:
 
 
 def _cmd_import_results(args) -> int:
-    from . import tools
+    from .. import tools
     source = {"path": args.path} if args.path else {"text": args.text}
     rec = tools.import_results(source, args.format, question_id=args.question_id,
                                source_label=args.source_label,
@@ -1179,7 +1179,7 @@ def _cmd_import_results(args) -> int:
 
 def _cmd_snapshot(args) -> int:
     from pathlib import Path as _P
-    from . import tools
+    from .. import tools
     rec = tools.snapshot(label=args.label, library=_parse_library(args.library),
                          include_fulltext_hashes=args.include_fulltext_hashes, root=args.root)
     print(f"status: {rec.status}" + (f" ({rec.error_code})" if rec.error_code else ""))
@@ -1196,7 +1196,7 @@ def _cmd_snapshot(args) -> int:
 
 
 def _cmd_corpus_diff(args) -> int:
-    from . import tools
+    from .. import tools
     rep = tools.corpus_diff(args.from_id, to_snapshot_id=args.to,
                             compare_to_current=args.current, mark_stale=args.mark_stale,
                             library=_parse_library(args.library), root=args.root)
@@ -1219,7 +1219,7 @@ def _cmd_corpus_diff(args) -> int:
 
 def _cmd_surveillance_refresh(args) -> int:
     from pathlib import Path as _P
-    from . import tools
+    from .. import tools
     rec = tools.surveillance_refresh(args.query_id, max_results=args.max_results,
                                      library=_parse_library(args.library), root=args.root)
     print(f"status: {rec.status}" + (f" ({rec.error_code})" if rec.error_code else ""))
@@ -1236,7 +1236,7 @@ def _cmd_surveillance_refresh(args) -> int:
 
 
 def _cmd_map_bootstrap(args) -> int:
-    from . import tools
+    from .. import tools
     rep = tools.map_bootstrap(args.guideline_path, library=_parse_library(args.library),
                               dry_run=not args.write, root=args.root)
     print(f"status: {rep.status}" + (f" ({rep.error_code})" if rep.error_code else ""))
@@ -1254,17 +1254,17 @@ def _cmd_map_bootstrap(args) -> int:
 
 
 def _subject(args):
-    from .schemas.rating import Subject
+    from ..schemas.rating import Subject
     return Subject(outcome_id=getattr(args, "outcome_id", None),
                    study_id=getattr(args, "study_id", None),
                    domain_id=getattr(args, "domain_id", None))
 
 
 def _safe(fn):
-    from .state.store import StateError
-    from .validators.errors import ValidationError
-    from .writeback.backend import WriteUnavailable
-    from .writeback.transaction import TransactionError
+    from ..state.store import StateError
+    from ..validators.errors import ValidationError
+    from ..writeback.backend import WriteUnavailable
+    from ..writeback.transaction import TransactionError
     try:
         return fn(), 0
     except (ValidationError, StateError, TransactionError, WriteUnavailable) as exc:
@@ -1274,7 +1274,7 @@ def _safe(fn):
 
 
 def _cmd_rating_start(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.rating_start(args.frame_id, args.scheme_id, _subject(args),
                                                root=args.root))
     if rec:
@@ -1283,7 +1283,7 @@ def _cmd_rating_start(args) -> int:
 
 
 def _cmd_rating_commit_human(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.rating_commit_human(args.rating_id, args.value,
                                                       rationale=args.rationale,
                                                       committed_by=args.committed_by, root=args.root))
@@ -1293,7 +1293,7 @@ def _cmd_rating_commit_human(args) -> int:
 
 
 def _cmd_rating_run_ai(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.rating_run_ai(args.rating_id, args.task_type, root=args.root))
     if rec:
         ai = rec.ai_rating
@@ -1303,7 +1303,7 @@ def _cmd_rating_run_ai(args) -> int:
 
 
 def _cmd_rating_compare(args) -> int:
-    from . import tools
+    from .. import tools
     cmp, rc = _safe(lambda: tools.rating_compare(args.rating_id, root=args.root))
     if cmp:
         print(f"status: {cmp.status}  outcome: {cmp.outcome}  "
@@ -1312,7 +1312,7 @@ def _cmd_rating_compare(args) -> int:
 
 
 def _cmd_rating_adjudicate(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.rating_adjudicate(args.rating_id, args.final_value,
                                                     args.rationale, args.decider, root=args.root))
     if rec:
@@ -1321,7 +1321,7 @@ def _cmd_rating_adjudicate(args) -> int:
 
 
 def _cmd_assess(args) -> int:
-    from . import tools
+    from .. import tools
     rec, rc = _safe(lambda: tools.assess(args.frame_id, args.scheme_id, _subject(args), args.value,
                                          rationale=args.rationale, dual_rating=args.dual_rating,
                                          tag_mirror=args.tag_mirror, root=args.root))
@@ -1339,7 +1339,7 @@ def _cmd_assess(args) -> int:
 def _cmd_license_scan(args) -> int:
     """Fill candidates' reuse rights (oa_status/license) from OpenAlex. Reports, never
     decides — contacts OpenAlex (api.openalex.org) for each DOI/PMID."""
-    from . import tools
+    from .. import tools
     rep = tools.scan_licenses(root=args.root)
     if getattr(args, "json", False):
         import json as _json
@@ -1350,7 +1350,7 @@ def _cmd_license_scan(args) -> int:
 
 
 def _cmd_retraction_scan(args) -> int:
-    from . import tools
+    from .. import tools
     selection = {"citekeys": args.citekey, "dois": args.doi, "pmids": args.pmid}
     rep = tools.retraction_scan(selection, mark_stale=args.mark_stale, root=args.root)
     print(f"status: {rep.status}" + (f" ({rep.error_code})" if rep.error_code else ""))
@@ -1366,7 +1366,7 @@ def _cmd_retraction_scan(args) -> int:
 
 def _cmd_prisma_ledger(args) -> int:
     import json as _json
-    from . import tools
+    from .. import tools
     payload = _json.loads(args.payload) if args.payload else None
     rec, rc = _safe(lambda: tools.prisma_ledger(args.question_id, args.action, payload,
                                                 root=args.root))
@@ -1382,7 +1382,7 @@ def _cmd_prisma_ledger(args) -> int:
 
 
 def _cmd_evidence_export(args) -> int:
-    from . import tools
+    from .. import tools
     selection = {"citekeys": args.citekey or None, "node_ids": args.node_id or None,
                  "outcome_ids": args.outcome_id_sel or None,
                  "recommendation_ids": args.recommendation_id or None}
@@ -1401,7 +1401,7 @@ def _cmd_evidence_export(args) -> int:
 
 
 def _cmd_agreement_report(args) -> int:
-    from . import tools
+    from .. import tools
     filters = {}
     if args.scheme_id:
         filters["scheme_id"] = args.scheme_id
@@ -1459,12 +1459,12 @@ def _print_write(out) -> int:
 
 
 def _refs(keys):
-    from .schemas.common import ItemRef
+    from ..schemas.common import ItemRef
     return [ItemRef(zotero_key=k) for k in keys]
 
 
 def _cmd_note_add(args) -> int:
-    from . import tools
+    from .. import tools
     if args.show_body:
         print(f"  (note body, {len(args.markdown)} chars): {args.markdown}")
     out = tools.note_add(_refs([args.target])[0], args.title, args.markdown,
@@ -1474,14 +1474,14 @@ def _cmd_note_add(args) -> int:
 
 
 def _cmd_tag_add(args) -> int:
-    from . import tools
+    from .. import tools
     out = tools.tag_add(_refs(args.target), args.tag, library=_parse_library(args.library),
                         dry_run=not args.confirm_token, confirm_token=args.confirm_token, root=args.root)
     return _print_write(out)
 
 
 def _cmd_tag_remove(args) -> int:
-    from . import tools
+    from .. import tools
     out = tools.tag_remove(_refs(args.target), args.tag, library=_parse_library(args.library),
                            dry_run=not args.confirm_token, confirm_token=args.confirm_token,
                            root=args.root)
@@ -1489,7 +1489,7 @@ def _cmd_tag_remove(args) -> int:
 
 
 def _cmd_collection_add_item(args) -> int:
-    from . import tools
+    from .. import tools
     out = tools.collection_add_item(args.collection_key, _refs(args.target),
                                     library=_parse_library(args.library),
                                     dry_run=not args.confirm_token, confirm_token=args.confirm_token,
@@ -1498,7 +1498,7 @@ def _cmd_collection_add_item(args) -> int:
 
 
 def _cmd_intake_push(args) -> int:
-    from . import tools
+    from .. import tools
     out = tools.intake_push(args.batch_id, record_ids=args.record_id or None,
                             collection_key=args.collection_key,
                             library=_parse_library(args.library), dry_run=not args.confirm_token,
@@ -1509,7 +1509,7 @@ def _cmd_intake_push(args) -> int:
 
 
 def _cmd_assessment_tag_mirror(args) -> int:
-    from . import tools
+    from .. import tools
     out = tools.assessment_tag_mirror(rating_id=args.rating_id,
                                       assessment_attachment_id=args.assessment_attachment_id,
                                       dry_run=not args.confirm_token, confirm_token=args.confirm_token,
@@ -1523,8 +1523,8 @@ def _cmd_connect_zotero(args) -> int:
     import os
     import sys
 
-    from . import tools
-    from .zotero import ZoteroConnectError
+    from .. import tools
+    from ..zotero import ZoteroConnectError
 
     url = tools.zotero_new_key_url(args.name, groups=args.groups)
     print("Connect CiteVahti to Zotero (reads are keyless; this enables guarded write-back):")
@@ -1576,7 +1576,7 @@ def _cmd_onboard(args) -> int:
     import os
     import sys
 
-    from . import tools
+    from .. import tools
 
     def get_secret(env_name: str, label: str, want: bool):
         if not want:
@@ -1715,7 +1715,7 @@ def main(argv: list[str] | None = None) -> int:
                          "With neither --text nor --text-file, the text is read from stdin.")
     cv.set_defaults(func=_cmd_claim_verify)
 
-    from .schemas.claim import CLAIM_TYPES, EXTRACTED_BY
+    from ..schemas.claim import CLAIM_TYPES, EXTRACTED_BY
     cla = sub.add_parser("claim-add", help="record a first-class manuscript claim (ADR-0001)")
     cla.add_argument("--text", required=True, help="the claim as asserted in the manuscript")
     cla.add_argument("--type", default="other", choices=list(CLAIM_TYPES))
@@ -1778,7 +1778,7 @@ def main(argv: list[str] | None = None) -> int:
     cdl.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     cdl.set_defaults(func=_cmd_candidate_list)
 
-    from .schemas.claim_support import SUPPORT_VALUES
+    from ..schemas.claim_support import SUPPORT_VALUES
     css = sub.add_parser("claim-support-start",
                          help="start a blinded claim-support rating for a (claim, candidate)")
     css.add_argument("--claim-id", required=True)
@@ -1830,7 +1830,7 @@ def main(argv: list[str] | None = None) -> int:
     csp.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     csp.set_defaults(func=_cmd_support_panel)
 
-    from .schemas.decision import FINAL_DECISIONS
+    from ..schemas.decision import FINAL_DECISIONS
     cdc = sub.add_parser("claim-decide",
                          help="record the human-owned final decision for a (claim, candidate)")
     cdc.add_argument("--claim-id", required=True)
