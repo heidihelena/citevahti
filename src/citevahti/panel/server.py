@@ -312,6 +312,220 @@ class HttpError(Exception):
         self.remediation = remediation
 
 
+# ---- static read-only GET routes (ADR-0010 panel split, PR 2a) ---------------
+# Each handler is one former dispatch() branch, verbatim. The table is consulted
+# FIRST by dispatch(); exact-match paths are disjoint from the regex routes (which
+# all require extra segments), so table-first lookup is behavior-identical. The
+# CSRF/Host perimeter stays ABOVE dispatch() in the HTTP handler (ADR-0010 §5a).
+
+def _get_ping(root, body):
+    # Cheap liveness: no engine call, no network. /api/health is NOT a liveness
+    # probe — its live Zotero/PubMed connection checks routinely take >1 s, and
+    # probing it on a 1 s timeout got a healthy engine killed by the app's
+    # supervisor (2026-07-02) and the panel window stranded on a dead session.
+    return 200, {"ok": True, "boot_id": _BOOT_ID}
+
+
+def _get_health(root, body):
+    return 200, agent.tools.status(root=root)
+
+
+def _get_claims(root, body):
+    rep = engine.claim_report(root=root)
+    return 200, {"total": rep.total, "counts": rep.counts,
+                 "claims": [{"claim_id": r.claim_id, "state": r.state,
+                             "code": r.code.strip(), "claim_text": r.claim_text,
+                             "manuscript_location": r.manuscript_location,
+                             "candidate_count": r.candidate_count,
+                             "accepted_count": r.accepted_count}
+                            for r in rep.rows]}
+
+
+def _get_context(root, body):
+    rep = engine.claim_report(root=root)
+    return 200, {"root": str(Path(root).expanduser()),
+                 "claim_total": rep.total,
+                 "manuscripts_dir": prefs.get_manuscripts_dir(root),
+                 "auto_update_check": prefs.get_auto_update_check(root),
+                 "vocabulary": workflow.vocabulary()}   # verdicts/states/phases (single source)
+
+    # project-level "what's next" — the one next action for the whole project,
+    # computed in the resolver. Drives the panel wizard and (later) `citevahti run`.
+
+
+def _get_next(root, body):
+    return 200, workflow.project_status(root)
+
+    # the citation-integrity report as Markdown, so the wizard's final step can hand
+    # the never-touched-a-terminal user a file without `citevahti report`. It carries a
+    # generation timestamp + the hash-chained audit head (intact?) — a verifiable record
+    # that this review work was done, in this order, by the human.
+
+
+def _get_report(root, body):
+    from ..report import render_html, render_markdown
+    rep = engine.claim_report(root=root)
+    p = rep.provenance
+    return 200, {"markdown": render_markdown(rep), "html": render_html(rep),
+                 "total": rep.total, "generated_at": rep.generated_at,
+                 "audit_intact": getattr(p, "audit_chain_intact", None),
+                 "audit_entries": getattr(p, "audit_entries", None),
+                 "audit_head": getattr(p, "audit_head_hash", None)}
+
+    # risk-first triage: the few claims worth attention now, worst-first (read-only).
+
+
+def _get_triage(root, body):
+    return 200, engine.triage(root=root).model_dump()
+
+    # local claim<->evidence graph for the Atlas map + figure export (read-only).
+
+
+def _get_evidence_map(root, body):
+    return 200, engine.evidence_map(root=root)
+
+    # user-initiated update check: ONE outbound call to PyPI, made only when this
+    # endpoint is hit (a button click — or once at panel open IF the user turned on
+    # the default-off Settings checkbox), so the local-first/no-silent-egress
+    # posture holds: the launch-time call exists only by explicit, disclosed opt-in.
+    # Read-only, no install.
+
+
+def _get_check_update(root, body):
+    return 200, engine.check_update()
+
+    # the opt-in switch for the launch-time check above (panel.json UI-state pref;
+    # default OFF — see prefs.get_auto_update_check)
+
+
+def _get_prompts(root, body):
+    from .. import writing
+    from ..agent import prompts as P
+    items = [
+        {"name": P.CLAIM_TEST_PROMPT_NAME, "label": "Run claim tests", "group": "Review",
+         "description": P.CLAIM_TEST_PROMPT_DESCRIPTION,
+         "text": P.run_claim_tests_prompt()},
+        {"name": P.SCREEN_TOPIC_PROMPT_NAME, "label": "Screen a topic", "group": "Review",
+         "description": P.SCREEN_TOPIC_PROMPT_DESCRIPTION,
+         "text": P.screen_topic_prompt()},
+        {"name": P.CHECK_PARAGRAPH_PROMPT_NAME, "label": "Check a paragraph", "group": "Review",
+         "description": P.CHECK_PARAGRAPH_PROMPT_DESCRIPTION,
+         "text": P.check_paragraph_prompt()},
+        {"name": P.METHODS_PROMPT_NAME, "label": "Methods statement", "group": "Review",
+         "description": P.METHODS_PROMPT_DESCRIPTION,
+         "text": P.methods_prompt()},
+    ]
+    # writing-assistance skills (advisory; suggestion-only, no silent manuscript edit)
+    items.extend(writing.writing_skills())
+    return 200, {"prompts": items}
+
+    # the researcher's ACCEPTED claims + citekeys, so "Draft from claims" drafts from
+    # vetted claims without pasting. Read-only; uncited accepted claims are flagged.
+
+
+def _get_draft_context(root, body):
+    return 200, engine.draft_context(root=root)
+
+
+def _get_ledgers(root, body):
+    return 200, {"active": str(Path(root).expanduser()),
+                 "ledgers": prefs.discover_ledgers(root)}
+
+    # audit-chain integrity: recompute the hash chain and report whether the
+    # append-only decision log has been tampered with (the trust signal).
+
+
+def _get_audit_verify(root, body):
+    store = engine._open_store(root)
+    return 200, {"intact": bool(store.audit.verify()),
+                 "entries": len(store.audit.entries())}
+
+    # Human-readable "review record" timeline: the audit log projected to seq/ts/event
+    # plus a small whitelist of payload fields (no secrets/config identifiers leak).
+    # Newest first, capped. Read-only — never mutates.
+
+
+def _get_audit_log(root, body):
+    store = engine._open_store(root)
+    keep = ("claim_id", "claim_type", "candidate_id", "comparison_status",
+            "decision", "final_decision", "citekey", "title_year", "kind", "filename",
+            "transaction_id")
+    rows = [{"seq": e.seq, "ts": e.ts, "event": e.event,
+             "payload": {k: e.payload[k] for k in keep if k in e.payload}}
+            for e in store.audit.entries()]
+    return 200, {"entries": rows[::-1][:300], "total": len(rows),
+                 "intact": bool(store.audit.verify())}
+
+
+def _get_warehouse(root, body):
+    s = engine.warehouse_status(root=root)
+    return 200, {"enabled": s.enabled, "include_claim_text": s.include_claim_text,
+                 "record_count": s.record_count}
+
+
+def _get_ai_config(root, body):
+    return 200, engine.ai_config_get(root=root)
+
+
+def _get_ai_local_models(root, body):
+    return 200, engine.ai_local_models(root=root)
+
+
+def _get_manuscripts(root, body):
+    mdir = prefs.get_manuscripts_dir(root)
+    groups = _manuscript_groups(root)
+    out = []
+    seen = set()
+    for mid, rows in groups.items():
+        resolved = M.resolve_path(mdir, mid) is not None
+        out.append({"manuscript_id": mid, "claim_count": len(rows),
+                    "resolved": resolved})
+        seen.add(mid)
+    # Also surface documents that live in the bound folder but have no claims
+    # yet, so a manuscript you just ADDED is selectable instead of being hidden
+    # behind the one you've already worked on (the "always the stale one" trap).
+    for name in M.list_manuscript_files(mdir):
+        if name not in seen:
+            out.append({"manuscript_id": name, "claim_count": 0, "resolved": True})
+            seen.add(name)
+    # the manuscript last worked on, so the client reopens it on reload instead
+    # of snapping to the first entry (only honoured if still in the list)
+    active = prefs.recall_manuscript(root)
+    if active not in seen:
+        active = None
+    return 200, {"manuscripts_dir": mdir, "manuscripts": out, "active": active}
+
+
+def _get_pandoc_status(root, body):
+    return 200, engine.pandoc_status()
+
+    # one-click cite-stable export: embed [@citekey] for accepted claims into the
+    # bound .md + write references.bib beside it (and a .docx if Pandoc is present).
+
+
+_GET_ROUTES = {
+    "/api/ping": _get_ping,
+    "/api/health": _get_health,
+    "/api/claims": _get_claims,
+    "/api/context": _get_context,
+    "/api/next": _get_next,
+    "/api/report": _get_report,
+    "/api/triage": _get_triage,
+    "/api/evidence-map": _get_evidence_map,
+    "/api/check-update": _get_check_update,
+    "/api/prompts": _get_prompts,
+    "/api/draft-context": _get_draft_context,
+    "/api/ledgers": _get_ledgers,
+    "/api/audit/verify": _get_audit_verify,
+    "/api/audit/log": _get_audit_log,
+    "/api/warehouse": _get_warehouse,
+    "/api/ai-config": _get_ai_config,
+    "/api/ai/local-models": _get_ai_local_models,
+    "/api/manuscripts": _get_manuscripts,
+    "/api/pandoc/status": _get_pandoc_status,
+}
+
+
 def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[int, dict]:
     """Route one API call to an existing engine/agent function.
 
@@ -320,27 +534,12 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
     """
     body = body or {}
     try:
+        if method == "GET":
+            handler = _GET_ROUTES.get(path)
+            if handler is not None:
+                return handler(root, body)
+
         # ---- reads ----------------------------------------------------------
-        if method == "GET" and path == "/api/ping":
-            # Cheap liveness: no engine call, no network. /api/health is NOT a liveness
-            # probe — its live Zotero/PubMed connection checks routinely take >1 s, and
-            # probing it on a 1 s timeout got a healthy engine killed by the app's
-            # supervisor (2026-07-02) and the panel window stranded on a dead session.
-            return 200, {"ok": True, "boot_id": _BOOT_ID}
-
-        if method == "GET" and path == "/api/health":
-            return 200, agent.tools.status(root=root)
-
-        if method == "GET" and path == "/api/claims":
-            rep = engine.claim_report(root=root)
-            return 200, {"total": rep.total, "counts": rep.counts,
-                         "claims": [{"claim_id": r.claim_id, "state": r.state,
-                                     "code": r.code.strip(), "claim_text": r.claim_text,
-                                     "manuscript_location": r.manuscript_location,
-                                     "candidate_count": r.candidate_count,
-                                     "accepted_count": r.accepted_count}
-                                    for r in rep.rows]}
-
         if method == "POST" and path == "/api/claims":
             claim = engine.add_claim(_req(body, "claim_text"), body.get("claim_type", "other"),
                                      manuscript_id=body.get("manuscript_id"),
@@ -496,51 +695,6 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, agent.tools.undo(_req(body, "transaction_id"), root=root)
 
         # ---- onboarding context + ledger discovery -------------------------
-        if method == "GET" and path == "/api/context":
-            rep = engine.claim_report(root=root)
-            return 200, {"root": str(Path(root).expanduser()),
-                         "claim_total": rep.total,
-                         "manuscripts_dir": prefs.get_manuscripts_dir(root),
-                         "auto_update_check": prefs.get_auto_update_check(root),
-                         "vocabulary": workflow.vocabulary()}   # verdicts/states/phases (single source)
-
-        # project-level "what's next" — the one next action for the whole project,
-        # computed in the resolver. Drives the panel wizard and (later) `citevahti run`.
-        if method == "GET" and path == "/api/next":
-            return 200, workflow.project_status(root)
-
-        # the citation-integrity report as Markdown, so the wizard's final step can hand
-        # the never-touched-a-terminal user a file without `citevahti report`. It carries a
-        # generation timestamp + the hash-chained audit head (intact?) — a verifiable record
-        # that this review work was done, in this order, by the human.
-        if method == "GET" and path == "/api/report":
-            from ..report import render_html, render_markdown
-            rep = engine.claim_report(root=root)
-            p = rep.provenance
-            return 200, {"markdown": render_markdown(rep), "html": render_html(rep),
-                         "total": rep.total, "generated_at": rep.generated_at,
-                         "audit_intact": getattr(p, "audit_chain_intact", None),
-                         "audit_entries": getattr(p, "audit_entries", None),
-                         "audit_head": getattr(p, "audit_head_hash", None)}
-
-        # risk-first triage: the few claims worth attention now, worst-first (read-only).
-        if method == "GET" and path == "/api/triage":
-            return 200, engine.triage(root=root).model_dump()
-
-        # local claim<->evidence graph for the Atlas map + figure export (read-only).
-        if method == "GET" and path == "/api/evidence-map":
-            return 200, engine.evidence_map(root=root)
-
-        # user-initiated update check: ONE outbound call to PyPI, made only when this
-        # endpoint is hit (a button click — or once at panel open IF the user turned on
-        # the default-off Settings checkbox), so the local-first/no-silent-egress
-        # posture holds: the launch-time call exists only by explicit, disclosed opt-in.
-        # Read-only, no install.
-        if method == "GET" and path == "/api/check-update":
-            return 200, engine.check_update()
-
-        # the opt-in switch for the launch-time check above (panel.json UI-state pref;
-        # default OFF — see prefs.get_auto_update_check)
         if method == "POST" and path == "/api/prefs/update-check":
             prefs.set_auto_update_check(root, bool(body.get("enabled")))
             return 200, {"enabled": prefs.get_auto_update_check(root)}
@@ -568,32 +722,6 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         # The panel surfaces the canonical MCP prompts as one-click, copy-to-paste
         # skills (the same text the chat client / desktop chat would run). Read-only
         # text; the deprecated review_manuscript alias is omitted.
-        if method == "GET" and path == "/api/prompts":
-            from .. import writing
-            from ..agent import prompts as P
-            items = [
-                {"name": P.CLAIM_TEST_PROMPT_NAME, "label": "Run claim tests", "group": "Review",
-                 "description": P.CLAIM_TEST_PROMPT_DESCRIPTION,
-                 "text": P.run_claim_tests_prompt()},
-                {"name": P.SCREEN_TOPIC_PROMPT_NAME, "label": "Screen a topic", "group": "Review",
-                 "description": P.SCREEN_TOPIC_PROMPT_DESCRIPTION,
-                 "text": P.screen_topic_prompt()},
-                {"name": P.CHECK_PARAGRAPH_PROMPT_NAME, "label": "Check a paragraph", "group": "Review",
-                 "description": P.CHECK_PARAGRAPH_PROMPT_DESCRIPTION,
-                 "text": P.check_paragraph_prompt()},
-                {"name": P.METHODS_PROMPT_NAME, "label": "Methods statement", "group": "Review",
-                 "description": P.METHODS_PROMPT_DESCRIPTION,
-                 "text": P.methods_prompt()},
-            ]
-            # writing-assistance skills (advisory; suggestion-only, no silent manuscript edit)
-            items.extend(writing.writing_skills())
-            return 200, {"prompts": items}
-
-        # the researcher's ACCEPTED claims + citekeys, so "Draft from claims" drafts from
-        # vetted claims without pasting. Read-only; uncited accepted claims are flagged.
-        if method == "GET" and path == "/api/draft-context":
-            return 200, engine.draft_context(root=root)
-
         # ---- small chat with the configured model (local Ollama / LM Studio / API key) ----
         # Advisory text only — records nothing, calls no tools, writes nothing. ai_off when
         # no model is configured. Reuses the same connection plumbing as the AI rater.
@@ -612,37 +740,7 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                 claim_ids = [r.claim_id for r in rows]
             return 200, engine.run_manuscript_tests(root=root, online=online, claim_ids=claim_ids)
 
-        if method == "GET" and path == "/api/ledgers":
-            return 200, {"active": str(Path(root).expanduser()),
-                         "ledgers": prefs.discover_ledgers(root)}
-
-        # audit-chain integrity: recompute the hash chain and report whether the
-        # append-only decision log has been tampered with (the trust signal).
-        if method == "GET" and path == "/api/audit/verify":
-            store = engine._open_store(root)
-            return 200, {"intact": bool(store.audit.verify()),
-                         "entries": len(store.audit.entries())}
-
-        # Human-readable "review record" timeline: the audit log projected to seq/ts/event
-        # plus a small whitelist of payload fields (no secrets/config identifiers leak).
-        # Newest first, capped. Read-only — never mutates.
-        if method == "GET" and path == "/api/audit/log":
-            store = engine._open_store(root)
-            keep = ("claim_id", "claim_type", "candidate_id", "comparison_status",
-                    "decision", "final_decision", "citekey", "title_year", "kind", "filename",
-                    "transaction_id")
-            rows = [{"seq": e.seq, "ts": e.ts, "event": e.event,
-                     "payload": {k: e.payload[k] for k in keep if k in e.payload}}
-                    for e in store.audit.entries()]
-            return 200, {"entries": rows[::-1][:300], "total": len(rows),
-                         "intact": bool(store.audit.verify())}
-
         # ---- de-identified warehouse (local, opt-in, default-off) -----------
-        if method == "GET" and path == "/api/warehouse":
-            s = engine.warehouse_status(root=root)
-            return 200, {"enabled": s.enabled, "include_claim_text": s.include_claim_text,
-                         "record_count": s.record_count}
-
         if method == "POST" and path == "/api/warehouse/configure":
             s = engine.warehouse_configure(enabled=body.get("enabled"),
                                            include_claim_text=body.get("include_claim_text"),
@@ -660,15 +758,10 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, {"record_count": s.record_count, "skipped_reason": s.skipped_reason}
 
         # ---- AI assistant settings (off / local / api; MCP path needs none) ---
-        if method == "GET" and path == "/api/ai-config":
-            return 200, engine.ai_config_get(root=root)
         if method == "POST" and path == "/api/ai-config":
             return 200, engine.ai_config_set(
                 mode=body.get("mode"), endpoint=body.get("endpoint"),
                 provider=body.get("provider"), model_id=body.get("model_id"), root=root)
-        if method == "GET" and path == "/api/ai/local-models":
-            return 200, engine.ai_local_models(root=root)
-
         # ---- Atlas contribution: build a bundle / revocation (NO transmission) --
         # The panel offers the returned bundle as a local download; nothing is sent
         # anywhere from here (download-only egress — there is no upload endpoint).
@@ -681,30 +774,6 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                                             reason=body.get("reason"), root=root)
 
         # ---- manuscripts (inline review surface) ---------------------------
-        if method == "GET" and path == "/api/manuscripts":
-            mdir = prefs.get_manuscripts_dir(root)
-            groups = _manuscript_groups(root)
-            out = []
-            seen = set()
-            for mid, rows in groups.items():
-                resolved = M.resolve_path(mdir, mid) is not None
-                out.append({"manuscript_id": mid, "claim_count": len(rows),
-                            "resolved": resolved})
-                seen.add(mid)
-            # Also surface documents that live in the bound folder but have no claims
-            # yet, so a manuscript you just ADDED is selectable instead of being hidden
-            # behind the one you've already worked on (the "always the stale one" trap).
-            for name in M.list_manuscript_files(mdir):
-                if name not in seen:
-                    out.append({"manuscript_id": name, "claim_count": 0, "resolved": True})
-                    seen.add(name)
-            # the manuscript last worked on, so the client reopens it on reload instead
-            # of snapping to the first entry (only honoured if still in the list)
-            active = prefs.recall_manuscript(root)
-            if active not in seen:
-                active = None
-            return 200, {"manuscripts_dir": mdir, "manuscripts": out, "active": active}
-
         m = re.fullmatch(r"/api/manuscript/(.+)", path)
         if method == "GET" and m:
             mid = m.group(1)
@@ -755,11 +824,6 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, {"ok": True, "revealed": str(target)}
 
         # is Pandoc ready (without downloading)? — lets the UI warn before a first-run fetch
-        if method == "GET" and path == "/api/pandoc/status":
-            return 200, engine.pandoc_status()
-
-        # one-click cite-stable export: embed [@citekey] for accepted claims into the
-        # bound .md + write references.bib beside it (and a .docx if Pandoc is present).
         if method == "POST" and path == "/api/manuscripts/cite-export":
             mid = _req(body, "manuscript_id")
             p = M.resolve_path(prefs.get_manuscripts_dir(root), mid)
