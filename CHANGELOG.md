@@ -7,6 +7,14 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Conservative inflectional stemmer in lexical coverage** (`text.py`) — the eval's next
+  target. Coverage matching was inflection-blind ("antidepressants" ≠ "antidepressant",
+  "increases" ≠ "increased"). A shallow, deterministic stemmer (iterated to a fixed point,
+  with a `_MIN_STEM` floor so short words like "less"/"loss" are never mangled) now folds
+  common inflections in the matching path only — `content_tokens` stays raw for display.
+  Measured precision-safe by the eval: **support recall 0.688 → 0.812, precision held at
+  1.000**; the remaining gap is true synonymy (the AI-model layer's job). Locked by
+  `tests/test_text_stemming.py`; baseline re-frozen.
 - **[ADR-0009](docs/adr/0009-evaluation-and-model-quality.md) — evaluation & model-quality
   architecture (defence in depth).** Fixes the *cheese-hole* principle: the human, the
   lexical detector, and the AI model(s) are independent layers, and safety comes from
