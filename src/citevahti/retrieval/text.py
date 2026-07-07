@@ -213,6 +213,66 @@ def polarity_cue(query: str, passage: str) -> str | None:
     return direction_cue(query, passage)
 
 
+# --- Population / PICO fit (deterministic; no AI) ----------------------------
+# A source can support the claimed RELATION yet be about a different POPULATION —
+# "works in adults" cited for a paediatric claim, a mouse study cited for a human
+# claim. Lexically that looks like clean support (same nouns, same direction), so
+# neither coverage nor polarity catches it. These axes let population_mismatch()
+# raise an inspectable "population may differ" WARNING — never a verdict, and it
+# does NOT change the support/contradiction status; the human/AI layer adjudicates
+# (ADR-0009 "floor flags, AI confirms"). Conservative by design: it fires only when
+# BOTH sides name a population on the SAME axis and the poles differ. It is silent
+# when a side leaves its population implicit (the common case), which is exactly
+# what the AI layer is there to cover.
+_POPULATION_AXES: dict[str, dict[str, frozenset[str]]] = {
+    "age": {
+        "pediatric": frozenset({
+            "child", "children", "childhood", "pediatric", "paediatric",
+            "infant", "infants", "infancy", "neonatal", "neonate", "neonates",
+            "adolescent", "adolescents", "juvenile", "juveniles",
+        }),
+        "adult": frozenset({"adult", "adults", "adulthood"}),
+        "elderly": frozenset({"elderly", "geriatric", "octogenarian", "octogenarians"}),
+    },
+    "sex": {
+        "male": frozenset({"men", "male", "males", "boys"}),
+        "female": frozenset({"women", "female", "females", "girls"}),
+    },
+    "species": {
+        "nonhuman": frozenset({
+            "mouse", "mice", "murine", "rat", "rats", "rodent", "rodents",
+            "canine", "porcine", "bovine", "primate", "primates", "zebrafish",
+            "drosophila", "animal", "animals",
+        }),
+        "human": frozenset({"human", "humans"}),
+    },
+}
+
+
+def _matched_population(text: str) -> dict[str, tuple[str, str]]:
+    """{axis: (pole, first_matched_word)} for population axes with EXACTLY one pole."""
+    toks = set(tokenize(text))
+    out: dict[str, tuple[str, str]] = {}
+    for axis, poles in _POPULATION_AXES.items():
+        present = {pole: (toks & words) for pole, words in poles.items()}
+        present = {pole: hit for pole, hit in present.items() if hit}
+        if len(present) == 1:
+            pole, hit = next(iter(present.items()))
+            out[axis] = (pole, sorted(hit)[0])
+    return out
+
+
+def population_mismatch(query: str, passage: str) -> str | None:
+    """Inspectable cue (e.g. ``children ≠ adults``) if query and passage name a
+    DIFFERENT population on a shared axis, else None. Advisory only — a review
+    prompt on an otherwise-supporting citation, never a verdict."""
+    q, p = _matched_population(query), _matched_population(passage)
+    for axis, (pole, qword) in q.items():
+        if axis in p and p[axis][0] != pole:
+            return f"{qword} ≠ {p[axis][1]}"
+    return None
+
+
 _SENT_END = re.compile(r"[.!?]+(?=\s|$)|\n+")
 
 
