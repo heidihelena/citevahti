@@ -7,6 +7,16 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Section-aware, multi-sentence passage selection** (`retrieval`) — the passage the human
+  is shown to rate. Selection used to score single sentences, so support spanning 2–3
+  sentences ("X was lower. This reached significance.") was under-selected. It now scores
+  **sentence windows** (up to 3) and keeps the *tightest* high-coverage, non-overlapping
+  passage per region, so multi-sentence support surfaces as one quote without redundant
+  variants. It also detects **section headers** and labels each passage
+  (`RetrievedPassage.section`), preferring Results/Conclusions on a coverage tie — a
+  tiebreak that never overrides the coverage score. Deterministic, no new dependency; the
+  engine already reads Zotero's indexed full text. Locked by `tests/test_passage_selection.py`.
+  (`docs/KNOWN_LIMITATIONS.md` updated: the old "shows the abstract" wording was stale.)
 - **Per-model complementary-catch scoreboard** in `agreement_report` — the local precursor
   to ADR-0009's Atlas model scoreboard, and the first piece of the model-rating
   differentiator. For each identifiable model it tallies **catches** (the model *diverged*

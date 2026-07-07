@@ -9,7 +9,13 @@ from ..schemas.common import ItemRef, Provenance
 from ..schemas.passage import PassageRetrievalResult, RetrievedPassage
 from ..util import config_hash, sha256_hex, utc_now_iso
 from .source import AnnotationDoc, FullTextDoc, TextSource
-from .text import coverage_score, segment_sentences
+from .text import SECTION_RANK, coverage_score, section_at, section_spans, segment_sentences
+
+# The support for a claim often spans 2-3 sentences ("X was lower. This was
+# significant."); scoring single sentences alone under-selects it. We consider
+# windows up to this many consecutive sentences and keep the tightest, best-covering,
+# non-overlapping ones.
+_MAX_WINDOW = 3
 
 FULLTEXT_UNAVAILABLE_REMEDIATION = (
     "No indexed full text or annotations were available for this item. Ensure the "
@@ -78,7 +84,10 @@ class PassageRetrievalService:
 
         if query:
             passages = [p for p in passages if (p.score or 0) > 0]
-        passages.sort(key=lambda p: (-(p.score or 0.0), p.char_start if p.char_start is not None else 1 << 30))
+        # score first; then, among equal coverage, prefer the section where evidence
+        # actually lives (Results/Conclusions) — a tiebreak, never overriding coverage.
+        passages.sort(key=lambda p: (-(p.score or 0.0), SECTION_RANK.get(p.section, 4),
+                                     p.char_start if p.char_start is not None else 1 << 30))
         passages = passages[:max_passages]
 
         return PassageRetrievalResult(status="ok", citekey=ref.citekey or citekey,
@@ -86,18 +95,46 @@ class PassageRetrievalService:
                                       provenance=prov)
 
     # ---- builders --------------------------------------------------------
+    def _passage(self, ref, doc, start, end, quote, spans, prov, score) -> RetrievedPassage:
+        return RetrievedPassage(
+            citekey=ref.citekey, zotero_key=ref.zotero_key,
+            attachment_key=doc.attachment_key,
+            page=None, location=f"char:{start}-{end}",
+            char_start=start, char_end=end, quote=quote,
+            text_hash=sha256_hex(quote), retrieval_method="fulltext",
+            section=section_at(spans, start), score=score, provenance=prov)
+
     def _fulltext_passages(self, ref, doc: FullTextDoc, query, prov) -> list[RetrievedPassage]:
-        out: list[RetrievedPassage] = []
-        for start, end, quote in segment_sentences(doc.text):
-            score = coverage_score(query, quote) if query else None
-            out.append(RetrievedPassage(
-                citekey=ref.citekey, zotero_key=ref.zotero_key,
-                attachment_key=doc.attachment_key,
-                page=None, location=f"char:{start}-{end}",
-                char_start=start, char_end=end, quote=quote,
-                text_hash=sha256_hex(quote), retrieval_method="fulltext",
-                score=score, provenance=prov))
-        return out
+        sents = segment_sentences(doc.text)
+        spans = section_spans(doc.text)
+        # No query -> single sentences (unchanged granularity, now section-labelled).
+        if not query:
+            return [self._passage(ref, doc, s, e, q, spans, prov, None) for s, e, q in sents]
+
+        # Query -> consider windows of 1..N consecutive sentences so multi-sentence
+        # support is scored as a unit; coverage is a fraction of the CLAIM's tokens, so
+        # a window can only raise it. We then keep the TIGHTEST high-coverage passage per
+        # region (shorter wins on a tie) and drop overlapping variants — the human sees the
+        # best non-redundant evidence, not every window of it.
+        cands: list[tuple[float, int, int, str]] = []
+        for size in range(1, _MAX_WINDOW + 1):
+            for i in range(len(sents) - size + 1):
+                start, end = sents[i][0], sents[i + size - 1][1]
+                quote = doc.text[start:end].strip()
+                if quote:
+                    cands.append((coverage_score(query, quote), start, end, quote))
+        cands.sort(key=lambda c: (-c[0], SECTION_RANK.get(section_at(spans, c[1]), 4),
+                                  c[2] - c[1], c[1]))
+        kept: list[RetrievedPassage] = []
+        taken: list[tuple[int, int]] = []
+        for score, start, end, quote in cands:
+            if score <= 0:
+                continue
+            if any(start < te and ts < end for ts, te in taken):
+                continue  # overlaps a higher-ranked passage -> redundant, skip
+            taken.append((start, end))
+            kept.append(self._passage(ref, doc, start, end, quote, spans, prov, score))
+        return kept
 
     def _annotation_passages(self, ref, annots: list[AnnotationDoc], query, prov) -> list[RetrievedPassage]:
         out: list[RetrievedPassage] = []

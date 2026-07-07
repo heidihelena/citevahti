@@ -273,6 +273,55 @@ def population_mismatch(query: str, passage: str) -> str | None:
     return None
 
 
+# --- Section detection (deterministic) ---------------------------------------
+# The sentence that supports a claim is usually in Results/Conclusions, not the
+# Introduction or Methods. Detecting section headers lets passage selection prefer
+# (and label) the part of the paper where the evidence actually lives. Conservative:
+# only a line that IS a known section heading counts — a mention of "results" mid-
+# sentence does not.
+_SECTION_HEADERS = {
+    "abstract": "Abstract",
+    "introduction": "Introduction", "background": "Background",
+    "methods": "Methods", "method": "Methods", "materials and methods": "Methods",
+    "patients and methods": "Methods", "study design": "Methods",
+    "results": "Results", "findings": "Results", "results and discussion": "Results",
+    "discussion": "Discussion",
+    "conclusion": "Conclusion", "conclusions": "Conclusion", "summary": "Conclusion",
+    "references": "References", "acknowledgements": "References",
+    "acknowledgments": "References", "bibliography": "References",
+}
+# Lower rank = the passage is more likely to hold the actual evidence. Used only as
+# a tiebreak once coverage is equal — it never overrides the coverage score.
+SECTION_RANK = {
+    "Results": 0, "Conclusion": 1, "Discussion": 2, "Abstract": 3,
+    None: 4, "Introduction": 5, "Background": 5, "Methods": 6, "References": 7,
+}
+_HEADER_STRIP = re.compile(r"^[\d.\)\s]+")
+
+
+def section_spans(text: str) -> list[tuple[int, str]]:
+    """List of ``(char_offset, section_label)`` where a section heading begins."""
+    spans: list[tuple[int, str]] = []
+    pos = 0
+    for line in text.splitlines(keepends=True):
+        key = _HEADER_STRIP.sub("", line.strip()).rstrip(":.").strip().lower()
+        if key in _SECTION_HEADERS:
+            spans.append((pos, _SECTION_HEADERS[key]))
+        pos += len(line)
+    return spans
+
+
+def section_at(spans: list[tuple[int, str]], pos: int) -> str | None:
+    """The section label in effect at character offset ``pos`` (or None)."""
+    label: str | None = None
+    for start, lab in spans:
+        if start <= pos:
+            label = lab
+        else:
+            break
+    return label
+
+
 _SENT_END = re.compile(r"[.!?]+(?=\s|$)|\n+")
 
 
