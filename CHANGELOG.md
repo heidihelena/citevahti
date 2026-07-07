@@ -19,13 +19,28 @@ previous one.
   data-loss / false-final-value reports), and `citevahti-onboarding` (per-channel
   quickstart generation from the shipped truth). All five pass the
   `tests/test_plugin_skills.py` guards, including the trust-language check.
-- **Production launch copy, draft v1** —
-  [`docs/marketing/launch-copy-v1.md`](docs/marketing/launch-copy-v1.md), with appended
-  repo-check notes: the draft's tier labels do not match the shipped claim-state
-  vocabulary, the PRISMA-trAIce "aligned" phrasing exceeds the `docs/METHODS.md`
-  compliance disclaimer, the "web app" is the local loopback panel (ADR-0007, nothing
-  hosted), and there are no publishable accuracy numbers until the eval ledger is
-  scored. Publication is blocked until the notes are resolved (`citevahti-claims`).
+- **Production launch copy, repo-checked v1** —
+  [`docs/marketing/launch-copy-v1.md`](docs/marketing/launch-copy-v1.md). All six draft
+  `[VERIFY]`/mismatch flags are now resolved, with a resolution log recording each fix:
+  tier labels rewritten to the shipped vocabulary (accepted/caution/review/rejected +
+  untestable, no "verified"); PRISMA-trAIce/Cochrane "aligned" softened to
+  "RAISE-*style* transparency reporting" per `docs/METHODS.md`; the "web app" clarified as
+  the local loopback panel (ADR-0007); the quotation-error rate sourced to Jergas &
+  Baethge (2015, *PeerJ* 3:e1364 — median total error 22.5%), figures checked against the
+  paper; and the eval-results promise moved to future tense pointing at the pre-registered
+  protocol. Still gated by `citevahti-claims` before any public use.
+- **Pre-registered claim-check acceptance thresholds** —
+  [`validation/claimcheck/acceptance-thresholds.md`](validation/claimcheck/acceptance-thresholds.md),
+  the release gate `citevahti-eval` enforces: a ground-truth-validity gate (κ ≥ 0.60,
+  N ≥ 50, per-class minimums), hard precision floors (mismatch-detector precision ≥ 0.80 —
+  the kill-criterion metric; support-detector precision ≥ 0.85; zero contradictions
+  leaking into support), published-not-gated recall targets, and an append-only change
+  log. Proposed v0 — floors confirmable before the first scored run, frozen after.
+- **`CITATION.cff`** — Citation File Format metadata (entity author `Vahtian`,
+  Apache-2.0), scaffolding the Zenodo–GitHub DOI wiring. Intentionally carries no
+  `version` field so it is not a seventh version-lockstep file; Zenodo derives the version
+  from the release tag. The one remaining setup step (enabling the repo on Zenodo) is
+  documented in the `citevahti-release` DOI gate.
 - **Three downstream Claude Code skills** — `citevahti-screen` (sweep a reference list for
   retractions + claim–source mismatches before a reviewer does), `citevahti-review` (a
   read-only peer-review/editor pass over someone else's manuscript, library-free via

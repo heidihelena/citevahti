@@ -1,13 +1,13 @@
-# CiteVahti — production launch copy (draft v1)
+# CiteVahti — production launch copy (v1, repo-checked)
 
 <!-- content-pipeline header -->
 
 - **Audience:** systematic reviewers, PhD supervisors, journal editors, research support offices — anyone accountable for citation accuracy in a manuscript.
 - **Decision problem:** "Can I trust that every citation in this document says what the text claims it says — before a reviewer or reader finds out it doesn't?"
-- **Funnel stage fed:** Awareness → free tool (web app) → Kit / design-review.
-- **Evidence basis:** product architecture facts from CiteVahti development (local-first Zotero MCP, dual-rating adjudication aligned with PRISMA-trAIce and Cochrane/Campbell standards). Items marked [VERIFY] are unconfirmed by me and must be checked against the current repo before publication.
-- **CTA (one):** Try the web app on a real reference list. <!-- swap to beta-signup link if prod not live -->
-- **Risk flag:** Not clinical content. Low risk. One integrity-claim risk: never let copy imply CiteVahti *guarantees* citation correctness — it surfaces problems for human adjudication.
+- **Funnel stage fed:** Awareness → free tool (local app) → Kit / design-review.
+- **Evidence basis:** product architecture facts from CiteVahti development (local-first Zotero MCP; dual-rating adjudication that mirrors the dual-screening logic of systematic reviews, with PRISMA-trAIce / RAISE-*style* transparency reporting). The quotation-error figure is sourced (see the problem section); every product claim below was checked against the repo — see the resolution log at the end.
+- **CTA (one):** Run the app on a real reference list. <!-- swap to beta-signup link if a hosted try-page ever exists; today the app is local -->
+- **Risk flag:** Not clinical content. Low risk. One integrity-claim risk: never let copy imply CiteVahti *guarantees* citation correctness — it surfaces problems for human adjudication. Before this copy goes anywhere public, run it through the `citevahti-claims` skill.
 
 -----
 
@@ -15,21 +15,21 @@
 
 **Every citation, checked. No verdicts, just evidence.**
 
-CiteVahti reads your manuscript's citations and tells you which ones are verified, which are contested, and which don't support the claim they're attached to — so you fix them before a reviewer does.
+CiteVahti checks every claim–citation pair in your manuscript and shows you which citations hold up, which need a closer look, and which don't support the claim they're attached to — with the reasoning in view, so you fix them before a reviewer does.
 
 ## The problem (evidence section)
 
-Citation errors are not rare edge cases. Quotation errors — citations that don't support the claim — appear across published biomedical literature at rates consistently reported in the double digits [VERIFY: pick one primary source, e.g. a quotation-error meta-analysis, and cite it precisely; do not publish this paragraph without it]. Retracted papers keep accumulating citations years after retraction. And AI-assisted writing has added a new failure mode: fluent, well-formatted references to papers that don't exist.
+Citation errors are not rare edge cases. In a systematic review and meta-analysis of quotation accuracy in medical journals, the **median total quotation-error rate across studies was 22.5%** — with a median of 11.5% for major errors, the kind that misrepresent what the cited source actually found (Jergas & Baethge, 2015, *PeerJ* 3:e1364). Retracted papers keep accumulating citations years after retraction. And AI-assisted writing has added a new failure mode: fluent, well-formatted references to papers that don't exist.
 
-Most reference managers check formatting. None of that tells you whether the citation is *true*.
+Most reference managers check formatting. None of that tells you whether the citation actually supports the sentence it's attached to.
 
 ## How it works (product facts)
 
-1. **Connect your library.** CiteVahti runs against your Zotero library, locally. Your manuscript and references stay on your machine — nothing is uploaded to us.
-1. **Check every claim–citation pair.** Each citation is assessed on two independent ratings and adjudicated where they disagree, following the same logic as dual screening in systematic reviews (PRISMA-trAIce, Cochrane/Campbell aligned).
-1. **Get an evidence-tiered report.** Every citation gets a status — verified / contested / unverifiable / flagged (retraction, mismatch, nonexistent) [VERIFY exact tier labels against current build] — with the reasoning shown, not hidden.
+1. **Connect your library.** CiteVahti runs against your Zotero library, locally. Your manuscript text and ratings stay on your machine — no telemetry, nothing uploaded to us. (Literature lookups do go out, to PubMed, OpenAlex, Semantic Scholar and Crossref — the same indexes a reviewer would check.)
+1. **Check every claim–citation pair.** You rate each citation first; a blinded AI second rating is revealed only after yours is in, and disagreements are routed to explicit adjudication — the dual-screening logic of a systematic review, with PRISMA-trAIce / RAISE-*style* transparency reporting.
+1. **Record an evidence-tiered decision.** Every claim–citation pair gets a state *you* record — **accepted / caution / review / rejected**, plus **untestable** for anything outside the indexed literature — with **retraction and claim–source-mismatch flags** surfaced along the way. The reasoning is shown, not hidden.
 
-Available as an MCP server (Claude, other MCP clients), a desktop extension, and a web app.
+Available as an MCP server (Claude Desktop, Claude Code, other MCP clients), a desktop extension (`.mcpb`), a VS Code extension, and a local web app (the loopback review panel — it runs on your machine, not ours).
 
 ## What CiteVahti will not do (boundary section — keep verbatim)
 
@@ -37,68 +37,64 @@ CiteVahti never issues a verdict on your work. It does not "approve" a manuscrip
 
 ## Beta honesty block (keep until production criteria met)
 
-CiteVahti is in beta. That means: the checking pipeline works, the failure modes are documented openly, and we publish our evaluation results — precision and recall against a ground-truth citation set — rather than asking you to take accuracy on faith. [VERIFY: link eval results page once citevahti-eval produces them.]
+CiteVahti is in beta. That means: the checking pipeline works, the failure modes are documented openly, and we **will publish our evaluation results** — precision and recall against a ground-truth citation set — rather than asking you to take accuracy on faith. The measurement protocol is pre-registered in the repo (`validation/claimcheck/`); no benchmark numbers are published yet, and we say so plainly until they are. [Link the eval-results page here once `citevahti-eval` produces it.]
 
 ## CTA
 
-**Run it on one reference list.** Ten minutes, your own manuscript, local. → [web app link]
+**Run it on one reference list.** Ten minutes, your own manuscript, on your own machine. → [install / quickstart link — `docs/QUICKSTART.md`]
 
 -----
 
 ## LinkedIn excerpts (log per content-pipeline)
 
-1. "Your reference manager checks formatting. Nothing checks whether the citation is true." → thread on quotation errors + web app CTA.
-1. "We publish CiteVahti's precision and recall instead of asking you to trust it. Evidence tools should be held to evidence standards." → eval-results post, once numbers exist.
+1. "Your reference manager checks formatting. Nothing checks whether the citation supports the sentence." → thread on quotation errors (median total error rate 22.5%, Jergas & Baethge 2015) + local-app CTA.
+1. "We will publish CiteVahti's precision and recall instead of asking you to trust it. Evidence tools should be held to evidence standards." → eval-results post, **once numbers exist** (until then this stays a commitment, not a boast).
 1. "CiteVahti never issues a verdict. Here's why that's a feature, not a limitation." → brand-core piece.
 
 -----
 
-# Repo verification notes (appended in-repo — resolve before publication)
+# Resolution log (draft v1 → repo-checked v1)
 
-Checked against the repo at the time this draft landed. Each note maps to a [VERIFY]
-flag above or to a claim the current build contradicts. **Run `citevahti-claims` on the
-final copy before it goes anywhere public.**
+Each item below was a `[VERIFY]` flag or a claim that contradicted the build in the first
+draft. This log records how it was resolved, so the copy carries its own provenance —
+fitting, for a citation-integrity tool. **`citevahti-claims` still runs on the final copy
+before any public use;** this log is the source trail, not a substitute for that audit.
 
-1. **Tier labels [VERIFY] — DOES NOT MATCH the build.** The copy's
-   "verified / contested / unverifiable / flagged" is not what CiteVahti ships. The real
-   claim states are **accepted `[oo]` / caution `[o]` / review `[r]` / rejected `[d]` /
-   untestable `[u]`** (see `skills/citevahti-dev/SKILL.md` and `docs/GLOSSARY.md`), plus
-   retraction flags and the claim-check statuses `supported_candidate` /
-   `contradiction_candidate`. Either revise the copy to the shipped labels or treat the
-   copy's labels as a product-rename proposal — but don't publish the mismatch.
-   Also: "verified" as a status name is exactly the certification-adjacent language the
-   risk flag warns about; the shipped vocabulary avoids it deliberately.
+1. **Tier labels — FIXED.** The draft's invented "verified / contested / unverifiable /
+   flagged" is replaced with the shipped vocabulary: **accepted / caution / review /
+   rejected** (from `[oo]`/`[o]`/`[r]`/`[d]`) plus **untestable** (`[u]`), with retraction
+   and mismatch flags named separately (`skills/citevahti-dev/SKILL.md`, `docs/GLOSSARY.md`).
+   "Verified" — the certification-adjacent word the risk flag warns about — is gone, and
+   the state is now explicitly one *you record*, not one the tool issues.
 
-2. **"PRISMA-trAIce, Cochrane/Campbell aligned" — soften before publishing.**
-   `docs/METHODS.md` §"PRISMA-trAIce / RAISE-style transparency" explicitly states the
-   report **does not assert compliance with, or endorsement by, PRISMA 2020,
-   PRISMA-trAIce, RAISE, or any other framework**. "Aligned with" in marketing copy reads
-   as a compliance claim. Safer phrasing: *"mirrors the dual-screening logic used in
-   systematic reviews, with PRISMA-trAIce / RAISE-style transparency reporting."*
+2. **"PRISMA-trAIce / Cochrane aligned" — FIXED.** Softened everywhere to *"mirrors the
+   dual-screening logic of systematic reviews, with PRISMA-trAIce / RAISE-style
+   transparency reporting."* This matches `docs/METHODS.md`, which explicitly disclaims
+   compliance with or endorsement by PRISMA 2020, PRISMA-trAIce, RAISE, or any framework.
+   The Cochrane/Campbell name-drop is dropped.
 
-3. **"Web app" — it's local, not hosted.** Per ADR-0007 the "web app" is the local
-   loopback panel (`citevahti-panel`); there is no hosted try-it-now page. The CTA link
-   must go to install/quickstart (`docs/QUICKSTART.md`), not imply a browser-only demo.
-   The "nothing is uploaded to us" sentence is true (no telemetry), but literature
-   lookups do go out to PubMed / OpenAlex / Semantic Scholar / Crossref — the quickstart
-   states this; keep copy consistent with it.
+3. **"Web app" implying hosted — FIXED.** The app is the local loopback panel (ADR-0007);
+   there is no hosted try-it page. Copy now says "local web app… runs on your machine, not
+   ours", the CTA points at install/quickstart, and step 1 states precisely what stays
+   local (manuscript + ratings; no telemetry) versus what goes out (literature lookups).
 
-4. **Quotation-error rate [VERIFY] — still open.** Not resolvable from the repo; needs a
-   primary literature citation (e.g. a quotation-error meta-analysis) checked through
-   CiteVahti itself before the paragraph ships. Do not publish without it.
+4. **Quotation-error rate — FIXED (sourced).** Cited to Jergas & Baethge (2015),
+   "Quotation accuracy in medical journal articles — a systematic review and
+   meta-analysis," *PeerJ* 3:e1364, DOI 10.7717/peerj.1364 (PMID 26528420): median total
+   quotation-error rate 22.5% across studies, major-error median 11.5%, minor 9.6%.
+   Figures confirmed against the published paper's reported medians — not quoted from
+   memory. (A newer 2025 meta-analysis in *Research Integrity and Peer Review* exists if a
+   refresh is wanted later.)
 
-5. **Eval results link [VERIFY] — no numbers exist yet.** `validation/claimcheck/` has
-   the pre-registered measurement ledger and scoring tools, but the human rater columns
-   are unfilled — there are **no publishable precision/recall numbers** as of this
-   commit, and `docs/KNOWN_LIMITATIONS.md` says so ("No published accuracy benchmark
-   yet"). The beta honesty block currently promises published results in the present
-   tense ("we publish our evaluation results"); until `citevahti-eval` produces them,
-   phrase it as commitment, not fact — e.g. "we will publish…" — or hold the block.
+5. **Eval-results promise — FIXED (tense).** The beta block now says "we **will** publish"
+   and states outright that no benchmark numbers exist yet, pointing at the pre-registered
+   protocol in `validation/claimcheck/` and its committed acceptance thresholds. Consistent
+   with `docs/KNOWN_LIMITATIONS.md`. Swap in the eval-results link once `citevahti-eval`
+   scores a filled ledger.
 
-6. **"Fabricated / nonexistent reference" detection — scope-check.** The anti-fabrication
-   guarantee in the build is on the *write path* (no citekey without Better BibTeX; no
-   Zotero write without DOI/PMID verification). Detecting fabricated references in an
-   *incoming* reference list is the `citevahti-screen` sweep keyed on DOI/PMID — items
-   with neither identifier can't be machine-checked (`docs/KNOWN_LIMITATIONS.md`). The
-   hero copy is fine; just don't let later copy escalate it to "catches hallucinated
-   references", which is on the must-not-claim list.
+6. **Fabricated-reference scope — STANDING CAUTION (unchanged).** The anti-fabrication
+   guarantee is on the *write* path (no citekey without Better BibTeX; no Zotero write
+   without a DOI/PMID). Detecting fabricated references in an *incoming* list is the
+   `citevahti-screen` DOI/PMID sweep — items with neither identifier can't be
+   machine-checked (`docs/KNOWN_LIMITATIONS.md`). The hero copy stays within this; never
+   let later copy escalate to "catches hallucinated references" (must-not-claim list).

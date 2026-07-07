@@ -71,10 +71,13 @@ Non-negotiables, in order:
 
 ## Acceptance thresholds — the gate
 
-Thresholds are **pre-registered**: written down (in `validation/claimcheck/`, committed)
-*before* the scoring run they gate, and changed only between cycles with the change
-logged and reasoned. Deciding the floor after seeing the numbers is the exact failure
-this skill exists to prevent.
+Thresholds are **pre-registered** in
+[`validation/claimcheck/acceptance-thresholds.md`](../../validation/claimcheck/acceptance-thresholds.md):
+written down and committed *before* the scoring run they gate, and changed only between
+cycles with the change logged in that file's append-only change log. Deciding the floor
+after seeing the numbers is the exact failure this skill exists to prevent. (The current
+file is a *proposed v0* — confirm or adjust the floors before the first scored run, since
+no ledger has been scored yet; after the first gated run they freeze.)
 
 At release time (`citevahti-release` calls this as its first gate):
 
