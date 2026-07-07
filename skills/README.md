@@ -18,7 +18,8 @@ This repo ships as a Claude Code plugin (`.claude-plugin/plugin.json`) with thes
 
 | Skill | Use it when |
 |---|---|
-| [`citevahti-eval`](citevahti-eval/SKILL.md) | Measuring CiteVahti's own accuracy against the pre-registered ground-truth ledger. **The production gate: no threshold pass, no release.** |
+| [`citevahti-eval`](citevahti-eval/SKILL.md) | Measuring CiteVahti's own accuracy — the automatic claim-lexicon eval, model rating by complementary catches, Atlas later ([ADR-0009](../docs/adr/0009-evaluation-and-model-quality.md)). |
+| [`citevahti-models`](citevahti-models/SKILL.md) | Choosing/comparing the AI second-rater model; running a topic through several models; the 3-model guideline pre-check. |
 | [`citevahti-release`](citevahti-release/SKILL.md) | Shipping a release — eval gate, surface parity, version lockstep, DOI, rollback notes. Defers mechanics to the `secure-release` skill. |
 | [`citevahti-claims`](citevahti-claims/SKILL.md) | Auditing any public artifact against the must-not-claim list before publication. |
 | [`citevahti-support`](citevahti-support/SKILL.md) | Triaging user reports; data-loss and false-verified reports escalate immediately. |

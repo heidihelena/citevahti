@@ -6,15 +6,35 @@ previous one.
 
 ## [Unreleased]
 
+### Added
+- **[ADR-0009](docs/adr/0009-evaluation-and-model-quality.md) — evaluation & model-quality
+  architecture (defence in depth).** Fixes the *cheese-hole* principle: the human, the
+  lexical detector, and the AI model(s) are independent layers, and safety comes from
+  layers whose holes don't line up — so a model that merely *agrees* with the human adds no
+  defence. Three separate evaluation objects: (1) an **automatic claim-lexicon eval** we
+  run, (2) **model rating by complementary catches, not agreement**, (3) a **pooled Atlas
+  scoreboard + divergence maps** later. Supersedes the earlier "human-gold release gate"
+  framing.
+- **A runnable claim-lexicon evaluation** — `validation/claimcheck/eval_lexicon.py` over
+  30 curated, author-labelled `(claim, passage, expected)` cases
+  (`lexicon_cases.jsonl`), scoring the real `text.py` and **naming its holes** per
+  phenomenon. First real, publishable lexical-layer numbers: support precision 0.714 /
+  recall 0.667, contradiction precision 1.000 / recall 0.500, **0** negated-contradiction
+  leaks. Frozen baseline (`lexicon_baseline.json`) + CI regression guard
+  (`tests/test_lexicon_eval.py`, `--check`).
+- **`citevahti-models` skill** — choose/compare the AI second-rater model, run a topic
+  through several models, the **3-model guideline pre-check** (Layer-0 screening — leads,
+  not verdicts). Registered in `.claude-plugin/plugin.json`.
+
 ### Changed
-- **Eval gate reframed — "precision is a gate, sensitivity is a dial."**
-  `validation/claimcheck/acceptance-thresholds.md` (and the `citevahti-eval` skill) now
-  gate **precision only**; recall is **published as an operating-point curve, not gated**.
-  The rationale is an inverted-U: too few flags miss errors, but over-flagging is *worse* —
-  it breaks the reviewer's flow and trains them to ignore the tool — so there is no
-  universal sensitivity threshold to clear, and improvement cycles chase missed
-  *high-value* mismatches rather than raw flag volume. Recorded in the file's append-only
-  change log (v0 → v0.1, still pre-registration — no ledger scored yet).
+- **`acceptance-thresholds.md` repurposed** from a human-gold release gate to the
+  **`eval_lexicon.py` regression policy** (precision floored, recall published — the
+  inverted-U; negated-contradiction leaks must stay 0; known holes reported, not gated).
+  `citevahti-eval` rewritten around ADR-0009's three objects; the human blinded-rater
+  ledger is retained as **optional calibration**, not the gate. `BETA_TO_PRODUCTION.md`
+  kill criterion retied to lexical-layer regression. Launch copy: "evidence-tiered
+  decision" → "reasoned decision, per claim" (tiers come from multiple assessors, not one
+  run).
 
 ### Added
 - **The beta → production skill set** — five maintainer-facing Claude Code skills in
