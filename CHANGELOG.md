@@ -7,6 +7,25 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **The beta → production skill set** — five maintainer-facing Claude Code skills in
+  `.claude-plugin/plugin.json`, per the plan of record in
+  [`docs/BETA_TO_PRODUCTION.md`](docs/BETA_TO_PRODUCTION.md): `citevahti-eval` (the
+  production gate — pre-registered ground-truth ledger, κ before metrics,
+  precision/recall per release, kill criterion; wraps `validation/claimcheck/`),
+  `citevahti-release` (eval gate + surface parity + DOI + rollback notes around the
+  existing `secure-release` gates), `citevahti-claims` (audits every public artifact
+  against the must-not-claim list and the house trust language before publication),
+  `citevahti-support` (triage template, known-issues register, immediate escalation for
+  data-loss / false-final-value reports), and `citevahti-onboarding` (per-channel
+  quickstart generation from the shipped truth). All five pass the
+  `tests/test_plugin_skills.py` guards, including the trust-language check.
+- **Production launch copy, draft v1** —
+  [`docs/marketing/launch-copy-v1.md`](docs/marketing/launch-copy-v1.md), with appended
+  repo-check notes: the draft's tier labels do not match the shipped claim-state
+  vocabulary, the PRISMA-trAIce "aligned" phrasing exceeds the `docs/METHODS.md`
+  compliance disclaimer, the "web app" is the local loopback panel (ADR-0007, nothing
+  hosted), and there are no publishable accuracy numbers until the eval ledger is
+  scored. Publication is blocked until the notes are resolved (`citevahti-claims`).
 - **Three downstream Claude Code skills** — `citevahti-screen` (sweep a reference list for
   retractions + claim–source mismatches before a reviewer does), `citevahti-review` (a
   read-only peer-review/editor pass over someone else's manuscript, library-free via
