@@ -5,6 +5,6 @@
   "author": "Vahtian (heidihelena)",
   "license": "Apache-2.0",
   "repository": "https://github.com/heidihelena/citevahti",
-  "skills": ["skills/citevahti-dev", "skills/citevahti-writing", "skills/citevahti-screen", "skills/citevahti-review", "skills/citevahti-report"],
+  "skills": ["skills/citevahti-dev", "skills/citevahti-writing", "skills/citevahti-screen", "skills/citevahti-review", "skills/citevahti-report", "skills/citevahti-eval", "skills/citevahti-release", "skills/citevahti-claims", "skills/citevahti-support", "skills/citevahti-onboarding"],
   "tags": ["research", "citations", "zotero", "pubmed", "manuscript", "peer-review", "evidence-synthesis", "PRISMA", "citation-integrity", "academic-writing", "MatchVahti", "CiteVahti"]
 }
