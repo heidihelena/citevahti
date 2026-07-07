@@ -872,36 +872,23 @@ _POST_ROUTES = {
 }
 
 
-def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[int, dict]:
-    """Route one API call to an existing engine/agent function.
+# ---- dynamic (regex) routes (ADR-0010 panel split, PR 2c — the last dispatch slice) --
+# One former dispatch() branch each, verbatim. All nine patterns are mutually disjoint
+# ([^/]+ cannot cross a slash), so table order is irrelevant. This slice carries the
+# blinding-sensitive rating routes — the blinding rule itself lives in
+# blinded_rating_view()/ClaimReportService and is unchanged. The CSRF/Host perimeter
+# stays ABOVE dispatch() (§5a rule 1).
 
-    Returns ``(status_code, payload)``. Raises nothing — engine errors become a
-    4xx/5xx JSON ``{"error": ...}`` so the panel degrades honestly.
-    """
-    body = body or {}
-    try:
-        if method == "GET":
-            handler = _GET_ROUTES.get(path)
-            if handler is not None:
-                return handler(root, body)
-        if method == "POST":
-            handler = _POST_ROUTES.get(path)
-            if handler is not None:
-                return handler(root, body)
-
-        # ---- reads ----------------------------------------------------------
-
-        m = re.fullmatch(r"/api/claims/([^/]+)/history", path)
-        if method == "GET" and m:
+def _dyn_claims_history(root, body, m):
             return 200, _claim_history(root, m.group(1))
 
-        # Edit the claim wording in the LEDGER (audited revision). Used when the
-        # manuscript file isn't open, so a reviewer can refine the claim after
-        # reading the evidence without first locating the .md. When the file IS
-        # open the UI uses the previewed document write-back instead, which keeps
-        # the .md and the ledger in sync.
-        m = re.fullmatch(r"/api/claims/([^/]+)/revise", path)
-        if method == "POST" and m:
+
+# Edit the claim wording in the LEDGER (audited revision). Used when the
+# manuscript file isn't open, so a reviewer can refine the claim after
+# reading the evidence without first locating the .md. When the file IS
+# open the UI uses the previewed document write-back instead, which keeps
+# the .md and the ledger in sync.
+def _dyn_claims_revise(root, body, m):
             claim_id = m.group(1)
             replacement = _req(body, "replacement")
             # Refuse a ledger-only revise when the manuscript file IS open: writing
@@ -920,8 +907,8 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             claim = engine._open_store(root).load_claim(claim_id)
             return 200, {"claim_id": claim_id, "claim_text": claim.claim_text}
 
-        m = re.fullmatch(r"/api/claims/([^/]+)", path)
-        if method == "GET" and m:
+
+def _dyn_claims(root, body, m):
             claim_id = m.group(1)
             store = engine._open_store(root)
             claim = store.load_claim(claim_id)
@@ -968,20 +955,18 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                                    "has_stale_bonds": bonds["has_stale_bonds"]},
                          "candidates": cand_views}
 
-        m = re.fullmatch(r"/api/ratings/([^/]+)", path)
-        if method == "GET" and m:
+
+def _dyn_ratings(root, body, m):
             rec = engine.get_support_rating(m.group(1), root=root)
             return 200, blinded_rating_view(rec)
 
-        m = re.fullmatch(r"/api/decisions/([^/]+)/provenance", path)
-        if method == "GET" and m:
+
+def _dyn_decisions_provenance(root, body, m):
             # reuse the agent wrapper: already blinded until the human has rated
             return 200, agent.tools.get_provenance(m.group(1), root=root)
 
-        # ---- human-owned mutations -----------------------------------------
 
-        m = re.fullmatch(r"/api/ratings/([^/]+)/human", path)
-        if method == "POST" and m:
+def _dyn_ratings_human(root, body, m):
             rating_id = m.group(1)
             fit = body.get("fit")
             if isinstance(fit, dict):
@@ -995,20 +980,73 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             engine.support_compare(rating_id, root=root)
             return 200, blinded_rating_view(engine.get_support_rating(rating_id, root=root))
 
-        # CiteVahti's OWN AI second opinion (local / api). Off-mode -> a clear 4xx;
-        # the MCP assistant path (submit_ai_support_rating) is unchanged. Recorded
-        # blind — the view hides the AI value until a human rating exists.
-        m = re.fullmatch(r"/api/ratings/([^/]+)/run-ai", path)
-        if method == "POST" and m:
+
+# CiteVahti's OWN AI second opinion (local / api). Off-mode -> a clear 4xx;
+# the MCP assistant path (submit_ai_support_rating) is unchanged. Recorded
+# blind — the view hides the AI value until a human rating exists.
+def _dyn_ratings_run_ai(root, body, m):
             engine.support_run_ai(m.group(1), body.get("task_type", "assess"), root=root)
             return 200, blinded_rating_view(engine.get_support_rating(m.group(1), root=root))
 
-        m = re.fullmatch(r"/api/ratings/([^/]+)/adjudicate", path)
-        if method == "POST" and m:
+
+def _dyn_ratings_adjudicate(root, body, m):
             rec = engine.support_adjudicate(m.group(1), _req(body, "final_value"),
                                             _req(body, "rationale"),
                                             body.get("decider", "human"), root=root)
             return 200, blinded_rating_view(rec)
+
+
+# ---- manuscripts (inline review surface) ---------------------------
+def _dyn_manuscript(root, body, m):
+            mid = m.group(1)
+            mdir = prefs.get_manuscripts_dir(root)
+            prefs.remember_manuscript(root, mid)   # opening it = now working on it
+            rows = _manuscript_groups(root).get(mid, [])
+            view = M.build_view(mid, [_row_claim(r) for r in rows], mdir)
+            view["manuscripts_dir"] = mdir
+            view["claim_states"] = {r.claim_id: _claim_state(r) for r in rows}
+            return 200, view
+
+
+_DYNAMIC_ROUTES = [
+    ("GET", re.compile(r"/api/claims/([^/]+)/history"), _dyn_claims_history),
+    ("POST", re.compile(r"/api/claims/([^/]+)/revise"), _dyn_claims_revise),
+    ("GET", re.compile(r"/api/claims/([^/]+)"), _dyn_claims),
+    ("GET", re.compile(r"/api/ratings/([^/]+)"), _dyn_ratings),
+    ("GET", re.compile(r"/api/decisions/([^/]+)/provenance"), _dyn_decisions_provenance),
+    ("POST", re.compile(r"/api/ratings/([^/]+)/human"), _dyn_ratings_human),
+    ("POST", re.compile(r"/api/ratings/([^/]+)/run-ai"), _dyn_ratings_run_ai),
+    ("POST", re.compile(r"/api/ratings/([^/]+)/adjudicate"), _dyn_ratings_adjudicate),
+    ("GET", re.compile(r"/api/manuscript/(.+)"), _dyn_manuscript),
+]
+
+
+def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[int, dict]:
+    """Route one API call to an existing engine/agent function.
+
+    Returns ``(status_code, payload)``. Raises nothing — engine errors become a
+    4xx/5xx JSON ``{"error": ...}`` so the panel degrades honestly.
+    """
+    body = body or {}
+    try:
+        if method == "GET":
+            handler = _GET_ROUTES.get(path)
+            if handler is not None:
+                return handler(root, body)
+        if method == "POST":
+            handler = _POST_ROUTES.get(path)
+            if handler is not None:
+                return handler(root, body)
+        for _method, _rx, _handler in _DYNAMIC_ROUTES:
+            if method == _method:
+                m = _rx.fullmatch(path)
+                if m:
+                    return _handler(root, body, m)
+
+        # ---- reads ----------------------------------------------------------
+
+
+        # ---- human-owned mutations -----------------------------------------
 
 
         # ---- guarded write: reuse the token-gated agent wrappers ------------
@@ -1043,18 +1081,6 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         # The panel offers the returned bundle as a local download; nothing is sent
         # anywhere from here (download-only egress — there is no upload endpoint).
 
-
-        # ---- manuscripts (inline review surface) ---------------------------
-        m = re.fullmatch(r"/api/manuscript/(.+)", path)
-        if method == "GET" and m:
-            mid = m.group(1)
-            mdir = prefs.get_manuscripts_dir(root)
-            prefs.remember_manuscript(root, mid)   # opening it = now working on it
-            rows = _manuscript_groups(root).get(mid, [])
-            view = M.build_view(mid, [_row_claim(r) for r in rows], mdir)
-            view["manuscripts_dir"] = mdir
-            view["claim_states"] = {r.claim_id: _claim_state(r) for r in rows}
-            return 200, view
 
         # No-terminal setup: initialise the ledger for the folder the panel was opened in,
         # so a user who launched in a fresh directory can start the review without running
