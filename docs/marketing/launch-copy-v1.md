@@ -37,7 +37,7 @@ CiteVahti never issues a verdict on your work. It does not "approve" a manuscrip
 
 ## Beta honesty block (keep until production criteria met)
 
-CiteVahti is in beta. That means: the checking pipeline works, the failure modes are documented openly, and we **will publish our evaluation results** — precision and recall against a ground-truth citation set — rather than asking you to take accuracy on faith. The measurement protocol is pre-registered in the repo (`validation/claimcheck/`); no benchmark numbers are published yet, and we say so plainly until they are. [Link the eval-results page here once `citevahti-eval` produces it.]
+CiteVahti is in beta. That means: the checking pipeline works, the failure modes are documented openly, and we **will publish our evaluation results** — precision and recall against a ground-truth citation set — rather than asking you to take accuracy on faith. The measurement protocol is pre-registered in the repo (`validation/claimcheck/`), and the **lexical-layer** numbers are published now ([`docs/EVALUATION.md`](../EVALUATION.md)); the whole-system benchmark is not measured yet, and the page says so plainly.
 
 ## CTA
 
