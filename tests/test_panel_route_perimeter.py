@@ -105,9 +105,15 @@ def test_get_route_inventory_is_frozen():
 
 
 def test_dynamic_route_branch_counts_are_frozen():
+    """Dynamic (regex) routes in BOTH forms: legacy `method == X and m` branches AND
+    _DYNAMIC_ROUTES table entries (ADR-0010 panel split). Frozen counts unchanged."""
     src = _SRC.read_text()
-    assert len(re.findall(r'method == "POST" and m\b', src)) == FROZEN_DYNAMIC_POST_BRANCHES
-    assert len(re.findall(r'method == "GET" and m\b', src)) == FROZEN_DYNAMIC_GET_BRANCHES
+    posts = (len(re.findall(r'method == "POST" and m\b', src))
+             + len(re.findall(r'^    \("POST", re\.compile', src, re.M)))
+    gets = (len(re.findall(r'method == "GET" and m\b', src))
+            + len(re.findall(r'^    \("GET", re\.compile', src, re.M)))
+    assert posts == FROZEN_DYNAMIC_POST_BRANCHES
+    assert gets == FROZEN_DYNAMIC_GET_BRANCHES
 
 
 # ---- the choke point: every mutation needs the token, before any handler runs (rule 1) --
