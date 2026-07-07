@@ -1,0 +1,34 @@
+{
+  "title": "CiteVahti — citation integrity for manuscripts",
+  "description": "CiteVahti runs unit tests on manuscript claims: it checks whether each cited source actually supports the claim it is attached to. Human-first and blinded (the researcher rates first; an AI second rating is revealed only afterward; disagreements are adjudicated by the human), with a hash-chained audit trail and decision-gated, undoable Zotero write-back. Local-first and single-user; it surfaces evidence for human adjudication and never issues a verdict, certifies a manuscript, or writes silently.",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "Apache-2.0",
+  "creators": [
+    { "name": "Vahtian" }
+  ],
+  "keywords": [
+    "citation integrity",
+    "manuscript",
+    "systematic review",
+    "PRISMA",
+    "evidence synthesis",
+    "peer review",
+    "Zotero",
+    "PubMed",
+    "academic writing",
+    "MCP"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/heidihelena/citevahti",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://vahtian.com",
+      "relation": "isDocumentedBy",
+      "scheme": "url"
+    }
+  ]
+}
