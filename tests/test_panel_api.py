@@ -1025,7 +1025,9 @@ def _setup_nodoi_candidate(tmp_path):
 
 def test_backfill_candidate_dois_updates_existing(tmp_path, monkeypatch):
     store, claim_id = _setup_nodoi_candidate(tmp_path)
-    monkeypatch.setattr(engine, "resolve_dois", lambda pmids, **kw: {"999": "10.9/x"})
+    # backfill_candidate_dois lives in tools.intake (ADR-0010 PR 1i) and resolves
+    # resolve_dois in that module's namespace — patch it where it is looked up.
+    monkeypatch.setattr(engine.intake, "resolve_dois", lambda pmids, **kw: {"999": "10.9/x"})
     out = engine.backfill_candidate_dois(root=str(tmp_path))
     assert out["resolved"] == 1
     assert store.load_candidates(claim_id).candidates[0].doi == "10.9/x"
@@ -1199,8 +1201,9 @@ def test_backfill_uses_crossref_for_identifierless_candidates(tmp_path, monkeypa
     claim = ClaimService(store).add_claim("X", "effectiveness")
     batch = engine.import_results({"text": "title\nA manual reference with no IDs\n"}, "csv", root=str(tmp_path))
     CandidateService(store).link_from_intake(claim.claim_id, batch.batch_id)
-    monkeypatch.setattr(engine, "resolve_dois", lambda *a, **k: {})        # no PMID path
-    monkeypatch.setattr(engine, "resolve_dois_by_title",
+    # patch where backfill_candidate_dois looks them up — tools.intake (ADR-0010 PR 1i)
+    monkeypatch.setattr(engine.intake, "resolve_dois", lambda *a, **k: {})        # no PMID path
+    monkeypatch.setattr(engine.intake, "resolve_dois_by_title",
                         lambda titles, **k: {"A manual reference with no IDs": "10.7/title"})
     out = engine.backfill_candidate_dois(root=str(tmp_path))
     assert out["by_title"] == 1 and out["by_pmid"] == 0
