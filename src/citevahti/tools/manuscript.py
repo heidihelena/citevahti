@@ -8,8 +8,9 @@ nothing and is never the blinded rating path; ``import_manuscript_docx`` returns
 human reviews and saves themselves.
 
 The manuscript "unit test" suite — ``run_manuscript_tests`` / ``_evaluate_claim_tests`` —
-stays in the facade for the write-aware PR: its ``online=True`` path orchestrates the
-stateful ``scan_retractions`` / ``backfill_candidate_dois`` (ADR-0010 §3, read-only first).
+also lives here (PR 1m): offline it is deterministic and read-only; its ``online=True``
+path drives the stateful ``scan_retractions`` / ``backfill_candidate_dois`` from
+``.intake`` (forward deps, no cycle).
 
 Re-exported unchanged from ``citevahti.tools`` (frozen by tests/test_tools_public_api_stable.py).
 """
@@ -97,3 +98,109 @@ def topic_screen_prompt(topic: str = "") -> dict:
     never calls an AI itself (ADR-0007); the choreography text lives in ``agent.prompts``."""
     from ..agent.prompts import SCREEN_TOPIC_PROMPT_NAME, screen_topic_prompt
     return {"name": SCREEN_TOPIC_PROMPT_NAME, "prompt": screen_topic_prompt(topic or "")}
+
+
+# ---- the manuscript "unit test" suite (ADR-0010 PR 1m) ----------------------
+# CiteVahti's core metaphor: each claim is a test case. A claim PASSES when it is
+# backed by accepted, supporting evidence whose citation is identifiable (and,
+# online, real + not retracted); FAILS when the citation does not support it, is
+# retracted, or can't be identified; SKIPS when not yet reviewed or out of scope.
+# Forward deps only: the online path drives the stateful scans in .intake, and the
+# rows come from .reports' claim_report.
+_ACCEPTED_DECISIONS = ("accept", "accepted_with_caution")
+
+
+def _evaluate_claim_tests(row, online: bool) -> dict:
+    checks: list[dict] = []
+
+    def add(name, status, detail=""):
+        checks.append({"name": name, "status": status, "detail": detail})
+
+    def result(status):
+        return {"claim_id": row.claim_id, "claim_text": row.claim_text,
+                "state": row.state, "code": row.code.strip(),
+                "manuscript_location": row.manuscript_location,
+                "status": status, "checks": checks}
+
+    # FAIL (loudly): a decision was edited outside CiteVahti — the ledger state can't be
+    # trusted. Never a silent skip; the citation integrity of this claim is unknown.
+    if getattr(row, "inconsistent", False):
+        add("ledger_integrity", "fail",
+            "ledger state is inconsistent with the audit trail (edited outside CiteVahti): "
+            + (row.inconsistency or "decision disagrees with its rating"))
+        return result("fail")
+    # SKIP: explicitly out of indexed scope (book/grey lit) — not a failure.
+    if row.state == "untestable":
+        add("in_scope", "skip", row.untestable_reason or "cited source is out of indexed-literature scope")
+        return result("skip")
+    # SKIP: not yet reviewed (no evidence linked, or linked but not rated/decided).
+    if row.state == "needs_support":
+        detail = "no reference linked yet" if row.candidate_count == 0 else "evidence linked but not yet rated/decided"
+        add("reviewed", "skip", detail)
+        return result("skip")
+
+    # decided states: accepted / review_needed / decision_recorded
+    add("has_reference", "pass" if row.candidate_count >= 1 else "fail",
+        "" if row.candidate_count >= 1 else "no reference linked")
+    add("reviewed", "pass")
+
+    if row.state == "review_needed":
+        add("supported", "fail", "rater discordance or a needs-second-review verdict is unresolved")
+        return result("fail")
+    if row.state == "decision_recorded":
+        add("supported", "fail", "no candidate was accepted as supporting this claim")
+        return result("fail")
+
+    # state == "accepted": the claim is supported — now test the citation itself.
+    add("supported", "pass")
+    accepted = [e for e in row.evidence if e.final_decision in _ACCEPTED_DECISIONS]
+    operative = accepted or row.evidence
+    identified = [e for e in operative if (e.doi or e.pmid)]
+    add("citation_identified", "pass" if identified else "fail",
+        "" if identified else "the supporting reference has no DOI or PMID")
+    if online:
+        retracted = [e for e in operative if e.retracted]
+        add("not_retracted", "fail" if retracted else "pass",
+            f"{len(retracted)} supporting reference(s) flagged retracted" if retracted else "")
+        add("citation_real", "pass" if identified else "fail",
+            "" if identified else "could not resolve a real DOI/PMID for the reference")
+
+    return result("fail" if any(c["status"] == "fail" for c in checks) else "pass")
+
+
+def run_manuscript_tests(*, root: Optional[str] = None, online: bool = False,
+                         claim_ids: Optional[list] = None, http=None) -> dict:
+    """Run the manuscript 'unit test' suite over the ledger's claims.
+
+    Offline checks (instant, deterministic): the claim has a linked reference, was
+    reviewed, the verdict supports it, and the supporting citation carries a DOI/PMID.
+    With ``online=True`` it first refreshes retraction flags and backfills/validates
+    identifiers (network), then also tests that the citation is real and not retracted.
+
+    Returns a JSON-serialisable suite result so the CLI and the panel share one engine.
+    """
+    from .intake import backfill_candidate_dois, scan_retractions
+    from .reports import claim_report
+
+    online_actions: dict = {}
+    if online:
+        try:
+            online_actions["retractions"] = scan_retractions(root=root, http=http)
+        except Exception as e:  # noqa: BLE001 — a flaky network check must not crash the suite
+            online_actions["retractions_error"] = str(e)
+        try:
+            online_actions["dois"] = backfill_candidate_dois(root=root, http=http)
+        except Exception as e:  # noqa: BLE001
+            online_actions["dois_error"] = str(e)
+
+    rep = claim_report(claim_ids=claim_ids, root=root)
+    claims = [_evaluate_claim_tests(r, online) for r in rep.rows]
+    counts = {s: sum(1 for c in claims if c["status"] == s) for s in ("pass", "fail", "skip")}
+    # Surface online-check failures explicitly: a swallowed retraction-scan / DOI
+    # backfill error means the citation_real / not_retracted checks ran against stale
+    # data, so a "pass" there is NOT trustworthy. Callers MUST show online_errors.
+    online_errors = [v for k, v in online_actions.items() if k.endswith("_error")]
+    return {"total": len(claims), "passed": counts["pass"], "failed": counts["fail"],
+            "skipped": counts["skip"], "online": online, "claims": claims,
+            "online_actions": online_actions or None, "online_errors": online_errors,
+            "generated_at": rep.generated_at}

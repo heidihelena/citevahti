@@ -910,8 +910,10 @@ def test_test_suite_surfaces_online_check_failures(tmp_path, monkeypatch):
 
     def boom(*a, **k):
         raise RuntimeError("OpenAlex unreachable")
-    monkeypatch.setattr(engine, "scan_retractions", boom)
-    monkeypatch.setattr(engine, "backfill_candidate_dois", lambda *a, **k: {"resolved": 0})
+    # run_manuscript_tests (tools.manuscript, ADR-0010 PR 1m) resolves the scans from
+    # tools.intake at call time — patch them where they are looked up.
+    monkeypatch.setattr(engine.intake, "scan_retractions", boom)
+    monkeypatch.setattr(engine.intake, "backfill_candidate_dois", lambda *a, **k: {"resolved": 0})
     suite = engine.run_manuscript_tests(root=str(tmp_path), online=True)
     assert suite["online"] is True
     assert any("OpenAlex unreachable" in e for e in suite["online_errors"])
