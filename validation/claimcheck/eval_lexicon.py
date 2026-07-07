@@ -24,7 +24,11 @@ Usage:
 stdlib only; imports the repo's real text.py so the numbers reflect shipped logic.
 """
 from __future__ import annotations
-import argparse, importlib.util, json, os, sys
+import argparse
+import importlib.util
+import json
+import os
+import sys
 from collections import Counter, defaultdict
 
 _HERE = os.path.dirname(__file__)
@@ -35,9 +39,10 @@ _BASELINE = os.path.join(_HERE, "lexicon_baseline.json")
 SUPPORT_THRESHOLD = 0.5  # mirror ClaimCheckService._SUPPORT_THRESHOLD / build_ledger
 
 # Hole categories: the lexical layer is EXPECTED to miss these; they are reported,
-# not gated. Only negated_contradiction is a hard regression guard (the polarity
-# guard must catch explicit negation — tests/test_claimcheck_polarity.py).
-HOLE_TAGS = {"antonym_contradiction", "paraphrase_support", "semantic_contradiction"}
+# not gated. `antonym_contradiction` used to live here — it is now handled by the
+# direction-aware polarity guard (text.py), so it is a *caught* category, not a hole.
+# The remaining holes need synonymy/semantics, which is the AI-model layer's job.
+HOLE_TAGS = {"paraphrase_support", "semantic_contradiction"}
 
 
 def load_text_module(repo: str):
@@ -64,9 +69,12 @@ def prf(items, pred_pos, gold_pos) -> dict:
     tp = fp = fn = 0
     for r in items:
         p, g = pred_pos(r), gold_pos(r)
-        if p and g: tp += 1
-        elif p and not g: fp += 1
-        elif g and not p: fn += 1
+        if p and g:
+            tp += 1
+        elif p and not g:
+            fp += 1
+        elif g and not p:
+            fn += 1
     prec = tp / (tp + fp) if (tp + fp) else None
     rec = tp / (tp + fn) if (tp + fn) else None
     f1 = (2 * prec * rec / (prec + rec)) if prec and rec else None

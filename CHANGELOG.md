@@ -16,12 +16,19 @@ previous one.
   scoreboard + divergence maps** later. Supersedes the earlier "human-gold release gate"
   framing.
 - **A runnable claim-lexicon evaluation** — `validation/claimcheck/eval_lexicon.py` over
-  30 curated, author-labelled `(claim, passage, expected)` cases
-  (`lexicon_cases.jsonl`), scoring the real `text.py` and **naming its holes** per
-  phenomenon. First real, publishable lexical-layer numbers: support precision 0.714 /
-  recall 0.667, contradiction precision 1.000 / recall 0.500, **0** negated-contradiction
-  leaks. Frozen baseline (`lexicon_baseline.json`) + CI regression guard
-  (`tests/test_lexicon_eval.py`, `--check`).
+  curated, author-labelled `(claim, passage, expected)` cases (`lexicon_cases.jsonl`),
+  scoring the real `text.py` and **naming its holes** per phenomenon. Frozen baseline
+  (`lexicon_baseline.json`) + CI regression guard (`tests/test_lexicon_eval.py`, `--check`).
+- **Direction-aware polarity guard** (`text.py`) — the first fix the new eval drove. The
+  eval found that antonym contradictions with no negation cue ("X increased mortality" vs
+  a claim of "reduced") slipped through as *support*, dragging support precision to 0.714.
+  `polarity_conflict` now also flips on **opposite direction** — two independent axes
+  (magnitude, quality) XOR-combined with negation, so a double flip ("did not increase" vs
+  "reduced") correctly cancels — with an inspectable `direction_cue` ("reduced ≠
+  increased"). Result: **support precision 0.714 → 1.000, contradiction recall 0.500 →
+  0.889**, still 0 negation leaks; 6 held-out antonym pairs confirm it generalizes.
+  Locked by new units in `tests/test_claimcheck_polarity.py`. Paraphrase/synonymy stays the
+  AI-model layer's job (ADR-0009).
 - **`citevahti-models` skill** — choose/compare the AI second-rater model, run a topic
   through several models, the **3-model guideline pre-check** (Layer-0 screening — leads,
   not verdicts). Registered in `.claude-plugin/plugin.json`.

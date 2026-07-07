@@ -7,7 +7,7 @@ from typing import Optional
 from .. import __version__
 from ..retrieval.service import PassageRetrievalService
 from ..retrieval.source import TextSource
-from ..retrieval.text import negation_cue, polarity_conflict
+from ..retrieval.text import polarity_conflict, polarity_cue
 from ..schemas.claimcheck import ClaimCheckResult, ClaimStatus, PerCitekeyResult
 from ..schemas.common import Provenance
 from ..util import config_hash, utc_now_iso
@@ -57,21 +57,21 @@ class ClaimCheckService:
             opposing = [p for p in candidates if polarity_conflict(claim_text, p.quote)]
             supporting = [p for p in candidates if not polarity_conflict(claim_text, p.quote)]
             if opposing:
-                cue = negation_cue(opposing[0].quote) or negation_cue(claim_text)
+                cue = polarity_cue(claim_text, opposing[0].quote)
                 if not supporting:
                     # every candidate opposes the claim -> a contradiction candidate
                     # (the mirror of support); never silently return it as support.
                     return PerCitekeyResult(
                         citekey=citekey, status="contradiction_candidate",
                         zotero_key=retr.zotero_key, score=best, polarity_cue=cue,
-                        reason=f'passage opposes the claim\'s polarity (negation cue: "{cue}")',
+                        reason=f'passage opposes the claim\'s polarity (cue: "{cue}")',
                         passages=opposing)
                 # mixed inside one source: real support AND an opposing passage. Keep the
                 # support headline but surface BOTH passages + the cue — never hide the conflict.
                 return PerCitekeyResult(
                     citekey=citekey, status="supported_candidate",
                     zotero_key=retr.zotero_key, score=best, polarity_cue=cue,
-                    reason=f'also contains an opposing passage (negation cue: "{cue}") — review the conflict',
+                    reason=f'also contains an opposing passage (cue: "{cue}") — review the conflict',
                     passages=supporting + opposing)
             return PerCitekeyResult(citekey=citekey, status="supported_candidate",
                                     zotero_key=retr.zotero_key, score=best, passages=candidates)

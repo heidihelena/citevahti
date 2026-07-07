@@ -43,25 +43,30 @@ The lexical layer is **expected** to miss these — they are covered by the othe
 slices, not by this one, so they are surfaced per-phenomenon and never gated:
 
 - **`paraphrase_support`** — synonymy/inflection drops token overlap below threshold
-  (e.g. "heart attack" vs "myocardial infarction"). Reported recall loss, by design.
-- **`antonym_contradiction`** — a semantic opposite with **no** negation cue ("increased"
-  vs "reduced"); lexical coverage is direction-blind here, so it surfaces as a support
-  false-positive. Reported, not gated.
+  (e.g. "heart attack" vs "myocardial infarction"). Reported recall loss, by design; the
+  AI-model layer covers it.
 - **`semantic_contradiction`** — a contradiction sharing no relation tokens at all.
 
-Naming these is the point (ADR-0009): a results view that hid them would misrepresent a
+`antonym_contradiction` **used to be listed here** and is **no longer a hole**: the
+direction-aware polarity guard (`text.py`, two direction axes XOR-combined with negation)
+now catches opposite-direction contradictions with no negation cue ("increased" vs
+"reduced"). See the change log; it is now a *caught* category in the per-phenomenon report.
+
+Naming holes is the point (ADR-0009): a results view that hid them would misrepresent a
 one-slice floor as a complete detector.
 
-## Current baseline (frozen 2026-07-07, n = 30)
+## Current baseline (frozen 2026-07-07, n = 37)
 
 | Detector | Precision | Recall |
 |---|---|---|
-| Support | 0.714 | 0.667 |
-| Contradiction | 1.000 | 0.500 |
+| Support | 1.000 | 0.688 |
+| Contradiction | 1.000 | 0.889 |
 
-Negated-contradiction leaks: **0**. These are honest numbers for a transparent lexical
-floor — high contradiction precision (it does not cry wolf), with recall deliberately left
-to the layers above it. They are publishable *as the lexical-layer numbers*, not as the
+Negated-contradiction leaks: **0**. Both detectors now hold **1.000 precision** (neither
+cries wolf), after the direction-aware polarity guard closed the antonym hole that had
+dragged support precision to 0.714 (support false-positives) and capped contradiction
+recall at 0.500. The remaining recall gap is paraphrase/synonymy — the AI-model layer's
+job, not the lexicon's. These are publishable *as the lexical-layer numbers*, not as the
 whole system's accuracy.
 
 ## Not in scope here
@@ -78,3 +83,4 @@ into this lexical regression policy.
 | 2026-07-07 | Initial proposed v0 — human-gold κ release gate | first pre-registration scaffold |
 | 2026-07-07 | v0.1 — precision sole gate, recall published (inverted-U) | maintainer steer: no universal sensitivity |
 | 2026-07-07 | **v1 — repurposed to the `eval_lexicon.py` regression policy; the human-gold *release gate* is retired (ADR-0009). Baseline frozen (n=30).** | primary eval is the automatic lexicon run, not a human ledger; model rating & Atlas are separate objects |
+| 2026-07-07 | **v2 — direction-aware polarity guard fixes the antonym hole the eval found. Support precision 0.714 → 1.000, contradiction recall 0.500 → 0.889. Baseline re-frozen (n=37, +7 held-out antonym/guard cases); `antonym_contradiction` moved from hole to caught category.** | close what the eval found; held-out pairs confirm it generalizes, not fits-to-test |
