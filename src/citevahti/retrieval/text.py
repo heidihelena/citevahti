@@ -16,16 +16,59 @@ def tokenize(text: str) -> list[str]:
 
 
 def content_tokens(text: str) -> set[str]:
-    """Tokens used for lexical matching: drop stopwords + 1-char tokens."""
+    """Tokens used for lexical matching: drop stopwords + 1-char tokens.
+
+    Returns the RAW (unstemmed) content words — this is what the panel shows as
+    "present / missing", so it must stay human-readable. Matching itself stems
+    (see ``coverage_score``)."""
     return {t for t in tokenize(text) if t not in _STOPWORDS}
 
 
+# --- Conservative inflectional stemmer (deterministic; no AI) -----------------
+# Coverage was direction-blind AND inflection-blind: "antidepressants" did not
+# match "antidepressant", "increases" did not match "increased". This shallow
+# stemmer folds common English inflections so different forms of the SAME word
+# match, recovering recall the eval flagged. It is deliberately INFLECTIONAL, not
+# a full derivational stemmer — kept shallow because it sits in the audited
+# coverage path, and every change is measured for precision by the lexicon eval.
+# It is applied only for MATCHING (coverage_score); content_tokens stays raw.
+_STEM_SUFFIXES = (
+    ("ies", "y"), ("ied", "y"), ("ing", ""), ("edly", ""), ("edness", ""),
+    ("ed", ""), ("est", ""), ("ers", ""), ("er", ""), ("es", ""),
+    ("ally", "al"), ("ly", ""), ("al", ""), ("s", ""), ("e", ""),
+)
+_MIN_STEM = 4  # never strip below this many characters — guards short words
+
+
+def stem(token: str) -> str:
+    """Fold a token to a shallow inflectional stem (iterated to a fixed point).
+
+    Conservative by design: the ``_MIN_STEM`` floor stops it from mangling short
+    words, so e.g. "less"/"loss"/"rate" are left intact while "reduced",
+    "reduces", "reducing" and "reduce" all fold to "reduc"."""
+    tok = token
+    changed = True
+    while changed and len(tok) > _MIN_STEM:
+        changed = False
+        for suf, repl in _STEM_SUFFIXES:
+            if suf and tok.endswith(suf) and len(tok) - len(suf) + len(repl) >= _MIN_STEM:
+                tok = tok[: -len(suf)] + repl
+                changed = True
+                break
+    return tok
+
+
+def content_stems(text: str) -> set[str]:
+    """Stemmed content tokens — the set used for lexical MATCHING."""
+    return {stem(t) for t in content_tokens(text)}
+
+
 def coverage_score(query: str, passage: str) -> float:
-    """Fraction of the query's content tokens present in the passage (0..1)."""
-    q = content_tokens(query)
+    """Fraction of the query's content stems present in the passage (0..1)."""
+    q = content_stems(query)
     if not q:
         return 0.0
-    p = content_tokens(passage)
+    p = content_stems(passage)
     return len(q & p) / len(q)
 
 
