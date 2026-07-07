@@ -6,12 +6,12 @@ CiteVahti holds itself to the evidence standards it promotes. Per [ADR-0009](adr
 
 ## 1. Claim-lexicon eval (automatic, measured now)
 
-The deterministic lexical detector, scored against a curated, author-labelled set of **55** `(claim, passage)` cases (`validation/claimcheck/lexicon_cases.jsonl`). Precision is floored in CI; recall is published, not chased (the inverted-U — over-flagging is worse than under-flagging). Advisory flags (population, certainty) are surfaced for the human/AI layer to adjudicate, never as verdicts.
+The deterministic lexical detector, scored against a curated, author-labelled set of **57** `(claim, passage)` cases (`validation/claimcheck/lexicon_cases.jsonl`). Precision is floored in CI; recall is published, not chased (the inverted-U — over-flagging is worse than under-flagging). Advisory flags (population, certainty) are surfaced for the human/AI layer to adjudicate, never as verdicts.
 
 | Detector | Precision | Recall |
 |---|---|---|
-| Support | 1.000 | 0.882 |
-| Contradiction | 1.000 | 0.889 |
+| Support | 1.000 | 0.943 |
+| Contradiction | 1.000 | 0.895 |
 | Population-mismatch flag | 1.000 | 1.000 |
 | Certainty/overclaim flag | 0.833 | 1.000 |
 
