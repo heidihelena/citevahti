@@ -29,3 +29,8 @@ manuscript*.md
 !.claude/skills/
 # stray reference bib belonging to the EpiNet project, not CiteVahti
 epinet-references.bib
+
+# coverage artifacts
+.coverage
+coverage.xml
+htmlcov/

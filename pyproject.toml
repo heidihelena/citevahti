@@ -38,7 +38,7 @@ Issues = "https://github.com/heidihelena/citevahti/issues"
 mcp = ["mcp>=1.27.2"]
 app = ["pywebview>=5.0"]   # native desktop window (OS webview) for the panel — `citevahti-app`
 update = ["tufup>=0.9"]   # signed auto-updates for the frozen desktop app (TUF); see docs/AUTO_UPDATE.md
-dev = ["pytest>=9.1.0", "ruff>=0.15", "mypy>=1.18", "types-defusedxml>=0.7"]   # stubs: defusedxml ships no py.typed
+dev = ["pytest>=9.1.0", "pytest-cov>=5", "ruff>=0.15", "mypy>=1.18", "types-defusedxml>=0.7"]   # stubs: defusedxml ships no py.typed
 keyring = ["keyring>=25.7.0"]   # OS-native secret store for onboarding (system_keyring backend)
 timestamp = ["asn1crypto>=1.5.1"]   # RFC 3161 timestamping of the audit head (issue #42); opt-in
 docx = []   # back-compat alias: python-docx is now a core dependency (Word features ship by default)
@@ -74,6 +74,23 @@ addopts = "-q"
 # decision-tamper integrity, read-only-views-never-mutate). See docs/SECURITY.md.
 markers = [
   "security: security-control regression tests for the local trust boundary",
+]
+
+[tool.coverage.run]
+source = ["src/citevahti"]
+branch = true
+# the panel's shipped web assets are static (html/js/css), not Python
+omit = ["*/panel/web/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# lines that are unreachable-by-design or type-only shouldn't count against coverage
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@(abc\\.)?abstractmethod",
+  "if __name__ == .__main__.:",
 ]
 
 [tool.ruff]
