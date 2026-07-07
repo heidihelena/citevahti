@@ -36,10 +36,30 @@ Consequences you act on here:
 - **Only identifiable models are rated** — you can't build a track record for an anonymous
   model. Prefer a model whose id + version is recorded (the AI-provenance summary,
   METHODS.md).
-- **A low-rated model → switch to a better-covering one.** In the panel: *Settings → AI
-  second opinion*. The nudge is about *coverage*, not raw agreement.
+- **A low-rated model → switch to a better-covering one.** The read-only `model_advisor`
+  tool returns this directly from *this project's own records*: a ranking by catch-rate, the
+  recommended model, and — given a model id that rates low — a concrete better-evidenced
+  alternative to switch to. The panel equivalent is *Settings → AI second opinion*. The
+  nudge is about *coverage*, not raw agreement.
 - **Rating is per-task and per-topic** — a model strong on oncology claims may be weak
   elsewhere; read the scoreboard for the topic at hand, not a single global number.
+
+### Reading a model's standing (shipped, local — not Atlas)
+
+Two read-only surfaces exist **today**, computed from this project's own rating records —
+they change and adjudicate nothing:
+
+- **`model_advisor`** — the operating tool. Call it to rank the identifiable models by
+  complementary value, get the recommended second-rater, and pass a model id to ask "is this
+  one still worth trusting?" It stays **silent on any model without enough resolved
+  divergences to judge** (an evidence floor — a handful of catches is not a track record),
+  and when a named model rates low it names a better-evidenced alternative. This is the
+  executable form of "if a model rates low, suggest another".
+- **`agreement_report`** → its `model_scoreboard` — the underlying per-model tally (catches
+  / overruled / pending / catch-rate) if you want the raw counts behind the advice.
+
+Both are **local** to this project. The *pooled* scoreboard across contributors is Atlas,
+and it is roadmap (below) — don't present the local numbers as the pooled ones.
 
 ## Running one topic through several models
 
@@ -48,11 +68,15 @@ Independent models running the **same** topic are independent screening passes �
 
 - **Shipped mechanism:** the `ai-screen` / `run_claim_tests` prompts (ADR-0007/0008 — the
   panel *prepares* the prompt; the assistant runs the model). Run the topic once per model,
-  keep each model's id with its output, and compare the divergences by hand today.
-- **Roadmap (ADR-0009, needs Atlas):** the **model scoreboard** and **divergence maps** — a
-  layer over the Atlas evidence map that shows where models disagree, by claim/topic —
-  aggregate this across contributors. Until Atlas ships, do the comparison manually and say
-  so; don't imply a scoreboard that isn't there yet (`citevahti-claims`).
+  keep each model's id with its output, and compare the divergences by hand today. As those
+  models' divergences get adjudicated, `model_advisor` accrues their local standings so the
+  *next* pre-check starts from evidence, not a guess.
+- **Roadmap (ADR-0009, needs Atlas):** the **pooled** model scoreboard and **divergence
+  maps** — a layer over the Atlas evidence map that shows where models disagree, by
+  claim/topic — aggregate object 2 across contributors. The *local* per-model scoreboard
+  ships now (`model_advisor` / `agreement_report`); the cross-model *divergence map* does
+  not. Until Atlas ships, do the divergence comparison manually and say so; don't imply a
+  pooled scoreboard that isn't there yet (`citevahti-claims`).
 
 ### The 3-model guideline pre-check
 
@@ -62,14 +86,36 @@ screening — leads, not verdicts** (ADR-0008 §Layer 0): it *prepares* the grou
 does **not** confer guideline grade, which still needs the human independent-assessor count
 (~8+, ADR-0008). Multi-model agreement is a screening signal, never an evidence tier.
 
+## Operate it
+
+Picking or checking a second-rater model, end to end:
+
+1. **Ask the advisor.** Call `model_advisor` (no argument) for the ranking + recommended
+   model. If it recommends one, prefer that. If `ranked` is empty, the project has no model
+   past the evidence floor yet — say so and pick on other grounds (identifiability,
+   task fit), don't invent a standing.
+2. **Check the model you're leaning toward.** Call `model_advisor` with its `model_id`. If it
+   comes back with a `suggestion`, the model rates low on *this* project's divergences —
+   relay the suggested alternative. If it's under the floor, report that honestly ("not
+   enough resolved divergences to judge it yet") rather than treating silence as a pass.
+3. **Set it** in the panel — *Settings → AI second opinion* — or record the chosen model id
+   at `init` so its identity (and future rating) is captured.
+4. **For a guideline pre-check**, run the topic through the chosen models (`ai-screen`
+   prompts), keep each model id with its output, and take the divergences to the humans.
+
+The advisor is descriptive — it reports standing; it never picks *for* the user or rates a
+claim. The human decides which model to trust, and always decides the claim.
+
 ## Hard rules
 
 - **NEVER let a model (single or multi) issue a verdict** — it surfaces evidence and
   disagreement; the human decides (ADR-0001).
 - **NEVER rank a model by agreement with the human** — rank by complementary catches
   (ADR-0009). Agreement-ranking selects for redundant slices.
+- **NEVER read a below-the-floor model as good OR bad** — `model_advisor` is silent on it on
+  purpose; too few resolved divergences is *no track record*, not a verdict either way.
 - **NEVER present multi-model agreement as an evidence tier** — it is Layer-0 screening;
   the ADR-0008 assessor count governs review/guideline grade.
-- **NEVER imply the Atlas scoreboard / divergence maps exist before they ship** — say what
-  is manual today.
+- **NEVER imply the pooled Atlas scoreboard / divergence maps exist before they ship** — the
+  *local* per-project scoreboard is real today; the pooled one and the divergence map are not.
 - **NEVER rate or lean on an anonymous model** as if it had a track record.

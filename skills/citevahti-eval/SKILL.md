@@ -62,8 +62,9 @@ static set. The signal is the **validated complementary catch**: the model's bli
 **diverges** from the human, and the human **adopts** it — correcting the *statement* or the
 *judgement* (better science). That is a hole covered. Agreement is cheap and scores little;
 a model that never usefully diverges is a redundant layer. A low-value model → **suggest a
-better-covering one**. `agreement_report` (METHODS.md) carries the model-provenance and
-human↔AI comparison this builds on. Anonymous models are not rated — no identity, no track
+better-covering one** — the read-only `model_advisor` tool executes this from the project's
+own records. `agreement_report` (METHODS.md) carries the model-provenance and human↔AI
+comparison this builds on. Anonymous models are not rated — no identity, no track
 record. This object is **not a release gate**; it drives model suggestion. Operated via
 `citevahti-models`.
 
