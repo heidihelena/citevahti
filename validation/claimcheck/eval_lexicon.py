@@ -103,6 +103,14 @@ def score(cases: list[dict], t) -> dict:
     population = (prf(pop_cases, lambda r: r["pop_flag"],
                       lambda r: r["pop_flag_expected"]) if pop_cases else None)
 
+    # Certainty/overclaim flag: the claim asserts plainly but the source hedges
+    # (correlational or weak-effect). Advisory, high-precision by design.
+    cert_cases = [c for c in cases if "certainty_flag_expected" in c]
+    for c in cert_cases:
+        c["cert_flag"] = t.certainty_mismatch(c["claim"], c["passage"]) is not None
+    certainty = (prf(cert_cases, lambda r: r["cert_flag"],
+                     lambda r: r["certainty_flag_expected"]) if cert_cases else None)
+
     # HARD guard: an explicitly-negated contradiction returned as support.
     negation_leaks = [c for c in cases if c["tag"] == "negated_contradiction"
                       and c["status"] == "supported_candidate"]
@@ -117,6 +125,8 @@ def score(cases: list[dict], t) -> dict:
         "contradiction": contra,
         "population": population,
         "n_pop": len(pop_cases),
+        "certainty": certainty,
+        "n_cert": len(cert_cases),
         "negation_leaks": len(negation_leaks),
         "contradiction_as_support_total": len(all_leaks),
         "negation_leak_ids": [c["id"] for c in negation_leaks],
@@ -142,6 +152,10 @@ def report(s: dict, tags: dict) -> None:
         po = s["population"]
         print(f"  POPULATION-mismatch flag  precision {fmt(po['precision'])}  recall {fmt(po['recall'])}"
               f"  F1 {fmt(po['f1'])}   (TP {po['tp']} FP {po['fp']} FN {po['fn']}, over {s['n_pop']} pop cases)")
+    if s.get("certainty"):
+        ce = s["certainty"]
+        print(f"  CERTAINTY/overclaim flag  precision {fmt(ce['precision'])}  recall {fmt(ce['recall'])}"
+              f"  F1 {fmt(ce['f1'])}   (TP {ce['tp']} FP {ce['fp']} FN {ce['fn']}, over {s['n_cert']} cert cases)")
     print(f"\n  negated contradictions served as SUPPORT (HARD, must be 0): {s['negation_leaks']}"
           + (f"  -> {s['negation_leak_ids']}" if s['negation_leaks'] else ""))
     print(f"  all contradictions served as SUPPORT (incl. known antonym/semantic holes): "
@@ -168,6 +182,9 @@ def baseline_view(s: dict) -> dict:
     if s.get("population"):
         view["population_precision"] = r(s["population"]["precision"])
         view["population_recall"] = r(s["population"]["recall"])
+    if s.get("certainty"):
+        view["certainty_precision"] = r(s["certainty"]["precision"])
+        view["certainty_recall"] = r(s["certainty"]["recall"])
     return view
 
 
@@ -184,7 +201,8 @@ def regressions(cur: dict, base: dict) -> list[str]:
         out.append(f"negation leak count {cur['negation_leaks']} (must be 0)")
     for key in ("support_precision", "contradiction_precision",
                 "support_recall", "contradiction_recall",
-                "population_precision", "population_recall"):
+                "population_precision", "population_recall",
+                "certainty_precision", "certainty_recall"):
         b, c = base.get(key), cur.get(key)
         if b is not None and c is not None and c < b - 1e-3:
             out.append(f"{key} fell {b:.3f} -> {c:.3f}")

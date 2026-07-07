@@ -7,7 +7,12 @@ from typing import Optional
 from .. import __version__
 from ..retrieval.service import PassageRetrievalService
 from ..retrieval.source import TextSource
-from ..retrieval.text import polarity_conflict, polarity_cue, population_mismatch
+from ..retrieval.text import (
+    certainty_mismatch,
+    polarity_conflict,
+    polarity_cue,
+    population_mismatch,
+)
 from ..schemas.claimcheck import ClaimCheckResult, ClaimStatus, PerCitekeyResult
 from ..schemas.common import Provenance
 from ..util import config_hash, utc_now_iso
@@ -61,6 +66,11 @@ class ClaimCheckService:
             pop_cue = next(
                 (pc for p in supporting if (pc := population_mismatch(claim_text, p.quote))),
                 None)
+            # Overclaim guard: a supporting passage may state the relation only weakly
+            # /correlationally where the claim asserts it plainly (advisory) — ADR-0009.
+            cert_cue = next(
+                (cc for p in supporting if (cc := certainty_mismatch(claim_text, p.quote))),
+                None)
             if opposing:
                 cue = polarity_cue(claim_text, opposing[0].quote)
                 if not supporting:
@@ -76,14 +86,23 @@ class ClaimCheckService:
                 reason = f'also contains an opposing passage (cue: "{cue}") — review the conflict'
                 if pop_cue:
                     reason += f'; population may differ ({pop_cue})'
+                if cert_cue:
+                    reason += f'; source states it more tentatively ({cert_cue})'
                 return PerCitekeyResult(
                     citekey=citekey, status="supported_candidate",
                     zotero_key=retr.zotero_key, score=best, polarity_cue=cue,
-                    population_cue=pop_cue, reason=reason, passages=supporting + opposing)
+                    population_cue=pop_cue, certainty_cue=cert_cue, reason=reason,
+                    passages=supporting + opposing)
+            notes = []
+            if pop_cue:
+                notes.append(f"population may differ ({pop_cue})")
+            if cert_cue:
+                notes.append(f"source states it more tentatively ({cert_cue})")
             return PerCitekeyResult(
                 citekey=citekey, status="supported_candidate",
-                zotero_key=retr.zotero_key, score=best, population_cue=pop_cue,
-                reason=(f'population may differ ({pop_cue}) — review the fit' if pop_cue else None),
+                zotero_key=retr.zotero_key, score=best,
+                population_cue=pop_cue, certainty_cue=cert_cue,
+                reason=("; ".join(notes) + " — review the fit") if notes else None,
                 passages=candidates)
         # source available + searched, but no adequate support
         return PerCitekeyResult(citekey=citekey, status="no_support_found",
@@ -122,4 +141,7 @@ class ClaimCheckService:
         if any(p.population_cue for p in per):
             result.warnings.append(
                 "a supporting source may describe a different population — review the fit")
+        if any(p.certainty_cue for p in per):
+            result.warnings.append(
+                "a supporting source may state the claim more tentatively than written — check for overclaim")
         return result

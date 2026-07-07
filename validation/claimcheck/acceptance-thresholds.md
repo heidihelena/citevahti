@@ -33,6 +33,7 @@ the AI-model and human layers (ADR-0009), not by widening a lexicon.
 | Contradiction-detector **precision** | **must not fall** below baseline | Same. |
 | Support / contradiction **recall** | **must not fall** below baseline | Recall is *published*, but a *drop* is still a regression — you don't get quietly worse. New capability that lifts recall re-freezes the baseline upward. |
 | Population-mismatch flag **precision & recall** | **must not fall** below baseline | The advisory PICO flag (ADR-0009 "floor flags, AI confirms"): a supporting citation about a *different population*. Over-firing (false flags) is the worse side of the inverted-U, so precision matters most; recall is guarded too. |
+| Certainty/overclaim flag **precision & recall** | **must not fall** below baseline | The advisory overclaim flag: the claim asserts plainly but the source hedges (correlational / weak effect). The **lowest-precision** flag (0.833) — its one known false-positive mode is a hedge word attached to a *covariate* rather than the relation ("…a benefit associated with adherence"), which is lexically indistinguishable from a real overclaim. Advisory only; the AI/human layer adjudicates. |
 
 The baseline lives in `lexicon_baseline.json` (committed) and is compared by `--check`.
 `test_lexicon_eval.py` also asserts the baseline's `n` matches the case set, so the guard
@@ -56,22 +57,24 @@ now catches opposite-direction contradictions with no negation cue ("increased" 
 Naming holes is the point (ADR-0009): a results view that hid them would misrepresent a
 one-slice floor as a complete detector.
 
-## Current baseline (frozen 2026-07-07, n = 37)
+## Current baseline (frozen 2026-07-07, n = 55)
 
 | Detector | Precision | Recall |
 |---|---|---|
-| Support | 1.000 | 0.885 |
+| Support | 1.000 | 0.882 |
 | Contradiction | 1.000 | 0.889 |
 | Population-mismatch flag | 1.000 | 1.000 |
+| Certainty/overclaim flag | 0.833 | 1.000 |
 
 Negated-contradiction leaks: **0**. The support/contradiction detectors hold **1.000
-precision** (neither cries wolf); support recall reached 0.885 after the inflectional
-**stemmer** folded morphology. The **population-mismatch flag** (advisory PICO warning)
-scores 1.000/1.000 on its 10 cases — the important number is that it did **not** fire on
-the controls (implicit population, "patients", same-pole synonyms). The remaining
-support-recall gap is genuine **synonymy/paraphrase**, which is the AI-model layer's job,
-not the lexicon's. n = 47. These are publishable *as the lexical-layer numbers*, not as the
-whole system's accuracy.
+precision** (neither cries wolf); support recall reached 0.882 after the inflectional
+**stemmer** folded morphology. The **population-mismatch flag** scores 1.000/1.000 — the
+important number being 0 false flags on its controls. The **certainty/overclaim flag** is
+the one below 1.000 precision (0.833): recall is perfect, but one deliberately-included
+hard control (a hedge word attached to a covariate, not the relation) is a false positive
+the lexicon can't tell apart from a real overclaim — named, not hidden. The remaining
+support-recall gap is genuine **synonymy/paraphrase**, the AI-model layer's job. These are
+publishable *as the lexical-layer numbers*, not the whole system's accuracy.
 
 ## Not in scope here
 
@@ -90,3 +93,4 @@ into this lexical regression policy.
 | 2026-07-07 | **v2 — direction-aware polarity guard fixes the antonym hole the eval found. Support precision 0.714 → 1.000, contradiction recall 0.500 → 0.889. Baseline re-frozen (n=37, +7 held-out antonym/guard cases); `antonym_contradiction` moved from hole to caught category.** | close what the eval found; held-out pairs confirm it generalizes, not fits-to-test |
 | 2026-07-07 | **v3 — conservative inflectional stemmer in the coverage-matching path. Support recall 0.688 → 0.812, precision held at 1.000; baseline re-frozen (n=37).** | close the inflection/morphology recall misses the eval flagged; measured precision-safe |
 | 2026-07-07 | **v4 — population/PICO mismatch flag (age/sex/species) added to the floor as an advisory warning (ADR-0009 "floor flags, AI confirms"); scored by a new population detector (P 1.000 / R 1.000 over 10 cases, 0 false flags on controls). Baseline re-frozen (n=47).** | item 2/5 — catch the highest-value error class (right relation, wrong population); measured, conservative (silent on implicit populations) |
+| 2026-07-07 | **v5 — certainty/overclaim flag (claim asserts plainly, source hedges: correlational / weak-effect) added as an advisory warning; new certainty detector P 0.833 / R 1.000 over 8 cases (one known covariate-association FP, kept as a hard control). High-precision cue set (no bare modals on the passage side). Baseline re-frozen (n=55).** | item 5/5 — catch overclaim (the "overstated" support value); measured, precision-first, FP mode named not hidden |
