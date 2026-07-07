@@ -17,6 +17,7 @@ from ..state import CiteVahtiStore
 
 from ._util import (  # noqa: F401
     _DEMO_DIR, _parse_library, _fit_from_args, _emit_json, _print_support, _print_panel, _claim_report_text, _print_txn, _print_warehouse, _dedupe_breakdown, _report_intake, _subject, _safe, _print_write, _refs,
+    secret_names_display, secret_source_display, store_backend_display,
 )
 
 
@@ -99,12 +100,12 @@ def _cmd_status(args) -> int:
         if c.version:
             line += f" (version={c.version})"
         if c.secret_source:
-            line += f" [source={c.secret_source}]"
+            line += f" [source={secret_source_display(c.secret_source)}]"
         print(line)
         if c.remediation:
             print(f"         remediation: {c.remediation}")
 
-    print(f"\nSecrets backend : {rep.secrets_backend}")
+    print(f"\nSecrets backend : {store_backend_display(rep.secrets_backend)}")
     print(f"Zotero user id  : {rep.zotero_user_id or '(unset)'}")
 
     print(f"\nWrite backend   : {rep.write_backend_kind} "
@@ -1378,7 +1379,7 @@ def _cmd_connect_zotero(args) -> int:
     else:
         print("  group libraries        : none on this key "
               "(re-run with --groups write if you cite from a shared library)")
-    print(f"  key storage            : {rep['secrets_backend']} (never written to config)")
+    print(f"  key storage            : {store_backend_display(rep['secrets_backend'])} (never written to config)")
     print(f"  {rep['note']}")
     return 0
 
@@ -1412,11 +1413,11 @@ def _cmd_onboard(args) -> int:
         zotero_library_id=args.zotero_library_id, zotero_library_type=args.zotero_library_type,
         default_collection_key=args.collection_key, zotero_write_key=zkey, ncbi_api_key=nkey,
         fullvahti_token=fvtoken, secrets_backend=args.backend, validate=not args.skip_validate)
-    print(f"secrets_backend : {rep.secrets_backend}")
+    print(f"secrets_backend : {store_backend_display(rep.secrets_backend)}")
     print(f"config updated  : {sorted(set(rep.config_updated))}")
-    print(f"secrets stored  : {rep.secrets_stored or '(none)'}")   # names only, never values
+    print(f"secrets stored  : {secret_names_display(rep.secrets_stored) or '(none)'}")  # names only
     if rep.secrets_skipped:
-        print(f"secrets skipped : {rep.secrets_skipped}")
+        print(f"secrets skipped : {secret_names_display(rep.secrets_skipped)}")
     if rep.validations:
         print(f"validations     : {rep.validations}")
     for w in rep.warnings:

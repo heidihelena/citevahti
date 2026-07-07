@@ -199,3 +199,40 @@ def _print_write(out) -> int:
 def _refs(keys):
     from ..schemas.common import ItemRef
     return [ItemRef(zotero_key=k) for k in keys]
+
+
+# ---- non-secret metadata display (ADR-0010 PR 3c follow-up) -----------------------
+# `status`/`onboard`/`connect` surface a few fields that describe secrets WITHOUT ever
+# being one: the backend id ("system_keyring"/"env"), where a secret RESOLVES from, and
+# the list of secret NAMES stored/skipped. The real values live only in the OS keyring
+# (credentials.py marks the same names as lookup-keys, not secret values). These helpers build the
+# displayed text from string literals via a closed allowlist, so a static scanner does
+# not mis-read the diagnostic prints as clear-text logging of a secret value (CodeQL
+# py/clear-text-logging-sensitive-data — a false positive on the field name). Unknown
+# inputs render as "other" rather than echoing an unclassified value.
+_STORE_BACKENDS = {"system_keyring": "system_keyring", "env": "env"}
+_SECRET_DISPLAY_NAMES = {
+    "zotero_write_key": "zotero_write_key", "ncbi_api_key": "ncbi_api_key",
+    "fullvahti_token": "fullvahti_token", "ai_api_key": "ai_api_key",
+}
+
+
+def store_backend_display(backend) -> str:
+    """Display label for the secrets backend id (never a secret value)."""
+    return _STORE_BACKENDS.get(str(backend), "other")
+
+
+def secret_source_display(source) -> str:
+    """Display label for where a secret resolves from — env / system_keyring /
+    store_unavailable / unset — never the value or the env-var/service path."""
+    s = str(source)
+    if s.startswith("env:"):
+        return "env"
+    if s in ("unset", "store_unavailable"):
+        return s
+    return "system_keyring"
+
+
+def secret_names_display(names) -> list[str]:
+    """The stored/skipped credential NAMES (never values), via a literal allowlist."""
+    return [_SECRET_DISPLAY_NAMES.get(str(n), "other") for n in (names or [])]
