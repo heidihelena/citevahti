@@ -273,6 +273,51 @@ def population_mismatch(query: str, passage: str) -> str | None:
     return None
 
 
+# --- Certainty / overclaim cue (deterministic) -------------------------------
+# A source can support the claimed relation but only WEAKLY or TENTATIVELY, while
+# the claim asserts it plainly — a causal claim cited to a merely *correlational*
+# finding, or a firm claim cited to a *modest/nonsignificant* one. That is the
+# "overstated" support value (claim_support). certainty_mismatch() raises an
+# inspectable, ADVISORY warning for it — never a status change; the human/AI layer
+# adjudicates. Deliberately a HIGH-PRECISION set: correlational + explicit
+# weak-effect terms only, NOT generic "may/could" (which attach to sub-clauses and
+# over-fire). It fires only when the CLAIM asserts plainly and the PASSAGE hedges —
+# understating (a tentative claim, a firm source) is not a problem.
+_CERTAINTY_CUES = frozenset({
+    "associated", "association", "associate", "associations", "correlated",
+    "correlation", "correlate", "correlations", "nonsignificant", "borderline",
+    "modest", "modestly", "slight", "slightly", "marginal", "marginally",
+    "negligible", "trend", "trends", "preliminary", "pilot", "suggestive",
+})
+
+
+# Broader set used ONLY to tell whether the CLAIM is already hedged (so it isn't an
+# overclaim). Modals live here — safe on the claim side, over-firing on the passage
+# side — so they are deliberately NOT in the narrow passage-trigger set above.
+_CLAIM_HEDGES = _CERTAINTY_CUES | frozenset({
+    "may", "might", "could", "possibly", "potential", "potentially", "likely",
+    "suggest", "suggests", "suggested", "appear", "appears", "seem", "seems", "perhaps",
+})
+
+
+def certainty_cue(text: str) -> str | None:
+    """The first weakening/correlational cue in ``text`` (deterministic), else None."""
+    hits = set(tokenize(text)) & _CERTAINTY_CUES
+    return sorted(hits)[0] if hits else None
+
+
+def certainty_mismatch(query: str, passage: str) -> str | None:
+    """Cue if the passage supports the relation only tentatively/weakly (e.g.
+    ``associated``, ``modest``, ``nonsignificant``) while the claim asserts it plainly
+    — the claim may OVERSTATE the source. None when the claim is itself hedged (no
+    overclaim) or there is no lexical overlap. Advisory, never a verdict."""
+    if coverage_score(query, passage) <= 0.0:
+        return None
+    if set(tokenize(query)) & _CLAIM_HEDGES:
+        return None  # the claim is already hedged -> not an overclaim
+    return certainty_cue(passage)
+
+
 # --- Section detection (deterministic) ---------------------------------------
 # The sentence that supports a claim is usually in Results/Conclusions, not the
 # Introduction or Methods. Detecting section headers lets passage selection prefer

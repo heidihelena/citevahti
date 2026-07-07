@@ -7,6 +7,17 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Certainty / overclaim flag** (`text.py`, `claimcheck` service) — the last engine cue:
+  the claim asserts a relation plainly while the source supports it only *weakly* or
+  *correlationally* ("associated with", "modest", "nonsignificant") — the "overstated"
+  support value. A **high-precision** cue set (correlational + weak-effect terms only —
+  **not** bare "may/could", which attach to sub-clauses and over-fire) raises an inspectable
+  **advisory** warning (`certainty_cue`); it does **not** change the support status, and it
+  stays silent when the claim is itself hedged. Measured: precision **0.833** / recall
+  **1.000** — the one false positive is a deliberately-kept hard control (a hedge word on a
+  *covariate*, not the relation), the honest limit of a lexical approach. It's the
+  lowest-precision flag, named as such; the AI/human layer adjudicates. Locked by
+  `tests/test_certainty_overclaim.py`.
 - **Section-aware, multi-sentence passage selection** (`retrieval`) — the passage the human
   is shown to rate. Selection used to score single sentences, so support spanning 2–3
   sentences ("X was lower. This reached significance.") was under-selected. It now scores

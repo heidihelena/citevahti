@@ -31,6 +31,7 @@ class PerCitekeyResult(BaseModel):
     score: Optional[float] = None
     polarity_cue: Optional[str] = None   # the negation word that flipped polarity (inspectable)
     population_cue: Optional[str] = None  # population/PICO axis that differs, e.g. "children ≠ adults" (advisory)
+    certainty_cue: Optional[str] = None  # source hedges where the claim asserts plainly, e.g. "associated" (advisory overclaim signal)
     passages: list[RetrievedPassage] = Field(default_factory=list)
 
 
