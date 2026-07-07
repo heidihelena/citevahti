@@ -48,7 +48,9 @@ def test_support_run_ai_backfills_a_missing_abstract(tmp_path, monkeypatch):
     assert store.load_candidates(claim.claim_id).candidates[0].abstract is None   # title-only
 
     rec = ClaimSupportEngine(store).support_start(claim.claim_id, cand_id)
-    monkeypatch.setattr(tools, "_pubmed_provider", lambda root, http=None: _FetchProvider())
+    # _backfill_abstract now lives in tools.support (ADR-0010 PR 1g) and resolves
+    # _pubmed_provider in that module's namespace — patch it where it is looked up.
+    monkeypatch.setattr(tools.support, "_pubmed_provider", lambda root, http=None: _FetchProvider())
     tools.support_run_ai(rec.rating_id, root=str(tmp_path),
                          rater=FakeClaimSupportRater(value="directly_supports"))
 
