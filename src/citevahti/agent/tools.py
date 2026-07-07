@@ -75,6 +75,29 @@ def methods(*, root: Optional[str] = None) -> dict:
     return {"markdown": _t.methods_statement(root=root)}
 
 
+def model_advisor(model_id: Optional[str] = None, *, root: Optional[str] = None) -> dict:
+    """Which AI model to trust as a second opinion, from THIS project's own record of
+    validated divergences (a model earns standing by catching things the human adopted,
+    not by agreeing). Read-only. Offer this when a serious review wants to pick — or add —
+    a second-rater model: it returns a ranking, the recommended model, and, if you pass
+    ``model_id`` and that model is rating low, a suggested better-evidenced alternative.
+    Stays silent on models without enough resolved divergences to judge yet."""
+    a = _t.model_advisor(model_id, root=root)
+    return {
+        "recommended": a.recommended,
+        "ranked": [{"model_id": m.model_id, "model_snapshot": m.model_snapshot,
+                    "catches": m.catches, "overruled": m.overruled, "pending": m.pending,
+                    "catch_rate": m.catch_rate} for m in a.ranked],
+        "under_evidenced": a.under_evidenced,
+        "asked_about": a.asked_about,
+        "asked_catch_rate": a.asked_catch_rate,
+        "suggestion": a.suggestion,
+        "min_resolved": a.min_resolved,
+        "low_catch_rate": a.low_catch_rate,
+        "notes": a.notes,
+    }
+
+
 def status(*, root: Optional[str] = None) -> dict:
     from .. import __version__
     from ..capabilities import CapabilityStatusService

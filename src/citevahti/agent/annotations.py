@@ -39,6 +39,8 @@ TOOL_META: dict[str, ToolMeta] = {
     "check_paragraph": ToolMeta("Check a drafted paragraph against your reviewed claims",
                                 read_only=True),
     "methods": ToolMeta("Draft the methods statement and PRISMA disclosure", read_only=True),
+    "model_advisor": ToolMeta("Advise which AI model to trust as a second opinion",
+                              read_only=True),
     "verify_claims": ToolMeta("Re-check the ledger's integrity", read_only=True),
     "pubmed_search": ToolMeta("Search PubMed for candidate papers",
                               read_only=True, open_world=True),

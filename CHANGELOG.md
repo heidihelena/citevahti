@@ -7,6 +7,18 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **`model_advisor` — pick a good AI second opinion** (agent + engine tool, read-only) —
+  the second *better-science* improvement. A student (or their AI) can now ask *which
+  identifiable model should I trust as a second rater?* and get an answer from **this
+  project's own record of validated divergences** (ADR-0009 §3b): it ranks models by
+  **complementary value** — catches (divergences the human adopted) over resolved
+  divergences — **never by agreement**, so a model that only echoes the human ranks
+  nowhere. It applies an **evidence floor** (stays silent on any model without enough
+  resolved divergences to judge) and, given a named model that **rates low**, suggests a
+  better-evidenced alternative — the maintainer's *"if a model has a low rating, suggest
+  another."* Writes nothing (no `exports/`, no audit entry); it is a derived view over
+  existing rating records. Registered on the safe agent surface with `readOnlyHint`; locked
+  by `tests/test_model_advisor.py` and the read-only/annotation guards.
 - **Biomedical synonym normalization in claim matching** (`text.py`) — the first
   *better-science* improvement: the lexical layer was synonymy-blind, so "heart attack"
   didn't match "myocardial infarction" and a genuinely-supporting source was returned as

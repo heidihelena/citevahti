@@ -22,6 +22,7 @@ TOOLS = {
     "triage": tools.triage,              # risk-first "what needs you" — review the few, not all
     "check_paragraph": tools.check_paragraph,  # everyday in-writing loop: vetted / needs-attention / new
     "methods": tools.methods,            # submission methods paragraph + PRISMA LLM-discovery disclosure
+    "model_advisor": tools.model_advisor,  # which AI second-opinion model to trust (validated catches)
 
     "open_review_panel": tools.open_review_panel,
     "verify_claims": tools.verify_claims,

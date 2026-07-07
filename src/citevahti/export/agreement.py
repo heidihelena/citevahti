@@ -17,12 +17,26 @@ from typing import Any, Optional
 
 from .. import __version__
 from ..schemas.common import Provenance
-from ..schemas.export import AgreementCounts, AgreementGroup, AgreementReport, ModelScore
+from ..schemas.export import (
+    AgreementCounts,
+    AgreementGroup,
+    AgreementReport,
+    ModelAdvice,
+    ModelScore,
+)
 from ..state.store import _atomic_write
 from ..util import config_hash, sha256_hex, utc_now_iso
 from .kappa import cohen_kappa, raw_agreement, weighted_kappa
 
 _COMPARABLE = {"concordant", "discordant"}
+
+# model-advisor thresholds (ADR-0009 §3b). A model needs this many *resolved*
+# discordances (catches + overruled) before the advisor will rank or judge it —
+# below the floor there is not enough signal, so it stays silent. At/below the
+# low catch-rate (with enough evidence) a named model "rates low" and the advisor
+# names a better-evidenced alternative.
+_MIN_RESOLVED = 5
+_LOW_CATCH_RATE = 0.5
 
 
 def _rating_date(rec) -> Optional[str]:
@@ -239,6 +253,83 @@ class AgreementReportService:
             resolved = ms.catches + ms.overruled
             ms.catch_rate = round(ms.catches / resolved, 3) if resolved else None
         return sorted(by_model.values(), key=lambda m: (m.model_id, m.model_snapshot))
+
+    # ---- model second-opinion advisor (ADR-0009 §3b) --------------------
+    def advise_models(self, model_id: Optional[str] = None) -> ModelAdvice:
+        """Which identifiable model to trust as an AI second opinion, from the live
+        complementary-catch scoreboard. Read-only — loads the rating records and
+        derives a ranking, writes nothing (no ``exports/``, no audit entry).
+
+        Ranks by *complementary value* (catch-rate over resolved divergences), NOT
+        agreement: a model that only ever echoes the human ranks nowhere. It stays
+        silent on any model without enough resolved divergences to judge (the
+        evidence floor), and when a named model rates low it names a better-evidenced
+        alternative — the maintainer's "if a model has a low rating, suggest another"."""
+        records = []
+        for rid in self.store.list_ratings():
+            try:
+                records.append(self.store.load_rating(rid))
+            except Exception:  # noqa: BLE001
+                continue
+        board = self._model_scoreboard(records)
+
+        def _label(m: ModelScore) -> str:
+            return f"{m.model_id} ({m.model_snapshot})"
+
+        ranked: list[ModelScore] = []
+        under: list[ModelScore] = []
+        for m in board:
+            (ranked if (m.catches + m.overruled) >= _MIN_RESOLVED else under).append(m)
+        # best complementary value first; more resolved evidence breaks ties
+        ranked.sort(key=lambda m: (m.catch_rate or 0.0, m.catches + m.overruled), reverse=True)
+
+        advice = ModelAdvice(
+            ranked=ranked,
+            recommended=_label(ranked[0]) if ranked else None,
+            under_evidenced=[_label(m) for m in under],
+            asked_about=model_id,
+            min_resolved=_MIN_RESOLVED,
+            low_catch_rate=_LOW_CATCH_RATE,
+            notes=[
+                "Ranked by complementary value — validated catches over resolved "
+                "divergences — not agreement; a model that only echoes the human ranks "
+                "nowhere.",
+                f"A model needs at least {_MIN_RESOLVED} resolved divergence(s) before it "
+                "is ranked; below that there is not enough signal to judge it.",
+                "Descriptive, from this project's own records; not a verdict on any "
+                "model's correctness. The human always adjudicates.",
+            ],
+        )
+        if not ranked:
+            advice.notes.append(
+                "No model has crossed the evidence floor yet — keep rating and the "
+                "scoreboard will fill in.")
+
+        if model_id is not None:
+            mine = [m for m in board if m.model_id == model_id]
+            if not mine:
+                advice.notes.append(f"No records found for {model_id!r} in this project.")
+            else:
+                catches = sum(m.catches for m in mine)
+                resolved = catches + sum(m.overruled for m in mine)
+                rate = round(catches / resolved, 3) if resolved else None
+                advice.asked_catch_rate = rate
+                if resolved < _MIN_RESOLVED:
+                    advice.notes.append(
+                        f"{model_id}: only {resolved} resolved divergence(s) so far — not "
+                        "enough to rate it yet; keep using it and check back.")
+                elif rate is not None and rate <= _LOW_CATCH_RATE:
+                    alt = next((m for m in ranked if m.model_id != model_id), None)
+                    if alt is not None:
+                        advice.suggestion = (
+                            f"{model_id} is rating low ({rate:.3f} catch-rate over {resolved} "
+                            f"resolved divergence(s)); consider {_label(alt)} "
+                            f"({(alt.catch_rate or 0.0):.3f}) as a second opinion.")
+                    else:
+                        advice.notes.append(
+                            f"{model_id} is rating low ({rate:.3f}), but no better-evidenced "
+                            "alternative is available yet.")
+        return advice
 
     # ---- AI provenance summary ------------------------------------------
     def _ai_summary(self, records) -> dict:
