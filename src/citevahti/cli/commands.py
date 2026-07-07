@@ -17,7 +17,7 @@ from ..state import CiteVahtiStore
 
 from ._util import (  # noqa: F401
     _DEMO_DIR, _parse_library, _fit_from_args, _emit_json, _print_support, _print_panel, _claim_report_text, _print_txn, _print_warehouse, _dedupe_breakdown, _report_intake, _subject, _safe, _print_write, _refs,
-    secret_names_display, secret_source_display, store_backend_display,
+    connection_display, secret_names_display, secret_source_display, store_backend_display,
 )
 
 
@@ -96,7 +96,7 @@ def _cmd_status(args) -> int:
     for c in rep.connections:
         mark = {"connected": "OK  ", "configured": "OK  ", "unavailable": "DOWN",
                 "missing": "MISS", "store_unavailable": "WARN"}.get(c.status, "----")
-        line = f"  [{mark}] {c.name}: {c.status}"
+        line = f"  [{mark}] {connection_display(c.name)}: {c.status}"
         if c.version:
             line += f" (version={c.version})"
         if c.secret_source:
