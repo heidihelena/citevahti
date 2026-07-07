@@ -73,6 +73,15 @@ and fail-closed), not by precision/recall here. Items with neither a DOI nor a P
 untestable by design (`docs/KNOWN_LIMITATIONS.md`) and belong in the set only as
 documented exclusions, never as silent misses.
 
+It also gates **single-assessor quality only** — ADR-0008 Layer 1 (individual). It
+**cannot establish review-grade (Layer 2) or guideline-grade (Layer 3) confidence**: those
+come from *more independent assessors of the same claim*, not from a better single
+detector. Review-grade needs an organized panel (2–7 raters); **guideline-grade is not
+reachable without AtlasVahti's pooled corpus and more than five independent contributors**
+(~8+), per [ADR-0008](../../docs/adr/0008-evidence-confidence-tiers.md). A high precision
+number here is Layer-1 detector quality — never read it, or present it, as tier-2/3
+validation.
+
 ## The verdict rule
 
 - **PASS** — Gate 0 passes **and** every *hard* floor in Gate 1 is met → release may

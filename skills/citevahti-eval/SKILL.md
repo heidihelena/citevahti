@@ -122,3 +122,8 @@ promising published numbers must be phrased as commitment, not fact
   release" is the failure mode, not a mitigation.
 - **NEVER present descriptive agreement metrics as validation** of the AI or as ground
   truth (`docs/METHODS.md` transparency section wording is the ceiling).
+- **NEVER present single-assessor eval numbers as review- or guideline-grade evidence.**
+  This ledger measures ADR-0008 Layer-1 (individual) detector quality. Layer 2 (review)
+  needs an organized panel; Layer 3 (guideline) is not reachable without AtlasVahti
+  pooling and more than five independent contributors — a better single detector cannot
+  climb the ladder.
