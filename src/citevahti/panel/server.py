@@ -526,6 +526,352 @@ _GET_ROUTES = {
 }
 
 
+# ---- static POST routes (ADR-0010 panel split, PR 2b) -------------------------
+# One former dispatch() branch each, verbatim (bodies keep their original indent).
+# Consulted AFTER the HTTP handler's CSRF/Host perimeter (which stays above
+# dispatch, ADR-0010 §5a rule 1); every entry is a mutation and is token-gated
+# pre-handler, proven path-independently by tests/test_panel_route_perimeter.py.
+
+def _post_claims(root, body):
+            claim = engine.add_claim(_req(body, "claim_text"), body.get("claim_type", "other"),
+                                     manuscript_id=body.get("manuscript_id"),
+                                     manuscript_location=body.get("manuscript_location"), root=root)
+            return 200, {"claim_id": claim.claim_id}
+
+
+def _post_ratings_start(root, body):
+            rec = engine.support_start(_req(body, "claim_id"), _req(body, "candidate_id"),
+                                       root=root)
+            return 200, {"rating_id": rec.rating_id, "claim_id": rec.claim_id,
+                         "candidate_id": rec.candidate_id, "blinded": True}
+
+
+def _post_decisions(root, body):
+            rec = engine.decide(_req(body, "claim_id"), _req(body, "candidate_id"),
+                                _req(body, "final_decision"), _req(body, "decision_reason"),
+                                rating_id=body.get("rating_id"), decided_by="human", root=root)
+            return 200, {"decision_id": rec.decision_id, "claim_id": rec.claim_id,
+                         "candidate_id": rec.candidate_id,
+                         "final_decision": rec.final_decision,
+                         "final_support_status": rec.final_support_status}
+
+
+def _post_writes_preview(root, body):
+            return 200, agent.tools.preview_write(
+                _req(body, "decision_id"), collection_key=body.get("collection_key"), root=root)
+
+
+def _post_writes_commit(root, body):
+            return 200, agent.tools.commit_write(
+                _req(body, "decision_id"), _req(body, "approval_token"),
+                collection_key=body.get("collection_key"),
+                allow_unverified_dedupe=bool(body.get("allow_unverified_dedupe", False)),
+                root=root)
+
+
+def _post_writes_undo(root, body):
+            return 200, agent.tools.undo(_req(body, "transaction_id"), root=root)
+
+
+def _post_prefs_update_check(root, body):
+            prefs.set_auto_update_check(root, bool(body.get("enabled")))
+            return 200, {"enabled": prefs.get_auto_update_check(root)}
+
+
+def _post_report_packet(root, body):
+            return 200, engine.export_review_packet(root=root)
+
+
+def _post_report_docx(root, body):
+            return 200, engine.export_report_docx(root=root)
+
+
+def _post_manuscripts_import_docx(root, body):
+            return 200, engine.import_manuscript_docx(_req(body, "docx_base64"), root=root)
+
+
+def _post_claim_tests_prompt(root, body):
+            return 200, engine.claim_tests_prompt(body.get("manuscript") or "")
+
+
+def _post_topic_screen_prompt(root, body):
+            return 200, engine.topic_screen_prompt(body.get("topic") or "")
+
+
+def _post_chat(root, body):
+            return 200, engine.chat(body.get("message") or "", root=root)
+
+
+def _post_test_suite(root, body):
+            online = bool(body.get("online", False))
+            mid = body.get("manuscript_id")
+            claim_ids = None
+            if mid:
+                rows = _manuscript_groups(root).get(mid, [])
+                claim_ids = [r.claim_id for r in rows]
+            return 200, engine.run_manuscript_tests(root=root, online=online, claim_ids=claim_ids)
+
+
+def _post_warehouse_configure(root, body):
+            s = engine.warehouse_configure(enabled=body.get("enabled"),
+                                           include_claim_text=body.get("include_claim_text"),
+                                           auto_emit=body.get("auto_emit"),
+                                           domain=body.get("domain"), root=root)
+            return 200, {"enabled": s.enabled, "include_claim_text": s.include_claim_text,
+                         "record_count": s.record_count}
+
+
+def _post_warehouse_export(root, body):
+            s = engine.warehouse_export(root=root)
+            return 200, {"output_file": s.output_file, "record_count": s.record_count}
+
+
+def _post_warehouse_purge(root, body):
+            s = engine.warehouse_purge(root=root)
+            return 200, {"record_count": s.record_count, "skipped_reason": s.skipped_reason}
+
+
+def _post_ai_config(root, body):
+            return 200, engine.ai_config_set(
+                mode=body.get("mode"), endpoint=body.get("endpoint"),
+                provider=body.get("provider"), model_id=body.get("model_id"), root=root)
+
+
+def _post_atlas_contribution_preview(root, body):
+            return 200, engine.atlas_contribution_preview(
+                allow_claim_text=bool(body.get("allow_claim_text", False)), root=root)
+
+
+def _post_atlas_revoke(root, body):
+            return 200, engine.atlas_revoke(_req(body, "contribution_id"),
+                                            reason=body.get("reason"), root=root)
+
+
+def _post_setup(root, body):
+            from ..state import CiteVahtiStore
+            store = CiteVahtiStore(root)
+            created = not store.exists()
+            if created:
+                store.init()
+            return 200, {"ok": True, "created": created,
+                         "root": str(Path(root).expanduser())}
+
+
+def _post_manuscripts_bind(root, body):
+            mdir = _req(body, "dir")
+            prefs.set_manuscripts_dir(root, mdir)
+            return 200, {"ok": True, "manuscripts_dir": prefs.get_manuscripts_dir(root)}
+
+
+def _post_reveal(root, body):
+            root_resolved = Path(root).expanduser().resolve()
+            try:
+                target = Path(_req(body, "path")).expanduser().resolve()
+            except (OSError, RuntimeError) as exc:
+                raise HttpError(400, "invalid path", code="bad_path") from exc
+            # Containment barrier: the fully-resolved target must live inside the resolved
+            # project root. This is the check that stops a page from revealing arbitrary
+            # files — _reveal_in_os is only reached for a path that passes it.
+            if not target.is_relative_to(root_resolved):
+                raise HttpError(403, "that path is outside your project folder", code="forbidden",
+                                remediation="Only files inside your project folder can be revealed.")
+            if not target.exists():
+                raise HttpError(404, "file not found", code="not_found",
+                                remediation="It may have been moved or deleted.")
+            _reveal_in_os(target)
+            return 200, {"ok": True, "revealed": str(target)}
+
+
+def _post_manuscripts_cite_export(root, body):
+            mid = _req(body, "manuscript_id")
+            p = M.resolve_path(prefs.get_manuscripts_dir(root), mid)
+            if p is None:
+                return 400, {"error": "manuscript_not_resolved", "code": "manuscript_not_resolved",
+                             "message": "bind the manuscript's folder first so CiteVahti can "
+                                        "write the cited copy beside it"}
+            return 200, engine.cite_export_manuscript(
+                str(p), make_docx=bool(body.get("docx", True)), root=root)
+
+
+def _post_fs_browse(root, body):
+            return 200, _browse_dir(body.get("path"))
+
+
+def _post_manuscripts_paste(root, body):
+            name = _safe_md_name(_req(body, "filename"))
+            content = _req(body, "content")
+            mdir = prefs.get_manuscripts_dir(root) or str(Path(root) / "manuscripts")
+            dest_dir = Path(mdir).expanduser()
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest = dest_dir / name
+            if dest.exists():
+                raise HttpError(409, f"{name} already exists in the manuscripts folder",
+                                code="file_exists",
+                                remediation="Choose a different filename or remove the existing file.")
+            dest.write_text(content, encoding="utf-8")
+            prefs.set_manuscripts_dir(root, str(dest_dir))
+            return 200, {"ok": True, "manuscripts_dir": str(dest_dir), "filename": name,
+                         "next_prompt": f"Extract the verifiable claims from {name} and "
+                                        "stage them for review."}
+
+
+def _post_search(root, body):
+            return 200, _search(root, _req(body, "query"),
+                                body.get("source", "pubmed"), int(body.get("max_results", 15)))
+
+
+def _post_link(root, body):
+            claim_id = _req(body, "claim_id")
+            batch_id = _req(body, "batch_id")
+            record_ids = body.get("record_ids")
+            doi_resolved = _resolve_missing_dois(root, batch_id, record_ids)   # backfill before linking
+            rep = engine.link_candidates(claim_id, batch_id, record_ids=record_ids, root=root)
+            return 200, {"linked": getattr(rep, "linked", None),
+                         "skipped_duplicates": getattr(rep, "skipped_duplicates", None),
+                         "total_candidates": getattr(rep, "total_candidates", None),
+                         "doi_resolved": doi_resolved}
+
+
+def _post_intake_preview(root, body):
+            batch_id = _req(body, "batch_id")
+            record_ids = body.get("record_ids")
+            _resolve_missing_dois(root, batch_id, record_ids)   # carry the authoritative DOI
+            return 200, engine.intake_push(batch_id, record_ids=record_ids,
+                                           collection_key=body.get("collection_key"),
+                                           dry_run=True, root=root)
+
+
+def _post_intake_commit(root, body):
+            return 200, engine.intake_push(_req(body, "batch_id"),
+                                           record_ids=body.get("record_ids"),
+                                           collection_key=body.get("collection_key"),
+                                           dry_run=False,
+                                           confirm_token=_req(body, "confirm_token"), root=root)
+
+
+def _post_candidates_unlink(root, body):
+            return 200, engine.unlink_candidate(_req(body, "claim_id"), _req(body, "candidate_id"), root=root)
+
+
+def _post_candidates_resolve_dois(root, body):
+            return 200, engine.backfill_candidate_dois(root=root)
+
+
+def _post_candidates_recheck_library(root, body):
+            return 200, engine.recheck_library(root=root)
+
+
+def _post_candidates_scan_retractions(root, body):
+            return 200, engine.scan_retractions(root=root)
+
+
+def _post_candidates_scan_licenses(root, body):
+            return 200, engine.scan_licenses(root=root)
+
+
+def _post_zotero_locate(root, body):
+            return 200, engine.zotero_locate(doi=body.get("doi"), title=body.get("title"),
+                                             pmid=body.get("pmid"), root=root)
+
+
+def _post_zotero_evidence(root, body):
+            return 200, engine.zotero_evidence(doi=body.get("doi"), title=body.get("title"),
+                                               pmid=body.get("pmid"), root=root)
+
+
+def _post_claim_check(root, body):
+            store = engine._open_store(root)
+            claim = store.load_claim(_req(body, "claim_id"))
+            cand = next((c for c in store.load_candidates(claim.claim_id).candidates
+                         if c.candidate_id == _req(body, "candidate_id")), None)
+            text = (getattr(cand, "abstract", None) or "") if cand else ""
+            return 200, engine.claim_lexical_check(claim.claim_text, text)
+
+
+def _post_connect_zotero(root, body):
+            engine.connect_zotero(_req(body, "api_key"), root=root)
+            return 200, {"status": "ok", "health": agent.tools.status(root=root)}
+
+
+def _post_connect_pubmed(root, body):
+            engine.onboard(root=root, ncbi_email=_req(body, "email"),
+                           ncbi_api_key=body.get("api_key") or None)
+            return 200, {"status": "ok", "health": agent.tools.status(root=root)}
+
+
+def _post_connect_zotero_oauth_start(root, body):
+            base = (_req(body, "callback_base")).rstrip("/")
+            # Default to the loopback callback (most private — no external server in
+            # the flow). A hosted callback (e.g. https://vahtian.com/citevahti/auth/
+            # zotero/callback) may be set via env; that page MUST bounce the params
+            # back to this loopback /oauth/zotero/callback so the key stays local.
+            callback = os.environ.get("CITEVAHTI_ZOTERO_OAUTH_CALLBACK") or (base + "/oauth/zotero/callback")
+            res = engine.zotero_oauth_start(callback, root=root)
+            # hold the temp token secret in memory only (TTL) — never on disk
+            _oauth_pending_put(res["oauth_token"], res["oauth_token_secret"])
+            return 200, {"authorize_url": res["authorize_url"], "oauth_token": res["oauth_token"]}
+
+
+def _post_document_preview_edit(root, body):
+            return 200, _preview_edit(root, body)
+
+
+def _post_document_commit_edit(root, body):
+            return 200, _commit_edit(root, _req(body, "token"))
+
+
+def _post_document_undo_edit(root, body):
+            return 200, _undo_edit(root, _req(body, "transaction_id"))
+
+
+_POST_ROUTES = {
+    "/api/claims": _post_claims,
+    "/api/ratings/start": _post_ratings_start,
+    "/api/decisions": _post_decisions,
+    "/api/writes/preview": _post_writes_preview,
+    "/api/writes/commit": _post_writes_commit,
+    "/api/writes/undo": _post_writes_undo,
+    "/api/prefs/update-check": _post_prefs_update_check,
+    "/api/report/packet": _post_report_packet,
+    "/api/report/docx": _post_report_docx,
+    "/api/manuscripts/import-docx": _post_manuscripts_import_docx,
+    "/api/claim-tests-prompt": _post_claim_tests_prompt,
+    "/api/topic-screen-prompt": _post_topic_screen_prompt,
+    "/api/chat": _post_chat,
+    "/api/test-suite": _post_test_suite,
+    "/api/warehouse/configure": _post_warehouse_configure,
+    "/api/warehouse/export": _post_warehouse_export,
+    "/api/warehouse/purge": _post_warehouse_purge,
+    "/api/ai-config": _post_ai_config,
+    "/api/atlas/contribution-preview": _post_atlas_contribution_preview,
+    "/api/atlas/revoke": _post_atlas_revoke,
+    "/api/setup": _post_setup,
+    "/api/manuscripts/bind": _post_manuscripts_bind,
+    "/api/reveal": _post_reveal,
+    "/api/manuscripts/cite-export": _post_manuscripts_cite_export,
+    "/api/fs/browse": _post_fs_browse,
+    "/api/manuscripts/paste": _post_manuscripts_paste,
+    "/api/search": _post_search,
+    "/api/link": _post_link,
+    "/api/intake/preview": _post_intake_preview,
+    "/api/intake/commit": _post_intake_commit,
+    "/api/candidates/unlink": _post_candidates_unlink,
+    "/api/candidates/resolve-dois": _post_candidates_resolve_dois,
+    "/api/candidates/recheck-library": _post_candidates_recheck_library,
+    "/api/candidates/scan-retractions": _post_candidates_scan_retractions,
+    "/api/candidates/scan-licenses": _post_candidates_scan_licenses,
+    "/api/zotero/locate": _post_zotero_locate,
+    "/api/zotero/evidence": _post_zotero_evidence,
+    "/api/claim-check": _post_claim_check,
+    "/api/connect/zotero": _post_connect_zotero,
+    "/api/connect/pubmed": _post_connect_pubmed,
+    "/api/connect/zotero/oauth/start": _post_connect_zotero_oauth_start,
+    "/api/document/preview-edit": _post_document_preview_edit,
+    "/api/document/commit-edit": _post_document_commit_edit,
+    "/api/document/undo-edit": _post_document_undo_edit,
+}
+
+
 def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[int, dict]:
     """Route one API call to an existing engine/agent function.
 
@@ -538,13 +884,12 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             handler = _GET_ROUTES.get(path)
             if handler is not None:
                 return handler(root, body)
+        if method == "POST":
+            handler = _POST_ROUTES.get(path)
+            if handler is not None:
+                return handler(root, body)
 
         # ---- reads ----------------------------------------------------------
-        if method == "POST" and path == "/api/claims":
-            claim = engine.add_claim(_req(body, "claim_text"), body.get("claim_type", "other"),
-                                     manuscript_id=body.get("manuscript_id"),
-                                     manuscript_location=body.get("manuscript_location"), root=root)
-            return 200, {"claim_id": claim.claim_id}
 
         m = re.fullmatch(r"/api/claims/([^/]+)/history", path)
         if method == "GET" and m:
@@ -634,11 +979,6 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
             return 200, agent.tools.get_provenance(m.group(1), root=root)
 
         # ---- human-owned mutations -----------------------------------------
-        if method == "POST" and path == "/api/ratings/start":
-            rec = engine.support_start(_req(body, "claim_id"), _req(body, "candidate_id"),
-                                       root=root)
-            return 200, {"rating_id": rec.rating_id, "claim_id": rec.claim_id,
-                         "candidate_id": rec.candidate_id, "blinded": True}
 
         m = re.fullmatch(r"/api/ratings/([^/]+)/human", path)
         if method == "POST" and m:
@@ -670,53 +1010,18 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
                                             body.get("decider", "human"), root=root)
             return 200, blinded_rating_view(rec)
 
-        if method == "POST" and path == "/api/decisions":
-            rec = engine.decide(_req(body, "claim_id"), _req(body, "candidate_id"),
-                                _req(body, "final_decision"), _req(body, "decision_reason"),
-                                rating_id=body.get("rating_id"), decided_by="human", root=root)
-            return 200, {"decision_id": rec.decision_id, "claim_id": rec.claim_id,
-                         "candidate_id": rec.candidate_id,
-                         "final_decision": rec.final_decision,
-                         "final_support_status": rec.final_support_status}
 
         # ---- guarded write: reuse the token-gated agent wrappers ------------
-        if method == "POST" and path == "/api/writes/preview":
-            return 200, agent.tools.preview_write(
-                _req(body, "decision_id"), collection_key=body.get("collection_key"), root=root)
 
-        if method == "POST" and path == "/api/writes/commit":
-            return 200, agent.tools.commit_write(
-                _req(body, "decision_id"), _req(body, "approval_token"),
-                collection_key=body.get("collection_key"),
-                allow_unverified_dedupe=bool(body.get("allow_unverified_dedupe", False)),
-                root=root)
-
-        if method == "POST" and path == "/api/writes/undo":
-            return 200, agent.tools.undo(_req(body, "transaction_id"), root=root)
 
         # ---- onboarding context + ledger discovery -------------------------
-        if method == "POST" and path == "/api/prefs/update-check":
-            prefs.set_auto_update_check(root, bool(body.get("enabled")))
-            return 200, {"enabled": prefs.get_auto_update_check(root)}
 
-        if method == "POST" and path == "/api/report/packet":
-            return 200, engine.export_review_packet(root=root)
-
-        if method == "POST" and path == "/api/report/docx":
-            return 200, engine.export_report_docx(root=root)
-
-        if method == "POST" and path == "/api/manuscripts/import-docx":
-            return 200, engine.import_manuscript_docx(_req(body, "docx_base64"), root=root)
 
         # the ready-to-paste run_claim_tests choreography, pre-filled with the
         # imported/pasted manuscript — closes the .docx → claims handoff into chat
-        if method == "POST" and path == "/api/claim-tests-prompt":
-            return 200, engine.claim_tests_prompt(body.get("manuscript") or "")
 
         # the ready-to-paste screen_topic choreography (ADR-0008, Layer 0) — turns a topic
         # into candidate claims + nearby evidence to paste into chat (leads, not verdicts)
-        if method == "POST" and path == "/api/topic-screen-prompt":
-            return 200, engine.topic_screen_prompt(body.get("topic") or "")
 
         # ---- the prompt panel: every preprogrammed agent skill in one place -----
         # The panel surfaces the canonical MCP prompts as one-click, copy-to-paste
@@ -725,53 +1030,19 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         # ---- small chat with the configured model (local Ollama / LM Studio / API key) ----
         # Advisory text only — records nothing, calls no tools, writes nothing. ai_off when
         # no model is configured. Reuses the same connection plumbing as the AI rater.
-        if method == "POST" and path == "/api/chat":
-            return 200, engine.chat(body.get("message") or "", root=root)
 
         # ---- the manuscript "unit test" suite (each claim is a test case) ----
         # Offline by default (instant, structural); online verifies citations are
         # real + not retracted. Optionally scoped to one manuscript.
-        if method == "POST" and path == "/api/test-suite":
-            online = bool(body.get("online", False))
-            mid = body.get("manuscript_id")
-            claim_ids = None
-            if mid:
-                rows = _manuscript_groups(root).get(mid, [])
-                claim_ids = [r.claim_id for r in rows]
-            return 200, engine.run_manuscript_tests(root=root, online=online, claim_ids=claim_ids)
 
         # ---- de-identified warehouse (local, opt-in, default-off) -----------
-        if method == "POST" and path == "/api/warehouse/configure":
-            s = engine.warehouse_configure(enabled=body.get("enabled"),
-                                           include_claim_text=body.get("include_claim_text"),
-                                           auto_emit=body.get("auto_emit"),
-                                           domain=body.get("domain"), root=root)
-            return 200, {"enabled": s.enabled, "include_claim_text": s.include_claim_text,
-                         "record_count": s.record_count}
 
-        if method == "POST" and path == "/api/warehouse/export":
-            s = engine.warehouse_export(root=root)
-            return 200, {"output_file": s.output_file, "record_count": s.record_count}
-
-        if method == "POST" and path == "/api/warehouse/purge":
-            s = engine.warehouse_purge(root=root)
-            return 200, {"record_count": s.record_count, "skipped_reason": s.skipped_reason}
 
         # ---- AI assistant settings (off / local / api; MCP path needs none) ---
-        if method == "POST" and path == "/api/ai-config":
-            return 200, engine.ai_config_set(
-                mode=body.get("mode"), endpoint=body.get("endpoint"),
-                provider=body.get("provider"), model_id=body.get("model_id"), root=root)
         # ---- Atlas contribution: build a bundle / revocation (NO transmission) --
         # The panel offers the returned bundle as a local download; nothing is sent
         # anywhere from here (download-only egress — there is no upload endpoint).
-        if method == "POST" and path == "/api/atlas/contribution-preview":
-            return 200, engine.atlas_contribution_preview(
-                allow_claim_text=bool(body.get("allow_claim_text", False)), root=root)
 
-        if method == "POST" and path == "/api/atlas/revoke":
-            return 200, engine.atlas_revoke(_req(body, "contribution_id"),
-                                            reason=body.get("reason"), root=root)
 
         # ---- manuscripts (inline review surface) ---------------------------
         m = re.fullmatch(r"/api/manuscript/(.+)", path)
@@ -788,186 +1059,55 @@ def dispatch(root: str, method: str, path: str, body: Optional[dict]) -> tuple[i
         # No-terminal setup: initialise the ledger for the folder the panel was opened in,
         # so a user who launched in a fresh directory can start the review without running
         # `citevahti init` in a shell. Takes no input (uses the current root), idempotent.
-        if method == "POST" and path == "/api/setup":
-            from ..state import CiteVahtiStore
-            store = CiteVahtiStore(root)
-            created = not store.exists()
-            if created:
-                store.init()
-            return 200, {"ok": True, "created": created,
-                         "root": str(Path(root).expanduser())}
 
-        if method == "POST" and path == "/api/manuscripts/bind":
-            mdir = _req(body, "dir")
-            prefs.set_manuscripts_dir(root, mdir)
-            return 200, {"ok": True, "manuscripts_dir": prefs.get_manuscripts_dir(root)}
 
         # Local-first "Show in Finder": reveal a file (or open a folder) the panel just
         # wrote. The path is constrained to the project root — a page cannot reveal arbitrary
         # files — and it is CSRF-gated like every POST. _reveal_in_os never launches the file.
-        if method == "POST" and path == "/api/reveal":
-            root_resolved = Path(root).expanduser().resolve()
-            try:
-                target = Path(_req(body, "path")).expanduser().resolve()
-            except (OSError, RuntimeError) as exc:
-                raise HttpError(400, "invalid path", code="bad_path") from exc
-            # Containment barrier: the fully-resolved target must live inside the resolved
-            # project root. This is the check that stops a page from revealing arbitrary
-            # files — _reveal_in_os is only reached for a path that passes it.
-            if not target.is_relative_to(root_resolved):
-                raise HttpError(403, "that path is outside your project folder", code="forbidden",
-                                remediation="Only files inside your project folder can be revealed.")
-            if not target.exists():
-                raise HttpError(404, "file not found", code="not_found",
-                                remediation="It may have been moved or deleted.")
-            _reveal_in_os(target)
-            return 200, {"ok": True, "revealed": str(target)}
 
         # is Pandoc ready (without downloading)? — lets the UI warn before a first-run fetch
-        if method == "POST" and path == "/api/manuscripts/cite-export":
-            mid = _req(body, "manuscript_id")
-            p = M.resolve_path(prefs.get_manuscripts_dir(root), mid)
-            if p is None:
-                return 400, {"error": "manuscript_not_resolved", "code": "manuscript_not_resolved",
-                             "message": "bind the manuscript's folder first so CiteVahti can "
-                                        "write the cited copy beside it"}
-            return 200, engine.cite_export_manuscript(
-                str(p), make_docx=bool(body.get("docx", True)), root=root)
 
         # loopback-only folder browser: lets the user click through their filesystem
         # to pick a manuscripts folder instead of hand-typing a path (the no-terminal
         # constraint). Read-only listing of sub-directories + manuscript-file counts.
-        if method == "POST" and path == "/api/fs/browse":
-            return 200, _browse_dir(body.get("path"))
 
         # First-run hand-off: save a pasted Markdown manuscript, bind its folder, and
         # tell the user the MCP prompt to extract claims. Extraction stays chat-driven
         # (no AI in the panel) — this only writes the file and points at the next step.
-        if method == "POST" and path == "/api/manuscripts/paste":
-            name = _safe_md_name(_req(body, "filename"))
-            content = _req(body, "content")
-            mdir = prefs.get_manuscripts_dir(root) or str(Path(root) / "manuscripts")
-            dest_dir = Path(mdir).expanduser()
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            dest = dest_dir / name
-            if dest.exists():
-                raise HttpError(409, f"{name} already exists in the manuscripts folder",
-                                code="file_exists",
-                                remediation="Choose a different filename or remove the existing file.")
-            dest.write_text(content, encoding="utf-8")
-            prefs.set_manuscripts_dir(root, str(dest_dir))
-            return 200, {"ok": True, "manuscripts_dir": str(dest_dir), "filename": name,
-                         "next_prompt": f"Extract the verifiable claims from {name} and "
-                                        "stage them for review."}
 
         # ---- find evidence: search (PubMed or the Zotero library) then link ----
-        if method == "POST" and path == "/api/search":
-            return 200, _search(root, _req(body, "query"),
-                                body.get("source", "pubmed"), int(body.get("max_results", 15)))
 
-        if method == "POST" and path == "/api/link":
-            claim_id = _req(body, "claim_id")
-            batch_id = _req(body, "batch_id")
-            record_ids = body.get("record_ids")
-            doi_resolved = _resolve_missing_dois(root, batch_id, record_ids)   # backfill before linking
-            rep = engine.link_candidates(claim_id, batch_id, record_ids=record_ids, root=root)
-            return 200, {"linked": getattr(rep, "linked", None),
-                         "skipped_duplicates": getattr(rep, "skipped_duplicates", None),
-                         "total_candidates": getattr(rep, "total_candidates", None),
-                         "doi_resolved": doi_resolved}
 
         # ---- direct "Save to Zotero" for a search hit (preview → confirm) ------
         # Pushes a staged search record into the Zotero library as an item, WITHOUT
         # going through the claim rate→decide gate. Same write-safety invariant as
         # the claim write: preview returns a confirm_token; commit needs it. This is
         # "add this paper to my library", not the validated-evidence claim write.
-        if method == "POST" and path == "/api/intake/preview":
-            batch_id = _req(body, "batch_id")
-            record_ids = body.get("record_ids")
-            _resolve_missing_dois(root, batch_id, record_ids)   # carry the authoritative DOI
-            return 200, engine.intake_push(batch_id, record_ids=record_ids,
-                                           collection_key=body.get("collection_key"),
-                                           dry_run=True, root=root)
 
-        if method == "POST" and path == "/api/intake/commit":
-            return 200, engine.intake_push(_req(body, "batch_id"),
-                                           record_ids=body.get("record_ids"),
-                                           collection_key=body.get("collection_key"),
-                                           dry_run=False,
-                                           confirm_token=_req(body, "confirm_token"), root=root)
 
         # guarded remove: unlink the wrong paper from a claim (audited, non-destructive)
-        if method == "POST" and path == "/api/candidates/unlink":
-            return 200, engine.unlink_candidate(_req(body, "claim_id"), _req(body, "candidate_id"), root=root)
 
         # ---- library maintenance: backfill DOIs / re-check Zotero membership ----
-        if method == "POST" and path == "/api/candidates/resolve-dois":
-            return 200, engine.backfill_candidate_dois(root=root)
 
-        if method == "POST" and path == "/api/candidates/recheck-library":
-            return 200, engine.recheck_library(root=root)
-
-        if method == "POST" and path == "/api/candidates/scan-retractions":
-            return 200, engine.scan_retractions(root=root)
 
         # fill candidates' reuse rights (oa_status/license) from OpenAlex — reports,
         # never decides reusability (one outbound OpenAlex call per DOI/PMID, on click).
-        if method == "POST" and path == "/api/candidates/scan-licenses":
-            return 200, engine.scan_licenses(root=root)
 
         # locate a candidate in the Zotero library so the UI can deep-link its PDF
-        if method == "POST" and path == "/api/zotero/locate":
-            return 200, engine.zotero_locate(doi=body.get("doi"), title=body.get("title"),
-                                             pmid=body.get("pmid"), root=root)
 
         # the paper's own highlights + a full-text snippet from Zotero (read while rating)
-        if method == "POST" and path == "/api/zotero/evidence":
-            return 200, engine.zotero_evidence(doi=body.get("doi"), title=body.get("title"),
-                                               pmid=body.get("pmid"), root=root)
 
         # deterministic lexical check: do the claim's terms appear in the candidate's
         # abstract? (shown only after the human rates — see the UI gating.)
-        if method == "POST" and path == "/api/claim-check":
-            store = engine._open_store(root)
-            claim = store.load_claim(_req(body, "claim_id"))
-            cand = next((c for c in store.load_candidates(claim.claim_id).candidates
-                         if c.candidate_id == _req(body, "candidate_id")), None)
-            text = (getattr(cand, "abstract", None) or "") if cand else ""
-            return 200, engine.claim_lexical_check(claim.claim_text, text)
 
         # ---- connect (status-only; secret values never returned/logged) ----
-        if method == "POST" and path == "/api/connect/zotero":
-            engine.connect_zotero(_req(body, "api_key"), root=root)
-            return 200, {"status": "ok", "health": agent.tools.status(root=root)}
 
-        if method == "POST" and path == "/api/connect/pubmed":
-            engine.onboard(root=root, ncbi_email=_req(body, "email"),
-                           ncbi_api_key=body.get("api_key") or None)
-            return 200, {"status": "ok", "health": agent.tools.status(root=root)}
 
         # OAuth 1.0a: start the handshake; stash the temp token secret server-side
         # (loopback only), hand the browser only the URL to authorize.
-        if method == "POST" and path == "/api/connect/zotero/oauth/start":
-            base = (_req(body, "callback_base")).rstrip("/")
-            # Default to the loopback callback (most private — no external server in
-            # the flow). A hosted callback (e.g. https://vahtian.com/citevahti/auth/
-            # zotero/callback) may be set via env; that page MUST bounce the params
-            # back to this loopback /oauth/zotero/callback so the key stays local.
-            callback = os.environ.get("CITEVAHTI_ZOTERO_OAUTH_CALLBACK") or (base + "/oauth/zotero/callback")
-            res = engine.zotero_oauth_start(callback, root=root)
-            # hold the temp token secret in memory only (TTL) — never on disk
-            _oauth_pending_put(res["oauth_token"], res["oauth_token_secret"])
-            return 200, {"authorize_url": res["authorize_url"], "oauth_token": res["oauth_token"]}
 
         # ---- document write-back (revise/strike → .md; preview→commit→undo)-
-        if method == "POST" and path == "/api/document/preview-edit":
-            return 200, _preview_edit(root, body)
 
-        if method == "POST" and path == "/api/document/commit-edit":
-            return 200, _commit_edit(root, _req(body, "token"))
-
-        if method == "POST" and path == "/api/document/undo-edit":
-            return 200, _undo_edit(root, _req(body, "transaction_id"))
 
         return 404, {"error": "not_found", "code": "not_found",
                      "message": f"no route for {method} {path}", "remediation": ""}
