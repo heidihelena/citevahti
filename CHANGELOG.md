@@ -7,6 +7,13 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Test-coverage visibility in CI.** The offline suite now runs under `pytest-cov`
+  (`--cov=citevahti`, term-missing report) with a conservative **75% floor** — a ratchet
+  against regression, not a strict gate (current coverage is ~79%). This surfaces which
+  paths are untested, notably `tools.py` (the large agent-surface façade, ~66%) and the
+  Zotero read layer — exactly the runtime-heavy code where "tests green" was least
+  reassuring. Coverage config lives in `pyproject.toml`; the panel's static web assets are
+  excluded. No behaviour change.
 - **Certainty / overclaim flag** (`text.py`, `claimcheck` service) — the last engine cue:
   the claim asserts a relation plainly while the source supports it only *weakly* or
   *correlationally* ("associated with", "modest", "nonsignificant") — the "overstated"
