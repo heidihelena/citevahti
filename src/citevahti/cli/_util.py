@@ -224,15 +224,32 @@ def store_backend_display(backend) -> str:
 
 def secret_source_display(source) -> str:
     """Display label for where a secret resolves from — env / system_keyring /
-    store_unavailable / unset — never the value or the env-var/service path."""
+    store_unavailable / unset — never the value or the env-var/service path.
+
+    Every ``return`` yields a string *literal*: the input is only ever inspected,
+    never passed through. (An earlier version returned ``s`` in the unset/
+    store_unavailable branch — that leaked the input value into ``line`` and let
+    CodeQL trace py/clear-text-logging-sensitive-data through to ``print(line)``.)"""
     s = str(source)
     if s.startswith("env:"):
         return "env"
-    if s in ("unset", "store_unavailable"):
-        return s
+    if s == "unset":
+        return "unset"
+    if s == "store_unavailable":
+        return "store_unavailable"
     return "system_keyring"
 
 
 def secret_names_display(names) -> list[str]:
-    """The stored/skipped credential NAMES (never values), via a literal allowlist."""
-    return [_SECRET_DISPLAY_NAMES.get(str(n), "other") for n in (names or [])]
+    """The stored/skipped credential NAMES (never values), via a literal allowlist.
+
+    An explicit loop that only ever appends a *literal* — a value from the
+    allowlist dict, or the ``"other"`` fallback — using the input purely as a
+    lookup key. No input value flows into the returned list, so a static scanner
+    cannot trace a secret value from here to the diagnostic prints (an equivalent
+    list-comprehension form was over-approximated by CodeQL's dataflow)."""
+    out: list[str] = []
+    for n in (names or []):
+        label = _SECRET_DISPLAY_NAMES.get(str(n))
+        out.append(label if label is not None else "other")
+    return out
