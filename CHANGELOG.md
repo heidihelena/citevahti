@@ -26,7 +26,7 @@ previous one.
   untestable, no "verified"); PRISMA-trAIce/Cochrane "aligned" softened to
   "RAISE-*style* transparency reporting" per `docs/METHODS.md`; the "web app" clarified as
   the local loopback panel (ADR-0007); the quotation-error rate sourced to Jergas &
-  Baethge (2015, *PeerJ* 3:e1364 — median total error 22.5%), figures checked against the
+  Baethge (2015, *PeerJ* 3:e1364 — pooled total error 25.4%, 95% CI 19.5–32.4), figures taken from the paper's meta-analytic estimates and checked against the
   paper; and the eval-results promise moved to future tense pointing at the pre-registered
   protocol. Still gated by `citevahti-claims` before any public use.
 - **Pre-registered claim-check acceptance thresholds** —

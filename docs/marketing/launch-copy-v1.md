@@ -19,7 +19,7 @@ CiteVahti checks every claim–citation pair in your manuscript and shows you wh
 
 ## The problem (evidence section)
 
-Citation errors are not rare edge cases. In a systematic review and meta-analysis of quotation accuracy in medical journals, the **median total quotation-error rate across studies was 22.5%** — with a median of 11.5% for major errors, the kind that misrepresent what the cited source actually found (Jergas & Baethge, 2015, *PeerJ* 3:e1364). Retracted papers keep accumulating citations years after retraction. And AI-assisted writing has added a new failure mode: fluent, well-formatted references to papers that don't exist.
+Citation errors are not rare edge cases. In a systematic review and meta-analysis of 28 studies, the pooled **total quotation-error rate was 25.4%** (95% CI 19.5–32.4) — roughly one cited claim in four — including a **major-error rate of 11.9%** (95% CI 8.4–16.6), the kind that misrepresents what the cited source actually found. Even the lowest study estimate, 6.7%, is far from negligible (Jergas & Baethge, 2015, *PeerJ* 3:e1364). Retracted papers keep accumulating citations years after retraction. And AI-assisted writing has added a new failure mode: fluent, well-formatted references to papers that don't exist.
 
 Most reference managers check formatting. None of that tells you whether the citation actually supports the sentence it's attached to.
 
@@ -47,7 +47,7 @@ CiteVahti is in beta. That means: the checking pipeline works, the failure modes
 
 ## LinkedIn excerpts (log per content-pipeline)
 
-1. "Your reference manager checks formatting. Nothing checks whether the citation supports the sentence." → thread on quotation errors (median total error rate 22.5%, Jergas & Baethge 2015) + local-app CTA.
+1. "Your reference manager checks formatting. Nothing checks whether the citation supports the sentence." → thread on quotation errors (pooled total error rate 25.4%, 95% CI 19.5–32.4; Jergas & Baethge 2015) + local-app CTA.
 1. "We will publish CiteVahti's precision and recall instead of asking you to trust it. Evidence tools should be held to evidence standards." → eval-results post, **once numbers exist** (until then this stays a commitment, not a boast).
 1. "CiteVahti never issues a verdict. Here's why that's a feature, not a limitation." → brand-core piece.
 
@@ -78,13 +78,17 @@ before any public use;** this log is the source trail, not a substitute for that
    ours", the CTA points at install/quickstart, and step 1 states precisely what stays
    local (manuscript + ratings; no telemetry) versus what goes out (literature lookups).
 
-4. **Quotation-error rate — FIXED (sourced).** Cited to Jergas & Baethge (2015),
-   "Quotation accuracy in medical journal articles — a systematic review and
-   meta-analysis," *PeerJ* 3:e1364, DOI 10.7717/peerj.1364 (PMID 26528420): median total
-   quotation-error rate 22.5% across studies, major-error median 11.5%, minor 9.6%.
-   Figures confirmed against the published paper's reported medians — not quoted from
-   memory. (A newer 2025 meta-analysis in *Research Integrity and Peer Review* exists if a
-   refresh is wanted later.)
+4. **Quotation-error rate — FIXED (sourced, then corrected to the pooled estimates).**
+   Cited to Jergas & Baethge (2015), "Quotation accuracy in medical journal articles — a
+   systematic review and meta-analysis," *PeerJ* 3:e1364, DOI 10.7717/peerj.1364 (PMID
+   26528420). The copy uses the paper's **meta-analytic pooled estimates** (28 studies
+   included, of 559 screened): total **25.4%** [95% CI 19.5–32.4], major **11.9%**
+   [8.4–16.6], minor **11.5%** [8.3–15.7], lowest total estimate 6.7%. An earlier revision
+   mistakenly used the medians of the raw per-study ranges (22.5% total) and mis-stated the
+   major/minor figures — itself a quotation error, corrected here against the source
+   abstract. The lesson is on-brand: a sourced-looking number can still be wrong; check it
+   against the source, which is the whole point of the tool. (A newer 2025 meta-analysis in
+   *Research Integrity and Peer Review* exists if a refresh is wanted later.)
 
 5. **Eval-results promise — FIXED (tense).** The beta block now says "we **will** publish"
    and states outright that no benchmark numbers exist yet, pointing at the pre-registered
