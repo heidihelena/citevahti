@@ -7,6 +7,17 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Population / PICO mismatch flag** (`text.py`, `claimcheck` service) — the highest-value
+  citation error the engine didn't catch: a source that supports the claimed *relation* but
+  in a different *population* ("works in adults" cited for a paediatric claim; a mouse study
+  cited for a human claim). A deterministic cue set across three axes (age, sex, species)
+  raises an inspectable, **advisory** warning (`population_cue`, e.g. "children ≠ adults")
+  on an otherwise-supporting citation — it does **not** change the support status; the
+  human/AI layer adjudicates (ADR-0009 "floor flags, AI confirms"). Deliberately
+  conservative: it fires only when **both** sides name a different population, and stays
+  silent when a population is implicit or the two sides use the same pole ("patients",
+  women≈female). A new population detector in the eval scores **precision 1.000 / recall
+  1.000** with **0 false flags on the controls**. Locked by `tests/test_population_fit.py`.
 - **Conservative inflectional stemmer in lexical coverage** (`text.py`) — the eval's next
   target. Coverage matching was inflection-blind ("antidepressants" ≠ "antidepressant",
   "increases" ≠ "increased"). A shallow, deterministic stemmer (iterated to a fixed point,

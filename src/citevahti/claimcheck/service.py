@@ -7,7 +7,7 @@ from typing import Optional
 from .. import __version__
 from ..retrieval.service import PassageRetrievalService
 from ..retrieval.source import TextSource
-from ..retrieval.text import polarity_conflict, polarity_cue
+from ..retrieval.text import polarity_conflict, polarity_cue, population_mismatch
 from ..schemas.claimcheck import ClaimCheckResult, ClaimStatus, PerCitekeyResult
 from ..schemas.common import Provenance
 from ..util import config_hash, utc_now_iso
@@ -56,6 +56,11 @@ class ClaimCheckService:
             # whether they OPPOSE the claim's polarity ("did not reduce" vs "reduced").
             opposing = [p for p in candidates if polarity_conflict(claim_text, p.quote)]
             supporting = [p for p in candidates if not polarity_conflict(claim_text, p.quote)]
+            # Population/PICO guard: a supporting passage may describe a DIFFERENT
+            # population (advisory warning, not a status change) — ADR-0009.
+            pop_cue = next(
+                (pc for p in supporting if (pc := population_mismatch(claim_text, p.quote))),
+                None)
             if opposing:
                 cue = polarity_cue(claim_text, opposing[0].quote)
                 if not supporting:
@@ -68,13 +73,18 @@ class ClaimCheckService:
                         passages=opposing)
                 # mixed inside one source: real support AND an opposing passage. Keep the
                 # support headline but surface BOTH passages + the cue — never hide the conflict.
+                reason = f'also contains an opposing passage (cue: "{cue}") — review the conflict'
+                if pop_cue:
+                    reason += f'; population may differ ({pop_cue})'
                 return PerCitekeyResult(
                     citekey=citekey, status="supported_candidate",
                     zotero_key=retr.zotero_key, score=best, polarity_cue=cue,
-                    reason=f'also contains an opposing passage (cue: "{cue}") — review the conflict',
-                    passages=supporting + opposing)
-            return PerCitekeyResult(citekey=citekey, status="supported_candidate",
-                                    zotero_key=retr.zotero_key, score=best, passages=candidates)
+                    population_cue=pop_cue, reason=reason, passages=supporting + opposing)
+            return PerCitekeyResult(
+                citekey=citekey, status="supported_candidate",
+                zotero_key=retr.zotero_key, score=best, population_cue=pop_cue,
+                reason=(f'population may differ ({pop_cue}) — review the fit' if pop_cue else None),
+                passages=candidates)
         # source available + searched, but no adequate support
         return PerCitekeyResult(citekey=citekey, status="no_support_found",
                                 zotero_key=retr.zotero_key)
@@ -109,4 +119,7 @@ class ClaimCheckService:
         if any(p.status == "supported_candidate" and p.polarity_cue for p in per):
             result.warnings.append(
                 "a supporting source also contains an opposing passage — review the conflict")
+        if any(p.population_cue for p in per):
+            result.warnings.append(
+                "a supporting source may describe a different population — review the fit")
         return result

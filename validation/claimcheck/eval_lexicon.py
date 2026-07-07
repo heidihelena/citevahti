@@ -94,6 +94,15 @@ def score(cases: list[dict], t) -> dict:
     contra = prf(cases, lambda r: r["status"] == "contradiction_candidate",
                  lambda r: r["expected"] == "contradicts")
 
+    # Population-mismatch flag (ADR-0009 "floor flags, AI confirms"): an advisory
+    # warning on an otherwise-supporting citation, scored only over cases that carry
+    # a `pop_flag_expected` label. It does NOT change support/contradiction status.
+    pop_cases = [c for c in cases if "pop_flag_expected" in c]
+    for c in pop_cases:
+        c["pop_flag"] = t.population_mismatch(c["claim"], c["passage"]) is not None
+    population = (prf(pop_cases, lambda r: r["pop_flag"],
+                      lambda r: r["pop_flag_expected"]) if pop_cases else None)
+
     # HARD guard: an explicitly-negated contradiction returned as support.
     negation_leaks = [c for c in cases if c["tag"] == "negated_contradiction"
                       and c["status"] == "supported_candidate"]
@@ -106,6 +115,8 @@ def score(cases: list[dict], t) -> dict:
         "n": len(cases),
         "support": support,
         "contradiction": contra,
+        "population": population,
+        "n_pop": len(pop_cases),
         "negation_leaks": len(negation_leaks),
         "contradiction_as_support_total": len(all_leaks),
         "negation_leak_ids": [c["id"] for c in negation_leaks],
@@ -127,6 +138,10 @@ def report(s: dict, tags: dict) -> None:
           f"  F1 {fmt(su['f1'])}   (TP {su['tp']} FP {su['fp']} FN {su['fn']})")
     print(f"  CONTRADICTION detector  precision {fmt(co['precision'])}  recall {fmt(co['recall'])}"
           f"  F1 {fmt(co['f1'])}   (TP {co['tp']} FP {co['fp']} FN {co['fn']})")
+    if s.get("population"):
+        po = s["population"]
+        print(f"  POPULATION-mismatch flag  precision {fmt(po['precision'])}  recall {fmt(po['recall'])}"
+              f"  F1 {fmt(po['f1'])}   (TP {po['tp']} FP {po['fp']} FN {po['fn']}, over {s['n_pop']} pop cases)")
     print(f"\n  negated contradictions served as SUPPORT (HARD, must be 0): {s['negation_leaks']}"
           + (f"  -> {s['negation_leak_ids']}" if s['negation_leaks'] else ""))
     print(f"  all contradictions served as SUPPORT (incl. known antonym/semantic holes): "
@@ -142,7 +157,7 @@ def baseline_view(s: dict) -> dict:
     """The regression-relevant slice, rounded for stable diffs."""
     def r(x):
         return None if x is None else round(x, 3)
-    return {
+    view = {
         "n": s["n"],
         "support_precision": r(s["support"]["precision"]),
         "support_recall": r(s["support"]["recall"]),
@@ -150,6 +165,10 @@ def baseline_view(s: dict) -> dict:
         "contradiction_recall": r(s["contradiction"]["recall"]),
         "negation_leaks": s["negation_leaks"],
     }
+    if s.get("population"):
+        view["population_precision"] = r(s["population"]["precision"])
+        view["population_recall"] = r(s["population"]["recall"])
+    return view
 
 
 # Regression policy (ADR-0009 / acceptance-thresholds.md): precision must not fall,
@@ -164,7 +183,8 @@ def regressions(cur: dict, base: dict) -> list[str]:
     if cur["negation_leaks"] > 0:
         out.append(f"negation leak count {cur['negation_leaks']} (must be 0)")
     for key in ("support_precision", "contradiction_precision",
-                "support_recall", "contradiction_recall"):
+                "support_recall", "contradiction_recall",
+                "population_precision", "population_recall"):
         b, c = base.get(key), cur.get(key)
         if b is not None and c is not None and c < b - 1e-3:
             out.append(f"{key} fell {b:.3f} -> {c:.3f}")

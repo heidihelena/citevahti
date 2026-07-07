@@ -1,8 +1,10 @@
 {
   "contradiction_precision": 1.0,
   "contradiction_recall": 0.889,
-  "n": 37,
+  "n": 47,
   "negation_leaks": 0,
+  "population_precision": 1.0,
+  "population_recall": 1.0,
   "support_precision": 1.0,
-  "support_recall": 0.812
+  "support_recall": 0.885
 }

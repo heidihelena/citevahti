@@ -32,6 +32,7 @@ the AI-model and human layers (ADR-0009), not by widening a lexicon.
 | Support-detector **precision** | **must not fall** below the committed baseline | A flag you can't trust is worse than no flag (the inverted-U). |
 | Contradiction-detector **precision** | **must not fall** below baseline | Same. |
 | Support / contradiction **recall** | **must not fall** below baseline | Recall is *published*, but a *drop* is still a regression — you don't get quietly worse. New capability that lifts recall re-freezes the baseline upward. |
+| Population-mismatch flag **precision & recall** | **must not fall** below baseline | The advisory PICO flag (ADR-0009 "floor flags, AI confirms"): a supporting citation about a *different population*. Over-firing (false flags) is the worse side of the inverted-U, so precision matters most; recall is guarded too. |
 
 The baseline lives in `lexicon_baseline.json` (committed) and is compared by `--check`.
 `test_lexicon_eval.py` also asserts the baseline's `n` matches the case set, so the guard
@@ -59,15 +60,17 @@ one-slice floor as a complete detector.
 
 | Detector | Precision | Recall |
 |---|---|---|
-| Support | 1.000 | 0.812 |
+| Support | 1.000 | 0.885 |
 | Contradiction | 1.000 | 0.889 |
+| Population-mismatch flag | 1.000 | 1.000 |
 
-Negated-contradiction leaks: **0**. Both detectors hold **1.000 precision** (neither cries
-wolf). Support recall rose from 0.688 to 0.812 once a conservative inflectional **stemmer**
-folded morphology (antidepressants≈antidepressant, increases≈increased) in the matching
-path — precision held, so no false matches. The remaining recall gap is genuine
-**synonymy/paraphrase** ("heart attack" vs "myocardial infarction"), which is the
-AI-model layer's job, not the lexicon's. These are publishable *as the lexical-layer numbers*, not as the
+Negated-contradiction leaks: **0**. The support/contradiction detectors hold **1.000
+precision** (neither cries wolf); support recall reached 0.885 after the inflectional
+**stemmer** folded morphology. The **population-mismatch flag** (advisory PICO warning)
+scores 1.000/1.000 on its 10 cases — the important number is that it did **not** fire on
+the controls (implicit population, "patients", same-pole synonyms). The remaining
+support-recall gap is genuine **synonymy/paraphrase**, which is the AI-model layer's job,
+not the lexicon's. n = 47. These are publishable *as the lexical-layer numbers*, not as the
 whole system's accuracy.
 
 ## Not in scope here
@@ -86,3 +89,4 @@ into this lexical regression policy.
 | 2026-07-07 | **v1 — repurposed to the `eval_lexicon.py` regression policy; the human-gold *release gate* is retired (ADR-0009). Baseline frozen (n=30).** | primary eval is the automatic lexicon run, not a human ledger; model rating & Atlas are separate objects |
 | 2026-07-07 | **v2 — direction-aware polarity guard fixes the antonym hole the eval found. Support precision 0.714 → 1.000, contradiction recall 0.500 → 0.889. Baseline re-frozen (n=37, +7 held-out antonym/guard cases); `antonym_contradiction` moved from hole to caught category.** | close what the eval found; held-out pairs confirm it generalizes, not fits-to-test |
 | 2026-07-07 | **v3 — conservative inflectional stemmer in the coverage-matching path. Support recall 0.688 → 0.812, precision held at 1.000; baseline re-frozen (n=37).** | close the inflection/morphology recall misses the eval flagged; measured precision-safe |
+| 2026-07-07 | **v4 — population/PICO mismatch flag (age/sex/species) added to the floor as an advisory warning (ADR-0009 "floor flags, AI confirms"); scored by a new population detector (P 1.000 / R 1.000 over 10 cases, 0 false flags on controls). Baseline re-frozen (n=47).** | item 2/5 — catch the highest-value error class (right relation, wrong population); measured, conservative (silent on implicit populations) |
