@@ -17,13 +17,20 @@ from ..probe.client import HttpxClient
 from ..schemas.bibsync import ExportFormat
 from ..schemas.common import ItemRef, LibrarySelector
 from ..schemas.config import Endpoints
-from ..schemas.rating import Subject
 
 # Read-only groups split out (ADR-0010 PR 1a/1b); re-exported so the public
 # citevahti.tools.<name> surface is unchanged. Shared factory helpers live in ._common
 # (imported here so the ~60 in-facade callers, and the staying stateful functions, resolve
 # them) — the neutral module the group files depend on without a cycle back to the facade.
 from ._common import _intake_service, _open_store, _pubmed_provider  # noqa: F401
+from .rating import (  # noqa: F401
+    assess,
+    rating_adjudicate,
+    rating_commit_human,
+    rating_compare,
+    rating_run_ai,
+    rating_start,
+)
 from .claims import (  # noqa: F401
     accept_revision,
     add_claim,
@@ -401,52 +408,6 @@ def map_bootstrap(guideline_path: str, bibliography_path: Optional[str] = None,
 
 
 # ---- step 7: dual-rating engine + assess + retraction + prisma ----------
-def _rating_engine(root, ai_rater):
-    from ..rating import RatingEngine
-    return RatingEngine(_open_store(root), ai_rater=ai_rater)
-
-
-def rating_start(frame_id: str, scheme_id: str, subject: Subject, domain_id: Optional[str] = None,
-                 *, root: Optional[str] = None):
-    return _rating_engine(root, None).rating_start(frame_id, scheme_id, subject, domain_id)
-
-
-def rating_commit_human(rating_id: str, value: str, rationale: Optional[str] = None,
-                        reasons: Optional[list[str]] = None, source_passages=None,
-                        committed_by: str = "human", *, root: Optional[str] = None):
-    return _rating_engine(root, None).rating_commit_human(
-        rating_id, value, rationale=rationale, reasons=reasons, source_passages=source_passages,
-        committed_by=committed_by)
-
-
-def rating_run_ai(rating_id: str, task_type: str, *, root: Optional[str] = None, ai_rater=None):
-    """Blind AI second rating. Refuses unallowed/assist tasks; requires a model pin."""
-    return _rating_engine(root, ai_rater).rating_run_ai(rating_id, task_type)
-
-
-def rating_compare(rating_id: str, *, root: Optional[str] = None):
-    return _rating_engine(root, None).rating_compare(rating_id)
-
-
-def rating_adjudicate(rating_id: str, final_value: str, rationale: str, decider: str = "human",
-                      *, root: Optional[str] = None):
-    return _rating_engine(root, None).rating_adjudicate(rating_id, final_value, rationale, decider)
-
-
-def assess(frame_id: str, scheme_id: str, subject: Subject, human_value: str,
-           reasons: Optional[list[str]] = None, rationale: Optional[str] = None,
-           dual_rating: bool = False, tag_mirror: bool = False, *, root: Optional[str] = None,
-           ai_rater=None):
-    """Record a human-chosen controlled value. Never computes/suggests/pre-fills."""
-    from ..assess import AssessmentService
-    from ..rating import RatingEngine
-    store = _open_store(root)
-    engine = RatingEngine(store, ai_rater=ai_rater) if dual_rating else None
-    return AssessmentService(store, engine).assess(
-        frame_id, scheme_id, subject, human_value, reasons=reasons, rationale=rationale,
-        dual_rating=dual_rating, tag_mirror=tag_mirror)
-
-
 def retraction_scan(selection: Optional[dict] = None, library: LibrarySelector = "personal",
                     mark_stale: bool = False, *, root: Optional[str] = None, provider=None):
     """DOI/PMID retraction scan; never title-only; degrades honestly offline."""
