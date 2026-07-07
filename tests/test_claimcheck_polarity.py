@@ -15,7 +15,12 @@ from __future__ import annotations
 
 from citevahti.claimcheck import ClaimCheckService
 from citevahti.retrieval import FullTextDoc, StaticTextSource
-from citevahti.retrieval.text import has_negation, negation_cue, polarity_conflict
+from citevahti.retrieval.text import (
+    direction_cue,
+    has_negation,
+    negation_cue,
+    polarity_conflict,
+)
 from citevahti.schemas.common import ItemRef
 
 
@@ -44,6 +49,37 @@ def test_polarity_conflict_needs_overlap_and_opposite_parity():
     assert not polarity_conflict("Drug X reduced mortality", "Drug X reduced mortality")
     # no lexical overlap -> conservative, no conflict
     assert not polarity_conflict("Drug X reduced mortality", "unrelated agriculture text")
+
+
+def test_polarity_conflict_catches_opposite_direction_without_negation():
+    # antonym contradiction: no negation cue, but the directions oppose
+    assert polarity_conflict("Drug X reduced mortality", "Drug X increased mortality")
+    assert polarity_conflict("Rates were higher in the group", "Rates were lower in the group")
+    assert polarity_conflict("Survival improved with therapy", "Survival worsened with therapy")
+
+
+def test_direction_cue_is_inspectable():
+    assert direction_cue("Drug X reduced mortality", "Drug X increased mortality") == "reduced ≠ increased"
+
+
+def test_same_direction_is_not_a_conflict():
+    # a paraphrase in the SAME direction is support, not a conflict
+    assert not polarity_conflict("Drug X reduced mortality", "Drug X lowered mortality")
+
+
+def test_cross_axis_terms_do_not_falsely_conflict():
+    # different axes (magnitude vs quality) are not opposites
+    assert not polarity_conflict("Drug X increased mortality", "Drug X worsened mortality")
+
+
+def test_double_flip_cancels_negation_and_direction():
+    # negation AND opposite direction cancel: "did not increase" ~ "reduced", not a conflict
+    assert not polarity_conflict("Drug X did not increase mortality", "Drug X reduced mortality")
+
+
+def test_passage_mentioning_both_poles_is_ambiguous_not_a_conflict():
+    assert not polarity_conflict("Drug X reduced mortality",
+                                 "Drug X both increased and reduced mortality across arms")
 
 
 # ---- service: candidate-only statuses with the direction guard --------------

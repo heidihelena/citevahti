@@ -27,7 +27,7 @@ Most reference managers check formatting. None of that tells you whether the cit
 
 1. **Connect your library.** CiteVahti runs against your Zotero library, locally. Your manuscript text and ratings stay on your machine — no telemetry, nothing uploaded to us. (Literature lookups do go out, to PubMed, OpenAlex, Semantic Scholar and Crossref — the same indexes a reviewer would check.)
 1. **Check every claim–citation pair.** You rate each citation first; a blinded AI second rating is revealed only after yours is in, and disagreements are routed to explicit adjudication — the dual-screening logic of a systematic review, with PRISMA-trAIce / RAISE-*style* transparency reporting.
-1. **Record an evidence-tiered decision.** Every claim–citation pair gets a state *you* record — **accepted / caution / review / rejected**, plus **untestable** for anything outside the indexed literature — with **retraction and claim–source-mismatch flags** surfaced along the way. The reasoning is shown, not hidden.
+1. **Record a reasoned decision, per claim.** Every claim–citation pair gets a state *you* record — **accepted / caution / review / rejected**, plus **untestable** for anything outside the indexed literature — with **retraction and claim–source-mismatch flags** surfaced along the way. The reasoning is shown, not hidden. *(Review- and guideline-grade confidence come later, from multiple independent assessors — panels, and the pooled Atlas corpus — not from one run.)*
 
 Available as an MCP server (Claude Desktop, Claude Code, other MCP clients), a desktop extension (`.mcpb`), a VS Code extension, and a local web app (the loopback review panel — it runs on your machine, not ours).
 

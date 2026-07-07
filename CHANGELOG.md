@@ -7,6 +7,43 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **[ADR-0009](docs/adr/0009-evaluation-and-model-quality.md) — evaluation & model-quality
+  architecture (defence in depth).** Fixes the *cheese-hole* principle: the human, the
+  lexical detector, and the AI model(s) are independent layers, and safety comes from
+  layers whose holes don't line up — so a model that merely *agrees* with the human adds no
+  defence. Three separate evaluation objects: (1) an **automatic claim-lexicon eval** we
+  run, (2) **model rating by complementary catches, not agreement**, (3) a **pooled Atlas
+  scoreboard + divergence maps** later. Supersedes the earlier "human-gold release gate"
+  framing.
+- **A runnable claim-lexicon evaluation** — `validation/claimcheck/eval_lexicon.py` over
+  curated, author-labelled `(claim, passage, expected)` cases (`lexicon_cases.jsonl`),
+  scoring the real `text.py` and **naming its holes** per phenomenon. Frozen baseline
+  (`lexicon_baseline.json`) + CI regression guard (`tests/test_lexicon_eval.py`, `--check`).
+- **Direction-aware polarity guard** (`text.py`) — the first fix the new eval drove. The
+  eval found that antonym contradictions with no negation cue ("X increased mortality" vs
+  a claim of "reduced") slipped through as *support*, dragging support precision to 0.714.
+  `polarity_conflict` now also flips on **opposite direction** — two independent axes
+  (magnitude, quality) XOR-combined with negation, so a double flip ("did not increase" vs
+  "reduced") correctly cancels — with an inspectable `direction_cue` ("reduced ≠
+  increased"). Result: **support precision 0.714 → 1.000, contradiction recall 0.500 →
+  0.889**, still 0 negation leaks; 6 held-out antonym pairs confirm it generalizes.
+  Locked by new units in `tests/test_claimcheck_polarity.py`. Paraphrase/synonymy stays the
+  AI-model layer's job (ADR-0009).
+- **`citevahti-models` skill** — choose/compare the AI second-rater model, run a topic
+  through several models, the **3-model guideline pre-check** (Layer-0 screening — leads,
+  not verdicts). Registered in `.claude-plugin/plugin.json`.
+
+### Changed
+- **`acceptance-thresholds.md` repurposed** from a human-gold release gate to the
+  **`eval_lexicon.py` regression policy** (precision floored, recall published — the
+  inverted-U; negated-contradiction leaks must stay 0; known holes reported, not gated).
+  `citevahti-eval` rewritten around ADR-0009's three objects; the human blinded-rater
+  ledger is retained as **optional calibration**, not the gate. `BETA_TO_PRODUCTION.md`
+  kill criterion retied to lexical-layer regression. Launch copy: "evidence-tiered
+  decision" → "reasoned decision, per claim" (tiers come from multiple assessors, not one
+  run).
+
+### Added
 - **The beta → production skill set** — five maintainer-facing Claude Code skills in
   `.claude-plugin/plugin.json`, per the plan of record in
   [`docs/BETA_TO_PRODUCTION.md`](docs/BETA_TO_PRODUCTION.md): `citevahti-eval` (the

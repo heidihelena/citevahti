@@ -440,8 +440,8 @@ def claim_lexical_check(claim_text: str, text: str) -> dict:
 
     NEVER asserts truth — only whether the claim's key terms appear in the text. The
     panel shows it AFTER the human's blind rating so it can't bias it."""
-    from .retrieval.text import (content_tokens, coverage_score, negation_cue,
-                                 polarity_conflict, segment_sentences)
+    from .retrieval.text import (content_tokens, coverage_score,
+                                 polarity_conflict, polarity_cue, segment_sentences)
     claim_terms = content_tokens(claim_text or "")
     if not claim_terms or not (text or "").strip():
         return {"available": False}
@@ -452,7 +452,7 @@ def claim_lexical_check(claim_text: str, text: str) -> dict:
     # it as an inspectable "may contradict" cue — never a verdict, never hidden.
     opposing = next((s for _a, _b, s in segment_sentences(text)
                      if polarity_conflict(claim_text, s)), None)
-    cue = (negation_cue(opposing) or negation_cue(claim_text)) if opposing else None
+    cue = polarity_cue(claim_text, opposing) if opposing else None
     return {
         "available": True,
         "coverage": round(cov, 2),

@@ -1,115 +1,107 @@
 ---
 name: citevahti-eval
-description: Use when measuring or publishing CiteVahti's own accuracy — running the claim-check evaluation, filling or scoring the ground-truth ledger, checking precision/recall against the pre-registered acceptance thresholds, deciding whether a release may ship, or answering "how accurate is CiteVahti?". This is the production gate — no threshold pass, no release. Maintainer-facing; not for checking a researcher's manuscript (that is citevahti-dev).
+description: Use when measuring or publishing CiteVahti's own accuracy — running the automatic claim-lexicon evaluation, checking it against its regression baseline, reasoning about how AI second-rater models are rated, or answering "how accurate is CiteVahti?". Follows ADR-0009's three evaluation objects (automatic lexicon eval, continuous model rating, pooled Atlas). Maintainer-facing; not for checking a researcher's manuscript (that is citevahti-dev).
 ---
 
-# CiteVahti eval — the production gate
+# CiteVahti eval — measuring the tool honestly (ADR-0009)
 
-CiteVahti's pitch is *"evidence tools held to evidence standards"*. This skill is where
-that stops being copy: a pre-registered ground-truth set, precision/recall on every
-release, and a hard rule — **no threshold pass, no release**. The published numbers are
-also the marketing asset; they exist to be shown, including when they're unflattering.
+CiteVahti's pitch is *"evidence tools held to evidence standards."* This skill is where
+that stops being copy. It is **not** a single human-gold release gate — that framing was
+wrong. Per [ADR-0009](../../docs/adr/0009-evaluation-and-model-quality.md), citation
+checking is a **defence-in-depth stack** (human + lexical detector + AI models), and
+evaluation has **three separate objects**, each measured differently.
 
-The measurement machinery already ships in `validation/claimcheck/` — read its
-`README.md` before touching anything. This skill is the discipline around it.
+The governing idea is the **cheese-hole principle**: safety comes from layers whose holes
+don't line up. So a model that merely *agrees* with the human adds no defence — the best
+layer catches what the others miss. Measurement is built around that, not around
+conformity.
 
 ## Triggers
 
-**Use when the maintainer asks to:**
-- run / fill / score the claim-check evaluation ledger
-- check whether a release passes the accuracy gate
-- extend the ground-truth set with new cases
-- prepare or update the published eval-results page
-- decide whether the production push continues (kill criterion)
+**Use when the maintainer asks to:** run or extend the automatic claim-lexicon eval; check
+it against baseline; re-freeze the baseline after an intended change; reason about or
+publish model ratings; prepare an eval-results page.
 
-**Do NOT use for:** checking a researcher's manuscript claims (`citevahti-dev`),
-sweeping a reference list (`citevahti-screen`), or the offline pytest suite
-(that's the build gate in `secure-release`, not the accuracy gate).
+**Do NOT use for:** checking a researcher's manuscript (`citevahti-dev`), sweeping a
+reference list (`citevahti-screen`), choosing/operating models (`citevahti-models`), or
+the offline pytest suite (that's `secure-release`'s build gate).
 
-## The ground-truth set
+## The three evaluation objects (keep them separate)
 
-The unit of analysis is a **(claim, passage) pair** — exactly what claim-check decides —
-hand-curated, never auto-mined. The set must cover all four failure classes from the
-product frame:
+### 1. Claim-lexicon eval — automatic, you run it
 
-| Class | What it tests |
-|---|---|
-| **correct** | citation genuinely supports the claim (true-negative floor for the mismatch detector) |
-| **mismatched** | source exists but does not support the claim (quotation error) |
-| **retracted** | source is retracted / has an expression of concern |
-| **fabricated** | reference does not exist (no resolvable DOI/PMID) |
-
-Retracted and fabricated cases key on **DOI/PMID** — that's the shipped detection
-mechanism (`docs/KNOWN_LIMITATIONS.md`); items with neither identifier are untestable by
-design and belong in the set only as documented exclusions.
-
-## The protocol (pre-registered — do not improvise)
-
-Mirrors `validation/claimcheck/README.md` exactly:
+The primary, always-on evaluation of the **deterministic lexical floor** (`text.py`). No
+human-rater dependency — that is what makes it automatic.
 
 ```bash
-python validation/claimcheck/build_ledger.py            # seed from the curated set
-python validation/claimcheck/fill_ledger.py rater1      # BLINDED human pass 1
-python validation/claimcheck/fill_ledger.py rater2      # BLINDED human pass 2
-python validation/claimcheck/fill_ledger.py adjudicate  # reveal + adjudicate
-python validation/claimcheck/score_ledger.py validation/claimcheck/ledger.jsonl
+python validation/claimcheck/eval_lexicon.py                  # score + per-phenomenon report
+python validation/claimcheck/eval_lexicon.py --check          # CI gate: exit 1 on regression
+python validation/claimcheck/eval_lexicon.py --write-baseline # re-freeze after an intended change
 ```
 
-Non-negotiables, in order:
+- Ground truth is the author-labelled `expected` relation in `lexicon_cases.jsonl`.
+- The lexical layer is **one transparent slice with known holes** (paraphrase/synonymy;
+  antonym contradictions with no negation cue). The eval **names the holes** per
+  phenomenon — it does not pretend they're gone; the AI-model and human layers cover them.
+- Regression policy: [`validation/claimcheck/acceptance-thresholds.md`](../../validation/claimcheck/acceptance-thresholds.md).
+  **Precision is floored** (a flag must be worth interrupting for); **recall is published,
+  not chased** — the inverted-U: over-flagging is worse than under-flagging, and widening a
+  lexicon to chase recall is the wrong layer's job. A negated contradiction served as
+  support must stay **0** (`tests/test_claimcheck_polarity.py`, `tests/test_lexicon_eval.py`).
+- Regression here **blocks a release**; the known-hole categories are reported, not gated.
 
-1. **κ first.** Cohen's κ between the two blinded raters is reported before any
-   detector metric. **κ < 0.6 voids the ground truth** — sharpen the rubric and re-rate;
-   the precision/recall numbers do not exist until κ passes.
-2. **Measure before tuning.** No threshold, stopword, or lexicon change without a
-   scored baseline to compare against. Tuning against an unfilled ledger is guessing.
-3. **The LLM advisor is scored against the same human gold**, never against claim-check
-   itself, and the **correlated-error count is reported** so agreement is never mistaken
-   for accuracy.
-4. **`score_ledger.py` refuses to invent labels** — keep it that way. Missing labels are
-   reported as missing, not imputed.
-5. **`ledger.demo.jsonl` is ILLUSTRATIVE.** Cite no number from it, ever.
+The two-blinded-human ledger (`validation/claimcheck/README.md`, `build_ledger.py` →
+`fill_ledger.py` → `score_ledger.py`, Cohen's κ) is **retained as optional higher-assurance
+calibration** of the lexical layer — never the release gate, and never a human bottleneck
+on shipping.
 
-## Acceptance thresholds — the gate
+### 2. Model rating — complementary catches, not agreement
 
-Thresholds are **pre-registered** in
-[`validation/claimcheck/acceptance-thresholds.md`](../../validation/claimcheck/acceptance-thresholds.md):
-written down and committed *before* the scoring run they gate, and changed only between
-cycles with the change logged in that file's append-only change log. Deciding the floor
-after seeing the numbers is the exact failure this skill exists to prevent. (The current
-file is a *proposed v0* — confirm or adjust the floors before the first scored run, since
-no ledger has been scored yet; after the first gated run they freeze.)
+Each **non-anonymous** AI second-rater model accrues a rating from **live** use, not from a
+static set. The signal is the **validated complementary catch**: the model's blinded rating
+**diverges** from the human, and the human **adopts** it — correcting the *statement* or the
+*judgement* (better science). That is a hole covered. Agreement is cheap and scores little;
+a model that never usefully diverges is a redundant layer. A low-value model → **suggest a
+better-covering one**. `agreement_report` (METHODS.md) carries the model-provenance and
+human↔AI comparison this builds on. Anonymous models are not rated — no identity, no track
+record. This object is **not a release gate**; it drives model suggestion. Operated via
+`citevahti-models`.
 
-At release time (`citevahti-release` calls this as its first gate):
+### 3. Atlas — pooled scoreboard + divergence maps (later)
 
-- **PASS** — every pre-registered floor met → release proceeds; numbers go to the
-  eval-results page with the release.
-- **FAIL** — any floor missed → **no release.** File the gap, run an improvement cycle,
-  re-measure on the *same protocol*.
-
-**Kill criterion (from the production plan, `docs/BETA_TO_PRODUCTION.md`):** if
-mismatch-detection precision stays below the pre-registered floor after **two
-improvement cycles**, the production push stops — CiteVahti reverts to
-"internal tool" status and the public positioning changes accordingly. This is a
-pre-commitment; do not renegotiate it mid-cycle.
+The pooled corpus aggregates object 2 across contributors into a **model scoreboard** and
+**divergence maps** (a layer over the Atlas evidence map). This is where higher-tier
+confidence lives (ADR-0008: ≥5 → review, ~8+ → guideline). Emergent, real-world, later —
+designed in ADR-0009, built when Atlas is ready.
 
 ## Publishing the numbers
 
-Every scored run that gates a release gets published — precision, recall, F1 per
-detector, κ, N, the four class counts, the correlated-error count, and the date +
-version measured. Include what *failed* or was excluded; a results page with only
-flattering rows is exactly the certification theater the brand forbids.
+Publish what you actually have, labelled by layer:
 
-Until the first filled ledger is scored, the honest public statement is the one in
-`docs/KNOWN_LIMITATIONS.md`: **no published accuracy benchmark yet** — and any copy
-promising published numbers must be phrased as commitment, not fact
-(`citevahti-claims` enforces this).
+- The **lexicon-eval** numbers are real and publishable **now** — precision/recall per
+  detector, the per-phenomenon breakdown **including the named holes**, N, and the date +
+  version. A results page that hid the holes would misrepresent a one-slice floor as a
+  complete detector — exactly the certification theater the brand forbids.
+- **Model ratings** publish once there is live data; until then, say so.
+- Present every number **as its layer's** number. A lexicon-eval figure is Layer-1 detector
+  quality, never whole-system or guideline-grade accuracy.
+
+`docs/KNOWN_LIMITATIONS.md` remains the honest baseline: no whole-system accuracy benchmark
+yet. Copy that promises numbers must be commitment, not fact (`citevahti-claims` enforces).
 
 ## Hard rules
 
-- **NEVER quote a number from the demo ledger** or from an unadjudicated ledger.
-- **NEVER report precision/recall without κ** alongside it.
-- **NEVER move a threshold after seeing the run it gates.**
-- **NEVER let a release ship on a failed or missing gate** — "we'll measure next
-  release" is the failure mode, not a mitigation.
-- **NEVER present descriptive agreement metrics as validation** of the AI or as ground
-  truth (`docs/METHODS.md` transparency section wording is the ceiling).
+- **NEVER score a model on agreement with the human** — score complementary catches
+  (ADR-0009). Rewarding agreement selects for redundant layers.
+- **NEVER present the lexical-layer number as the whole system's accuracy**, and never hide
+  the named holes — the holes are the honest part.
+- **NEVER quote a number from `ledger.demo.jsonl`** (ILLUSTRATIVE) or from an unadjudicated
+  human ledger.
+- **NEVER let the lexicon eval regress silently** — `--check` and `test_lexicon_eval.py`
+  block a support/contradiction precision or recall drop, and any negated-contradiction
+  leak; re-freeze the baseline only for an *intended* change, with the change logged.
+- **NEVER present single-assessor eval numbers as review- or guideline-grade evidence.**
+  Layer 2 needs a panel; Layer 3 needs AtlasVahti pooling and more than five independent
+  contributors — a better single detector cannot climb the ladder (ADR-0008).
+- **NEVER treat agreement as accuracy** — descriptive agreement metrics are not ground
+  truth (`docs/METHODS.md` transparency wording is the ceiling).

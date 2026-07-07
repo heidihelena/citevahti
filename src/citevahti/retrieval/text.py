@@ -72,17 +72,102 @@ def has_negation(text: str) -> bool:
     return negation_cue(text) is not None
 
 
+# --- Direction / antonym polarity (deterministic; no AI) ---------------------
+# Negation is not the only way a passage opposes a claim: an OPPOSITE DIRECTION
+# on a shared relation does too — "X reduced mortality" vs "X increased
+# mortality" share their nouns but assert opposite directions, and carry NO
+# negation cue for negation_cue() to catch. These paired families let
+# polarity_conflict() see that opposition. Two INDEPENDENT axes so cross-axis
+# terms (e.g. "increased" vs "worsened") do not falsely conflict; a text that
+# mentions both poles of an axis is ambiguous on that axis and ignored. Still a
+# lexical, inspectable cue list — not semantics; paraphrase/synonymy stays the
+# advisory layer's job.
+_DIRECTION_AXES: dict[str, dict[str, frozenset[str]]] = {
+    "magnitude": {
+        "up": frozenset({
+            "increase", "increased", "increases", "increasing", "rise", "rises",
+            "rising", "rose", "risen", "higher", "greater", "more", "elevated",
+            "elevate", "elevates", "raise", "raised", "raises", "grew", "grow",
+            "grows", "growing", "gain", "gained", "gains", "upregulated",
+            "upregulation",
+        }),
+        "down": frozenset({
+            "decrease", "decreased", "decreases", "decreasing", "reduce",
+            "reduced", "reduces", "reducing", "lower", "lowered", "lowers",
+            "lowering", "fall", "falls", "falling", "fell", "fallen", "fewer",
+            "less", "lessen", "lessened", "lessens", "decline", "declined",
+            "declines", "drop", "dropped", "drops", "loss", "lost", "shorten",
+            "shortened", "shortens", "shorter", "downregulated", "downregulation",
+        }),
+    },
+    "quality": {
+        "better": frozenset({
+            "improve", "improved", "improves", "improving", "better", "benefit",
+            "benefited", "benefits", "beneficial", "ameliorate", "ameliorated",
+            "ameliorates",
+        }),
+        "worse": frozenset({
+            "worsen", "worsened", "worsens", "worsening", "worse", "harm",
+            "harmed", "harms", "harmful", "deteriorate", "deteriorated",
+            "deteriorates", "aggravate", "aggravated", "aggravates",
+        }),
+    },
+}
+
+
+def _matched_direction(text: str) -> dict[str, tuple[str, str]]:
+    """{axis: (pole, first_matched_word)} for axes with EXACTLY one pole present."""
+    toks = set(tokenize(text))
+    out: dict[str, tuple[str, str]] = {}
+    for axis, poles in _DIRECTION_AXES.items():
+        present = {pole: (toks & words) for pole, words in poles.items()}
+        present = {pole: hit for pole, hit in present.items() if hit}
+        if len(present) == 1:
+            pole, hit = next(iter(present.items()))
+            out[axis] = (pole, sorted(hit)[0])
+    return out
+
+
+def direction_opposes(query: str, passage: str) -> bool:
+    """True if query and passage assert OPPOSITE poles on a shared direction axis."""
+    q, p = _matched_direction(query), _matched_direction(passage)
+    return any(axis in p and p[axis][0] != pole for axis, (pole, _w) in q.items())
+
+
+def direction_cue(query: str, passage: str) -> str | None:
+    """Name the opposing direction words (e.g. ``reduced ≠ increased``), else None."""
+    q, p = _matched_direction(query), _matched_direction(passage)
+    for axis, (pole, qword) in q.items():
+        if axis in p and p[axis][0] != pole:
+            return f"{qword} ≠ {p[axis][1]}"
+    return None
+
+
 def polarity_conflict(query: str, passage: str) -> bool:
     """True when query and passage assert OPPOSITE polarity on a shared relation.
 
     Conservative: only fires when they actually overlap lexically (same relation
-    being discussed) AND differ in negation parity. Same-parity (both asserted, or
-    both negated) is NOT a conflict — a negated claim is supported by a negated
-    passage.
+    being discussed). Polarity is flipped by two independent mechanisms — sentential
+    **negation** and **opposite direction** (antonym) — combined by XOR, so a single
+    flip is a conflict but a *double* flip cancels ("X reduced mortality" vs "X did
+    not increase mortality" is NOT a conflict). Same-parity (both asserted, both
+    negated, or same direction) is not a conflict.
     """
     if coverage_score(query, passage) <= 0.0:
         return False
-    return has_negation(query) != has_negation(passage)
+    negation_differs = has_negation(query) != has_negation(passage)
+    return negation_differs != direction_opposes(query, passage)  # XOR
+
+
+def polarity_cue(query: str, passage: str) -> str | None:
+    """The cue that flips polarity between query and passage — the negation word, or
+    the opposing direction pair — for an *inspectable* contradiction. None if no
+    conflict."""
+    if not polarity_conflict(query, passage):
+        return None
+    if has_negation(query) != has_negation(passage):
+        return negation_cue(passage) or negation_cue(query)
+    return direction_cue(query, passage)
 
 
 _SENT_END = re.compile(r"[.!?]+(?=\s|$)|\n+")

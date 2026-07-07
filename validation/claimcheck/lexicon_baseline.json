@@ -1,0 +1,8 @@
+{
+  "contradiction_precision": 1.0,
+  "contradiction_recall": 0.889,
+  "n": 37,
+  "negation_leaks": 0,
+  "support_precision": 1.0,
+  "support_recall": 0.688
+}
