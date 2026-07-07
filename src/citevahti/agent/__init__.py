@@ -17,6 +17,7 @@ from .policy import ALLOWED_AGENT_TOOLS, FORBIDDEN_AGENT_CAPABILITIES, assert_sa
 # so clients can parse results reliably (locked by tests/test_structured_outputs.py).
 TOOLS = {
     "init": tools.init,                  # create the ledger — every other tool needs it first
+    "getting_started": tools.getting_started,  # state-aware "start here / what's my next step"
     "status": tools.status,
     "check_update": tools.check_update,  # read-only, user-initiated: is a newer release on PyPI?
     "triage": tools.triage,              # risk-first "what needs you" — review the few, not all

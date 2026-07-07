@@ -31,6 +31,7 @@ def test_tool_outputs_are_json_serializable_dicts(tmp_path):
     calls = {
         "init": lambda: agent.tools.init(root=root),
         "status": lambda: agent.tools.status(root=root),
+        "getting_started": lambda: agent.tools.getting_started(root=root),
         "triage": lambda: agent.tools.triage(root=root),
         "verify_claims": lambda: agent.tools.verify_claims(root=root),
         "methods": lambda: agent.tools.methods(root=root),

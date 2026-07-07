@@ -18,8 +18,9 @@ from citevahti.agent.annotations import TOOL_META, assert_annotations_complete
 # run without confirmation when it isn't.
 _PROVEN_READONLY = {
     "status", "verify_claims", "triage", "methods", "model_advisor", "claim_bond_status",
-    # read-only by construction (search/fetch/preview; no ledger write)
+    # read-only by construction (search/fetch/preview/probe; no ledger write)
     "check_update", "check_paragraph", "pubmed_search", "get_provenance", "preview_write",
+    "getting_started",
 }
 
 

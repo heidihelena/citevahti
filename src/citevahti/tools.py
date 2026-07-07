@@ -681,6 +681,16 @@ def model_advisor(model_id: Optional[str] = None, *, root: Optional[str] = None)
     return AgreementReportService(_open_store(root)).advise_models(model_id)
 
 
+def getting_started(*, root: Optional[str] = None):
+    """Where the project is and the single next thing to do — the state-aware first-run
+    / resume guide (``workflow.project_status``). Speaks to every state, including the
+    empty ones an uninitialized ledger is in ("create the ledger", "paste a paragraph"),
+    which the risk-first ``triage`` cannot. Read-only; derives "what's next" fresh each
+    call, so nothing is stored."""
+    from . import workflow
+    return workflow.project_status(root or ".")
+
+
 # ---- step 9: guarded write-back -----------------------------------------
 def _writeback(root, *, service=None, dedupe_index=None, tag_reader=None):
     if service is not None:

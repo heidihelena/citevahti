@@ -98,6 +98,27 @@ def model_advisor(model_id: Optional[str] = None, *, root: Optional[str] = None)
     }
 
 
+def getting_started(*, root: Optional[str] = None) -> dict:
+    """Start here. Returns where THIS project is and the ONE next thing to do — a
+    state-aware first-run/resume guide that speaks to every state, including a brand-new
+    (uninitialized or empty) ledger, which ``triage`` cannot. Read-only.
+
+    Use this as the entry point when a user is new or asks "how do I start / what do I do
+    next?": present ``next.label`` as the single next action (create the ledger → paste a
+    paragraph → review the flagged claims → export the report) and surface any soft
+    ``blockers`` (e.g. Zotero write not set up) without blocking their progress."""
+    s = _t.getting_started(root=root)
+    nxt = s.get("next") or {}
+    return {
+        "ready": s.get("ready", False),
+        "claims_total": s.get("claims_total", 0),
+        "counts": s.get("counts", {}),
+        "blockers": s.get("blockers", []),
+        "next": {"kind": nxt.get("kind"), "label": nxt.get("label"),
+                 "claim_id": nxt.get("claim_id")},
+    }
+
+
 def status(*, root: Optional[str] = None) -> dict:
     from .. import __version__
     from ..capabilities import CapabilityStatusService
