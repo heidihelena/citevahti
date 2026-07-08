@@ -24,6 +24,15 @@ function renderSettingsSurface() {
         the panel opens (one request to pypi.org; a quiet ⬆ badge appears if a newer
         version exists)</label>
     </div>
+    <div class="seg">
+      <div class="lbl">Desktop app auto-update</div>
+      <p class="note">Signed, in-place updates for the desktop app (TUF) — verified against
+        CiteVahti's signing keys. Always <b>prompted, never silent, never mid-review</b>:
+        applying stages the new build for your next launch and leaves the current review
+        untouched. On a pip install this stays inactive — use the PyPI check above.</p>
+      <div class="actions"><button class="btn ghost" data-act="app-update-check">⟳ Check desktop app</button></div>
+      <div id="appUpdate" class="note"></div>
+    </div>
     <div id="settingsAi"></div>
   </div>`;
   openAiSettings($("#settingsAi"));   // hosts #aiModal inline within the AI segment

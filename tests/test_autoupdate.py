@@ -6,8 +6,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from citevahti.autoupdate import check_for_update, apply_update, resolve_settings
 from citevahti.autoupdate.client import (
     APPLIED, AVAILABLE, NOT_CONFIGURED, UNAVAILABLE, UP_TO_DATE,
@@ -141,3 +139,28 @@ def test_desktop_announce_update_is_silent_and_safe(capsys):
 
     _announce_update()  # not configured → prints nothing, raises nothing
     assert capsys.readouterr().out == ""
+
+
+# ---- panel wiring: the prompted "Update now / Later" UX --------------------
+def test_panel_app_update_status_endpoint_is_read_only_and_inert(tmp_path):
+    # GET /api/app-update surfaces the frozen-app updater STATUS for the panel prompt.
+    # Under pytest (not frozen) it must be inert — no network, status not_configured.
+    from citevahti.panel.server import _GET_ROUTES, dispatch
+
+    assert "/api/app-update" in _GET_ROUTES
+    status, body = dispatch(str(tmp_path), "GET", "/api/app-update", None)
+    assert status == 200
+    assert body["status"] == NOT_CONFIGURED
+    assert body["update_available"] is False
+
+
+def test_panel_app_update_apply_is_a_mutating_post_and_inert(tmp_path):
+    # The apply endpoint is registered as a POST (so it inherits the CSRF choke point in
+    # do_POST, above dispatch — the missing-token rejection is frozen in
+    # test_panel_route_perimeter). Post-consent only, and inert without keys+server.
+    from citevahti.panel.server import _POST_ROUTES, dispatch
+
+    assert "/api/app-update/apply" in _POST_ROUTES
+    status, body = dispatch(str(tmp_path), "POST", "/api/app-update/apply", {})
+    assert status == 200
+    assert body["status"] == NOT_CONFIGURED   # nothing is ever applied without configuration

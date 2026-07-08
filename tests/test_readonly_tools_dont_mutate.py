@@ -79,7 +79,8 @@ def test_panel_get_endpoints_and_agent_reads_dont_touch_the_audited_ledger(tmp_p
 
     for path in ("/api/ping", "/api/context", "/api/claims", "/api/triage", "/api/manuscripts",
                  f"/api/manuscript/{mid}", f"/api/claims/{cid}",
-                 f"/api/claims/{cid}/history", "/api/next", "/api/prompts", "/api/draft-context"):
+                 f"/api/claims/{cid}/history", "/api/next", "/api/prompts", "/api/draft-context",
+                 "/api/app-update"):   # frozen-app update STATUS is read-only (inert here)
         status, _ = dispatch(root, "GET", path, None)
         assert status == 200, f"{path} -> {status}"
     for name, args in (("status", ()), ("getting_started", ()), ("verify_claims", ()),
