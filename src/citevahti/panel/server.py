@@ -394,6 +394,17 @@ def _get_evidence_map(root, body):
 def _get_check_update(root, body):
     return 200, engine.check_update()
 
+    # signed desktop-app auto-update STATUS (tufup/TUF), distinct from the PyPI nudge
+    # above. Read-only: never downloads, never applies. Inert (status "not_configured")
+    # unless running the frozen app with the channel configured — see docs/AUTO_UPDATE.md.
+
+
+def _get_app_update(root, body):
+    from ..autoupdate import check_for_update
+    o = check_for_update()
+    return 200, {"status": o.status, "version": o.version,
+                 "detail": o.detail, "update_available": o.update_available}
+
     # the opt-in switch for the launch-time check above (panel.json UI-state pref;
     # default OFF — see prefs.get_auto_update_check)
 
@@ -513,6 +524,7 @@ _GET_ROUTES = {
     "/api/triage": _get_triage,
     "/api/evidence-map": _get_evidence_map,
     "/api/check-update": _get_check_update,
+    "/api/app-update": _get_app_update,
     "/api/prompts": _get_prompts,
     "/api/draft-context": _get_draft_context,
     "/api/ledgers": _get_ledgers,
@@ -576,6 +588,16 @@ def _post_writes_undo(root, body):
 def _post_prefs_update_check(root, body):
             prefs.set_auto_update_check(root, bool(body.get("enabled")))
             return 200, {"enabled": prefs.get_auto_update_check(root)}
+
+
+def _post_app_update_apply(root, body):
+    # Post-consent apply of a signed desktop-app update (tufup): reached ONLY after the
+    # human clicks "Update now". CSRF-guarded like every POST (do_POST, above dispatch).
+    # Stages the new bundle in place WITHOUT restarting — the running review is untouched;
+    # the new version takes effect on next launch. Inert (not_configured) unless configured.
+    from ..autoupdate import apply_update
+    o = apply_update()
+    return 200, {"status": o.status, "version": o.version, "detail": o.detail}
 
 
 def _post_report_packet(root, body):
@@ -832,6 +854,7 @@ _POST_ROUTES = {
     "/api/writes/commit": _post_writes_commit,
     "/api/writes/undo": _post_writes_undo,
     "/api/prefs/update-check": _post_prefs_update_check,
+    "/api/app-update/apply": _post_app_update_apply,
     "/api/report/packet": _post_report_packet,
     "/api/report/docx": _post_report_docx,
     "/api/manuscripts/import-docx": _post_manuscripts_import_docx,

@@ -361,6 +361,7 @@ registerActions({
   "export-record": () => { closeReviewRecord(); renderSurface("output"); exportPacket(); },
   // Settings surface
   "check-update": checkForUpdates,
+  "app-update-check": checkAppUpdate, "app-update-apply": applyAppUpdate, "app-update-later": dismissAppUpdate,
   "toggle-theme": (el) => { const d = toggleTheme(); el.textContent = d ? "◑ Light theme" : "◑ Dark theme"; },
   next: () => { const n = nextPending(); if (n) selectClaim(n); },
 });
@@ -398,6 +399,57 @@ async function checkForUpdates() {
     notify(r.message, r.checked ? { kind: "ok", sticky: !!r.update_available }
                                 : { kind: "error" });
   } catch (e) { notify(e.message); }
+}
+
+/* Desktop-app signed auto-update (TUF/tufup) — the frozen-app channel, distinct from the
+ * PyPI check above. Prompted, never silent: check is read-only, and APPLY runs only on an
+ * explicit "Update now" click and STAGES the new build for next launch (no mid-review
+ * restart). Inert (status "not_configured") on a pip install or until keys+server exist. */
+async function checkAppUpdate() {
+  const host = $("#appUpdate"); if (!host) return;
+  host.classList.remove("ok"); host.textContent = "Checking for a signed desktop-app update…";
+  try { renderAppUpdate(await api("GET", "/api/app-update")); }
+  catch (e) { host.textContent = e.message; }
+}
+
+function renderAppUpdate(r) {
+  const host = $("#appUpdate"); if (!host) return;
+  if (r.update_available && r.version) {
+    host.classList.add("ok");
+    host.innerHTML = `Version <b>${esc(r.version)}</b> is available (signed).
+      <div class="actions">
+        <button class="btn primary" data-act="app-update-apply">Update now</button>
+        <button class="btn ghost" data-act="app-update-later">Later</button></div>
+      <span class="note">Applying stages it for your next launch — the current review is untouched.</span>`;
+    return;
+  }
+  host.classList.remove("ok");
+  if (r.status === "up_to_date") host.textContent = `You're on the latest signed build${r.version ? " (v" + r.version + ")" : ""}.`;
+  else if (r.status === "not_configured") host.textContent = `Auto-update is inactive here: ${r.detail || "not configured"}.`;
+  else host.textContent = r.detail || "Couldn't check for a desktop-app update.";
+}
+
+async function applyAppUpdate() {
+  const host = $("#appUpdate");
+  notify("Downloading and verifying the signed update…", { kind: "ok", sticky: true });
+  try {
+    const r = await api("POST", "/api/app-update/apply", {});
+    if (r.status === "applied") {
+      const msg = `Update staged${r.version ? " (v" + r.version + ")" : ""} — restart CiteVahti to use it. Your current review is untouched.`;
+      if (host) { host.classList.remove("ok"); host.textContent = msg; }
+      notify(msg, { kind: "ok", sticky: true });
+    } else {
+      const msg = r.detail || (r.status === "up_to_date" ? "Already on the latest build." : "No update was applied.");
+      if (host) host.textContent = msg;
+      notify(msg, { kind: r.status === "up_to_date" ? "ok" : "error" });
+    }
+  } catch (e) { notify(e.message); }
+}
+
+function dismissAppUpdate() {
+  const host = $("#appUpdate"); if (!host) return;
+  host.classList.remove("ok");
+  host.textContent = "Update deferred — use “Check desktop app” when you're ready.";
 }
 $("#reload").addEventListener("click", () => { loadManuscripts(); loadAudit(); });
 $("#prompts").addEventListener("click", openPrompts);

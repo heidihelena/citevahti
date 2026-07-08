@@ -40,7 +40,8 @@ _SRC = pathlib.Path(__file__).resolve().parents[1] / "src/citevahti/panel/server
 # ---- frozen route inventory (parsed from dispatch() in server.py) ----------------------
 # A diff in either set is a route change the decomposition must account for consciously.
 FROZEN_MUTATING_POSTS = {
-    "/api/ai-config", "/api/atlas/contribution-preview", "/api/atlas/revoke",
+    "/api/ai-config", "/api/app-update/apply",
+    "/api/atlas/contribution-preview", "/api/atlas/revoke",
     "/api/candidates/recheck-library", "/api/candidates/resolve-dois",
     "/api/candidates/scan-licenses", "/api/candidates/scan-retractions",
     "/api/candidates/unlink", "/api/chat", "/api/claim-check", "/api/claim-tests-prompt",
@@ -56,7 +57,8 @@ FROZEN_MUTATING_POSTS = {
     "/api/zotero/locate",
 }
 FROZEN_READONLY_GETS = {
-    "/api/ai-config", "/api/ai/local-models", "/api/audit/log", "/api/audit/verify",
+    "/api/ai-config", "/api/ai/local-models", "/api/app-update", "/api/audit/log",
+    "/api/audit/verify",
     "/api/check-update", "/api/claims", "/api/context", "/api/draft-context",
     "/api/evidence-map", "/api/health", "/api/ledgers", "/api/manuscripts", "/api/next",
     "/api/pandoc/status", "/api/ping", "/api/prompts", "/api/report", "/api/triage",
