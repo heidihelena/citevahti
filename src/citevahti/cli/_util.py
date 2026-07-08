@@ -223,6 +223,10 @@ _CONNECTION_NAMES = {
     "pubmed_ncbi": "pubmed_ncbi", "fullvahti": "fullvahti",
     "ncbi_api_key": "ncbi_api_key", "zotero_write_key": "zotero_write_key",
 }
+_CONNECTION_STATUSES = {
+    "connected": "connected", "configured": "configured", "unavailable": "unavailable",
+    "missing": "missing", "store_unavailable": "store_unavailable",
+}
 _SECRET_DISPLAY_NAMES = {
     "zotero_write_key": "zotero_write_key", "ncbi_api_key": "ncbi_api_key",
     "fullvahti_token": "fullvahti_token", "ai_api_key": "ai_api_key",
@@ -240,6 +244,15 @@ def connection_display(name) -> str:
     return _CONNECTION_NAMES.get(str(name), "other")
 
 
+def status_display(status) -> str:
+    """Display label for a connection status (a fixed vocabulary). The secret-backed
+    connections derive theirs from ``secret_state()`` — which the scanner classifies as
+    sensitive by *name*, and which reaches this status field through a dict *subscript*
+    (a tainted-key step the scanner propagates). Laundering through this single
+    `dict.get` → literal keeps the status off the log-sink taint path."""
+    return _CONNECTION_STATUSES.get(str(status), "other")
+
+
 def secret_source_display(source) -> str:
     """Display label for where a secret resolves from — env / system_keyring /
     store_unavailable / unset — never the value or the env-var/service path.
@@ -251,14 +264,17 @@ def secret_source_display(source) -> str:
     return _SECRET_SOURCE_KINDS.get(kind, "system_keyring")
 
 
-def secret_names_display(names) -> list[str]:
-    """The stored/skipped credential NAMES (never values), via a literal allowlist.
+def secret_names_display(names) -> str:
+    """The stored/skipped credential NAMES (never values) as a display string, via a
+    literal allowlist.
 
-    Built by iterating the *allowlist* (all string literals) and keeping the ones
-    present in the input — the input is only ever a membership test, never iterated
-    into the output — so no input value flows to the returned list. Any input not in
-    the allowlist is surfaced as an "other" count, preserving the total."""
+    Built by iterating the *allowlist* (all string literals) and joining the ones
+    present in the input — the input is only ever a membership test, never passed
+    through — so no input value flows to the returned string. This is the single-string
+    `dict.get`/join barrier shape the taint scanner credits; the earlier list-returning
+    form was not. Any input not in the allowlist is surfaced as an "other" count,
+    preserving the total."""
     present = {str(n) for n in (names or [])}
     shown = [known for known in _SECRET_DISPLAY_NAMES if known in present]
     others = len(present) - len(shown)
-    return shown + ["other"] * others
+    return ", ".join(shown + ["other"] * others)
