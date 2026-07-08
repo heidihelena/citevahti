@@ -17,7 +17,7 @@ from ..state import CiteVahtiStore
 
 from ._util import (  # noqa: F401
     _DEMO_DIR, _parse_library, _fit_from_args, _emit_json, _print_support, _print_panel, _claim_report_text, _print_txn, _print_warehouse, _dedupe_breakdown, _report_intake, _subject, _safe, _print_write, _refs,
-    connection_display, secret_names_display, secret_source_display, status_display,
+    connection_display, names_display, source_display, status_display,
     store_backend_display,
 )
 
@@ -101,7 +101,7 @@ def _cmd_status(args) -> int:
         if c.version:
             line += f" (version={c.version})"
         if c.secret_source:
-            line += f" [source={secret_source_display(c.secret_source)}]"
+            line += f" [source={source_display(c.secret_source)}]"
         print(line)
         if c.remediation:
             print(f"         remediation: {c.remediation}")
@@ -1416,9 +1416,9 @@ def _cmd_onboard(args) -> int:
         fullvahti_token=fvtoken, secrets_backend=args.backend, validate=not args.skip_validate)
     print(f"secrets_backend : {store_backend_display(rep.secrets_backend)}")
     print(f"config updated  : {sorted(set(rep.config_updated))}")
-    print(f"secrets stored  : {secret_names_display(rep.secrets_stored) or '(none)'}")  # names only
+    print(f"secrets stored  : {names_display(rep.secrets_stored) or '(none)'}")  # names only
     if rep.secrets_skipped:
-        print(f"secrets skipped : {secret_names_display(rep.secrets_skipped)}")
+        print(f"secrets skipped : {names_display(rep.secrets_skipped)}")
     if rep.validations:
         print(f"validations     : {rep.validations}")
     for w in rep.warnings:

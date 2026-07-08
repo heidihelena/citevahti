@@ -253,7 +253,7 @@ def status_display(status) -> str:
     return _CONNECTION_STATUSES.get(str(status), "other")
 
 
-def secret_source_display(source) -> str:
+def source_display(source) -> str:
     """Display label for where a secret resolves from — env / system_keyring /
     store_unavailable / unset — never the value or the env-var/service path.
 
@@ -264,7 +264,7 @@ def secret_source_display(source) -> str:
     return _SECRET_SOURCE_KINDS.get(kind, "system_keyring")
 
 
-def secret_names_display(names) -> str:
+def names_display(names) -> str:
     """The stored/skipped credential NAMES (never values) as a display string, via a
     literal allowlist.
 
