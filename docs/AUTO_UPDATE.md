@@ -74,6 +74,10 @@ their next launch check.
 
 ## Key-management runbook
 
+**The full, copy-pasteable runbook — generate keys offline, back them up to a USB drive, sign a
+release, rotate, and recover from a leak — is [`KEY_MANAGEMENT.md`](KEY_MANAGEMENT.md).** The
+essentials:
+
 - **Custody:** `root`/`targets` private keys live only in the encrypted offline keystore + its
   backup. Never commit them; never put them in CI. `snapshot`/`timestamp` may move to a
   reviewer-gated CI environment later (a GA optimization), but not `root`/`targets`.
