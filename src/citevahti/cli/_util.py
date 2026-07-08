@@ -215,7 +215,7 @@ def _refs(keys):
 # it, whereas multi-branch `return input` or "build a list by iterating the tainted input"
 # forms do not). Unknown inputs render as "other" rather than echoing an unclassified value.
 _STORE_BACKENDS = {"system_keyring": "system_keyring", "env": "env"}
-_SECRET_SOURCE_KINDS = {
+_SOURCE_KINDS = {
     "env": "env", "unset": "unset", "store_unavailable": "store_unavailable",
 }
 _CONNECTION_NAMES = {
@@ -227,7 +227,7 @@ _CONNECTION_STATUSES = {
     "connected": "connected", "configured": "configured", "unavailable": "unavailable",
     "missing": "missing", "store_unavailable": "store_unavailable",
 }
-_SECRET_DISPLAY_NAMES = {
+_KNOWN_NAMES = {
     "zotero_write_key": "zotero_write_key", "ncbi_api_key": "ncbi_api_key",
     "fullvahti_token": "fullvahti_token", "ai_api_key": "ai_api_key",
 }
@@ -261,7 +261,7 @@ def source_display(source) -> str:
     nothing flows from it to the return (the barrier shape a taint scanner clears)."""
     s = str(source)
     kind = "env" if s.startswith("env:") else s
-    return _SECRET_SOURCE_KINDS.get(kind, "system_keyring")
+    return _SOURCE_KINDS.get(kind, "system_keyring")
 
 
 def names_display(names) -> str:
@@ -275,6 +275,6 @@ def names_display(names) -> str:
     form was not. Any input not in the allowlist is surfaced as an "other" count,
     preserving the total."""
     present = {str(n) for n in (names or [])}
-    shown = [known for known in _SECRET_DISPLAY_NAMES if known in present]
+    shown = [known for known in _KNOWN_NAMES if known in present]
     others = len(present) - len(shown)
     return ", ".join(shown + ["other"] * others)
