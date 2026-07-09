@@ -1,0 +1,34 @@
+{
+  "theme": "REPLACE-with-kebab-case-topic",
+  "vocabulary": ["supports", "contrasts", "unclear", "not_relevant"],
+  "notes": "ref_status = the anchor label, authored INDEPENDENTLY of the raters (domain expert / cited guideline). claude_status = Claude's blind prescreen (a rater column, NOT the anchor). Keep the four labels frozen; never invent a new scale.",
+  "_field_guide": {
+    "id": "short stable id, e.g. NA01",
+    "claim": "the assertion being checked (one sentence)",
+    "snippet": "the cited source's own text the claim leans on (an abstract/guideline excerpt)",
+    "source": "human-readable citation of the snippet",
+    "ref_status": "ANCHOR: supports | contrasts | unclear | not_relevant. supports = snippet affirms the claim; contrasts = snippet states the opposite; unclear = on-topic but does not resolve it (e.g. 'evidence not established/mixed'); not_relevant = different topic.",
+    "claude_status": "Claude's own blind rating (same 4 labels) — a rater, not the anchor",
+    "claude_rationale": "one sentence"
+  },
+  "pairs": [
+    {
+      "id": "EX01",
+      "claim": "Example: intervention X improves outcome Y in population Z.",
+      "snippet": "Trial ABC randomized population Z to X vs control and found a significant improvement in outcome Y.",
+      "source": "Trial ABC (Journal Year)",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "The trial directly reports the improvement the claim asserts."
+    },
+    {
+      "id": "EX02",
+      "claim": "Example (genuine unclear): factor W increases the risk of outcome Y.",
+      "snippet": "Studies of W and Y are inconsistent and confounded; an independent effect has not been established.",
+      "source": "Evidence review (Journal Year)",
+      "ref_status": "unclear",
+      "claude_status": "unclear",
+      "claude_rationale": "The snippet says the evidence does not settle the claim — unresolved, not contradicted."
+    }
+  ]
+}

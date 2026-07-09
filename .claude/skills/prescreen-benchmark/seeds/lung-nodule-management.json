@@ -1,0 +1,367 @@
+{
+  "theme": "lung-nodule-management",
+  "vocabulary": ["supports", "contrasts", "unclear", "not_relevant"],
+  "notes": "ref_status = guideline-derived anchor label (the independent anchor). claude_status = Claude Fable 5 prescreen, produced blind to the local models. Sources are well-established lung-nodule guidance (Fleischner 2017, Lung-RADS v2022, NLST, NELSON, BTS/Brock).",
+  "pairs": [
+    {
+      "id": "LN01",
+      "claim": "Solid pulmonary nodules smaller than 6 mm in low-risk patients do not require routine follow-up CT.",
+      "snippet": "Fleischner Society 2017: for a single solid nodule <6 mm in a low-risk patient, no routine follow-up is recommended; optional 12-month CT may be considered in high-risk patients.",
+      "source": "Fleischner Society 2017 (MacMahon et al., Radiology)",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet states verbatim that <6 mm solid nodules in low-risk patients need no routine follow-up."
+    },
+    {
+      "id": "LN02",
+      "claim": "A solid nodule of 6-8 mm in a low-risk patient should undergo CT follow-up at 6-12 months.",
+      "snippet": "Fleischner Society 2017: a single solid nodule 6-8 mm in a low-risk patient should be followed with CT at 6-12 months, then consider CT at 18-24 months.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet gives the same 6-12 month interval for 6-8 mm low-risk solid nodules."
+    },
+    {
+      "id": "LN03",
+      "claim": "All pulmonary nodules require biopsy regardless of size.",
+      "snippet": "Fleischner Society 2017: solid nodules <6 mm require no routine follow-up in most patients; management is size- and risk-stratified rather than biopsy for all.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "The size-stratified, no-follow-up-for-small guidance directly contradicts biopsy-for-all."
+    },
+    {
+      "id": "LN04",
+      "claim": "Part-solid nodules with a solid component of 6 mm or larger are suspicious for malignancy and warrant further evaluation.",
+      "snippet": "Fleischner Society 2017: for part-solid nodules with a solid component >=6 mm, malignancy is more likely; consider PET/CT, biopsy, or resection.",
+      "source": "Fleischner Society 2017 (subsolid)",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet ties solid component >=6 mm to higher malignancy risk and further workup."
+    },
+    {
+      "id": "LN05",
+      "claim": "Low-dose CT screening reduces lung cancer mortality in high-risk smokers.",
+      "snippet": "National Lung Screening Trial (NLST): low-dose CT screening produced a 20% relative reduction in lung cancer mortality versus chest radiography in high-risk current and former smokers.",
+      "source": "NLST 2011 (NEJM)",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "NLST's 20% mortality reduction directly supports the claim."
+    },
+    {
+      "id": "LN06",
+      "claim": "The NELSON trial found no mortality benefit from CT lung cancer screening.",
+      "snippet": "NELSON trial: volume-based low-dose CT screening significantly reduced lung cancer mortality, with a rate ratio of 0.76 among men at 10 years.",
+      "source": "NELSON 2020 (NEJM)",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "NELSON showed a significant mortality reduction, opposite to the claim of no benefit."
+    },
+    {
+      "id": "LN07",
+      "claim": "PET-CT reliably characterizes subsolid nodules smaller than 8 mm.",
+      "snippet": "FDG PET/CT has limited sensitivity for subsolid nodules and for nodules <8-10 mm, with a substantial false-negative rate; it is not recommended as the primary tool for small subsolid lesions.",
+      "source": "Fleischner / BTS guidance on PET",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "Limited sensitivity for small/subsolid lesions contradicts 'reliably characterizes'."
+    },
+    {
+      "id": "LN08",
+      "claim": "A pulmonary nodule with a volume doubling time greater than 600 days is likely benign.",
+      "snippet": "Volume doubling time is used to assess nodule behavior: very long doubling times (>400-600 days) are associated with benign or indolent lesions, while short doubling times (<100 days) suggest malignancy or infection.",
+      "source": "BTS nodule guideline",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Long doubling time (>600 days) falls in the benign-associated range described."
+    },
+    {
+      "id": "LN09",
+      "claim": "The Brock (PanCan) model estimates the probability of malignancy for screen-detected pulmonary nodules.",
+      "snippet": "The Brock University (PanCan) model estimates malignancy probability from nodule size, type, count, spiculation, upper-lobe location, and patient factors, and is recommended for risk stratification of screen-detected nodules.",
+      "source": "BTS / PanCan (Brock) model",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet describes exactly this use of the Brock model."
+    },
+    {
+      "id": "LN10",
+      "claim": "Persistent ground-glass nodules never require follow-up imaging.",
+      "snippet": "Fleischner Society 2017: a persistent pure ground-glass nodule >=6 mm should have CT follow-up at 6-12 months and then periodically to at least 5 years, as it may represent the adenocarcinoma spectrum.",
+      "source": "Fleischner Society 2017 (subsolid)",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "Guideline mandates periodic follow-up for persistent GGNs, contradicting 'never'."
+    },
+    {
+      "id": "LN11",
+      "claim": "Coffee consumption slows the growth of pulmonary nodules.",
+      "snippet": "Fleischner Society 2017: follow-up intervals for solid and subsolid nodules are stratified by size and patient risk.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "not_relevant",
+      "claude_status": "not_relevant",
+      "claude_rationale": "Snippet says nothing about coffee or dietary effects on nodule growth."
+    },
+    {
+      "id": "LN12",
+      "claim": "Lung-RADS category 4B includes solid nodules of 15 mm or larger.",
+      "snippet": "Lung-RADS v2022: category 4B includes solid nodules >=15 mm, or a solid nodule 8 to <15 mm that is new or growing; it denotes a suspicious finding requiring further diagnostic evaluation.",
+      "source": "ACR Lung-RADS v2022",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet confirms >=15 mm solid nodules fall in 4B."
+    },
+    {
+      "id": "LN13",
+      "claim": "Smoking cessation immediately eliminates a person's lung cancer risk.",
+      "snippet": "Lung cancer risk declines gradually after smoking cessation but remains elevated compared with never-smokers for many years, which is why former heavy smokers remain eligible for screening.",
+      "source": "Screening eligibility guidance",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "Risk declines gradually and stays elevated, contradicting 'immediately eliminates'."
+    },
+    {
+      "id": "LN14",
+      "claim": "Incidentally detected nodules and screen-detected nodules are managed under different frameworks.",
+      "snippet": "Incidentally detected pulmonary nodules are managed under the Fleischner Society recommendations, whereas nodules found in a formal CT screening program are managed with Lung-RADS.",
+      "source": "Fleischner / Lung-RADS scope statements",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet explicitly assigns incidental nodules to Fleischner and screen-detected to Lung-RADS."
+    },
+    {
+      "id": "LN15",
+      "claim": "The correct follow-up interval for a 7 mm solid incidental nodule is exactly 90 days.",
+      "snippet": "Fleischner Society 2017: a single solid nodule 6-8 mm should be re-imaged with CT at 6-12 months depending on risk; no fixed 90-day interval is specified.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "Guideline specifies a 6-12 month window, not a fixed 90 days; the precise claim is contradicted."
+    },
+    {
+      "id": "LN16",
+      "claim": "USPSTF 2021 recommends annual low-dose CT screening for adults aged 50-80 with at least a 20 pack-year smoking history who currently smoke or quit within the past 15 years.",
+      "snippet": "USPSTF 2021 (grade B): annual low-dose CT lung cancer screening in adults aged 50 to 80 years who have a 20 pack-year smoking history and currently smoke or have quit within the past 15 years; discontinue once a person has not smoked for 15 years.",
+      "source": "USPSTF 2021",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet states the USPSTF 2021 age, pack-year, and quit-window criteria verbatim."
+    },
+    {
+      "id": "LN17",
+      "claim": "A 55-year-old who quit smoking 20 years ago with a 30 pack-year history is eligible for LDCT screening under USPSTF 2021.",
+      "snippet": "USPSTF 2021: screening should be discontinued once a person has not smoked for 15 years.",
+      "source": "USPSTF 2021",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "Having quit 20 years ago exceeds the 15-year window, so the person is ineligible — the claim is contradicted."
+    },
+    {
+      "id": "LN18",
+      "claim": "Lung-RADS category 3 corresponds to a probably benign finding with a recommended 6-month follow-up LDCT.",
+      "snippet": "Lung-RADS v2022 category 3 (probably benign): solid nodule 6 to <8 mm at baseline or a new 4 to <6 mm nodule; recommended management is LDCT in 6 months.",
+      "source": "ACR Lung-RADS v2022",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet confirms category 3 is probably benign with 6-month LDCT follow-up."
+    },
+    {
+      "id": "LN19",
+      "claim": "Pure ground-glass nodules smaller than 6 mm never progress to invasive adenocarcinoma.",
+      "snippet": "Fleischner 2017: a single pure ground-glass nodule <6 mm does not require routine follow-up in most patients.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "unclear",
+      "claude_status": "unclear",
+      "claude_rationale": "The snippet is a follow-up policy statement; it does not address natural history, so it neither confirms nor refutes 'never progress'."
+    },
+    {
+      "id": "LN20",
+      "claim": "A solid pulmonary nodule with a central, laminated, or popcorn pattern of calcification is very likely benign.",
+      "snippet": "Benign calcification patterns — diffuse, central, laminated (concentric), and popcorn (chondroid) — strongly suggest a granuloma or hamartoma and generally require no further workup.",
+      "source": "Radiologic nodule characterization",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet lists exactly these patterns as strongly benign."
+    },
+    {
+      "id": "LN21",
+      "claim": "Macroscopic fat within a solid pulmonary nodule indicates malignancy and warrants resection.",
+      "snippet": "The presence of macroscopic intranodular fat is a characteristic feature of a pulmonary hamartoma, a benign lesion, and its identification generally obviates further workup.",
+      "source": "Radiologic nodule characterization",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "Intranodular fat signals a benign hamartoma, the opposite of the claim."
+    },
+    {
+      "id": "LN22",
+      "claim": "Typical perifissural nodules are usually treated as benign intrapulmonary lymph nodes.",
+      "snippet": "Fleischner 2017: typical perifissural nodules with a smooth, solid, oval or lentiform morphology most often represent intrapulmonary lymph nodes and do not require the same follow-up as other solid nodules.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet identifies typical perifissural nodules as intrapulmonary lymph nodes needing less follow-up."
+    },
+    {
+      "id": "LN23",
+      "claim": "For an indeterminate solid nodule, the Herder model should always be used instead of the Brock model.",
+      "snippet": "The Herder model extends the Mayo/Brock risk approach by incorporating FDG-PET avidity to refine malignancy probability for indeterminate nodules.",
+      "source": "BTS / Herder model",
+      "ref_status": "unclear",
+      "claude_status": "unclear",
+      "claude_rationale": "Snippet frames Herder as a PET-based extension of Brock but does not establish that it should 'always' replace it."
+    },
+    {
+      "id": "LN24",
+      "claim": "Vitamin D supplementation reduces the size of pulmonary nodules.",
+      "snippet": "Lung-RADS v2022 assigns management categories to screen-detected nodules by size and morphology.",
+      "source": "ACR Lung-RADS v2022",
+      "ref_status": "not_relevant",
+      "claude_status": "not_relevant",
+      "claude_rationale": "Snippet says nothing about vitamin D or any effect on nodule size."
+    },
+    {
+      "id": "LN25",
+      "claim": "A solid incidental nodule larger than 8 mm may be evaluated with CT at 3 months, PET/CT, or tissue sampling.",
+      "snippet": "Fleischner 2017: for a solid nodule >8 mm, consider CT at 3 months, PET/CT, and/or tissue sampling depending on size, morphology, and clinical risk.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet lists exactly these three options for >8 mm solid nodules."
+    },
+    {
+      "id": "LN26",
+      "claim": "A solid nodule that doubles in volume every 25 days is characteristic of a slow-growing indolent malignancy.",
+      "snippet": "Very short volume doubling times (<20-30 days) typically indicate infection or inflammation rather than malignancy, whereas most lung cancers show doubling times of roughly 100-400 days.",
+      "source": "BTS nodule guideline",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "A 25-day doubling time points to infection/inflammation, not indolent malignancy."
+    },
+    {
+      "id": "LN27",
+      "claim": "A patient with more than ten bilateral pulmonary nodules necessarily has metastatic disease.",
+      "snippet": "Fleischner 2017: numerous bilateral nodules may reflect prior granulomatous infection, and management depends on the clinical context and the dominant nodule.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "unclear",
+      "claude_status": "unclear",
+      "claude_rationale": "Snippet says such nodules are context-dependent and often infectious, so it cannot resolve the categorical 'necessarily metastatic' claim."
+    },
+    {
+      "id": "LN28",
+      "claim": "Air bronchograms within a nodule are associated with an increased likelihood of malignancy.",
+      "snippet": "Internal features such as air bronchograms and bubble-like lucencies are seen more frequently in malignant nodules, particularly adenocarcinoma.",
+      "source": "Radiologic nodule characterization",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet ties air bronchograms to higher malignancy likelihood."
+    },
+    {
+      "id": "LN29",
+      "claim": "After a negative baseline LDCT, the next lung cancer screening CT should be performed after five years.",
+      "snippet": "Lung cancer screening programs use annual intervals (NLST) or increasing 1-2 year intervals (NELSON) after a negative baseline, not five-year intervals.",
+      "source": "NLST / NELSON",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "Screening intervals are annual to biennial, contradicting a five-year interval."
+    },
+    {
+      "id": "LN30",
+      "claim": "Beta-carotene supplementation lowers pulmonary nodule detection rates on CT.",
+      "snippet": "The Brock (PanCan) model estimates malignancy probability from nodule size, type, count, spiculation, and location.",
+      "source": "PanCan / Brock model",
+      "ref_status": "not_relevant",
+      "claude_status": "not_relevant",
+      "claude_rationale": "Snippet is about the Brock risk model and says nothing about beta-carotene or detection rates."
+    },
+    {
+      "id": "LN31",
+      "claim": "A subsolid nodule should be confirmed as persistent on follow-up imaging before longer-term surveillance, since many are transient.",
+      "snippet": "Fleischner 2017: many subsolid nodules are transient (infectious or inflammatory); an initial short-term follow-up CT (e.g., 3-6 months) is used to confirm persistence before longer-term surveillance.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet endorses confirming persistence first because many subsolid nodules are transient."
+    },
+    {
+      "id": "LN32",
+      "claim": "A persistent part-solid nodule with a 7 mm solid component can be safely discharged with no further imaging.",
+      "snippet": "Fleischner 2017: a persistent part-solid nodule with a solid component >=6 mm is suspicious for malignancy and warrants further evaluation (PET/CT, biopsy, or resection).",
+      "source": "Fleischner Society 2017",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "A 7 mm solid component is suspicious and needs workup, contradicting discharge."
+    },
+    {
+      "id": "LN33",
+      "claim": "A nodule with an FDG-PET SUVmax of 3.0 mandates surgical resection.",
+      "snippet": "FDG-PET avidity raises malignancy probability and feeds risk models such as Herder, but management combines PET findings with nodule size, morphology, and overall clinical risk.",
+      "source": "PET / Herder guidance",
+      "ref_status": "unclear",
+      "claude_status": "unclear",
+      "claude_rationale": "Snippet says PET informs a multifactorial decision; it does not establish that SUVmax 3.0 alone mandates resection."
+    },
+    {
+      "id": "LN34",
+      "claim": "Non-surgical biopsy is a reasonable option for an indeterminate nodule of intermediate malignancy probability when a diagnosis would change management.",
+      "snippet": "Guidelines endorse image-guided or bronchoscopic biopsy for nodules of intermediate malignancy probability when tissue diagnosis is feasible and would alter management.",
+      "source": "BTS / CHEST nodule guidance",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet endorses biopsy in exactly this intermediate-probability, management-changing setting."
+    },
+    {
+      "id": "LN35",
+      "claim": "Eccentric or stippled calcification within a nodule reliably indicates a benign process.",
+      "snippet": "Unlike central, laminated, diffuse, or popcorn patterns, eccentric or punctate/stippled calcification does not exclude malignancy and can be seen in cancers.",
+      "source": "Radiologic nodule characterization",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "Eccentric/stippled calcification does not exclude malignancy, contradicting 'reliably benign'."
+    },
+    {
+      "id": "LN36",
+      "claim": "Drinking green tea daily prevents the recurrence of resected lung nodules.",
+      "snippet": "Volume doubling time helps distinguish benign from malignant nodule growth on serial CT.",
+      "source": "BTS nodule guideline",
+      "ref_status": "not_relevant",
+      "claude_status": "not_relevant",
+      "claude_rationale": "Snippet is about doubling time and says nothing about green tea or recurrence."
+    },
+    {
+      "id": "LN37",
+      "claim": "For a solid nodule smaller than 6 mm in a high-risk patient, optional CT at 12 months may be considered.",
+      "snippet": "Fleischner 2017: for a single solid nodule <6 mm in a high-risk patient, no routine follow-up is required, though optional CT at 12 months may be considered with suspicious morphology or risk factors.",
+      "source": "Fleischner Society 2017",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet explicitly allows optional 12-month CT for high-risk sub-6 mm solid nodules."
+    },
+    {
+      "id": "LN38",
+      "claim": "A solitary 10 mm solid nodule in a patient with a prior extrathoracic cancer necessarily represents a pulmonary metastasis.",
+      "snippet": "In a patient with a history of extrathoracic malignancy, a new solid pulmonary nodule may be a metastasis, a primary lung cancer, or a benign lesion; tissue characterization is often required.",
+      "source": "Oncologic nodule guidance",
+      "ref_status": "unclear",
+      "claude_status": "unclear",
+      "claude_rationale": "Snippet lists metastasis as one of several possibilities requiring tissue diagnosis, so it cannot confirm 'necessarily a metastasis'."
+    },
+    {
+      "id": "LN39",
+      "claim": "Lung-RADS category 4X denotes a nodule with additional imaging features that increase suspicion of malignancy.",
+      "snippet": "Lung-RADS v2022 category 4X applies to category 3 or 4 nodules with additional features or imaging findings that increase the suspicion of malignancy.",
+      "source": "ACR Lung-RADS v2022",
+      "ref_status": "supports",
+      "claude_status": "supports",
+      "claude_rationale": "Snippet defines 4X exactly as additional suspicious features on a 3/4 nodule."
+    },
+    {
+      "id": "LN40",
+      "claim": "Low-dose CT lung screening produces essentially no false-positive results.",
+      "snippet": "A large share of positive LDCT screens are false positives; NLST reported that about 96% of positive results were false positives, mostly benign nodules.",
+      "source": "NLST 2011",
+      "ref_status": "contrasts",
+      "claude_status": "contrasts",
+      "claude_rationale": "NLST's ~96% false-positive rate directly contradicts 'essentially no false positives'."
+    }
+  ]
+}
