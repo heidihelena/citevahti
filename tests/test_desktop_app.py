@@ -569,3 +569,81 @@ def test_sidecar_supervisors_tolerate_transient_probe_misses(tmp_path, monkeypat
     _isolate(monkeypatch, tmp_path)
     assert desktop._default_engine_supervisor(str(tmp_path)).wedge_threshold >= 10
     assert desktop._default_mcp_supervisor(str(tmp_path)).wedge_threshold >= 10
+
+
+# ---- close = hide, never quit (pilot finding 2026-07-11) ------------------------
+class _HidableWindow(_FakeWindow):
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.hidden = 0
+        self.shown = 0
+
+    def hide(self):
+        self.hidden += 1
+
+    def show(self):
+        self.shown += 1
+
+
+def test_closing_the_window_hides_it_and_never_stops_the_sidecars(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    project = tmp_path / "project"
+    CiteVahtiStore(project).init()
+    monkeypatch.chdir(project)
+    order = []
+    shell = _make_shell(tmp_path, order_log=order)
+    window = _HidableWindow()
+    shell.attach_window(window)
+    shell.on_started()
+    order.clear()
+
+    handler = desktop.make_close_handler(shell, window)
+    assert handler() is False              # close is cancelled…
+    assert window.hidden == 1              # …the window is hidden instead
+    assert order == []                     # and NO sidecar was stopped
+    assert not shell._quit_started
+
+
+def test_close_is_allowed_through_while_quitting(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    project = tmp_path / "project"
+    CiteVahtiStore(project).init()
+    monkeypatch.chdir(project)
+    shell = _make_shell(tmp_path)
+    window = _HidableWindow()
+    shell.attach_window(window)
+    shell.on_started()
+    shell.quit()
+
+    handler = desktop.make_close_handler(shell, window)
+    assert handler() is True               # a real quit must never be blocked
+    assert window.hidden == 0
+
+
+def test_close_falls_back_to_closing_when_hide_is_unavailable(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    shell = _make_shell(tmp_path)
+    window = _FakeWindow()                 # no hide() at all → AttributeError inside
+    handler = desktop.make_close_handler(shell, window)
+    assert handler() is True               # degrade to the old behaviour, don't wedge
+
+
+def test_open_panel_shows_the_hidden_window_and_reloads_only_when_needed(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    project = tmp_path / "project"
+    CiteVahtiStore(project).init()
+    monkeypatch.chdir(project)
+    shell = _make_shell(tmp_path)
+    window = _HidableWindow()
+    shell.attach_window(window)
+    shell.on_started()                     # boots + loads the panel once
+    loads_after_boot = len(window.urls_loaded)
+
+    shell.open_panel()                     # panel already showing → show, no reload
+    assert window.shown == 1
+    assert len(window.urls_loaded) == loads_after_boot
+
+    shell._show_engine_error()             # window no longer shows the panel…
+    shell.open_panel()                     # …so opening must reload it
+    assert window.shown == 2
+    assert len(window.urls_loaded) == loads_after_boot + 1

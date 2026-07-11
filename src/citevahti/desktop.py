@@ -342,16 +342,28 @@ class CiteVahtiShell:
         self._panel_loaded = True
 
     def _show_no_project(self) -> None:
+        self._panel_loaded = False   # the window no longer shows the panel
         if self._window is not None:
             self._window.load_html(_NO_PROJECT_HTML)
 
     def _show_engine_error(self) -> None:
+        self._panel_loaded = False   # the window no longer shows the panel
         if self._window is not None:
             self._window.load_html(_ENGINE_ERROR_HTML)
 
     # ---- menu-bar actions -------------------------------------------------------
     def open_panel(self) -> None:
-        if self.engine is not None and self.engine.state == SidecarSupervisor.RUNNING:
+        # The window may be hidden (closing it hides, never quits — pilot finding
+        # 2026-07-11: "Apple takes the app away always when I close it"). Show it
+        # first, then load the panel only if it isn't already showing one — a
+        # needless reload would throw away the researcher's place in the review.
+        if self._window is not None:
+            try:
+                self._window.show()
+            except Exception:  # noqa: BLE001 — some backends lack show(); loading still works
+                pass
+        if (self.engine is not None and self.engine.state == SidecarSupervisor.RUNNING
+                and not self._panel_loaded):
             self._load_panel_url()
 
     def choose_project_folder(self) -> None:
@@ -422,6 +434,26 @@ class CiteVahtiShell:
         self.logger.info("quitting — stopping the agent server, then the panel engine")
         self._stop_mcp()
         self._stop_engine()
+
+
+def make_close_handler(shell: CiteVahtiShell, window) -> Callable[[], bool]:
+    """The window's ``closing`` handler: **hide, don't quit**. CiteVahti is a menu-bar
+    app — closing the window used to run ``shell.quit()`` (stopping both sidecars) and
+    let pywebview's loop exit with its last window, so every close cost a cold restart
+    (pilot finding, 2026-07-11: "Apple takes the app away always when I close it").
+    Returning False cancels the close after hiding; "Open Review Panel" in the menu bar
+    brings the same window back with the researcher's place intact. A real quit (menu
+    Quit, Cmd+Q → the will-terminate observer, atexit) still stops the sidecars — and
+    while it is underway the close is allowed through so termination is never blocked."""
+    def _on_closing() -> bool:
+        if shell._quit_started:
+            return True
+        try:
+            window.hide()
+        except Exception:  # noqa: BLE001 — a backend without hide() falls back to closing
+            return True
+        return False
+    return _on_closing
 
 
 def _native_consent_dialog() -> bool:
@@ -682,7 +714,7 @@ def run_app(*, webview=None,
     shell.attach_window(window)
     atexit.register(shell.quit)
     try:
-        window.events.closing += (lambda: shell.quit())
+        window.events.closing += make_close_handler(shell, window)
     except Exception:
         pass
 

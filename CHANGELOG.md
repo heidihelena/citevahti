@@ -6,6 +6,21 @@ previous one.
 
 ## [Unreleased]
 
+### Fixed
+- **Closing the window no longer takes the app away** (pilot finding: *"Apple takes the
+  app away always when I close it"*). CiteVahti.app is a menu-bar app: the window's
+  close button now **hides** the window — sidecars keep running, and "Open Review Panel"
+  brings it back instantly with the researcher's place intact (no reload unless the
+  window had stopped showing the panel). Real quit (menu Quit / Cmd+Q) still stops the
+  agent server, then the engine; during a quit the close is allowed through so
+  termination is never blocked. `make_close_handler` + `open_panel` show/reload logic
+  locked by `tests/test_desktop_app.py`.
+- **The desktop webview can no longer serve stale project state** (pilot finding:
+  *"cache makes it stale"*). JSON API and HTML responses carried no cache headers, so
+  WKWebView heuristically cached them and the panel showed yesterday's manuscripts.
+  Every response now says `Cache-Control: no-store` (static assets already sent
+  no-cache/no-store). Locked by `tests/test_panel_api.py::test_every_response_kind_forbids_caching`.
+
 ### Added
 - **Recent manuscripts — reopen the paper you were on, in one click.** Pilot feedback
   ("impossible to change manuscript") + `docs/design/working-file-selection.md` idea 3:

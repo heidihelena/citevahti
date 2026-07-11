@@ -1571,3 +1571,25 @@ def test_context_lists_recent_manuscripts_and_open_records_them(tmp_path, monkey
     _, ctx1 = dispatch(str(tmp_path), "GET", "/api/context", None)
     assert [(r["id"]) for r in ctx1["recent_manuscripts"]] == ["paper_r.md"]
     assert ctx1["recent_manuscripts"][0]["root"] == str(tmp_path.resolve())
+
+
+def test_every_response_kind_forbids_caching(tmp_path):
+    # The desktop webview (WKWebView) heuristically caches responses that carry no
+    # cache headers — the panel then shows yesterday's manuscripts (pilot finding,
+    # 2026-07-11: "cache makes it stale"). Every response kind must say so explicitly:
+    # JSON API → no-store; HTML → no-store; static assets → the existing no-cache/no-store.
+    import urllib.request
+    _setup(tmp_path)
+    srv = make_server(str(tmp_path), port=0)
+    port = srv.server_address[1]
+    import threading
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        def hdr(path):
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}") as r:
+                return r.headers.get("Cache-Control") or ""
+        assert "no-store" in hdr("/api/ping")          # JSON API
+        assert "no-store" in hdr("/")                  # HTML page
+        assert "no-store" in hdr("/app.js")            # static asset
+    finally:
+        srv.shutdown()
