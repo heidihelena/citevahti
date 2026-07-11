@@ -1512,6 +1512,11 @@ def _handler_factory(root: str):
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(data)))
+            # API responses are live project state. Without an explicit header the
+            # desktop webview (WKWebView) heuristically caches JSON GETs, so the
+            # panel kept showing yesterday's manuscripts (pilot finding, 2026-07-11:
+            # "cache makes it stale"). no-store: never cached, anywhere.
+            self.send_header("Cache-Control", "no-store")
             self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(data)
@@ -1543,6 +1548,7 @@ def _handler_factory(root: str):
             self.send_response(status)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")   # same rule as _send/_static
             self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(data)
