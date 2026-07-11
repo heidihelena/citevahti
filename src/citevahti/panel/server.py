@@ -1662,19 +1662,24 @@ def _handler_factory(root: str):
                 return
             # one-click "reopen the paper you were on": switch the ledger AND mark that
             # manuscript active, so the reload lands directly in it (the document is the
-            # unit of work — docs/design/working-file-selection.md, idea 3).
+            # unit of work — docs/design/working-file-selection.md, idea 3). The request
+            # can only name an entry ALREADY on the stored recents list — the stored
+            # root is used, so no user-provided value is ever taken as a path.
             if path == "/api/recents/open":
-                new = (body or {}).get("root")
-                mid = (body or {}).get("id")
-                if new and mid and prefs.has_ledger(new):
-                    box["root"] = str(Path(new).expanduser().resolve())
+                want_root = (body or {}).get("root")
+                want_id = (body or {}).get("id")
+                match = next((r for r in prefs.recall_recent_manuscripts()
+                              if r["root"] == want_root and r["id"] == want_id), None)
+                if match and prefs.has_ledger(match["root"]):
+                    box["root"] = match["root"]              # the stored, ledger-checked value
                     prefs.remember_root(box["root"])
-                    prefs.remember_manuscript(box["root"], mid)
-                    prefs.remember_recent_manuscript(box["root"], mid)
-                    self._send(200, {"ok": True, "root": box["root"], "manuscript": mid})
+                    prefs.remember_manuscript(box["root"], match["id"])
+                    prefs.remember_recent_manuscript(box["root"], match["id"])
+                    self._send(200, {"ok": True, "root": box["root"], "manuscript": match["id"]})
                 else:
-                    self._send(400, {"error": "no_ledger",
-                                     "message": f"need a manuscript id and a root with a .citevahti ledger (got {new!r})"})
+                    self._send(404, {"error": "not_a_recent",
+                                     "message": "that manuscript is not on the recents list — "
+                                                "open it from its project once and it will be"})
                 return
             status, payload = dispatch(box["root"], "POST", path, body)
             self._send(status, payload)
