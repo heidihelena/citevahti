@@ -76,7 +76,9 @@ def recall_manuscript(root: str) -> Optional[str]:
 # The last-used root and the resolver now live in `rootcfg` so every surface — the
 # CLI, the MCP server, and this panel — answers "what am I working on" the same way.
 # Re-exported here so existing `prefs.*` call sites keep working.
-from ..rootcfg import has_ledger, recall_root, remember_root, resolve_root  # noqa: E402,F401
+from ..rootcfg import (has_ledger, recall_recent_manuscripts,  # noqa: E402,F401
+                       recall_root, remember_recent_manuscript, remember_root,
+                       resolve_root)
 
 
 def resolve_default_root(cli_root: Optional[str]) -> str:

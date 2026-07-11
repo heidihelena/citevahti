@@ -127,3 +127,46 @@ def test_leaked_temp_root_not_recalled(monkeypatch, tmp_path):
     monkeypatch.chdir(bare)
     assert rootcfg.recall_root() is None    # falls through instead of opening the leak
     assert rootcfg.resolve_root() == str(home)
+
+
+# ---- recent manuscripts (working-file-selection idea 3) ----------------------
+def test_recent_manuscripts_dedupe_order_and_cap(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    a = _ledger(tmp_path / "proj-a")
+    b = _ledger(tmp_path / "proj-b")
+    rootcfg.remember_recent_manuscript(str(a), "paper-one.md")
+    rootcfg.remember_recent_manuscript(str(b), "paper-two.md")
+    rootcfg.remember_recent_manuscript(str(a), "paper-one.md")   # reopen → moves to front, no dupe
+    recents = rootcfg.recall_recent_manuscripts()
+    assert [(r["root"], r["id"]) for r in recents] == [
+        (str(a.resolve()), "paper-one.md"), (str(b.resolve()), "paper-two.md")]
+    for i in range(20):   # cap at 8
+        rootcfg.remember_recent_manuscript(str(a), f"m{i}.md")
+    assert len(rootcfg.recall_recent_manuscripts()) == 8
+
+
+def test_recent_manuscripts_drop_rootless_and_keep_state_keys(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    gone = _ledger(tmp_path / "gone")
+    keep = _ledger(tmp_path / "keep")
+    rootcfg.remember_recent_manuscript(str(gone), "lost.md")
+    rootcfg.remember_recent_manuscript(str(keep), "kept.md")
+    import shutil
+    shutil.rmtree(gone / ".citevahti")   # project ledger deleted → entry silently drops
+    assert [r["id"] for r in rootcfg.recall_recent_manuscripts()] == ["kept.md"]
+    # remember_root must PRESERVE the recents (state.json is shared, not clobbered)
+    rootcfg.remember_root(str(keep))
+    assert [r["id"] for r in rootcfg.recall_recent_manuscripts()] == ["kept.md"]
+    assert rootcfg.recall_root() == str(keep.resolve())
+
+
+def test_recent_manuscripts_never_record_leaked_temp_roots(monkeypatch, tmp_path):
+    # real config (non-temp XDG) + a temp-tree project = a leaked e2e ledger; skip it
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(Path.home() / ".config-test-cv"))
+    try:
+        tmp_proj = _ledger(Path(tempfile.mkdtemp()) / "e2e")
+        rootcfg.remember_recent_manuscript(str(tmp_proj), "temp.md")
+        assert all(r["id"] != "temp.md" for r in rootcfg.recall_recent_manuscripts())
+    finally:
+        import shutil
+        shutil.rmtree(Path.home() / ".config-test-cv", ignore_errors=True)

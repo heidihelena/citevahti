@@ -1551,3 +1551,23 @@ def test_auto_update_check_pref_defaults_off_and_toggles(tmp_path):
     status, body = dispatch(root, "POST", "/api/prefs/update-check", {"enabled": False})
     assert status == 200 and body["enabled"] is False
     assert dispatch(root, "GET", "/api/context", None)[1]["auto_update_check"] is False
+
+
+def test_context_lists_recent_manuscripts_and_open_records_them(tmp_path, monkeypatch):
+    # Working-file-selection idea 3: the paper is the unit of work. Opening a
+    # manuscript records a CROSS-ROOT recent; /api/context surfaces the list so
+    # the Manuscripts surface can offer "reopen the paper you were on" in one click.
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))   # recents isolated (and temp roots legit)
+    store, _claim_id, _cand_id = _setup(tmp_path)
+    msdir = tmp_path / "papers"
+    msdir.mkdir()
+    (msdir / "paper_r.md").write_text("Recent manuscript.\n", encoding="utf-8")
+    from citevahti.panel import prefs
+    prefs.set_manuscripts_dir(str(tmp_path), str(msdir))
+
+    _, ctx0 = dispatch(str(tmp_path), "GET", "/api/context", None)
+    assert ctx0["recent_manuscripts"] == []                        # nothing opened yet
+    dispatch(str(tmp_path), "GET", "/api/manuscript/paper_r.md", None)   # open it
+    _, ctx1 = dispatch(str(tmp_path), "GET", "/api/context", None)
+    assert [(r["id"]) for r in ctx1["recent_manuscripts"]] == ["paper_r.md"]
+    assert ctx1["recent_manuscripts"][0]["root"] == str(tmp_path.resolve())

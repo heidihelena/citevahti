@@ -579,6 +579,22 @@ async function switchRoot(root) {
   try { await api("POST", "/api/root", { root }); location.reload(); } catch (e) { notify(e.message); }
 }
 
+// Reopen a recent MANUSCRIPT in one click (the document is the unit of work —
+// docs/design/working-file-selection.md). Same project: just open it. Different
+// project: the server switches the ledger + marks it active, then a reload
+// boots straight into that paper.
+async function openRecent(root, id) {
+  try {
+    if (state.ctx && root === state.ctx.root) {
+      renderSurface("workspace");
+      await loadManuscripts(id);
+      return;
+    }
+    await api("POST", "/api/recents/open", { root, id });
+    location.reload();
+  } catch (e) { notify(e.message); }
+}
+
 function drawLogos() {
   document.querySelectorAll("[data-logo]").forEach((n) => {
     n.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 64 64" fill="none" role="img" aria-label="CiteVahti">

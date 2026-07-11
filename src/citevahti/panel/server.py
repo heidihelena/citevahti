@@ -347,6 +347,7 @@ def _get_context(root, body):
                  "claim_total": rep.total,
                  "manuscripts_dir": prefs.get_manuscripts_dir(root),
                  "auto_update_check": prefs.get_auto_update_check(root),
+                 "recent_manuscripts": prefs.recall_recent_manuscripts(),
                  "vocabulary": workflow.vocabulary()}   # verdicts/states/phases (single source)
 
     # project-level "what's next" — the one next action for the whole project,
@@ -1024,6 +1025,7 @@ def _dyn_manuscript(root, body, m):
             mid = m.group(1)
             mdir = prefs.get_manuscripts_dir(root)
             prefs.remember_manuscript(root, mid)   # opening it = now working on it
+            prefs.remember_recent_manuscript(root, mid)   # …and onto the cross-root recents
             rows = _manuscript_groups(root).get(mid, [])
             view = M.build_view(mid, [_row_claim(r) for r in rows], mdir)
             view["manuscripts_dir"] = mdir
@@ -1657,6 +1659,27 @@ def _handler_factory(root: str):
                 else:
                     self._send(400, {"error": "no_ledger",
                                      "message": f"no .citevahti ledger at {new!r}"})
+                return
+            # one-click "reopen the paper you were on": switch the ledger AND mark that
+            # manuscript active, so the reload lands directly in it (the document is the
+            # unit of work — docs/design/working-file-selection.md, idea 3). The request
+            # can only name an entry ALREADY on the stored recents list — the stored
+            # root is used, so no user-provided value is ever taken as a path.
+            if path == "/api/recents/open":
+                want_root = (body or {}).get("root")
+                want_id = (body or {}).get("id")
+                match = next((r for r in prefs.recall_recent_manuscripts()
+                              if r["root"] == want_root and r["id"] == want_id), None)
+                if match and prefs.has_ledger(match["root"]):
+                    box["root"] = match["root"]              # the stored, ledger-checked value
+                    prefs.remember_root(box["root"])
+                    prefs.remember_manuscript(box["root"], match["id"])
+                    prefs.remember_recent_manuscript(box["root"], match["id"])
+                    self._send(200, {"ok": True, "root": box["root"], "manuscript": match["id"]})
+                else:
+                    self._send(404, {"error": "not_a_recent",
+                                     "message": "that manuscript is not on the recents list — "
+                                                "open it from its project once and it will be"})
                 return
             status, payload = dispatch(box["root"], "POST", path, body)
             self._send(status, payload)

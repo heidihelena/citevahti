@@ -15,8 +15,19 @@ async function renderManuscripts() {
       <span class="note">· ${meta}</span></span>
       ${here ? `<span class="note">open now</span>` : `<button class="btn ghost" data-switch="${esc(l.root)}">Open</button>`}</div>`;
   }).join("");
+  // Recent MANUSCRIPTS — the paper is the unit of work, not the folder
+  // (docs/design/working-file-selection.md, idea 3): reopen it in one click.
+  const recents = ((state.ctx && state.ctx.recent_manuscripts) || []).slice(0, 5);
+  const recentRows = recents.map((r) => {
+    const here = r.root === active && r.id === state.activeMs;
+    return `<div class="ledrow"><span class="path"><b>${esc(r.id)}</b>
+      <span class="note">· in ${esc(projectName(r.root))}${relTime(r.ts) ? " · " + esc(relTime(r.ts)) : ""}</span></span>
+      ${here ? `<span class="note">open now</span>`
+             : `<button class="btn ghost" data-open-recent="${esc(r.root)}" data-recent-id="${esc(r.id)}">Open</button>`}</div>`;
+  }).join("");
   $("#manuscripts").innerHTML = `<div class="firstrun">
-    <h2>${projects.length ? "Your reviews" : "Start your review"}</h2>
+    <h2>${projects.length || recents.length ? "Your reviews" : "Start your review"}</h2>
+    ${recents.length ? `<div class="cv-card"><div class="lbl">Recent manuscripts</div>${recentRows}</div>` : ""}
     ${projects.length ? `<div class="cv-card"><div class="lbl">Reviews on this Mac</div>${rows}</div>` : ""}
     <div class="cv-card">
       <div class="lbl">${projects.length ? "Add another manuscript" : "1 · Add your manuscript"}</div>
