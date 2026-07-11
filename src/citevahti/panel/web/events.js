@@ -19,6 +19,7 @@ document.addEventListener("click", (e) => {
   const nv = e.target.closest(".surfnav-tab"); if (nv) { stopAwaitingClaims(); return void renderSurface(nv.dataset.surface); }
   const qq = e.target.closest("[data-queue]"); if (qq) { state.queueAll = qq.dataset.queue === "all"; return void renderQueue(); }
   const sw = e.target.closest("[data-switch]"); if (sw) return switchRoot(sw.dataset.switch);
+  const rc = e.target.closest("[data-open-recent]"); if (rc) return openRecent(rc.dataset.openRecent, rc.dataset.recentId);
   const cn = e.target.closest("[data-connect]"); if (cn) return void connect(cn.dataset.connect);
   if (e.target.closest("[data-connect-close]")) return void closeConnectModal();
   if (e.target.closest("[data-export-close]")) return void closeExportModal();

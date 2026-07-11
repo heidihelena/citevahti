@@ -7,6 +7,18 @@ previous one.
 ## [Unreleased]
 
 ### Added
+- **Recent manuscripts — reopen the paper you were on, in one click.** Pilot feedback
+  ("impossible to change manuscript") + `docs/design/working-file-selection.md` idea 3:
+  the researcher's unit of work is a *manuscript*, not a folder+ledger. Opening a
+  manuscript now records it on a cross-root recents list (`rootcfg.remember_recent_manuscript`,
+  capped at 8, deduped, temp-leak-guarded, dropped when its project's ledger disappears);
+  `/api/context` surfaces the list; the Manuscripts surface shows **Recent manuscripts**
+  above "Reviews on this Mac"; a new handler route `POST /api/recents/open` switches the
+  ledger *and* marks that manuscript active in one step, so the reload lands directly in
+  the paper. `remember_root` now preserves the state file's other keys instead of
+  rewriting it. Locked by `tests/test_rootcfg.py` (recents) + `tests/test_panel_api.py`
+  (context + record-on-open); driven end-to-end against a live panel (CSRF handshake,
+  two projects, cross-project reopen).
 - **`getting_started` — low-friction onboarding on the AI surface** (agent + engine tool,
   read-only) — the third *better-science* improvement. CiteVahti's state-aware "where am I,
   what's my single next step" guide (`workflow.project_status`) already powered the panel's

@@ -76,6 +76,19 @@ def _leaked_temp_root(root: Path) -> bool:
     return _in_system_temp(root) and not _in_system_temp(_global_state_path())
 
 
+def _read_state() -> dict:
+    try:
+        return json.loads(_global_state_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_state(data: dict) -> None:
+    p = _global_state_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
 def remember_root(root: str) -> None:
     """Record the active root so the next launch — on any surface — defaults here
     instead of an empty ledger. Best-effort; never blocks startup. A temp-tree root is
@@ -85,9 +98,9 @@ def remember_root(root: str) -> None:
         resolved = Path(root).expanduser().resolve()
         if _leaked_temp_root(resolved):
             return
-        p = _global_state_path()
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps({"last_root": str(resolved)}, indent=2), encoding="utf-8")
+        state = _read_state()
+        state["last_root"] = str(resolved)
+        _write_state(state)
     except OSError:
         pass
 
@@ -105,6 +118,49 @@ def recall_root() -> Optional[str]:
     if _leaked_temp_root(Path(r)):    # a leftover e2e/test ledger, not the user's project
         return None
     return r
+
+
+# ---- recent manuscripts (cross-root, document-keyed) -------------------------
+# The researcher's unit of work is a MANUSCRIPT, not a folder+ledger (see
+# docs/design/working-file-selection.md, idea 3). These recents let any surface
+# offer "reopen the paper you were on" in one click — no filesystem reasoning.
+_RECENTS_MAX = 8
+
+
+def remember_recent_manuscript(root: str, manuscript_id: Optional[str]) -> None:
+    """Record (root, manuscript) at the front of the cross-root recents list.
+    Best-effort, deduped, capped at ``_RECENTS_MAX``; temp-tree roots are never
+    recorded (same rule as ``remember_root``)."""
+    if not manuscript_id:
+        return
+    try:
+        resolved = Path(root).expanduser().resolve()
+        if _leaked_temp_root(resolved):
+            return
+        import time
+        state = _read_state()
+        recents = [r for r in state.get("recent_manuscripts", [])
+                   if isinstance(r, dict)
+                   and not (r.get("root") == str(resolved) and r.get("id") == manuscript_id)]
+        recents.insert(0, {"root": str(resolved), "id": manuscript_id,
+                           "ts": time.time()})
+        state["recent_manuscripts"] = recents[:_RECENTS_MAX]
+        _write_state(state)
+    except OSError:
+        pass
+
+
+def recall_recent_manuscripts() -> list[dict]:
+    """The recent manuscripts, most recent first — only entries whose root still
+    holds a ledger (a moved/deleted project silently drops out)."""
+    out: list[dict] = []
+    for r in _read_state().get("recent_manuscripts", []):
+        if not (isinstance(r, dict) and r.get("root") and r.get("id")):
+            continue
+        if not has_ledger(r["root"]) or _leaked_temp_root(Path(r["root"])):
+            continue
+        out.append({"root": r["root"], "id": r["id"], "ts": r.get("ts", 0.0)})
+    return out
 
 
 # ---- the one resolver -------------------------------------------------------
