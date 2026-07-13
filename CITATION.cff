@@ -11,8 +11,9 @@ abstract: >-
   verdict, certifies a manuscript, or writes silently.
 type: software
 authors:
-  - name: "Vahtian"
-    website: "https://vahtian.com"
+  - family-names: Andersén
+    given-names: Heidi Helena
+    orcid: "https://orcid.org/0000-0001-5923-5865"
 repository-code: "https://github.com/heidihelena/citevahti"
 url: "https://vahtian.com"
 license: Apache-2.0
