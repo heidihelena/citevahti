@@ -5,7 +5,10 @@
   "access_right": "open",
   "license": "Apache-2.0",
   "creators": [
-    { "name": "Vahtian" }
+    {
+      "name": "Andersén, Heidi Helena",
+      "orcid": "0000-0001-5923-5865"
+    }
   ],
   "keywords": [
     "citation integrity",
