@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.heidihelena/citevahti",
+  "title": "CiteVahti",
+  "description": "Runs unit tests on manuscript citations: checks whether each cited source supports the claim it backs. Blinded human-first workflow (the human rates first; the AI second rating is revealed afterward; the human decides), hash-chained audit trail, decision-gated undoable Zotero write-back. Local-first: manuscripts and ratings stay on the user's machine.",
+  "repository": {
+    "url": "https://github.com/heidihelena/citevahti",
+    "source": "github"
+  },
+  "version": "0.45.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "citevahti",
+      "version": "0.45.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
