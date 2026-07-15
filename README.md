@@ -4,14 +4,10 @@
 manuscript — before a reviewer does.**
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)"
-            srcset="assets/hero-workflow-dark.svg">
-    <img
+  <img
       src="assets/hero-workflow.svg"
       alt="CiteVahti workflow: claim, source evidence, human rating first, blinded AI second opinion, agreement or adjudication, and an audited decision — with local manuscript, previewed writes, Zotero, undo and a hash-chained record as the supporting rail"
       width="1200">
-  </picture>
 </p>
 
 CiteVahti walks you through your manuscript one claim at a time. You decide whether each
