@@ -3,6 +3,17 @@
 **Does the cited paper actually support the claim? Check every citation in your
 manuscript — before a reviewer does.**
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"
+            srcset="assets/hero-workflow-dark.svg">
+    <img
+      src="assets/hero-workflow.svg"
+      alt="CiteVahti workflow: claim, source evidence, human rating first, blinded AI second opinion, agreement or adjudication, and an audited decision — with local manuscript, previewed writes, Zotero, undo and a hash-chained record as the supporting rail"
+      width="1200">
+  </picture>
+</p>
+
 CiteVahti walks you through your manuscript one claim at a time. You decide whether each
 cited source really backs the sentence; an optional AI gives a *blinded* second opinion
 (you rate first, it can never overrule you); and every decision is saved as a timestamped,
