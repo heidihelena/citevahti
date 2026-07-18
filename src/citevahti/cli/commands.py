@@ -1419,8 +1419,16 @@ def _cmd_onboard(args) -> int:
     print(f"secrets stored  : {names_display(rep.secrets_stored) or '(none)'}")  # names only
     if rep.secrets_skipped:
         print(f"secrets skipped : {names_display(rep.secrets_skipped)}")
+    # validations/warnings carry backend and validator error text, which could echo an
+    # entered key (e.g. an exception string) — scrub the secret values before printing.
+    def redact(text: str) -> str:
+        for secret in (zkey, nkey, fvtoken):
+            if secret:
+                text = text.replace(secret, "[redacted]")
+        return text
+
     if rep.validations:
-        print(f"validations     : {rep.validations}")
+        print(f"validations     : {redact(str(rep.validations))}")
     for w in rep.warnings:
-        print(f"  warning: {w}")
+        print(f"  warning: {redact(w)}")
     return 0
