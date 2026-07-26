@@ -20,9 +20,14 @@ const EM_VERDICT = {
   unrated: { code: "  ", label: "Unrated",      cls: "em-pending",   hue: "#8478A6", mono: "#9A9AA4", dash: "2 4",   w: 1.2 },
 };
 const EM_ORDER = ["accept", "caution", "review", "reject", "unrated"];
-/* AI support value → the verdict-equivalent hue family (AI-view mode) */
+/* AI support value → the verdict-equivalent hue family (AI-view mode). Every value in the
+ * frozen support vocabulary must be declared here, never left to the || "review" default
+ * (tests/test_vocabulary_sync.py). 'overstated' is an overclaim: it can never back an
+ * accept (schemas/decision.SUPPORTING_VALUES), so it rides the em-revise "needs review"
+ * family — the claim wants revising — not the accepted-with-caution family. */
 const EM_SUPPORT_VERDICT = { directly_supports: "accept", partially_supports: "caution",
-  indirectly_supports: "caution", unclear: "review", does_not_support: "review", contradicts: "reject" };
+  indirectly_supports: "caution", overstated: "review", unclear: "review",
+  does_not_support: "review", contradicts: "reject" };
 
 const emState = { mode: "adjudicated", sel: null, data: null };
 

@@ -25,8 +25,9 @@ ledger's config).
 > v__VERSION__ (Vahtian; Apache-2.0), which records a blinded dual-rating
 > workflow: for each claim–candidate pair, a human rater first recorded a
 > support rating (scale: directly_supports / partially_supports /
-> does_not_support / contradicts / unclear) while the AI second opinion was
-> withheld; an AI rater (__PROVIDER__, model __MODEL_ID__, snapshot
+> indirectly_supports / overstated / does_not_support / contradicts / unclear)
+> while the AI second opinion was withheld; an AI rater (__PROVIDER__, model
+> __MODEL_ID__, snapshot
 > __SNAPSHOT__, prompt template __PROMPT_VERSION__) independently rated the
 > same pair without access to the human value. Rating order
 > (__BLINDING_MODE__, e.g. human_first_ai_blind) and timestamps were recorded
