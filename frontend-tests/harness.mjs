@@ -20,7 +20,7 @@ const FILES = ["reconnect.js", "state.js", "util.js", "api.js", "modal.js", "fee
 
 // pure / output functions exposed for unit tests (their string output is user-facing)
 const EXPOSE = ["relTime", "projectName", "humanEvent", "citeOf", "claimTypeLabel",
-  "savedToFolderCard", "isDecided", "fitWord"];
+  "savedToFolderCard", "isDecided", "fitWord", "decideBlock"];
 
 function bundle() {
   const src = FILES.map((f) => fs.readFileSync(path.join(WEB, f), "utf8")).join("\n");

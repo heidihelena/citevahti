@@ -79,12 +79,29 @@ def blinded_rating_view(record) -> dict:
     The human may always see their own rating; the AI rating is only revealed once
     the human has committed theirs.
     """
-    from ..rating.blinding import blinded_ai_value
+    from ..rating.ai import is_truncation_reason
+    from ..rating.blinding import blinded_ai_value, reveal_ai
     human = record.human_rating.value if record.human_rating else None
     ai_value = record.ai_rating.value if record.ai_rating else None
     ai_present = record.ai_rating is not None
     # the one canonical blinding rule (see rating/blinding.py) — never re-derive it here
     ai_shown = blinded_ai_value(human, ai_value, hidden="hidden (blinded until human rates)")
+    # Why the AI has no value, told apart into two very different events. A genuine
+    # abstention is a rating outcome ("cannot judge on this evidence"); a reply cut off
+    # at the token ceiling is a *setup* problem — the model never got to judge at all
+    # (see rating/ai.py::TRUNCATED_REPLY_REASON). Both currently render as a blank AI
+    # column, which reads as "no second opinion yet" and hides the misconfiguration.
+    #
+    # Gated on the same reveal predicate as the value itself, so this is not a second
+    # blinding surface that could drift from the first. ``domain_reasoning`` is never
+    # sent raw — for a rating that did land it carries the AI's rationale, which is
+    # exactly what blinding withholds; only these derived flags cross the wire.
+    ai_abstained = False
+    ai_config_issue = None                       # None | "truncated_reply"
+    if record.ai_rating is not None and reveal_ai(human):
+        ai_abstained = bool(record.ai_rating.abstained)
+        if is_truncation_reason(record.ai_rating.domain_reasoning):
+            ai_config_issue = "truncated_reply"
     human_fit = (record.human_rating.fit.model_dump()
                  if record.human_rating and record.human_rating.fit else None)
     return {
@@ -95,6 +112,8 @@ def blinded_rating_view(record) -> dict:
         "human_fit": human_fit,
         "ai": ai_shown,
         "ai_present": ai_present,
+        "ai_abstained": ai_abstained,
+        "ai_config_issue": ai_config_issue,
         "comparison_status": record.comparison.status,
         "final_value": record.adjudication.final_value,
         "adjudication_event": record.adjudication.event,

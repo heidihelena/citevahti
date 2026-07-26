@@ -59,8 +59,11 @@ function phaseOf(cand) {
 }
 
 function stepper(active, hasAi) {
-  // Conditional: the "AI second opinion" step only appears when an AI rating exists,
-  // so the stepper never shows a "Reveal" step as done when nothing was revealed.
+  // Conditional: the "AI second opinion" step only appears when there is an AI *value*
+  // to reveal, so the stepper never shows a "Reveal" step as done when nothing was
+  // revealed. An abstention — genuine, or a reply cut off before the model answered —
+  // records a rating with no value, so it must not tick this step; the decide panel
+  // says what happened instead (see card-phases.js::aiConfigWarn).
   const steps = hasAi
     ? [["rate", "Rate"], ["reveal", "AI second opinion"], ["decide", "Decide"], ["write", "Write"]]
     : [["rate", "Rate"], ["decide", "Decide"], ["write", "Write"]];
@@ -102,7 +105,7 @@ function renderCard() {
     ? `<div class="removerow"><button class="btn ghost" data-act="unlink"
         title="Unlink this paper from the claim (keeps the claim and audit trail)">✕ Remove paper <span class="hk">⇧D</span></button></div>`
     : "";
-  card.innerHTML = stepper(ph, !!(cand && cand.rating && cand.rating.ai_present)) + claimLineBlock(claim) +
+  card.innerHTML = stepper(ph, !!(cand && cand.rating && cand.rating.ai)) + claimLineBlock(claim) +
     picker + candidateTags(cand) + removeRow + block + contextBlock(cand) + lexCheckBlock(ph) + historyBlock() + finderMore() + `<div class="err" id="cardErr" role="alert"></div>`;
   renderAgent(ph, claim, cand);
 }
