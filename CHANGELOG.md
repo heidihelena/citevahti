@@ -7,6 +7,24 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **A reasoning ("thinking") local model no longer quietly drops a quarter of its ratings.**
+  The AI raters capped every reply at 300 tokens. A model that reasons before answering
+  (the qwen3 family) spends reply tokens on its chain of thought, so it was cut off before
+  it answered; the rater then abstained with "unparseable AI reply" — honest, but
+  indistinguishable from a genuine "cannot judge", so an operator saw abstentions where the
+  real event was a misconfiguration. Measured on a 44-pair corpus (2026-07-26): qwen3:14b
+  abstained on **12/44 (27%)** through the product path versus 0/44 for two non-reasoning
+  models on the identical items. Two changes: local mode now sends a **2048-token** reply
+  budget (the 12 affected items needed 302–596; all 12 then returned an in-vocabulary value),
+  overridable via `ai_connection.max_reply_tokens`; and a reply the provider reports as
+  cut off (`finish_reason: length` / `stop_reason: max_tokens`) is now recorded as a
+  **configuration problem, not a rating**, with `is_truncation_reason()` as the one predicate
+  a surface uses to tell the two apart. (The reason lands in the record's `domain_reasoning`;
+  the review panel does not display that field yet, so badging a truncated abstention in the
+  UI is still to come.) No rating was ever corrupted and blinding was never affected: a
+  truncated reply still abstains and still never invents a value. The advisory chat turn was
+  capped the same way and now gets 1024 tokens plus a note when a reply is cut off. Locked by
+  `tests/test_ai_reply_truncation.py`.
 - **Closing the window no longer takes the app away** (pilot finding: *"Apple takes the
   app away always when I close it"*). CiteVahti.app is a menu-bar app: the window's
   close button now **hides** the window — sidecars keep running, and "Open Review Panel"

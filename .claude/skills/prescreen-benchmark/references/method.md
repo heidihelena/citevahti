@@ -42,10 +42,16 @@ Claude column is a strong-model *reference peer*, not ground truth, and the writ
 ## Gotchas
 - **qwen3 (and any thinking model) needs `think:false`.** With Ollama's native `/api/chat`, pass
   `"think": false` (bench.py does this via `THINKING_MODELS`). Without it qwen3 either runs very
-  slow or returns empty `{}` under `format:json`. NOTE: CiteVahti's `HttpAiRater` calls the
-  OpenAI-compat `/v1` endpoint, which has **no** `think:false` — so a qwen3-family model
-  misbehaves through the product adapter as written. That's the one code fix this study surfaced
-  (pair it with the prescreen prompt scaffolding above).
+  slow or returns empty `{}` under `format:json`. CiteVahti's raters call the OpenAI-compat `/v1`
+  endpoint, which has **no** `think:false` — so a qwen3-family model misbehaves through the
+  product adapter. **Measured 2026-07-26** (44-pair intelligence-decomposition corpus): the cause
+  was not the missing `think:false` but the 300-token reply ceiling those raters sent. qwen3:14b
+  abstained on 12/44 (27%) through the product path and 0/44 natively; the 12 needed 302–596
+  completion tokens (median 354) and **all 12 returned an in-vocabulary value once given
+  headroom**. Fixed in the product by `LOCAL_MAX_REPLY_TOKENS` (2048 for local mode) plus a
+  truncation signal, so a cut-off reply is recorded as a configuration problem rather than an
+  abstention. `think:false` remains worth adding, but as a **latency** optimisation (the /v1 path
+  was 2.34× slower on this model), not a correctness fix.
 - **Latency is cold-load dominated.** First call per model can be 20–40s; warm calls are ~1.5–3s.
   Don't report the cold number as steady-state.
 - **Class balance.** Aim for real `unclear` and `not_relevant` cases. A seed that is all

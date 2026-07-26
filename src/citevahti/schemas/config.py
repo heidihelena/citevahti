@@ -131,6 +131,10 @@ class AIConnectionConfig(BaseModel):
     mode: Literal["off", "local", "api"] = "off"
     endpoint: Optional[str] = None        # OpenAI-compatible (or Anthropic) chat URL; defaulted per mode
     request_timeout_s: float = 60.0
+    # Reply-token ceiling. None = the per-mode default (local gets headroom because a
+    # reasoning/"thinking" model spends reply tokens on its chain of thought; api stays
+    # frugal because it is billed). Raise this if a local model reports truncated replies.
+    max_reply_tokens: Optional[int] = Field(default=None, ge=1)
 
     def is_enabled(self) -> bool:
         return self.mode in ("local", "api")

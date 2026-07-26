@@ -47,7 +47,7 @@ def chat(message: str, *, root: Optional[str] = None, poster=None) -> dict:
     as the AI rater. It RECORDS nothing, calls no tools, and writes nothing: a conversational
     helper, never the blinded rating path. Returns ``ai_off`` when no model is configured.
     ``poster`` is injectable for tests."""
-    from ..rating.ai import chat_completion, resolve_ai_connection
+    from ..rating.ai import CHAT_MAX_REPLY_TOKENS, chat_reply, resolve_ai_connection
 
     config = _open_store(root).load_config()
     conn = resolve_ai_connection(config)
@@ -56,11 +56,18 @@ def chat(message: str, *, root: Optional[str] = None, poster=None) -> dict:
                 "message": "No model is configured. Set one in AI settings — a local Ollama "
                            "model keeps everything on your machine."}
     prompt = f"{_CHAT_FRAMING}\n\nResearcher: {message or ''}\n\nAssistant:"
-    reply = chat_completion(shape=conn["shape"], endpoint=conn["endpoint"],
-                            model=config.ai_provenance.model_id, prompt=prompt,
-                            api_key=conn["api_key"], poster=poster,
-                            timeout=config.ai_connection.request_timeout_s)
-    return {"status": "ok", "model": config.ai_provenance.model_id, "reply": reply}
+    out = chat_reply(shape=conn["shape"], endpoint=conn["endpoint"],
+                     model=config.ai_provenance.model_id, prompt=prompt,
+                     api_key=conn["api_key"], poster=poster,
+                     timeout=config.ai_connection.request_timeout_s,
+                     max_tokens=config.ai_connection.max_reply_tokens or CHAT_MAX_REPLY_TOKENS)
+    res = {"status": "ok", "model": config.ai_provenance.model_id, "reply": out.text}
+    if out.truncated:
+        # say the answer is cut off rather than handing back a sentence that just stops
+        res["truncated"] = True
+        res["message"] = ("This reply hit the token ceiling and is cut off. Raise "
+                          "ai_connection.max_reply_tokens to let the model finish.")
+    return res
 
 
 def import_manuscript_docx(docx_base64: str, *, root: Optional[str] = None) -> dict:

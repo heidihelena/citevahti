@@ -55,6 +55,62 @@ _OPENAI_DEFAULT = "https://api.openai.com/v1/chat/completions"
 _ANTHROPIC_DEFAULT = "https://api.anthropic.com/v1/messages"
 _OLLAMA_DEFAULT = "http://localhost:11434/v1/chat/completions"
 
+# Reply budget. A rating reply is ~50 tokens, so 300 is ample for a model that
+# answers directly — but a reasoning ("thinking") model such as the qwen3 family
+# spends reply tokens on its chain of thought, and the OpenAI-compatible endpoint
+# gives us no way to turn that off (Ollama's native /api/chat takes ``think:
+# false``; the /v1 shape does not). On a 300-token ceiling such a model is cut off
+# before it answers, so the rater abstains — see ``TRUNCATED_REPLY_REASON``.
+#
+# Measured 2026-07-26, qwen3:14b over the 44-pair prescreen corpus: the 12 items
+# that abstained at 300 needed 302-596 completion tokens (median 354) and all 12
+# returned an in-vocabulary value once given headroom. 2048 is ~3.4x the observed
+# worst case. Local models are free and private, so local mode gets that headroom;
+# api mode stays frugal because it is billed per token.
+LOCAL_MAX_REPLY_TOKENS = 2048
+API_MAX_REPLY_TOKENS = 300
+# The advisory chat turn writes prose, not a one-line verdict, so 300 tokens cut
+# real answers off mid-sentence. It is a different task shape, hence its own budget.
+CHAT_MAX_REPLY_TOKENS = 1024
+# Default policy: the raters default to the generous local budget, because a rater
+# constructed directly (a script, a bench harness) must not silently truncate — that
+# is the bug being fixed here. The low-level transport keeps the frugal default,
+# because a bare call has no way to know it is talking to a free local model. Every
+# production path passes an explicit budget from ``resolve_ai_connection``.
+
+# A truncated reply is NOT a judgement. The rater still abstains (it must never
+# invent a value), but the recorded reason has to say "misconfigured", not
+# "cannot judge" — an operator reading the panel otherwise sees an honest-looking
+# abstention where the real event is that the model never got to answer.
+TRUNCATED_REPLY_PREFIX = "configuration: "
+TRUNCATED_REPLY_REASON = (
+    TRUNCATED_REPLY_PREFIX
+    + "the model hit its reply-token ceiling before returning an answer, so it "
+      "never judged this item. This is a setup problem, not a rating. A reasoning "
+      "('thinking') model needs a larger ai_connection.max_reply_tokens, or a "
+      "model that answers directly."
+)
+
+
+def is_truncation_reason(reason: Optional[str]) -> bool:
+    """True when an abstention's reason marks a truncated reply (a misconfiguration)
+    rather than a genuine 'cannot judge'. One predicate so every surface — panel,
+    report, agreement stats — classifies the two apart the same way."""
+    return bool(reason) and str(reason).startswith(TRUNCATED_REPLY_PREFIX)
+
+
+@dataclass
+class ChatReply:
+    """One model reply plus whether it was cut off at the token ceiling.
+
+    ``truncated`` comes from the provider's own stop signal (OpenAI-compatible
+    ``finish_reason == "length"``, Anthropic ``stop_reason == "max_tokens"``) —
+    not from a latency or length heuristic, which would misfire on a slow machine.
+    """
+
+    text: str = ""
+    truncated: bool = False
+
 
 def _safe_endpoint(url: str, *, allow_local: bool) -> bool:
     """https everywhere; plain http only for localhost (and only when allowed)."""
@@ -84,34 +140,51 @@ class HttpxPoster:
         return resp.json()
 
 
-def chat_completion(*, shape: str, endpoint: str, model: str, prompt: str,
-                    api_key: Optional[str] = None, poster: Optional[HttpPoster] = None,
-                    timeout: float = 60.0) -> str:
-    """One blinded chat turn over an OpenAI-compatible or Anthropic endpoint → reply text.
+def chat_reply(*, shape: str, endpoint: str, model: str, prompt: str,
+               api_key: Optional[str] = None, poster: Optional[HttpPoster] = None,
+               timeout: float = 60.0,
+               max_tokens: int = API_MAX_REPLY_TOKENS) -> ChatReply:
+    """One blinded chat turn over an OpenAI-compatible or Anthropic endpoint.
 
     Shared by every CiteVahti rater. A key (when present) rides the provider's header;
-    local servers (Ollama / LM Studio) need none. Returns "" on an unexpected shape.
+    local servers (Ollama / LM Studio) need none. Returns an empty reply on an
+    unexpected shape, and flags a reply the provider says it cut off at ``max_tokens``
+    so a caller can tell "never answered" from "answered, but abstained".
     """
     poster = poster or HttpxPoster()
     if shape == "anthropic":
         headers = {"content-type": "application/json", "anthropic-version": "2023-06-01"}
         if api_key:
             headers["x-api-key"] = api_key
-        payload = {"model": model, "max_tokens": 300,
+        payload = {"model": model, "max_tokens": max_tokens,
                    "messages": [{"role": "user", "content": prompt}]}
     else:
         headers = {"content-type": "application/json"}
         if api_key:
             headers["authorization"] = "Bearer " + api_key
-        payload = {"model": model, "max_tokens": 300, "temperature": 0,
+        payload = {"model": model, "max_tokens": max_tokens, "temperature": 0,
                    "messages": [{"role": "user", "content": prompt}]}
     data = poster.post_json(endpoint, headers, payload, timeout)
     try:
         if isinstance(data.get("content"), list):          # anthropic
-            return data["content"][0].get("text", "")
-        return data["choices"][0]["message"]["content"]    # openai-compatible
+            return ChatReply(text=data["content"][0].get("text", ""),
+                             truncated=data.get("stop_reason") == "max_tokens")
+        choice = data["choices"][0]                        # openai-compatible
+        return ChatReply(text=choice["message"]["content"],
+                         truncated=choice.get("finish_reason") == "length")
     except (KeyError, IndexError, AttributeError, TypeError):
-        return ""
+        return ChatReply()
+
+
+def chat_completion(*, shape: str, endpoint: str, model: str, prompt: str,
+                    api_key: Optional[str] = None, poster: Optional[HttpPoster] = None,
+                    timeout: float = 60.0,
+                    max_tokens: int = API_MAX_REPLY_TOKENS) -> str:
+    """``chat_reply`` reduced to just the text, for callers that cannot act on
+    truncation (the advisory chat turn). Raters use ``chat_reply`` instead."""
+    return chat_reply(shape=shape, endpoint=endpoint, model=model, prompt=prompt,
+                      api_key=api_key, poster=poster, timeout=timeout,
+                      max_tokens=max_tokens).text
 
 
 class HttpAiRater:
@@ -124,7 +197,8 @@ class HttpAiRater:
 
     def __init__(self, *, shape: str, endpoint: str, model: str,
                  api_key: Optional[str] = None, poster: Optional[HttpPoster] = None,
-                 timeout: float = 60.0) -> None:
+                 timeout: float = 60.0,
+                 max_tokens: int = LOCAL_MAX_REPLY_TOKENS) -> None:
         if shape not in ("openai", "anthropic"):
             raise ValueError(f"unknown AI shape: {shape!r}")
         self.shape = shape
@@ -133,13 +207,14 @@ class HttpAiRater:
         self.api_key = api_key
         self.poster = poster or HttpxPoster()
         self.timeout = timeout
+        self.max_tokens = max_tokens
 
     def rate(self, *, frame, scheme, subject, task_type: str) -> AiRatingOutput:
         prompt = self._build_prompt(frame, scheme, subject, task_type)
-        text = chat_completion(shape=self.shape, endpoint=self.endpoint, model=self.model,
-                               api_key=self.api_key, prompt=prompt, poster=self.poster,
-                               timeout=self.timeout)
-        return self._parse(text, scheme)
+        reply = chat_reply(shape=self.shape, endpoint=self.endpoint, model=self.model,
+                           api_key=self.api_key, prompt=prompt, poster=self.poster,
+                           timeout=self.timeout, max_tokens=self.max_tokens)
+        return self._parse(reply, scheme)
 
     # blinded: only the frame/scheme/subject context is available here
     @staticmethod
@@ -169,14 +244,19 @@ class HttpAiRater:
                      '"abstained":<bool>,"confidence":<0..1 or null>,"rationale":"<=25 words"}')
         return "\n".join(lines)
 
-    def _parse(self, text: str, scheme) -> AiRatingOutput:
-        m = re.search(r"\{.*\}", text or "", re.DOTALL)
+    def _parse(self, reply, scheme) -> AiRatingOutput:
+        if isinstance(reply, str):                 # tolerate a bare string (older callers)
+            reply = ChatReply(text=reply)
+        # A cut-off reply means the model never answered; say so instead of letting a
+        # misconfiguration masquerade as an honest "cannot judge".
+        no_answer = (TRUNCATED_REPLY_REASON if reply.truncated else "unparseable AI reply")
+        m = re.search(r"\{.*\}", reply.text or "", re.DOTALL)
         if not m:
-            return AiRatingOutput(abstained=True, domain_reasoning="unparseable AI reply")
+            return AiRatingOutput(abstained=True, domain_reasoning=no_answer)
         try:
             pj = json.loads(m.group(0))
         except json.JSONDecodeError:
-            return AiRatingOutput(abstained=True, domain_reasoning="unparseable AI reply")
+            return AiRatingOutput(abstained=True, domain_reasoning=no_answer)
         rationale = (str(pj.get("rationale") or "")[:200]) or None
         conf = pj.get("confidence")
         conf = float(conf) if isinstance(conf, (int, float)) else None
@@ -192,13 +272,16 @@ class HttpAiRater:
 
 
 def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
-    """Resolve ``{shape, endpoint, api_key}`` for the configured AI connection, or
-    **None when AI is off**. Shared by every rater factory so the connection rules
-    live in one place.
+    """Resolve ``{shape, endpoint, api_key, max_tokens}`` for the configured AI
+    connection, or **None when AI is off**. Shared by every rater factory so the
+    connection rules live in one place.
 
     ``local`` -> OpenAI-compatible, no key, localhost/https only. ``api`` -> provider
     shape + key from the credential store (env escape hatch honored), https only —
     a key is never sent over plaintext. ``resolve_secret(name)`` is injectable for tests.
+
+    ``max_tokens`` is the operator's ``max_reply_tokens`` when set, else the per-mode
+    default (local gets headroom for a reasoning model; api stays frugal).
     """
     conn = config.ai_connection
     if not conn.is_enabled():
@@ -208,7 +291,8 @@ def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
         endpoint = conn.endpoint or _OLLAMA_DEFAULT
         if not _safe_endpoint(endpoint, allow_local=True):
             raise ValueError("local AI endpoint must be http://localhost or an https URL")
-        return {"shape": "openai", "endpoint": endpoint, "api_key": None}
+        return {"shape": "openai", "endpoint": endpoint, "api_key": None,
+                "max_tokens": conn.max_reply_tokens or LOCAL_MAX_REPLY_TOKENS}
     # api mode
     shape = "anthropic" if prov.provider == "anthropic" else "openai"
     endpoint = conn.endpoint or (_ANTHROPIC_DEFAULT if shape == "anthropic" else _OPENAI_DEFAULT)
@@ -227,7 +311,8 @@ def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
         api_key = cred_resolve(AI_API_KEY, store)
     if not api_key:
         raise ValueError("api mode needs an AI key (set CITEVAHTI_AI_API_KEY or store it)")
-    return {"shape": shape, "endpoint": endpoint, "api_key": api_key}
+    return {"shape": shape, "endpoint": endpoint, "api_key": api_key,
+            "max_tokens": conn.max_reply_tokens or API_MAX_REPLY_TOKENS}
 
 
 def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secret=None):
@@ -237,7 +322,8 @@ def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secre
         return None
     return HttpAiRater(shape=c["shape"], endpoint=c["endpoint"],
                        model=config.ai_provenance.model_id, api_key=c["api_key"],
-                       poster=poster, timeout=config.ai_connection.request_timeout_s)
+                       poster=poster, timeout=config.ai_connection.request_timeout_s,
+                       max_tokens=c["max_tokens"])
 
 
 # --- local model discovery (Ollama) ------------------------------------------
