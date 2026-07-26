@@ -89,8 +89,8 @@ well does it fit?* — distinct from study quality (GRADE/RoB2). It rides on the
 same dual-rating invariants: the human value is locked, the AI rating is blind +
 advisory and never final, a discordance needs human/panel adjudication, and the
 final value is never sourced from the AI. Support vocabulary: `directly_supports`,
-`partially_supports`, `indirectly_supports`, `does_not_support`, `contradicts`,
-`unclear`.
+`partially_supports`, `indirectly_supports`, `overstated`, `does_not_support`,
+`contradicts`, `unclear`.
 
 A claim records *what is asserted, where, and who/what extracted it*. Linking
 *candidates* connects the claim to the papers that entered consideration for it

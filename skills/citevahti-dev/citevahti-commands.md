@@ -21,7 +21,7 @@ citevahti candidate-list --claim-id CID
 ```bash
 citevahti claim-support-start --claim-id CID --candidate-id CANDID
 citevahti claim-support-commit-human --rating-id RID --value directly_supports
-# values: directly_supports | partially_supports | indirectly_supports | does_not_support | contradicts | unclear
+# values: directly_supports | partially_supports | indirectly_supports | overstated | does_not_support | contradicts | unclear
 citevahti claim-support-compare --rating-id RID
 ```
 
@@ -50,7 +50,7 @@ citevahti verify-audit                              # hash-chain check
 ```
 
 ## Support-rating values (`--value`)
-directly_supports | partially_supports | indirectly_supports | does_not_support | contradicts | unclear
+directly_supports | partially_supports | indirectly_supports | overstated | does_not_support | contradicts | unclear
 
 `untestable` is a separate claim *status*, set via `citevahti claim-untestable <claim-id>` — not a support-rating value.
 

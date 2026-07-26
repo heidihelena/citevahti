@@ -12,6 +12,12 @@ as the rest of the reporting surface.
 from __future__ import annotations
 
 from .. import __version__
+from ..schemas.claim_support import SUPPORT_VALUES
+
+# The scale, spelled out from the canonical vocabulary rather than by hand — a methods
+# statement that omits a value misdescribes the instrument the raters actually used.
+# tests/test_vocabulary_sync.py holds every copy of this list to SUPPORT_VALUES.
+_SCALE = " / ".join(SUPPORT_VALUES)
 
 # Mirrors the blockquote in docs/REPORTING.md. Kept here (not read from docs/) so the
 # packet can be built from an installed wheel where docs/ is not present.
@@ -19,7 +25,7 @@ _TEMPLATE = (
     "Citation–evidence support was assessed claim by claim using CiteVahti {version} "
     "(Vahtian; Apache-2.0), which records a blinded dual-rating workflow: for each "
     "claim–candidate pair, a human rater first recorded a support rating (scale: "
-    "directly_supports / partially_supports / does_not_support / contradicts / unclear) "
+    "{scale}) "
     "while the AI second opinion was withheld; an AI rater ({provider}, model "
     "{model_id}, snapshot {snapshot}, prompt template {prompt_version}) independently "
     "rated the same pair without access to the human value. Rating order ({blinding_mode}) "
@@ -211,6 +217,7 @@ def build_methods_markdown(store) -> str:
 
     para = _TEMPLATE.format(
         version=f"v{__version__}",
+        scale=_SCALE,
         provider=prov.provider or "(unset)",
         model_id=_shown(prov.model_id, unset_hint="pin ai_provenance.model_id"),
         snapshot=_shown(prov.model_snapshot, unset_hint="pin ai_provenance.model_snapshot"),
