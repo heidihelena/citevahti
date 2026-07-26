@@ -1,6 +1,6 @@
-"""prescreen-benchmark atlas.py: renders any rater set, never invents a verdict.
+"""prescreen-benchmark report.py: renders any rater set, never invents a verdict.
 
-The Atlas is a skill script (stdlib-only, run via `python3`), so it is exercised as a
+The report is a skill script (stdlib-only, run via `python3`), so it is exercised as a
 subprocess against synthetic results.json fixtures rather than imported.
 """
 
@@ -9,8 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-ATLAS = (Path(__file__).resolve().parents[1]
-         / ".claude/skills/prescreen-benchmark/scripts/atlas.py")
+REPORT = (Path(__file__).resolve().parents[1]
+          / ".claude/skills/prescreen-benchmark/scripts/report.py")
 
 VOCAB = ["supports", "contrasts", "unclear", "not_relevant"]
 
@@ -44,8 +44,8 @@ def results(models, ratings_per_row, timed, theme="a-new-theme"):
 def render(tmp_path, payload):
     src = tmp_path / "results.json"
     src.write_text(json.dumps(payload))
-    out = tmp_path / "atlas.html"
-    proc = subprocess.run([sys.executable, str(ATLAS), str(src), str(out)],
+    out = tmp_path / "report.html"
+    proc = subprocess.run([sys.executable, str(REPORT), str(src), str(out)],
                           capture_output=True, text=True)
     assert proc.returncode == 0, proc.stderr
     return out.read_text()
