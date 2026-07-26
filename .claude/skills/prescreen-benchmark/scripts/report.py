@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Generate a self-contained, publication-style Atlas HTML from a results.json.
+"""Generate a self-contained, publication-style prescreen report HTML from a results.json.
 
-Usage: python3 atlas.py <results.json> <out.html>   (paths are CWD-relative)
+Usage: python3 report.py <results.json> <out.html>   (paths are CWD-relative)
 Add a META entry below for a nicer masthead on a new theme; the fallback works
 for any theme without one.
 """
@@ -9,7 +9,7 @@ import json, html, re, sys
 from pathlib import Path
 
 RESULTS_FILE = sys.argv[1] if len(sys.argv) > 1 else "results.json"
-OUT_FILE = sys.argv[2] if len(sys.argv) > 2 else "atlas.html"
+OUT_FILE = sys.argv[2] if len(sys.argv) > 2 else "report.html"
 R = json.loads(Path(RESULTS_FILE).read_text())
 
 META = {
@@ -182,9 +182,9 @@ unclear_read = (" &mdash; the recurring pattern is a model forcing an on-topic-b
 rest_read = (" The rest are a weaker model waving through a claim that <i>overstates</i> or "
              "<i>contradicts</i> its source." if total_miss > unclear_miss else "")
 
-HTML = f"""<main class="atlas">
+HTML = f"""<main class="report">
   <header class="mast">
-    <div class="eyebrow">CiteVahti &middot; Evidence Atlas &middot; {M["eyebrow"]}</div>
+    <div class="eyebrow">CiteVahti &middot; Prescreen report &middot; {M["eyebrow"]}</div>
     <h1>Can a laptop-sized model prescreen a citation?</h1>
     <p class="stand">{lede} to judge whether a cited source
       <i>supports</i> {M["subject"]}{alongside}.
@@ -199,7 +199,7 @@ HTML = f"""<main class="atlas">
   <section class="board">{''.join(cards)}</section>
 
   <section class="block">
-    <div class="bh"><h2>Evidence map</h2><div class="legend">{legend}</div></div>
+    <div class="bh"><h2>Rating matrix</h2><div class="legend">{legend}</div></div>
     <div class="scroll">
       <table class="map">
         <thead><tr><th>#</th><th>Claim &amp; cited source</th>
@@ -235,13 +235,13 @@ HTML = f"""<main class="atlas">
 </main>
 
 <style>
-  .atlas {{ --paper:#f5f6f4; --card:#fff; --ink:#17212b; --soft:#4a5763; --faint:#8a97a1;
+  .report {{ --paper:#f5f6f4; --card:#fff; --ink:#17212b; --soft:#4a5763; --faint:#8a97a1;
     --rule:#e2e6e4; --accent:#0e6b73;
     max-width: 1120px; margin: 0 auto; padding: 2.4rem 1.4rem 3rem; color: var(--ink);
     background: var(--paper); box-sizing: border-box;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.55;
     font-feature-settings: "kern"; }}
-  .atlas *, .atlas *::before {{ box-sizing: border-box; }}
+  .report *, .report *::before {{ box-sizing: border-box; }}
   .serif {{ font-family: "Iowan Old Style","Palatino Linotype",Palatino,Georgia,ui-serif,serif; }}
   .mast {{ border-bottom: 2px solid var(--ink); padding-bottom: 1.5rem; }}
   .eyebrow {{ font-size: .72rem; letter-spacing: .13em; text-transform: uppercase;
