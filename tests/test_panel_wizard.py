@@ -70,6 +70,28 @@ def test_claim_view_carries_the_server_computed_step(tmp_path):
     assert step["allowed_verdicts"] == []                 # no verdict keys before a rating
 
 
+def test_an_abstained_ai_rating_lights_no_reveal_step(tmp_path):
+    """The model ran and declined: a rating record exists, but it holds no value. The
+    served step must not claim there is something to reveal — while the rating view
+    still reports the abstention (``ai_abstained``), so the two together say "asked,
+    declined" rather than the old "nothing recorded yet"."""
+    store, claim_id, cand_id = _seed_claim(tmp_path)
+    eng = ClaimSupportEngine(store)
+    rec = eng.support_start(claim_id, cand_id)
+    eng.submit_ai_rating(rec.rating_id, None, abstained=True,
+                         reasoning="the abstract does not report the outcome")
+    eng.support_commit_human(rec.rating_id, "directly_supports")
+
+    status, body = dispatch(str(tmp_path), "GET", f"/api/claims/{claim_id}", None)
+    assert status == 200
+    cand = body["candidates"][0]
+    assert cand["step"]["phase"] == "decide"          # the human decides on their own rating
+    assert cand["step"]["reveal_ready"] is False      # there is no AI value behind the blind
+    assert cand["rating"]["ai"] is None
+    assert cand["rating"]["ai_present"] is True       # ...but the run did happen,
+    assert cand["rating"]["ai_abstained"] is True     # and it was a decline, not a no-show
+
+
 def test_context_exposes_the_single_vocabulary(tmp_path):
     CiteVahtiStore(str(tmp_path)).init()
     status, body = dispatch(str(tmp_path), "GET", "/api/context", None)

@@ -979,7 +979,11 @@ def _dyn_claims(root, body, m):
                 view["step"] = workflow.candidate_step(
                     has_human_rating=bool(rec and rec.human_rating
                                           and rec.human_rating.value is not None),
-                    has_ai_rating=bool(rec and rec.ai_rating is not None),
+                    # a *value*, not merely a record: an abstained AI rating exists but
+                    # holds no value, so there is no Reveal step to light (the abstention
+                    # itself is reported through the rating view's ``ai_abstained``).
+                    has_ai_value=bool(rec and rec.ai_rating
+                                      and rec.ai_rating.value is not None),
                     has_decision=bool(ev and ev.get("decision_id")),
                     written=c.candidate_id in written)
                 # Organized-panel "X of N support" (ADR-0008) — only when 2+ independent

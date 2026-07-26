@@ -22,20 +22,31 @@ def test_written_is_done_even_if_other_facts_lag():
 
 
 def test_reveal_only_after_the_human_rates():
-    assert workflow.reveal_ready(has_human_rating=False, has_ai_rating=True) is False  # blinded
-    assert workflow.reveal_ready(has_human_rating=True, has_ai_rating=False) is False  # nothing to show
-    assert workflow.reveal_ready(has_human_rating=True, has_ai_rating=True) is True
+    assert workflow.reveal_ready(has_human_rating=False, has_ai_value=True) is False  # blinded
+    assert workflow.reveal_ready(has_human_rating=True, has_ai_value=False) is False  # nothing to show
+    assert workflow.reveal_ready(has_human_rating=True, has_ai_value=True) is True
+
+
+def test_an_abstention_leaves_nothing_to_reveal():
+    """An abstained AI rating is a record with no value. It must not light the Reveal
+    step — but it is still an outcome the human sees, carried as ``ai_abstained`` on the
+    rating view rather than through this predicate."""
+    assert workflow.reveal_ready(has_human_rating=True, has_ai_value=False) is False
+    abstained = workflow.candidate_step(has_human_rating=True, has_ai_value=False,
+                                        has_decision=False, written=False)
+    assert abstained["phase"] == "decide"          # the human still decides on their own
+    assert abstained["reveal_ready"] is False
 
 
 def test_candidate_step_offers_verdicts_only_when_deciding():
-    deciding = workflow.candidate_step(has_human_rating=True, has_ai_rating=True,
+    deciding = workflow.candidate_step(has_human_rating=True, has_ai_value=True,
                                        has_decision=False, written=False)
     assert deciding["phase"] == "decide"
     assert deciding["reveal_ready"] is True
     assert [v["decision"] for v in deciding["allowed_verdicts"]] == \
         ["accept", "accepted_with_caution", "needs_second_review", "reject"]
 
-    rating = workflow.candidate_step(has_human_rating=False, has_ai_rating=False,
+    rating = workflow.candidate_step(has_human_rating=False, has_ai_value=False,
                                      has_decision=False, written=False)
     assert rating["phase"] == "rate"
     assert rating["allowed_verdicts"] == []          # no verdict keys before a rating exists
