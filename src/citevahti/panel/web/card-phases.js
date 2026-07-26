@@ -68,24 +68,53 @@ function cmpTag(r, cmp) {
   return `<span class="verdict-tag ${esc(cmp)}">${esc(label)}</span>`;
 }
 
+/* The offer to run CiteVahti's own (local/api) model, worded by what already happened.
+ * Blinded either way: the human rating is locked before this panel renders, and the MCP
+ * assistant can supply the second opinion instead.
+ *
+ * Once the model HAS run, "Get AI second opinion" would be a lie — it was asked, and it
+ * either declined or never reached an answer. The offer stays (the operator may switch
+ * model or attach full text) but it names the prior run, so a re-run is a deliberate
+ * second ask rather than a first one that appears never to have happened. */
+function getAiBlock(r) {
+  if (r.ai) return "";                                  // a value landed; nothing to offer
+  const ran = r.ai_present && (r.ai_abstained || r.ai_config_issue);
+  const [label, note] = r.ai_config_issue === "truncated_reply"
+    ? ["✦ Get the second opinion again",
+       `The run above was cut off before the model answered. Change the setting named above, then re-run.`]
+    : ran
+      ? ["✦ Ask the AI again",
+         `The AI already ran on this paper and declined to rate it. Asking the same model the
+          same question is likely to land the same way — switch model in ✦ AI, or give it the
+          full text, if you want a different second opinion.`]
+      : ["✦ Get AI second opinion",
+         `Optional. Or your assistant provides it over MCP. Configure a model in ✦ AI.`];
+  return `<div class="getai">
+    <button class="btn ghost" data-act="run-ai" title="Ask CiteVahti's configured local/external model for a blinded second opinion">${label}</button>
+    <span class="note dim">${note}</span></div>`;
+}
+
 function decideBlock(cand) {
   const r = cand.rating;
   const cmp = r.comparison_status || (r.ai ? "—" : "");
   const decBtns = DECISIONS.map(([v, l, g]) => `<button class="btn ghost" data-decide="${v}">${l} <span class="hk">[${g}]</span></button>`).join("");
   const adj = (cmp === "discordant" && !r.final_value)
     ? `<div class="note">You and the AI disagree — your decision adjudicates; the reason is audited.</div>` : "";
-  // No AI second opinion yet → offer CiteVahti's own (local/api) run. Blinded:
-  // the human rating is already locked. The MCP assistant can also provide it.
-  const getAi = r.ai ? "" : `<div class="getai">
-    <button class="btn ghost" data-act="run-ai" title="Ask CiteVahti's configured local/external model for a blinded second opinion">✦ Get AI second opinion</button>
-    <span class="note dim">Optional. Or your assistant provides it over MCP. Configure a model in ✦ AI.</span></div>`;
+  const getAi = getAiBlock(r);
   const why = r.ai ? "Your blind rating is in. Here is the AI second opinion."
     : r.ai_config_issue === "truncated_reply"
       ? "Your blind rating is in. The AI run did not produce a second opinion — check the setup note below."
       : r.ai_abstained
         ? "Your blind rating is in. The AI ran and abstained, so there is no second opinion to compare — decide on yours."
         : "Your blind rating is in. No AI second opinion has been recorded yet — decide on yours, or get one below.";
-  return `<div class="next"><div class="ask">${r.ai ? "Reveal &amp; decide" : "Decide now, or get an AI second opinion"}</div>
+  // The heading has to survive the same test as the button: an AI that ran and gave
+  // nothing is not an AI that was never asked, so only the never-asked case may offer
+  // "get an AI second opinion" as the thing left to do.
+  const ask = r.ai ? "Reveal &amp; decide"
+    : r.ai_config_issue === "truncated_reply" ? "Decide — the AI run produced nothing"
+      : r.ai_abstained ? "Decide — the AI declined to rate this"
+        : "Decide now, or get an AI second opinion";
+  return `<div class="next"><div class="ask">${ask}</div>
     <div class="why">${why}</div>
     <div class="compare">
       <div class="col you"><div class="who">You</div><div class="val">${esc(SUP_LABEL[r.human] || r.human)}</div></div>

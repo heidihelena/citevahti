@@ -7,6 +7,20 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **An AI that ran and declined is no longer re-offered as an AI that was never asked.**
+  The rest of the card had learned to say "abstained — no rating given", but the heading and
+  the button under it had not: they still read "Decide now, or get an AI second opinion" and
+  "✦ Get AI second opinion", so the one actionable control on the card described a run that
+  had already happened as one that had not. Both now name the prior attempt — an abstention
+  offers "✦ Ask the AI again" and says the same model asked the same question will likely land
+  the same way (switch model, or supply full text); a cut-off reply offers "✦ Get the second
+  opinion again", pointing at the setting to change first. The run stays reachable in both
+  cases; only the claim that it never happened is gone. Behind it, `workflow.reveal_ready`
+  now takes `has_ai_value` rather than `has_ai_rating`: an abstention is a record with no
+  value, so there is nothing to reveal. That is a separate question from whether the
+  abstention is *shown* — it still is, through `ai_abstained` — and the one blinding rule in
+  `rating/blinding.py` is untouched. Locked by `tests/test_workflow.py`,
+  `tests/test_panel_wizard.py`, and `frontend-tests/units.test.mjs`.
 - **The review panel now shows when the AI was cut off instead of when it declined to judge.**
   A truncated reply was recorded as a configuration problem, but nothing rendered it: the
   Reveal & decide card showed a bare "not recorded yet", which reads as "no second opinion
