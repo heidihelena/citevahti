@@ -46,21 +46,33 @@ def candidate_phase(*, has_human_rating: bool, has_decision: bool, written: bool
     return "write"
 
 
-def reveal_ready(*, has_human_rating: bool, has_ai_rating: bool) -> bool:
-    """True once the blinded AI second rating may be shown — only after the human rates."""
-    return bool(has_human_rating and has_ai_rating)
+def reveal_ready(*, has_human_rating: bool, has_ai_value: bool) -> bool:
+    """True once a blinded AI second *value* may be shown — only after the human rates.
+
+    ``has_ai_value``, not merely "an AI rating exists": an abstention is recorded as a
+    rating whose ``value`` is ``None`` (``claims/support.py``, enforced by
+    ``validators/claim_support.py``), so there is nothing behind the blind to uncover and
+    a surface must not light a Reveal step for it.
+
+    This is *not* a second blinding rule and it does not hide the abstention — that the
+    model ran and declined is itself a rating outcome the human must see, carried
+    separately as ``ai_abstained`` on the rating view
+    (``panel/server.py::blinded_rating_view``, rendered by ``card-phases.js``). This
+    predicate answers only "is there a value to uncover".
+    """
+    return bool(has_human_rating and has_ai_value)
 
 
-def candidate_step(*, has_human_rating: bool, has_ai_rating: bool,
+def candidate_step(*, has_human_rating: bool, has_ai_value: bool,
                    has_decision: bool, written: bool) -> dict:
     """The full step descriptor a surface renders for one candidate: the phase, whether
-    the AI rating may be revealed, and (when deciding) the verdicts on offer."""
+    an AI value may be revealed, and (when deciding) the verdicts on offer."""
     phase = candidate_phase(has_human_rating=has_human_rating,
                             has_decision=has_decision, written=written)
     return {
         "phase": phase,
         "reveal_ready": reveal_ready(has_human_rating=has_human_rating,
-                                     has_ai_rating=has_ai_rating),
+                                     has_ai_value=has_ai_value),
         "allowed_verdicts": [dict(v) for v in VERDICTS] if phase == "decide" else [],
     }
 

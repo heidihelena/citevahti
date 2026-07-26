@@ -78,10 +78,36 @@ test("a genuine abstention stays an abstention — no setup warning", () => {
   assert.doesNotMatch(html, /cut off/);
 });
 
+/* A run that happened must never be re-offered as a first run. The button stays — the
+ * operator may switch model or attach full text — but it names the prior attempt, so the
+ * card cannot read as "the AI was never asked". */
+test("an abstention re-offers the run as a second ask, not a first", () => {
+  const html = t.decideBlock(rated({ ai_present: true, ai_abstained: true,
+    ai_config_issue: null, comparison_status: "ai_abstained" }));
+  assert.match(html, /data-act="run-ai"/);                      // still reachable
+  assert.match(html, /Ask the AI again/);
+  assert.match(html, /already ran on this paper and declined/);
+  assert.match(html, /Decide — the AI declined to rate this/);  // and the heading agrees
+  assert.doesNotMatch(html, /Get AI second opinion</);          // not offered as a first run
+  assert.doesNotMatch(html, /not recorded yet/);
+});
+
+test("a cut-off run is re-offered as a re-run after the setting is fixed", () => {
+  const html = t.decideBlock(rated({ ai_present: true, ai_abstained: true,
+    ai_config_issue: "truncated_reply", comparison_status: "ai_abstained" }));
+  assert.match(html, /data-act="run-ai"/);
+  assert.match(html, /Get the second opinion again/);
+  assert.match(html, /Decide — the AI run produced nothing/);
+  assert.doesNotMatch(html, /Get AI second opinion</);
+  assert.doesNotMatch(html, /already ran on this paper and declined/);   // it never judged
+});
+
 test("no AI run yet still offers the second opinion, unchanged", () => {
   const html = t.decideBlock(rated({ ai_present: false, ai_abstained: false, ai_config_issue: null }));
   assert.match(html, /not recorded yet/);
   assert.match(html, /data-act="run-ai"/);
+  assert.match(html, /✦ Get AI second opinion</);
+  assert.doesNotMatch(html, /again/);
   assert.doesNotMatch(html, /configwarn/);
 });
 
