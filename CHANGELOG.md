@@ -27,15 +27,23 @@ previous one.
   real event was a misconfiguration. Measured on a 44-pair corpus (2026-07-26): qwen3:14b
   abstained on **12/44 (27%)** through the product path versus 0/44 for two non-reasoning
   models on the identical items. Two changes: local mode now sends a **2048-token** reply
-  budget (the 12 affected items needed 302–596; all 12 then returned an in-vocabulary value),
+  budget (the 12 affected items needed 302–596; re-running the corpus through the fixed path
+  gave **0/44 abstentions, 44/44 in vocabulary, and no change to any previously-rated value**),
   overridable via `ai_connection.max_reply_tokens`; and a reply the provider reports as
   cut off (`finish_reason: length` / `stop_reason: max_tokens`) is now recorded as a
   **configuration problem, not a rating**, with `is_truncation_reason()` as the one predicate
   a surface uses to tell the two apart. (The reason lands in the record's `domain_reasoning`;
-  the review panel now reads that predicate — see the next entry.) No rating was ever corrupted and blinding was never affected: a
+  the review panel now reads that predicate — see the entry above.) No rating was ever
+  corrupted and blinding was never affected: a
   truncated reply still abstains and still never invents a value. The advisory chat turn was
   capped the same way and now gets 1024 tokens plus a note when a reply is cut off. Locked by
   `tests/test_ai_reply_truncation.py`.
+  **Known trade-off:** letting a reasoning model finish costs time — mean 55.4s per item on the
+  measured corpus (max 142.6s) versus 18.5s when it was being cut off. `request_timeout_s`
+  still defaults to 60s, so on a thinking model some items will now raise a visible timeout
+  instead of quietly abstaining. That is the better failure (loud, not silent) and the timeout
+  is configurable, but a thinking model is not yet comfortable at the default; sending Ollama's
+  native `think: false` is the follow-up that makes it so.
 - **Closing the window no longer takes the app away** (pilot finding: *"Apple takes the
   app away always when I close it"*). CiteVahti.app is a menu-bar app: the window's
   close button now **hides** the window — sidecars keep running, and "Open Review Panel"

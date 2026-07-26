@@ -47,11 +47,19 @@ Claude column is a strong-model *reference peer*, not ground truth, and the writ
   product adapter. **Measured 2026-07-26** (44-pair intelligence-decomposition corpus): the cause
   was not the missing `think:false` but the 300-token reply ceiling those raters sent. qwen3:14b
   abstained on 12/44 (27%) through the product path and 0/44 natively; the 12 needed 302–596
-  completion tokens (median 354) and **all 12 returned an in-vocabulary value once given
-  headroom**. Fixed in the product by `LOCAL_MAX_REPLY_TOKENS` (2048 for local mode) plus a
-  truncation signal, so a cut-off reply is recorded as a configuration problem rather than an
-  abstention. `think:false` remains worth adding, but as a **latency** optimisation (the /v1 path
-  was 2.34× slower on this model), not a correctness fix.
+  completion tokens (median 354). Fixed in the product by `LOCAL_MAX_REPLY_TOKENS` (2048 for
+  local mode) plus a truncation signal, so a cut-off reply is recorded as a configuration
+  problem rather than an abstention. Re-running the same 44 pairs through the fixed product
+  path: **0/44 abstained, 44/44 in vocabulary, and not one previously-rated value changed** —
+  so the ceiling was the whole cause and the fix perturbs nothing else.
+  **But it costs latency, and that is the next constraint:** letting the model finish its
+  reasoning took mean **55.4s** (min 19.4, max 142.6) versus 18.5s truncated. CiteVahti's
+  default `request_timeout_s` is **60s**, so the mean now sits at the timeout and the tail is
+  well past it — on a reasoning model the headroom fix converts silent truncation into visible
+  timeouts. `think:false` (native `/api/chat`, 7.9s mean here) is therefore not merely an
+  optimisation; it is what makes a thinking model usable through the product at the default
+  timeout. Beware measuring this under load: a first run with a test suite going concurrently
+  showed 3 spurious >180s timeouts that vanished on an idle machine.
 - **Latency is cold-load dominated.** First call per model can be 20–40s; warm calls are ~1.5–3s.
   Don't report the cold number as steady-state.
 - **Class balance.** Aim for real `unclear` and `not_relevant` cases. A seed that is all
