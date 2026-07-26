@@ -90,6 +90,24 @@ Let `SK=.claude/skills/prescreen-benchmark` and `REPO` = this repo root.
    column omitted because Claude authored the claims) is reported as **absent**, never as 0%
    agreement. Publish the HTML as an artifact if the user wants a shareable page.
 
+3b. **(Optional) Put the run on the public leaderboard.** The board is open to *any*
+   rater — a local model, a hosted API, an ensemble, a human expert — screening the
+   same published items. Submitters send per-item verdicts; scores are computed by
+   whoever holds the answer key, never taken from the submitter.
+   ```
+   python3 $SK/scripts/suite.py export <theme>.json "<theme>@v1" .   # public suite + PRIVATE key
+   python3 $SK/scripts/suite.py pack suite_<theme>@v1.json --out submission.json \
+       --from-results results_<tag>.json --key key_<theme>@v1.json \
+       --rater qwen3:14b --rater-kind local --prompt-id prescreen-v1 --prompt-hash <sha>
+   python3 $SK/scripts/suite.py validate submission.json verdicts.jsonl suite_<theme>@v1.json
+   ```
+   Anchors are **held out**: in these seeds the stratum *is* the anchor (A=supports,
+   B=contrasts, C=not_relevant, D=unclear) and ids are `A01`/`B03`, so `export`
+   re-ids to opaque `i001…` and reshuffles. **Never publish or commit `key_*.json`.**
+   A submitter who is not you needs only the public suite file and
+   `suite.py template` to produce a verdicts file. Ingest into Neon lives in the
+   CorpusVahti repo (`scripts/bench-ingest-run.mjs`, `sql/bench.sql`).
+
 4. **Build a dedicated CiteVahti store and view it:**
    ```
    citevahti --root ~/Documents/CiteVahti-<theme> init
