@@ -65,7 +65,15 @@ class HttpClaimSupportRater:
             defs,
             "",
             "Use 'overstated' when the paper supports a weaker version of the claim.",
-            "If the title/abstract is genuinely insufficient to judge, set abstained=true.",
+            "Use 'unclear' when the text IS on-topic but does not settle THIS claim. Wording such as",
+            "'not established', 'inconclusive', 'uncertain', 'mixed', 'limited evidence', 'debated',",
+            "or 'an open question' means 'unclear' — NOT 'contradicts': text saying the evidence does",
+            "not establish X leaves X undecided, it does not assert X is false. Choose 'unclear' too",
+            "when the text addresses only a related but different point and leaves this specific",
+            "claim unresolved. 'unclear' IS a rating — prefer it over abstaining whenever there is",
+            "text to read.",
+            "Set abstained=true ONLY when there is NO text to rate (title and abstract missing or",
+            "unreadable) or you cannot form a reply. Abstention is a non-rating, not a verdict.",
             'Reply with ONLY JSON: {"value":"<one value or null>","abstained":<bool>,'
             '"confidence":<0..1 or null>,"rationale":"<=25 words"}',
         ])
