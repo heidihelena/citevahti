@@ -2,15 +2,16 @@
 name: prescreen-benchmark
 description: >-
   Benchmark local LLMs (Ollama models such as qwen3:14b, hermes3:8b) as CiteVahti citation
-  prescreening agents on a chosen topic, and build the publication-style Atlas + a dedicated
-  CiteVahti store from the run. Use this whenever the user wants to test how well small/local
-  models rate claim-vs-source support, add a new topic/theme to the prescreen study, compare
-  models against Claude or against a guideline anchor, compute agreement / Cohen's kappa,
-  produce an evidence Atlas "to show on the website", grow the de-identified validation corpus,
-  or investigate where a model's ratings go wrong (the "unclear" blind spot). Trigger on phrases
-  like "test my local models as prescreeners", "benchmark qwen/hermes", "new theme/topic for the
-  Atlas", "build a claim corpus for X", "how well does a laptop model prescreen citations", or
-  "run the prescreen benchmark on <topic>".
+  prescreening agents on a chosen topic, and build the publication-style prescreen report + a
+  dedicated CiteVahti store from the run. Use this whenever the user wants to test how well
+  small/local models rate claim-vs-source support, add a new topic/theme to the prescreen study,
+  compare models against Claude or against a guideline anchor, compute agreement / Cohen's kappa,
+  produce a shareable results page "to show on the website", grow the de-identified validation
+  corpus, or investigate where a model's ratings go wrong (the "unclear" blind spot). Trigger on
+  phrases like "test my local models as prescreeners", "benchmark qwen/hermes", "new theme/topic
+  for the prescreen study", "build a claim corpus for X", "how well does a laptop model prescreen
+  citations", or "run the prescreen benchmark on <topic>" — and on "a new theme for the Atlas",
+  which is what this report used to be called (see the naming note below).
 ---
 
 # Prescreen benchmark — local LLMs as CiteVahti prescreening agents
@@ -18,7 +19,13 @@ description: >-
 This skill runs the experiment: take a topic, author a small corpus of *claim ↔ cited-source*
 pairs each with an **independently-authored anchor label**, have local Ollama models (plus a
 Claude column) prescreen every pair **blind**, then measure agreement, ingest the run into a
-**dedicated** CiteVahti store, and render a self-contained Atlas.
+**dedicated** CiteVahti store, and render a self-contained prescreen report.
+
+> **Naming.** This report is *not* the Atlas. In CiteVahti, **Atlas** means the panel's
+> claim↔evidence **graph** (nodes and links — `panel/web/evidence-map.js`, Spine layout).
+> What this skill renders is a scoreboard and a rating matrix, so it is called the **prescreen
+> report** (`scripts/report.py`). Pages published before this rename still carry the old
+> "Evidence Atlas" masthead; leave them as they are.
 
 CiteVahti is a local-first citation-integrity tool used in **live pilots with real
 researchers**. A benchmark that overstates what a laptop model can do — or that quietly grades a
@@ -41,8 +48,8 @@ exists to prevent. So the guardrails below are load-bearing, not decoration.
    off-limits.
 4. **Blind + human-first.** Models never see the anchor. In the store the anchor is the human
    rating; the model is the blind AI second opinion; divergences are adjudicated to the anchor.
-5. **Trust language.** In any Atlas/report copy: check / assess, never *verify / prove /
-   guarantee*. The Atlas already carries the "agreement ≠ accuracy" caveat — keep it.
+5. **Trust language.** In any report copy: check / assess, never *verify / prove /
+   guarantee*. The report already carries the "agreement ≠ accuracy" caveat — keep it.
 
 See `references/method.md` for the full method, the confound analysis, and the findings so far.
 
@@ -51,7 +58,7 @@ See `references/method.md` for the full method, the confound analysis, and the f
 - **Ollama running** with the models pulled (`ollama list`). qwen3:14b and hermes3:8b are the
   defaults; override with `LOCAL_MODELS="a,b"` and `THINKING_MODELS="a"` (thinking models need
   `think:false`).
-- **Python** (stdlib only for `bench.py`/`atlas.py`/`prompt_v2.py`). `ingest.py` imports
+- **Python** (stdlib only for `bench.py`/`report.py`/`prompt_v2.py`). `ingest.py` imports
   `citevahti`, so run it with `PYTHONPATH=<repo>/src` or an installed `citevahti`.
 - Pick a **work directory** for outputs, e.g. `~/Documents/prescreen-runs/<theme>/`, and run the
   commands from there (all scripts read/write relative to the current directory).
@@ -73,12 +80,33 @@ Let `SK=.claude/skills/prescreen-benchmark` and `REPO` = this repo root.
    ```
    → `results_<tag>.json`, `validation_records_<tag>.jsonl`, `ratings_cache_<tag>.json`.
 
-3. **Render the Atlas:**
+3. **Render the report:**
    ```
-   python3 $SK/scripts/atlas.py results_<tag>.json atlas_<tag>.html
+   python3 $SK/scripts/report.py results_<tag>.json report_<tag>.html
    ```
-   For a nicer masthead on a brand-new theme, add a `META` entry in `atlas.py`; the fallback
-   works without one. Publish the HTML as an artifact if the user wants a shareable page.
+   For a nicer masthead on a brand-new theme, add a `META` entry in `report.py`; the fallback
+   works without one. The report adapts to whatever raters the run holds — any number of local
+   models, with or without a reference peer. A rater whose column is `null` (e.g. the Claude
+   column omitted because Claude authored the claims) is reported as **absent**, never as 0%
+   agreement. Publish the HTML as an artifact if the user wants a shareable page.
+
+3b. **(Optional) Put the run on the public leaderboard.** The board is open to *any*
+   rater — a local model, a hosted API, an ensemble, a human expert — screening the
+   same published items. Submitters send per-item verdicts; scores are computed by
+   whoever holds the answer key, never taken from the submitter.
+   ```
+   python3 $SK/scripts/suite.py export <theme>.json "<theme>@v1" .   # public suite + PRIVATE key
+   python3 $SK/scripts/suite.py pack suite_<theme>@v1.json --out submission.json \
+       --from-results results_<tag>.json --key key_<theme>@v1.json \
+       --rater qwen3:14b --rater-kind local --prompt-id prescreen-v1 --prompt-hash <sha>
+   python3 $SK/scripts/suite.py validate submission.json verdicts.jsonl suite_<theme>@v1.json
+   ```
+   Anchors are **held out**: in these seeds the stratum *is* the anchor (A=supports,
+   B=contrasts, C=not_relevant, D=unclear) and ids are `A01`/`B03`, so `export`
+   re-ids to opaque `i001…` and reshuffles. **Never publish or commit `key_*.json`.**
+   A submitter who is not you needs only the public suite file and
+   `suite.py template` to produce a verdicts file. Ingest into Neon lives in the
+   CorpusVahti repo (`scripts/bench-ingest-run.mjs`, `sql/bench.sql`).
 
 4. **Build a dedicated CiteVahti store and view it:**
    ```

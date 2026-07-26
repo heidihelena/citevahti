@@ -71,6 +71,31 @@ def test_rater_accepts_overstated_value():
     assert out.value == "overstated"          # the cross-tool 'overstated' verdict is in vocab
 
 
+def test_rater_accepts_unclear_as_a_value_not_an_abstention():
+    """'unclear' is an honest verdict — it must survive as a value, never collapse to abstained."""
+    poster = FakePoster(_openai({"value": "unclear", "abstained": False,
+                                 "rationale": "on-topic but does not settle the claim"}))
+    r = HttpClaimSupportRater(shape="openai", endpoint="https://x", model="m", poster=poster)
+    out = r.rate(claim=CLAIM, candidate=CAND, task_type="assess")
+    assert out.value == "unclear" and not out.abstained
+
+
+def test_prompt_separates_unclear_from_abstention():
+    """The two sinks must not overlap: 'unclear' is scaffolded as a rating, abstention is
+    reserved for having no text at all. Regression guard — the prompt previously routed the
+    'unclear' case to abstained=true, so the AI could never return the value a human can."""
+    poster = FakePoster(_openai({"value": "unclear", "abstained": False}))
+    r = HttpClaimSupportRater(shape="openai", endpoint="https://x", model="m", poster=poster)
+    r.rate(claim=CLAIM, candidate=CAND, task_type="assess")
+    sent = poster.calls[0]["payload"]["messages"][0]["content"]
+    assert "'unclear' IS a rating" in sent                  # scaffolded, like 'overstated'
+    assert "prefer it over abstaining" in sent
+    assert "abstained=true ONLY when there is NO text to rate" in sent
+    assert "not 'contradicts'" in sent.lower()             # the qwen failure mode
+    # the old, ambiguous instruction must be gone
+    assert "insufficient to judge, set abstained=true" not in sent
+
+
 def test_rater_anthropic_shape_sends_key():
     poster = FakePoster(_anthropic({"value": "directly_supports", "abstained": False}))
     r = HttpClaimSupportRater(shape="anthropic", endpoint="https://api.anthropic.com/v1/messages",
