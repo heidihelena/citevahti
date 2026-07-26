@@ -343,6 +343,26 @@ def test_active_manuscript_is_remembered_across_reloads(tmp_path):
     assert gone["active"] is None                          # absent → not surfaced
 
 
+def test_a_manuscript_whose_name_has_a_space_opens(tmp_path):
+    # The filename travels as a URL path segment, so the client percent-encodes it.
+    # Before the decode, "Math paper.md" arrived as "Math%20paper.md", matched no file
+    # on disk, and the panel stayed stuck on whichever manuscript did open — with no
+    # error beyond a "wasn't found" note naming a file the user never created.
+    _setup(tmp_path)
+    msdir = tmp_path / "papers"
+    msdir.mkdir()
+    (msdir / "Math paper.md").write_text("A theorem.\n", encoding="utf-8")
+    from citevahti.panel import prefs
+    prefs.set_manuscripts_dir(str(tmp_path), str(msdir))
+
+    status, view = dispatch(str(tmp_path), "GET", "/api/manuscript/Math%20paper.md", None)
+    assert status == 200
+    assert "A theorem." in json.dumps(view), "the file with a space in its name did not open"
+
+    _, after = dispatch(str(tmp_path), "GET", "/api/manuscripts", None)
+    assert after["active"] == "Math paper.md"    # remembered decoded, not as %20
+
+
 def test_review_card_carries_the_evidence_basis(tmp_path):
     # The review card shows, at rate time, whether the support judgment rests on the
     # abstract only or a located full-text passage — surfacing the abstract-only caveat

@@ -31,6 +31,7 @@ from html import escape as esc_html
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional
+from urllib.parse import unquote
 
 from .. import agent
 from .. import tools as engine
@@ -1041,7 +1042,13 @@ def _dyn_ratings_adjudicate(root, body, m):
 
 # ---- manuscripts (inline review surface) ---------------------------
 def _dyn_manuscript(root, body, m):
-            mid = m.group(1)
+            # The id is a filename in a URL path segment, so the client percent-encodes
+            # it. Decode before touching the filesystem — otherwise any manuscript whose
+            # name contains a space (or any encoded character) is permanently unopenable:
+            # "Math paper.md" arrives as "Math%20paper.md" and never matches a real file,
+            # so the panel silently stays on whichever document happens to open.
+            # Traversal is contained downstream: resolve_path reduces to Path(mid).name.
+            mid = unquote(m.group(1))
             mdir = prefs.get_manuscripts_dir(root)
             prefs.remember_manuscript(root, mid)   # opening it = now working on it
             prefs.remember_recent_manuscript(root, mid)   # …and onto the cross-root recents
