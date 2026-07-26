@@ -45,7 +45,7 @@ SUPPORT_DEFINITIONS = {
     "overstated": "the paper supports a WEAKER version of the claim — the claim overstates the evidence (broader population, stronger effect, or an extra outcome)",
     "does_not_support": "the paper is on-topic but does not actually support this claim",
     "contradicts": "the paper's findings argue against this claim",
-    "unclear": "the available text genuinely does not let you decide",
+    "unclear": "the text is on-topic but genuinely does not settle this claim (a verdict — NOT the same as having no text to read, which is an abstention)",
 }
 
 # PICO + claim fit, each 0 (poor) / 1 (partial) / 2 (good).
