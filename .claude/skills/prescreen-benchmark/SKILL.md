@@ -78,7 +78,10 @@ Let `SK=.claude/skills/prescreen-benchmark` and `REPO` = this repo root.
    python3 $SK/scripts/atlas.py results_<tag>.json atlas_<tag>.html
    ```
    For a nicer masthead on a brand-new theme, add a `META` entry in `atlas.py`; the fallback
-   works without one. Publish the HTML as an artifact if the user wants a shareable page.
+   works without one. The Atlas adapts to whatever raters the run holds — any number of local
+   models, with or without a reference peer. A rater whose column is `null` (e.g. the Claude
+   column omitted because Claude authored the claims) is reported as **absent**, never as 0%
+   agreement. Publish the HTML as an artifact if the user wants a shareable page.
 
 4. **Build a dedicated CiteVahti store and view it:**
    ```

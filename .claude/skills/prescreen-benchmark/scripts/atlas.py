@@ -5,7 +5,7 @@ Usage: python3 atlas.py <results.json> <out.html>   (paths are CWD-relative)
 Add a META entry below for a nicer masthead on a new theme; the fallback works
 for any theme without one.
 """
-import json, html, sys
+import json, html, re, sys
 from pathlib import Path
 
 RESULTS_FILE = sys.argv[1] if len(sys.argv) > 1 else "results.json"
@@ -32,11 +32,37 @@ M = META.get(R["theme"], {"eyebrow": R["theme"], "subject": "a claim",
 V = {"supports": ("supports", "#9a7a1e"), "contrasts": ("contrasts", "#b04a3f"),
      "unclear": ("unclear", "#6a52a3"), "not_relevant": ("not relevant", "#64707a"),
      "unparseable": ("unparseable", "#3f464d")}
-MODELS = R["models"]
-PRETTY = {"claude-fable-5": "Claude Fable 5", "qwen3:14b": "qwen3:14b", "hermes3:8b": "hermes3:8b"}
-ROLE = {"claude-fable-5": "reference peer", "qwen3:14b": "local · 14B", "hermes3:8b": "local · 8B"}
+STATS = R["stats"]["vs_anchor"]
+TIMING = R["stats"]["timing_secs"]
+# Render whatever raters this run actually holds: any model set, any size, with or
+# without a hosted reference peer. Only labels are curated; everything else is derived.
+MODELS = [m for m in R["models"] if m in STATS]
+_missing = [m for m in R["models"] if m not in STATS]
+if _missing:   # never drop a rater silently
+    print(f"warning: no vs_anchor stats for {', '.join(_missing)} — omitted", file=sys.stderr)
+PRETTY = {"claude-fable-5": "Claude Fable 5"}
+ROLE = {"claude-fable-5": "reference peer"}
+# a model with timing entries was run locally here; one without is a carried-in peer column
+LOCALS = [m for m in MODELS if m in TIMING]
+PEERS = [m for m in MODELS if m not in TIMING]
+# a rater with no parseable verdict at all is reported as absent, never as 0% agreement
+RATED = {m for m in MODELS if any(r["ratings"].get(m) is not None for r in R["rows"])}
+
+def pretty(m):
+    return PRETTY.get(m, m)
+
+def role(m):
+    if m in ROLE: return ROLE[m]
+    size = re.search(r"[:-](\d+(?:\.\d+)?)b\b", m, re.I)   # qwen3:14b -> local · 14B
+    return f"local · {size.group(1).upper()}B" if size else ("local" if m in LOCALS else "peer")
 
 def esc(s): return html.escape(str(s))
+
+def joinwords(items):
+    if len(items) < 2: return "".join(items)
+    return f"{', '.join(items[:-1])} and {items[-1]}"
+
+NUMWORD = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six"}
 
 def chip(v):
     label, c = V.get(v, (v, "#3f464d"))
@@ -50,32 +76,42 @@ def kword(k):
     if k >= 0.21: return "fair"
     return "slight"
 
-# scoreboard cards — models under test first, reference peer last
-order = ["qwen3:14b", "hermes3:8b", "claude-fable-5"]
+# scoreboard cards — models under test first, carried-in peer columns last
+order = LOCALS + PEERS
 cards = []
 for m in order:
-    s = R["stats"]["vs_anchor"][m]
-    k = s["cohens_kappa"]
-    lat = R["stats"]["timing_secs"].get(m)
+    s = STATS[m]
+    rated = m in RATED
+    k = s["cohens_kappa"] if rated else None
+    acc = s["accuracy_vs_anchor"]
+    big = f"{acc:.0%}" if rated and acc is not None else "&mdash;"
+    lab = ("agreement with the guideline anchor" if rated
+           else "no verdicts recorded for this rater")
+    lat = TIMING.get(m)
     latline = (f'{lat["mean"]}s median-ish / claim' if lat else "no local inference")
     cards.append(
         f'<article class="card">'
-        f'<div class="chd"><span class="cname">{esc(PRETTY[m])}</span>'
-        f'<span class="crole">{esc(ROLE[m])}</span></div>'
-        f'<div class="cbig">{s["accuracy_vs_anchor"]:.0%}</div>'
-        f'<div class="clab">agreement with the guideline anchor</div>'
+        f'<div class="chd"><span class="cname">{esc(pretty(m))}</span>'
+        f'<span class="crole">{esc(role(m))}</span></div>'
+        f'<div class="cbig">{big}</div>'
+        f'<div class="clab">{lab}</div>'
         f'<div class="cmeta"><span>&kappa; {k if k is not None else "n/a"}</span>'
         f'<span class="dot">&middot;</span><span>{esc(kword(k))}</span></div>'
         f'<div class="cfoot">{esc(latline)} &middot; parseable {esc(s["parseable"])}</div>'
         f'</article>')
 
-# evidence rows
+# evidence rows — a rater that returned nothing for a pair shows an em dash, not a verdict
+def verdicts(r):
+    return [(m, r["ratings"].get(m)) for m in order]
+
 rows = []
 for r in R["rows"]:
-    dis = any(r["ratings"][m] != r["ref"] for m in MODELS)
+    dis = any(v is not None and v != r["ref"] for _, v in verdicts(r))
     cells = ""
-    for m in MODELS:
-        v = r["ratings"][m]
+    for m, v in verdicts(r):
+        if v is None:
+            cells += '<td class="rc na">&mdash;</td>'
+            continue
         off = " off" if v != r["ref"] else ""
         cells += f'<td class="rc{off}">{chip(v)}</td>'
     rows.append(
@@ -86,41 +122,77 @@ for r in R["rows"]:
         f'<td class="an">{chip(r["ref"])}</td>{cells}</tr>')
 
 # disagreement reading
+def label(v):
+    return V.get(v, (v, ""))[0]
+
 dislist = []
 for r in R["rows"]:
-    for m in MODELS:
-        if r["ratings"][m] != r["ref"]:
-            dislist.append(f'<b>{esc(r["id"])}</b> &mdash; {esc(PRETTY[m])} said '
-                           f'&ldquo;{esc(V[r["ratings"][m]][0])}&rdquo; where the anchor is '
-                           f'&ldquo;{esc(V[r["ref"]][0])}&rdquo; '
+    for m, v in verdicts(r):
+        if v is not None and v != r["ref"]:
+            dislist.append(f'<b>{esc(r["id"])}</b> &mdash; {esc(pretty(m))} said '
+                           f'&ldquo;{esc(label(v))}&rdquo; where the anchor is '
+                           f'&ldquo;{esc(label(r["ref"]))}&rdquo; '
                            f'(<span class="q">{esc(r["claim"][:90])}&hellip;</span>)')
 
 total_miss = len(dislist)
-unclear_miss = sum(1 for r in R["rows"] for m in MODELS
-                   if r["ratings"][m] != r["ref"] and r["ref"] == "unclear")
+unclear_miss = sum(1 for r in R["rows"] for _, v in verdicts(r)
+                   if v is not None and v != r["ref"] and r["ref"] == "unclear")
+
+def pct(x):
+    return f"{x:.0%}" if x is not None else "&mdash;"
 
 pw = "".join(
-    f'<tr><td>{esc(PRETTY.get(a,a))} &harr; {esc(PRETTY.get(b,b))}</td>'
-    f'<td class="num">{v["agreement"]:.0%}</td><td class="num">{v["cohens_kappa"]}</td></tr>'
+    f'<tr><td>{esc(pretty(a))} &harr; {esc(pretty(b))}</td>'
+    f'<td class="num">{pct(v["agreement"])}</td>'
+    f'<td class="num">{v["cohens_kappa"] if v["cohens_kappa"] is not None else "&mdash;"}</td></tr>'
     for name, v in R["stats"]["pairwise"].items() for a, b in [name.split(" vs ")])
 
-thead = "".join(f'<th class="rh">{esc(PRETTY[m])}</th>' for m in MODELS)
+thead = "".join(f'<th class="rh">{esc(pretty(m))}</th>' for m in order)
 legend = " ".join(chip(v) for v in R["vocabulary"])
-tim = R["stats"]["timing_secs"]
 timline = " &nbsp;·&nbsp; ".join(
-    f'{esc(m)} mean {t["mean"]}s (span {t["min"]}&ndash;{t["max"]}s)' for m, t in tim.items())
+    f'{esc(m)} mean {t["mean"]}s (span {t["min"]}&ndash;{t["max"]}s)'
+    for m, t in TIMING.items()) or "no local inference in this run"
+thinkfn = (" qwen3:14b needs thinking disabled (<code>think:false</code>) to answer as a rater."
+           if any(m.startswith("qwen3") for m in TIMING) else "")
+
+# masthead lede — derived from whichever raters this run holds
+def bolded(models):
+    return joinwords([f"<b>{esc(pretty(m))}</b>" for m in models])
+
+if LOCALS:
+    n = len(LOCALS)
+    lede = (f'{NUMWORD.get(n, n)} local model{"s" if n != 1 else ""} running on one machine '
+            f'&mdash; {bolded(LOCALS)} &mdash; {"were" if n != 1 else "was"} asked')
+else:
+    lede = f'{bolded(MODELS)} {"were" if len(MODELS) != 1 else "was"} asked'
+peers_rated = [m for m in PEERS if m in RATED]
+alongside = f', alongside {joinwords([esc(pretty(m)) for m in peers_rated])}' if peers_rated else ""
+absent = [m for m in MODELS if m not in RATED]
+absentline = (f'<p class="stand">{joinwords([esc(pretty(m)) for m in absent])} '
+              f'{"carry" if len(absent) != 1 else "carries"} no verdicts in this run and '
+              f'{"are" if len(absent) != 1 else "is"} scored as absent, not as 0% agreement. '
+              f'A rater is left out when it would not be measuring independent agreement '
+              f'&mdash; a model scoring claims it authored itself is one such case.</p>'
+              if absent else "")
+everymodel = ("Every model here &mdash; the reference peer included &mdash; is a"
+              if peers_rated else "Every model here is a")
+unclear_read = (" &mdash; the recurring pattern is a model forcing an on-topic-but-unresolved "
+                "claim into &ldquo;supports&rdquo; or &ldquo;contrasts&rdquo; rather than "
+                "flagging that the source does not settle it" if unclear_miss else "")
+rest_read = (" The rest are a weaker model waving through a claim that <i>overstates</i> or "
+             "<i>contradicts</i> its source." if total_miss > unclear_miss else "")
 
 HTML = f"""<main class="atlas">
   <header class="mast">
     <div class="eyebrow">CiteVahti &middot; Evidence Atlas &middot; {M["eyebrow"]}</div>
     <h1>Can a laptop-sized model prescreen a citation?</h1>
-    <p class="stand">Two local models running on one machine &mdash; <b>qwen3:14b</b> and
-      <b>hermes3:8b</b> &mdash; were asked to judge whether a cited source
-      <i>supports</i> {M["subject"]}, alongside Claude Fable 5.
+    <p class="stand">{lede} to judge whether a cited source
+      <i>supports</i> {M["subject"]}{alongside}.
       Each verdict is measured against an independent, evidence-derived anchor
       ({M["sources"]}).</p>
+    {absentline}
     <p class="caveat">The anchor records claim&harr;source <i>support</i>, not clinical
-      truth about patients. Every model here &mdash; Claude included &mdash; is a
+      truth about patients. {everymodel}
       prescreener scored against that anchor. <b>Agreement is not accuracy.</b></p>
   </header>
 
@@ -145,24 +217,20 @@ HTML = f"""<main class="atlas">
       <h2>Where they diverged</h2>
       <ul class="div">{''.join(f'<li>{d}</li>' for d in dislist) or '<li>No divergences from the anchor.</li>'}</ul>
       <p class="fn">Of {total_miss} verdicts that departed from the anchor, {unclear_miss} fall on the
-        <i>unclear</i> cases &mdash; both local models force an on-topic-but-unresolved claim into
-        &ldquo;supports&rdquo; or &ldquo;contrasts&rdquo; rather than flagging that the source does
-        not settle it. The rest are a weaker model waving through a claim that <i>overstates</i> or
-        <i>contradicts</i> its source. That epistemic-humility gap is exactly why the human rates
-        first and the AI stays advisory.</p>
+        <i>unclear</i> cases{unclear_read}.{rest_read} That epistemic-humility gap is exactly
+        why the human rates first and the AI stays advisory.</p>
     </div>
     <div>
       <h2>Rater-to-rater</h2>
       <table class="pw"><thead><tr><th>pair</th><th class="num">agree</th><th class="num">&kappa;</th></tr></thead>
         <tbody>{pw}</tbody></table>
-      <p class="fn">Local inference latency: {timline}. qwen3:14b needs
-        thinking disabled (<code>think:false</code>) to answer as a rater.</p>
+      <p class="fn">Local inference latency: {timline}.{thinkfn}</p>
     </div>
   </section>
 
   <footer class="foot">
     <span>Built with CiteVahti &middot; models served locally via Ollama, blind to each other and to the anchor</span>
-    <span>Corpus persisted as CiteVahti <code>ValidationRecord</code> JSONL &middot; 2026-07-09</span>
+    <span>Corpus persisted as CiteVahti <code>ValidationRecord</code> JSONL</span>
   </footer>
 </main>
 
@@ -185,7 +253,8 @@ HTML = f"""<main class="atlas">
   .caveat {{ max-width: 60ch; font-size: .9rem; color: var(--ink);
     border-left: 3px solid var(--accent); padding: .1rem 0 .1rem .8rem; margin: 0; }}
   .stand b, .caveat b {{ color: var(--ink); }}
-  .board {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.8rem 0; }}
+  .board {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1rem; margin: 1.8rem 0; }}
   .card {{ background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
     padding: 1.1rem 1.2rem; box-shadow: 0 1px 0 rgba(23,33,43,.03); }}
   .chd {{ display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }}
@@ -220,6 +289,7 @@ HTML = f"""<main class="atlas">
   .cl .sr {{ color: var(--faint); font-size: .77rem; margin-top: .25rem; }}
   .map tbody tr.dis {{ box-shadow: inset 3px 0 0 var(--c-contrast, #b04a3f); }}
   td.rc.off .chip {{ outline: 1.5px solid #b04a3f; outline-offset: 1px; }}
+  td.rc.na {{ color: var(--faint); }}
   .chip {{ display: inline-block; padding: .1rem .5rem; border-radius: 3px; font-size: .77rem;
     white-space: nowrap; color: var(--c);
     background: color-mix(in srgb, var(--c) 12%, #fff);
