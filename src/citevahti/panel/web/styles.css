@@ -378,6 +378,19 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .verdict-tag { font: 700 11px/1 ui-monospace, Menlo, monospace; padding: 4px 9px; border-radius: var(--zs-radius-pill); border: 1px solid; }
 .verdict-tag.concordant { color: var(--zs-partial-text); border-color: var(--zs-partial-border); background: var(--zs-partial-bg); }
 .verdict-tag.discordant { color: var(--zs-delete-text); border-color: var(--zs-delete-border); background: var(--zs-delete-bg); }
+/* no AI value to compare — a neutral outcome, not a disagreement */
+.verdict-tag.ai_abstained, .verdict-tag.human_only { color: var(--zs-muted); border-color: var(--zs-line); }
+
+/* A cut-off AI reply: the model never judged this item, so it is a SETUP problem rather
+ * than a rating. Amber (the panel's "attention / your setup" hue) keeps it apart from a
+ * discordant verdict (pink) and from a genuine abstention (muted grey). */
+.compare .col.cut { border-color: var(--zs-supported-border); background: var(--zs-supported-bg); }
+.compare .col.cut .who, .aicut { color: var(--zs-supported-text); }
+.aicut { font-weight: 700; }
+.configwarn { margin: 2px 0 8px; padding: 8px 10px; border-radius: var(--zs-radius-sm);
+  font-size: var(--zs-text-sm); line-height: 1.45; color: var(--zs-supported-text);
+  background: var(--zs-supported-bg); border: 1px solid var(--zs-supported-border); }
+.configwarn .mono { font-family: ui-monospace, Menlo, monospace; font-size: var(--zs-text-xs); }
 
 .fitrow { display: flex; flex-wrap: wrap; gap: var(--zs-space-sm); align-items: center; margin-top: 10px; }
 .fitlab { font: 600 11px/1 ui-monospace, Menlo, monospace; color: var(--zs-muted); display: inline-flex; align-items: center; gap: var(--zs-space-xs); }

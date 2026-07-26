@@ -161,6 +161,70 @@ def test_blinding_is_consistent_across_surfaces(tmp_path):
     assert panel == prov_ai == rep_ai == "does_not_support"
 
 
+# ---- abstention vs. a cut-off reply are different events -------------------
+# A truncated reply is a misconfiguration, not a judgement: the model never got to
+# rate the item (rating/ai.py::TRUNCATED_REPLY_REASON). Both land as an abstention in
+# the ledger, so the panel view has to tell them apart or the operator reads a setup
+# problem as an honest "cannot judge".
+def _abstained_rating(tmp_path, reason, human="directly_supports"):
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store)
+    rec = eng.support_start(claim_id, cand_id)
+    rec = eng.submit_ai_rating(rec.rating_id, None, abstained=True, reasoning=reason)
+    if human:
+        rec = eng.support_commit_human(rec.rating_id, human)
+    return eng, rec
+
+
+def test_truncated_ai_reply_is_flagged_as_a_config_issue(tmp_path):
+    from citevahti.rating.ai import TRUNCATED_REPLY_REASON
+    _, rec = _abstained_rating(tmp_path, TRUNCATED_REPLY_REASON)
+    view = blinded_rating_view(rec)
+    assert view["ai"] is None                       # still no value — it never judged
+    assert view["ai_present"] is True
+    assert view["ai_abstained"] is True
+    assert view["ai_config_issue"] == "truncated_reply"
+
+
+def test_genuine_abstention_is_not_flagged_as_a_config_issue(tmp_path):
+    _, rec = _abstained_rating(tmp_path, "abstract lacks the outcome")
+    view = blinded_rating_view(rec)
+    assert view["ai_abstained"] is True
+    assert view["ai_config_issue"] is None          # the model judged it could not judge
+
+
+def test_ai_rating_with_a_value_carries_no_config_issue(tmp_path):
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store)
+    rec = eng.support_start(claim_id, cand_id)
+    rec = eng.submit_ai_rating(rec.rating_id, "does_not_support", reasoning="the trial reports no effect")
+    rec = eng.support_commit_human(rec.rating_id, "directly_supports")
+    view = blinded_rating_view(rec)
+    assert view["ai_abstained"] is False and view["ai_config_issue"] is None
+
+
+@pytest.mark.security   # the new flags must not become a second, unblinded surface
+def test_abstention_flags_stay_blinded_until_the_human_rates(tmp_path):
+    """The flags are derived behind the one reveal rule, like the value itself — and the
+    reason text (which for a real rating carries the AI's rationale) never crosses the wire."""
+    from citevahti.rating.ai import TRUNCATED_REPLY_REASON
+    _, rec = _abstained_rating(tmp_path, TRUNCATED_REPLY_REASON, human=None)
+    view = blinded_rating_view(rec)
+    assert view["human"] is None
+    assert view["ai_abstained"] is False and view["ai_config_issue"] is None
+    assert "domain_reasoning" not in view
+    assert "reply-token" not in json.dumps(view)    # the raw reason is not shipped
+
+
+def test_rated_view_never_ships_the_ai_rationale_text(tmp_path):
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store)
+    rec = eng.support_start(claim_id, cand_id)
+    rec = eng.submit_ai_rating(rec.rating_id, "does_not_support", reasoning="SECRET-RATIONALE")
+    rec = eng.support_commit_human(rec.rating_id, "directly_supports")
+    assert "SECRET-RATIONALE" not in json.dumps(blinded_rating_view(rec))
+
+
 # ---- provenance endpoint respects blinding ---------------------------------
 @pytest.mark.security   # the agent provenance surface must blind too
 def test_provenance_endpoint_blinds_until_human_rated(tmp_path):

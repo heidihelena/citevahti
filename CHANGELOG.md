@@ -7,6 +7,18 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **The review panel now shows when the AI was cut off instead of when it declined to judge.**
+  A truncated reply was recorded as a configuration problem, but nothing rendered it: the
+  Reveal & decide card showed a bare "not recorded yet", which reads as "no second opinion
+  has been run" — the exact misreading the recorded reason exists to prevent. The card now
+  tells three states apart: no AI run yet, a genuine abstention (neutral, "abstained — no
+  rating given"), and a cut-off reply, which gets a marked AI column plus a separated warning
+  row naming the fix — pick a model that answers directly, or raise
+  `ai_connection.max_reply_tokens`. The stepper stops ticking "AI second opinion ✓" for a run
+  that produced no value. The panel view exposes only derived flags (`ai_abstained`,
+  `ai_config_issue`) behind the same reveal predicate as the AI value itself, so this is not
+  a second blinding surface and the AI's own reasoning text is never shipped to the page.
+  Locked by `tests/test_panel_api.py` + `frontend-tests/units.test.mjs`.
 - **A reasoning ("thinking") local model no longer quietly drops a quarter of its ratings.**
   The AI raters capped every reply at 300 tokens. A model that reasons before answering
   (the qwen3 family) spends reply tokens on its chain of thought, so it was cut off before
@@ -20,8 +32,7 @@ previous one.
   cut off (`finish_reason: length` / `stop_reason: max_tokens`) is now recorded as a
   **configuration problem, not a rating**, with `is_truncation_reason()` as the one predicate
   a surface uses to tell the two apart. (The reason lands in the record's `domain_reasoning`;
-  the review panel does not display that field yet, so badging a truncated abstention in the
-  UI is still to come.) No rating was ever corrupted and blinding was never affected: a
+  the review panel now reads that predicate — see the next entry.) No rating was ever corrupted and blinding was never affected: a
   truncated reply still abstains and still never invents a value. The advisory chat turn was
   capped the same way and now gets 1024 tokens plus a note when a reply is cut off. Locked by
   `tests/test_ai_reply_truncation.py`.
