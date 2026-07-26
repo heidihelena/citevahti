@@ -51,3 +51,44 @@ test("isDecided treats any non-pending state as decided", () => {
   assert.equal(t.isDecided("decision_recorded"), true);
   assert.equal(t.isDecided(undefined), false);
 });
+
+/* The Reveal & decide panel has to tell three different "no AI value" events apart. Two of
+ * them are honest outcomes; a reply cut off at the token ceiling is a SETUP problem the
+ * operator has to act on, and used to render identically to "no AI run yet". */
+const rated = (extra) => ({ rating: { human: "directly_supports", ai: null, ...extra } });
+
+test("a cut-off AI reply reads as a setup problem, with the fix", () => {
+  const html = t.decideBlock(rated({ ai_present: true, ai_abstained: true,
+    ai_config_issue: "truncated_reply", comparison_status: "ai_abstained" }));
+  assert.match(html, /cut off before answering/);
+  assert.match(html, /never judged this item/);
+  assert.match(html, /ai_connection\.max_reply_tokens/);        // the actionable fix, named
+  assert.match(html, /class="configwarn"/);                     // visually separated row
+  assert.match(html, /class="col cut"/);                        // and marked in the AI column
+  assert.doesNotMatch(html, /not recorded yet/);                // no longer reads as "none yet"
+  assert.match(html, /no AI rating — check AI settings/);       // the raw ledger code is not shown
+});
+
+test("a genuine abstention stays an abstention — no setup warning", () => {
+  const html = t.decideBlock(rated({ ai_present: true, ai_abstained: true,
+    ai_config_issue: null, comparison_status: "ai_abstained" }));
+  assert.match(html, /abstained — no rating given/);
+  assert.doesNotMatch(html, /configwarn/);
+  assert.doesNotMatch(html, /max_reply_tokens/);
+  assert.doesNotMatch(html, /cut off/);
+});
+
+test("no AI run yet still offers the second opinion, unchanged", () => {
+  const html = t.decideBlock(rated({ ai_present: false, ai_abstained: false, ai_config_issue: null }));
+  assert.match(html, /not recorded yet/);
+  assert.match(html, /data-act="run-ai"/);
+  assert.doesNotMatch(html, /configwarn/);
+});
+
+test("an AI value that landed is compared as before", () => {
+  const html = t.decideBlock({ rating: { human: "directly_supports", ai: "does_not_support",
+    ai_present: true, ai_abstained: false, ai_config_issue: null, comparison_status: "discordant" } });
+  assert.match(html, /verdict-tag discordant/);
+  assert.doesNotMatch(html, /configwarn/);
+  assert.doesNotMatch(html, /data-act="run-ai"/);               // no re-run offered once rated
+});

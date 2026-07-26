@@ -25,6 +25,49 @@ function rateBlock(cand) {
     <div class="rates">${btns}</div>${defs}${fit}</div>`;
 }
 
+/* What to show in the "AI (2nd)" column when there is no AI value, and why it matters.
+ * Three different events currently look identical (a blank column):
+ *   - no AI run at all                     -> nothing to say
+ *   - the AI ran and abstained             -> a rating outcome: it would not judge
+ *   - the AI reply was cut off mid-answer  -> a SETUP problem: it never judged
+ * The third is the one an operator has to act on, so it gets its own wording plus the
+ * fix. The server derives `ai_config_issue` behind the blinding rule (panel/server.py);
+ * this only renders it. */
+function aiSecondCell(r) {
+  if (r.ai) return esc(SUP_LABEL[r.ai] || r.ai);
+  if (r.ai_config_issue === "truncated_reply")
+    return `<span class="aicut">cut off before answering</span>`;
+  if (r.ai_abstained) return `<span class="dim">abstained — no rating given</span>`;
+  return `<span class="dim">not recorded yet</span>`;
+}
+
+/* The actionable row for a cut-off reply. Deliberately separated from the abstention
+ * wording: an abstention is the model's judgement, this is the model never reaching one. */
+function aiConfigWarn(r) {
+  if (r.ai_config_issue !== "truncated_reply") return "";
+  return `<div class="configwarn" role="status">⚠ <b>The model was cut off, so it never judged this item.</b>
+    It hit its reply-token ceiling mid-answer — a setup problem, not a rating, and not a
+    signal about the evidence. A reasoning (“thinking”) model spends reply tokens before it
+    answers, so it needs more headroom. Either pick a model that answers directly
+    (<b>✦ AI</b> → Local model), or raise <span class="mono">ai_connection.max_reply_tokens</span>
+    in this review's <span class="mono">.citevahti/config.json</span> — then get the second
+    opinion again. Your own rating stands; nothing here was assessed by the AI.</div>`;
+}
+
+/* The comparison status is a ledger code; the card shows a reader's label for it. A
+ * cut-off reply also lands as `ai_abstained` (the rater must abstain rather than invent
+ * a value), so the label is overridden here — the code stays the code, the operator is
+ * told which of the two happened. */
+const CMP_LABEL = { concordant: "concordant", discordant: "discordant",
+  ai_abstained: "AI abstained — nothing to compare", human_only: "your rating only" };
+
+function cmpTag(r, cmp) {
+  if (!cmp) return "";
+  const label = r.ai_config_issue === "truncated_reply"
+    ? "no AI rating — check AI settings" : (CMP_LABEL[cmp] || cmp);
+  return `<span class="verdict-tag ${esc(cmp)}">${esc(label)}</span>`;
+}
+
 function decideBlock(cand) {
   const r = cand.rating;
   const cmp = r.comparison_status || (r.ai ? "—" : "");
@@ -36,15 +79,20 @@ function decideBlock(cand) {
   const getAi = r.ai ? "" : `<div class="getai">
     <button class="btn ghost" data-act="run-ai" title="Ask CiteVahti's configured local/external model for a blinded second opinion">✦ Get AI second opinion</button>
     <span class="note dim">Optional. Or your assistant provides it over MCP. Configure a model in ✦ AI.</span></div>`;
+  const why = r.ai ? "Your blind rating is in. Here is the AI second opinion."
+    : r.ai_config_issue === "truncated_reply"
+      ? "Your blind rating is in. The AI run did not produce a second opinion — check the setup note below."
+      : r.ai_abstained
+        ? "Your blind rating is in. The AI ran and abstained, so there is no second opinion to compare — decide on yours."
+        : "Your blind rating is in. No AI second opinion has been recorded yet — decide on yours, or get one below.";
   return `<div class="next"><div class="ask">${r.ai ? "Reveal &amp; decide" : "Decide now, or get an AI second opinion"}</div>
-    <div class="why">${r.ai
-      ? "Your blind rating is in. Here is the AI second opinion."
-      : "Your blind rating is in. No AI second opinion has been recorded yet — decide on yours, or get one below."}</div>
+    <div class="why">${why}</div>
     <div class="compare">
       <div class="col you"><div class="who">You</div><div class="val">${esc(SUP_LABEL[r.human] || r.human)}</div></div>
-      <div class="col"><div class="who">AI (2nd)</div><div class="val">${r.ai ? esc(SUP_LABEL[r.ai] || r.ai) : '<span class="dim">not recorded yet</span>'}</div></div>
+      <div class="col${r.ai_config_issue === "truncated_reply" ? " cut" : ""}"><div class="who">AI (2nd)</div><div class="val">${aiSecondCell(r)}</div></div>
     </div>
-    ${cmp ? `<span class="verdict-tag ${cmp}">${esc(cmp)}</span>` : ""}
+    ${aiConfigWarn(r)}
+    ${cmpTag(r, cmp)}
     ${getAi}
     <div class="lbl">Record the verdict</div>
     <div class="decrow"><input type="text" id="decReason" aria-label="Decision reason (optional — recorded in the audit trail)" placeholder="reason — optional; a sensible default is recorded if blank" /></div>

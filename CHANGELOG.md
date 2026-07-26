@@ -7,6 +7,43 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **The review panel now shows when the AI was cut off instead of when it declined to judge.**
+  A truncated reply was recorded as a configuration problem, but nothing rendered it: the
+  Reveal & decide card showed a bare "not recorded yet", which reads as "no second opinion
+  has been run" — the exact misreading the recorded reason exists to prevent. The card now
+  tells three states apart: no AI run yet, a genuine abstention (neutral, "abstained — no
+  rating given"), and a cut-off reply, which gets a marked AI column plus a separated warning
+  row naming the fix — pick a model that answers directly, or raise
+  `ai_connection.max_reply_tokens`. The stepper stops ticking "AI second opinion ✓" for a run
+  that produced no value. The panel view exposes only derived flags (`ai_abstained`,
+  `ai_config_issue`) behind the same reveal predicate as the AI value itself, so this is not
+  a second blinding surface and the AI's own reasoning text is never shipped to the page.
+  Locked by `tests/test_panel_api.py` + `frontend-tests/units.test.mjs`.
+- **A reasoning ("thinking") local model no longer quietly drops a quarter of its ratings.**
+  The AI raters capped every reply at 300 tokens. A model that reasons before answering
+  (the qwen3 family) spends reply tokens on its chain of thought, so it was cut off before
+  it answered; the rater then abstained with "unparseable AI reply" — honest, but
+  indistinguishable from a genuine "cannot judge", so an operator saw abstentions where the
+  real event was a misconfiguration. Measured on a 44-pair corpus (2026-07-26): qwen3:14b
+  abstained on **12/44 (27%)** through the product path versus 0/44 for two non-reasoning
+  models on the identical items. Two changes: local mode now sends a **2048-token** reply
+  budget (the 12 affected items needed 302–596; re-running the corpus through the fixed path
+  gave **0/44 abstentions, 44/44 in vocabulary, and no change to any previously-rated value**),
+  overridable via `ai_connection.max_reply_tokens`; and a reply the provider reports as
+  cut off (`finish_reason: length` / `stop_reason: max_tokens`) is now recorded as a
+  **configuration problem, not a rating**, with `is_truncation_reason()` as the one predicate
+  a surface uses to tell the two apart. (The reason lands in the record's `domain_reasoning`;
+  the review panel now reads that predicate — see the entry above.) No rating was ever
+  corrupted and blinding was never affected: a
+  truncated reply still abstains and still never invents a value. The advisory chat turn was
+  capped the same way and now gets 1024 tokens plus a note when a reply is cut off. Locked by
+  `tests/test_ai_reply_truncation.py`.
+  **Known trade-off:** letting a reasoning model finish costs time — mean 55.4s per item on the
+  measured corpus (max 142.6s) versus 18.5s when it was being cut off. `request_timeout_s`
+  still defaults to 60s, so on a thinking model some items will now raise a visible timeout
+  instead of quietly abstaining. That is the better failure (loud, not silent) and the timeout
+  is configurable, but a thinking model is not yet comfortable at the default; sending Ollama's
+  native `think: false` is the follow-up that makes it so.
 - **Closing the window no longer takes the app away** (pilot finding: *"Apple takes the
   app away always when I close it"*). CiteVahti.app is a menu-bar app: the window's
   close button now **hides** the window — sidecars keep running, and "Open Review Panel"

@@ -6,16 +6,22 @@ always the decider.
 """
 
 from .ai import (
+    API_MAX_REPLY_TOKENS,
     DEFAULT_LOCAL_MODEL,
+    LOCAL_MAX_REPLY_TOKENS,
     PREFERRED_LOCAL_MODELS,
+    TRUNCATED_REPLY_REASON,
     AiRater,
     AiRatingOutput,
+    ChatReply,
     FakeAiRater,
     HttpAiRater,
     HttpPoster,
     HttpxPoster,
     build_ai_rater,
     chat_completion,
+    chat_reply,
+    is_truncation_reason,
     list_ollama_models,
     ollama_model_snapshot,
     resolve_ai_connection,
@@ -26,7 +32,9 @@ from .engine import RatingEngine
 __all__ = [
     "RatingEngine", "AiRater", "AiRatingOutput", "FakeAiRater",
     "HttpAiRater", "HttpPoster", "HttpxPoster", "build_ai_rater",
-    "chat_completion", "resolve_ai_connection",
+    "chat_completion", "chat_reply", "ChatReply", "resolve_ai_connection",
+    "TRUNCATED_REPLY_REASON", "is_truncation_reason",
+    "LOCAL_MAX_REPLY_TOKENS", "API_MAX_REPLY_TOKENS",
     "list_ollama_models", "suggest_local_model", "ollama_model_snapshot",
     "PREFERRED_LOCAL_MODELS", "DEFAULT_LOCAL_MODEL",
 ]

@@ -17,7 +17,14 @@ import json
 import re
 from typing import Optional
 
-from ..rating.ai import HttpPoster, chat_completion, resolve_ai_connection
+from ..rating.ai import (
+    LOCAL_MAX_REPLY_TOKENS,
+    TRUNCATED_REPLY_REASON,
+    ChatReply,
+    HttpPoster,
+    chat_reply,
+    resolve_ai_connection,
+)
 from ..schemas.claim_support import SUPPORT_VALUES, FitScores
 from .support import SupportAiOutput
 
@@ -27,7 +34,8 @@ class HttpClaimSupportRater:
 
     def __init__(self, *, shape: str, endpoint: str, model: str,
                  api_key: Optional[str] = None, poster: Optional[HttpPoster] = None,
-                 timeout: float = 60.0) -> None:
+                 timeout: float = 60.0,
+                 max_tokens: int = LOCAL_MAX_REPLY_TOKENS) -> None:
         if shape not in ("openai", "anthropic"):
             raise ValueError(f"unknown AI shape: {shape!r}")
         self.shape = shape
@@ -36,13 +44,14 @@ class HttpClaimSupportRater:
         self.api_key = api_key
         self.poster = poster
         self.timeout = timeout
+        self.max_tokens = max_tokens
 
     def rate(self, *, claim, candidate, task_type: str) -> SupportAiOutput:
         prompt = self._build_prompt(claim, candidate)
-        text = chat_completion(shape=self.shape, endpoint=self.endpoint, model=self.model,
-                               api_key=self.api_key, prompt=prompt, poster=self.poster,
-                               timeout=self.timeout)
-        return self._parse(text)
+        reply = chat_reply(shape=self.shape, endpoint=self.endpoint, model=self.model,
+                           api_key=self.api_key, prompt=prompt, poster=self.poster,
+                           timeout=self.timeout, max_tokens=self.max_tokens)
+        return self._parse(reply)
 
     # blinded: only the claim + the paper's own title/abstract are available here
     @staticmethod
@@ -79,16 +88,21 @@ class HttpClaimSupportRater:
         ])
 
     @staticmethod
-    def _parse(text: str) -> SupportAiOutput:
-        m = re.search(r"\{.*\}", text or "", re.DOTALL)
+    def _parse(reply) -> SupportAiOutput:
+        if isinstance(reply, str):                 # tolerate a bare string (older callers)
+            reply = ChatReply(text=reply)
+        # A cut-off reply means the model never answered; say so instead of letting a
+        # misconfiguration masquerade as an honest "cannot judge".
+        no_answer = (TRUNCATED_REPLY_REASON if reply.truncated else "unparseable AI reply")
+        m = re.search(r"\{.*\}", reply.text or "", re.DOTALL)
         if not m:
             return SupportAiOutput(abstained=True, fit=FitScores(),
-                                   domain_reasoning="unparseable AI reply")
+                                   domain_reasoning=no_answer)
         try:
             pj = json.loads(m.group(0))
         except json.JSONDecodeError:
             return SupportAiOutput(abstained=True, fit=FitScores(),
-                                   domain_reasoning="unparseable AI reply")
+                                   domain_reasoning=no_answer)
         rationale = (str(pj.get("rationale") or "")[:200]) or None
         conf = pj.get("confidence")
         conf = float(conf) if isinstance(conf, (int, float)) else None
@@ -112,4 +126,5 @@ def build_support_ai_rater(config, *, poster: Optional[HttpPoster] = None, resol
         return None
     return HttpClaimSupportRater(shape=c["shape"], endpoint=c["endpoint"],
                                  model=config.ai_provenance.model_id, api_key=c["api_key"],
-                                 poster=poster, timeout=config.ai_connection.request_timeout_s)
+                                 poster=poster, timeout=config.ai_connection.request_timeout_s,
+                                 max_tokens=c["max_tokens"])
