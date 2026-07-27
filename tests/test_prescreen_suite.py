@@ -5,6 +5,7 @@ anchor (A=supports, B=contrasts, C=not_relevant, D=unclear) and ids are A01/B03,
 so "held out" means re-identifying and reordering — not just dropping a column.
 """
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -68,15 +69,47 @@ def test_export_reorders_so_position_does_not_leak_the_anchor(tmp_path):
     assert published != sorted(published), "items are still grouped by stratum"
 
 
-def test_export_is_deterministic_but_suite_specific(tmp_path):
-    a, _ = export(tmp_path / "one", suite_id="t@v1")
-    b, _ = export(tmp_path / "two", suite_id="t@v1")
-    c, _ = export(tmp_path / "three", suite_id="t@v2")
-    assert a == b, "same seed + suite_id must export identically"
-    assert a["pair_set_hash"] == b["pair_set_hash"]
-    order_a = [i["claim"] for i in a["items"]]
-    order_c = [i["claim"] for i in c["items"]]
-    assert order_a != order_c, "a new suite version should reshuffle"
+def test_publication_order_cannot_be_recomputed_from_public_data(tmp_path):
+    """The whole held-out design rests on this.
+
+    An attacker holds only the public suite file. From it they get suite_id and the
+    published item order. The seed id scheme (A01…/B02…) and the stratum→anchor
+    mapping are documented in this skill's own seeds, so the id set is enumerable.
+    If the ordering is a pure function of those two public things, they replay it,
+    zip it against the published order, and read off every anchor.
+    """
+    suite, key = export(tmp_path)
+    sid = suite["suite_id"]
+    guessable_ids = [p["id"] for p in seed()["pairs"]]
+    predicted = sorted(guessable_ids,
+                       key=lambda i: hashlib.sha256(f"{sid}\x00{i}".encode()).hexdigest())
+    by_item = {k["item_id"]: k["seed_id"] for k in key["items"]}
+    published = [by_item[i["item_id"]] for i in suite["items"]]
+    assert predicted != published, (
+        "publication order is recomputable from suite_id + seed ids alone — "
+        "the anchors are not held out")
+
+
+def test_the_ordering_secret_never_reaches_the_public_suite(tmp_path):
+    suite, key = export(tmp_path)
+    assert key.get("salt"), "the key must carry the secret that fixes the order"
+    assert "salt" not in json.dumps(suite), "the ordering secret leaked into the public file"
+
+
+def test_re_export_is_reproducible_but_a_fresh_export_is_not_predictable(tmp_path):
+    """Re-running an export must reproduce the published suite byte for byte, or a
+    lost file could never be regenerated. That reproducibility comes from the salt
+    stored in the key — NOT from the public inputs, so a fresh export elsewhere
+    (no key to reuse) must land on a different order."""
+    a, ka = export(tmp_path / "one", suite_id="t@v1")
+    again, ka2 = export(tmp_path / "one", suite_id="t@v1")     # same dir: key present
+    assert a == again, "re-export with the key present must be identical"
+    assert ka["salt"] == ka2["salt"]
+
+    fresh, kb = export(tmp_path / "two", suite_id="t@v1")      # same id, no key to reuse
+    assert kb["salt"] != ka["salt"]
+    assert [i["claim"] for i in fresh["items"]] != [i["claim"] for i in a["items"]], (
+        "a fresh export reproduced the order without the salt — it is still predictable")
 
 
 def submission(tmp_path, suite, verdicts):

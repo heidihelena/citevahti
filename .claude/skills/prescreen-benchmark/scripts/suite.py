@@ -20,11 +20,13 @@ computed by whoever holds the answer key, never taken from the submitter.
 Held-out means the item ids, ordering, strata and anchor rationale never reach
 the public file: in this skill's seeds the stratum *is* the anchor (A=supports,
 B=contrasts, C=not_relevant, D=unclear) and ids are A01/B03..., so publishing
-them verbatim would publish the key. Export re-ids and reorders deterministically.
+them verbatim would publish the key. Export re-ids the items and reorders them
+under a secret salt kept in the key file — the order must not be derivable from
+anything public, or the sort can simply be replayed to recover every anchor.
 
 Stdlib only. Paths are CWD-relative.
 """
-import argparse, hashlib, json, sys, unicodedata
+import argparse, hashlib, json, secrets, sys, unicodedata
 from pathlib import Path
 
 SCHEMA = "citevahti.prescreen/1"
@@ -33,6 +35,9 @@ SCHEMA = "citevahti.prescreen/1"
 # client's de-id" guard: the leak check runs on our side, every time.
 ANCHOR_FIELDS = {"ref_status", "anchor", "anchor_basis", "stratum", "claude_status",
                  "claude_rationale", "ref"}
+# `salt` fixes the publication order. Publishing it is publishing the key by another
+# route: with it, anyone can replay the sort and map every item back to its seed id.
+KEY_ONLY_FIELDS = ANCHOR_FIELDS | {"salt"}
 
 
 def text_hash(text):
@@ -80,10 +85,24 @@ def cmd_export(args):
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # Deterministic, seed-derived shuffle. Publishing A01..A14 then B01..B10 in
-    # order would leak the key by position just as the ids leak it by name.
+    # The order must not be a function of anything public. Ordering by
+    # hash(suite_id, seed_id) looked shuffled but was fully replayable: suite_id
+    # ships in the public file and the seed ids are enumerable (A01…/B02… with the
+    # stratum→anchor mapping documented in these very seeds), so anyone could sort
+    # the same way and read every anchor straight off the published order.
+    # The salt is a secret that lives only in the key; reused on re-export so a
+    # re-run of the same suite stays byte-identical.
+    kp = outdir / f"key_{suite_id}.json"
+    prior = {}
+    if kp.exists():
+        try:
+            prior = json.loads(kp.read_text())
+        except ValueError:
+            prior = {}
+    salt = prior.get("salt") or secrets.token_hex(16)
+
     def shuffle_key(p):
-        return sha256_bytes(f"{suite_id}\x00{p['id']}".encode("utf-8"))
+        return sha256_bytes(f"{salt}\x00{p['id']}".encode("utf-8"))
 
     ordered = sorted(pairs, key=shuffle_key)
     width = max(3, len(str(len(ordered))))
@@ -106,15 +125,14 @@ def cmd_export(args):
              "items": items}
     suite["pair_set_hash"] = pair_set_hash(items)
 
-    leaked = sorted(ANCHOR_FIELDS & all_keys(suite))
+    leaked = sorted(KEY_ONLY_FIELDS & all_keys(suite))
     if leaked:                                  # belt and braces: never ship the key
-        die(f"public suite would leak anchor fields: {', '.join(leaked)}")
+        die(f"public suite would leak key-only field(s): {', '.join(leaked)}")
 
     key = {"schema": SCHEMA, "kind": "key", "suite_id": suite_id,
-           "pair_set_hash": suite["pair_set_hash"], "items": key_rows}
+           "pair_set_hash": suite["pair_set_hash"], "salt": salt, "items": key_rows}
 
     sp = outdir / f"suite_{suite_id}.json"
-    kp = outdir / f"key_{suite_id}.json"
     sp.write_text(json.dumps(suite, indent=2, ensure_ascii=False) + "\n")
     kp.write_text(json.dumps(key, indent=2, ensure_ascii=False) + "\n")
     print(f"Wrote {sp} ({len(items)} items, pair_set_hash {suite['pair_set_hash'][:16]}…)")
