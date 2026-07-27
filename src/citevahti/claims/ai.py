@@ -23,6 +23,7 @@ from ..rating.ai import (
     HttpPoster,
     chat_reply,
     failure_reason,
+    failure_reason_for,
     parse_verdict_json,
     resolve_ai_connection,
 )
@@ -97,7 +98,7 @@ class HttpClaimSupportRater:
             # No verdict came back. This is a FAILURE, not an abstention: the model never
             # judged the pair, so the ledger must not record it as the model declining.
             return SupportAiOutput(failure=pj, fit=FitScores(),
-                                   domain_reasoning=failure_reason(pj))
+                                   domain_reasoning=failure_reason_for(pj, reply))
         rationale = (str(pj.get("rationale") or "")[:200]) or None
         conf = pj.get("confidence")
         conf = float(conf) if isinstance(conf, (int, float)) else None

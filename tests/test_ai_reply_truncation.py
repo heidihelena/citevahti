@@ -89,7 +89,7 @@ def test_truncated_thinking_reply_is_reported_as_configuration_not_judgement():
     assert out.value is None                            # still never fabricates a value
     assert out.failure == "truncated_reply" and not out.abstained
     assert is_truncation_reason(out.domain_reasoning)
-    assert out.domain_reasoning == TRUNCATED_REPLY_REASON
+    assert out.domain_reasoning.startswith(TRUNCATED_REPLY_REASON)
 
 
 def test_genuine_abstention_is_not_flagged_as_configuration():
@@ -204,8 +204,10 @@ def test_local_mode_sends_headroom_for_a_reasoning_model():
         claim=CLAIM, candidate=CAND, task_type="claim_support")
     sent = poster.calls[0]["payload"]["max_tokens"]
     assert sent == LOCAL_MAX_REPLY_TOKENS
-    # measured worst case for qwen3:14b on the prescreen corpus was 596 tokens
-    assert sent > 596
+    # Measured 2026-07-27 under a non-binding ceiling, qwen3:14b over the whole 44-pair
+    # prescreen corpus: median 269 completion tokens, and the largest reply that actually
+    # reached an answer was 2396. The budget has to clear that, not the median.
+    assert sent > 2396
 
 
 def test_resolve_local_defaults_to_headroom_and_api_stays_frugal():
@@ -226,6 +228,91 @@ def test_operator_can_override_the_reply_budget():
     cfg.ai_connection.mode = "local"
     cfg.ai_connection.max_reply_tokens = 4096
     assert resolve_ai_connection(cfg)["max_tokens"] == 4096
+
+
+def test_truncation_reason_names_the_budget_that_was_in_force():
+    """An operator reading 'it hit the ceiling' still has to go and find which ceiling.
+    The recorded reason carries the provider's own numbers so the fix is in the reason."""
+    resp = json.loads(json.dumps(THINKING_TRUNCATED))
+    resp["usage"] = {"completion_tokens": 2048, "prompt_tokens": 700}
+    out = _support_rater(FakePoster(resp), max_tokens=2048).rate(
+        claim=CLAIM, candidate=CAND, task_type="claim_support")
+    assert out.failure == "truncated_reply" and out.value is None
+    assert out.domain_reasoning.startswith(TRUNCATED_REPLY_REASON)
+    assert "2048 reply tokens" in out.domain_reasoning
+
+
+def test_truncation_reason_claims_no_shortfall_it_cannot_measure():
+    """A reply cut off at the ceiling spent EXACTLY the ceiling, so 'used vs allowed' is
+    never evidence of how much more the item needed. Measured 2026-07-27 on qwen3:14b,
+    item C09 of the prescreen corpus: 2048 of 2048 at the shipped ceiling, and 8192 of
+    8192 when re-run with four times the headroom — the same reply, never an answer. The
+    wording must stay honest about that, because a number that looks like a shortfall
+    would be read as one."""
+    resp = json.loads(json.dumps(THINKING_TRUNCATED))
+    resp["usage"] = {"completion_tokens": 2048}
+    reason = _support_rater(FakePoster(resp), max_tokens=2048).rate(
+        claim=CLAIM, candidate=CAND, task_type="claim_support").domain_reasoning
+    assert "more than 2048" in reason and "cannot show how much more" in reason
+
+
+def test_budget_note_falls_back_to_the_ceiling_when_usage_is_absent():
+    """Not every OpenAI-compatible server reports usage. The ceiling is ours, so it is
+    always nameable — the spend simply goes unsaid rather than guessed."""
+    reason = _support_rater(FakePoster(THINKING_TRUNCATED), max_tokens=2048).rate(
+        claim=CLAIM, candidate=CAND, task_type="claim_support").domain_reasoning
+    assert "The ceiling in force was 2048 reply tokens." in reason
+    assert "spent" not in reason
+
+
+def test_only_a_truncation_carries_a_budget_note():
+    """The other failure kinds are not about the budget, and must not send an operator to
+    change a setting that was never the problem."""
+    poster = FakePoster({"choices": [{"message": {"content": "maybe?"},
+                                      "finish_reason": "stop"}],
+                         "usage": {"completion_tokens": 3}})
+    out = _support_rater(poster, max_tokens=2048).rate(
+        claim=CLAIM, candidate=CAND, task_type="claim_support")
+    assert out.failure == "unparseable_reply"
+    assert "reply tokens" not in out.domain_reasoning
+
+
+def test_chat_reply_carries_the_spend_for_both_provider_shapes():
+    openai = chat_reply(shape="openai", endpoint="https://x", model="m", prompt="p",
+                        max_tokens=300,
+                        poster=FakePoster({"choices": [{"message": {"content": "{}"},
+                                                        "finish_reason": "stop"}],
+                                           "usage": {"completion_tokens": 42}}))
+    assert openai.completion_tokens == 42 and openai.max_tokens == 300
+
+    anthropic = chat_reply(shape="anthropic", endpoint="https://api.anthropic.com/v1/messages",
+                           model="m", prompt="p", api_key="sk-1", max_tokens=300,
+                           poster=FakePoster({"content": [{"type": "text", "text": "{}"}],
+                                              "stop_reason": "end_turn",
+                                              "usage": {"output_tokens": 17}}))
+    assert anthropic.completion_tokens == 17 and anthropic.max_tokens == 300
+
+
+def test_reading_usage_is_not_a_second_way_for_a_bad_payload_to_escape():
+    """Reading the spend must not widen the crack it was added to describe: a payload that
+    is not a mapping at all still has to come back as a provider_error, not as a raw
+    exception thrown past the rater and out of the run."""
+    class _ListPoster:
+        def post_json(self, url, headers, payload, timeout):
+            return ["not", "a", "mapping"]
+
+    reply = chat_reply(shape="openai", endpoint="https://x", model="m", prompt="p",
+                       poster=_ListPoster())
+    assert reply.provider_error and reply.text == "" and not reply.truncated
+
+
+def test_missing_or_malformed_usage_is_left_unknown_not_guessed():
+    for usage in ({}, {"completion_tokens": None}, {"completion_tokens": "42"}):
+        reply = chat_reply(shape="openai", endpoint="https://x", model="m", prompt="p",
+                           poster=FakePoster({"choices": [{"message": {"content": "{}"},
+                                                           "finish_reason": "stop"}],
+                                              "usage": usage}))
+        assert reply.completion_tokens is None
 
 
 def test_built_local_support_rater_carries_the_budget():

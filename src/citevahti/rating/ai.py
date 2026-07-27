@@ -63,12 +63,23 @@ _OLLAMA_DEFAULT = "http://localhost:11434/v1/chat/completions"
 # false``; the /v1 shape does not). On a 300-token ceiling such a model is cut off
 # before it answers, so the rater abstains — see ``TRUNCATED_REPLY_REASON``.
 #
-# Measured 2026-07-26, qwen3:14b over the 44-pair prescreen corpus: the 12 items
-# that abstained at 300 needed 302-596 completion tokens (median 354) and all 12
-# returned an in-vocabulary value once given headroom. 2048 is ~3.4x the observed
-# worst case. Local models are free and private, so local mode gets that headroom;
-# api mode stays frugal because it is billed per token.
-LOCAL_MAX_REPLY_TOKENS = 2048
+# Measured 2026-07-27, qwen3:14b over all 44 pairs of the prescreen corpus with the
+# ceiling set deliberately non-binding (8192), reading the provider's own
+# usage.completion_tokens rather than inferring the need: median 269, p90 393, and
+# then a long tail — one item at 2396, and ONE ITEM THAT NEVER STOPPED. That item
+# (C09: a claim about sleep against a paper about machine intelligence — a pair with
+# no honest reconciliation) spent all 8192 tokens over 489s and returned zero
+# characters, exactly as it had spent all 2048 at the shipped ceiling.
+#
+# So the ceiling is sized for the tail that ends, and NOT as a fix for the tail that
+# doesn't: 4096 clears the largest reply that actually answered, with room over it.
+# No ceiling clears a model that will not stop, and every token of headroom is also
+# time a stuck item burns before failing — at the ~17 tok/s this model ran, 4096 is
+# ~4 minutes. (It is usually the clock that stops such an item first: at that rate
+# the default 60s request_timeout_s runs out around 1000 tokens, so raising this
+# without also allowing the time changes nothing.) Local models are free and private,
+# so local mode gets the headroom; api mode stays frugal because it is billed.
+LOCAL_MAX_REPLY_TOKENS = 4096
 API_MAX_REPLY_TOKENS = 300
 # The advisory chat turn writes prose, not a one-line verdict, so 300 tokens cut
 # real answers off mid-sentence. It is a different task shape, hence its own budget.
@@ -122,6 +133,38 @@ def failure_reason(kind: str, detail: Optional[str] = None) -> str:
     return f"{base} Model returned: {detail}" if detail else base
 
 
+def reply_budget_note(reply: "ChatReply") -> Optional[str]:
+    """What a cut-off reply spent, in the operator's own units, or None if the provider
+    said nothing about it.
+
+    Deliberately worded for what these two numbers can and cannot show. A reply cut off
+    at the ceiling spent EXACTLY the ceiling, so "used vs allowed" is never a measured
+    shortfall — the reply stopped before the model was done, and the budget it actually
+    needed is unknowable from that call. What the note IS good for is naming the number
+    in force, which is the one the operator has to raise, without making them go and find
+    it. Any wording implying a measured "how far short" would be inventing evidence.
+    """
+    used, allowed = reply.completion_tokens, reply.max_tokens
+    if allowed is None:
+        return None
+    if used is None:
+        return f"The ceiling in force was {allowed} reply tokens."
+    return (f"It spent {used} of the {allowed} reply tokens allowed and still had not "
+            f"answered, so it needs more than {allowed} on this item — a cut-off reply "
+            "cannot show how much more.")
+
+
+def failure_reason_for(kind: str, reply: "ChatReply") -> str:
+    """``failure_reason`` plus what the reply itself reveals about the failure.
+
+    Shared by both raters so a truncation reads the same in the claim-support ledger and
+    in the GRADE one.
+    """
+    base = failure_reason(kind)
+    note = reply_budget_note(reply) if kind == "truncated_reply" else None
+    return f"{base} {note}" if note else base
+
+
 def parse_verdict_json(reply: "ChatReply") -> Union[dict, str]:
     """The model's JSON verdict (a ``dict``), or the **failure kind** (a ``str``) when no
     verdict came back — callers branch on ``isinstance(result, str)``.
@@ -169,11 +212,24 @@ class ChatReply:
     ``provider_error`` is set when the response carried no readable model content at
     all (an error payload, or an unexpected shape). That is a transport-level event,
     not something the model said, and it must not reach the ledger looking like one.
+
+    ``completion_tokens`` is what the provider says this reply spent (OpenAI-compatible
+    ``usage.completion_tokens``, Anthropic ``usage.output_tokens``; None when the
+    provider reports no usage) and ``max_tokens`` is the ceiling that was in force. They
+    are carried so a truncation can name the budget the operator has to raise instead of
+    only saying that some ceiling was hit — see ``reply_budget_note``.
     """
 
     text: str = ""
     truncated: bool = False
     provider_error: Optional[str] = None
+    completion_tokens: Optional[int] = None
+    max_tokens: Optional[int] = None
+
+
+def _int_or_none(v) -> Optional[int]:
+    """A provider's usage count when it really is a number — never a coerced guess."""
+    return int(v) if isinstance(v, int) and not isinstance(v, bool) else None
 
 
 def _safe_endpoint(url: str, *, allow_local: bool) -> bool:
@@ -230,18 +286,27 @@ def chat_reply(*, shape: str, endpoint: str, model: str, prompt: str,
                    "messages": [{"role": "user", "content": prompt}]}
     data = poster.post_json(endpoint, headers, payload, timeout)
     try:
+        # Inside the guard on purpose: reading usage must not become a second way for an
+        # out-of-contract payload to escape as a raw exception instead of a provider_error.
+        raw_usage = data.get("usage")
+        usage: dict = raw_usage if isinstance(raw_usage, dict) else {}
         if isinstance(data.get("content"), list):          # anthropic
             return ChatReply(text=data["content"][0].get("text", ""),
-                             truncated=data.get("stop_reason") == "max_tokens")
+                             truncated=data.get("stop_reason") == "max_tokens",
+                             completion_tokens=_int_or_none(usage.get("output_tokens")),
+                             max_tokens=max_tokens)
         choice = data["choices"][0]                        # openai-compatible
         return ChatReply(text=choice["message"]["content"],
-                         truncated=choice.get("finish_reason") == "length")
+                         truncated=choice.get("finish_reason") == "length",
+                         completion_tokens=_int_or_none(usage.get("completion_tokens")),
+                         max_tokens=max_tokens)
     except (KeyError, IndexError, AttributeError, TypeError) as exc:
         # The endpoint answered, but with nothing the model said — an error payload or
         # an unexpected shape. Flag it as a TRANSPORT event: an empty reply would
         # otherwise reach the rater indistinguishable from a model that replied with
         # unreadable text, and end up recorded as if the model had spoken.
-        return ChatReply(provider_error=f"{type(exc).__name__}: {str(exc)[:120]}")
+        return ChatReply(provider_error=f"{type(exc).__name__}: {str(exc)[:120]}",
+                         max_tokens=max_tokens)
 
 
 def chat_completion(*, shape: str, endpoint: str, model: str, prompt: str,
@@ -317,7 +382,7 @@ class HttpAiRater:
             reply = ChatReply(text=reply)
         pj = parse_verdict_json(reply)
         if isinstance(pj, str):                    # a failure kind, not a verdict
-            return AiRatingOutput(failure=pj, domain_reasoning=failure_reason(pj))
+            return AiRatingOutput(failure=pj, domain_reasoning=failure_reason_for(pj, reply))
         rationale = (str(pj.get("rationale") or "")[:200]) or None
         conf = pj.get("confidence")
         conf = float(conf) if isinstance(conf, (int, float)) else None
