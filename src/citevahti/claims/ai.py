@@ -18,6 +18,8 @@ from __future__ import annotations
 from typing import Optional
 
 from ..rating.ai import (
+    AI_RETRY_ATTEMPTS,
+    AI_RETRY_BACKOFF_S,
     LOCAL_MAX_REPLY_TOKENS,
     ChatReply,
     HttpPoster,
@@ -25,6 +27,7 @@ from ..rating.ai import (
     failure_reason,
     failure_reason_for,
     parse_verdict_json,
+    rate_with_retry,
     resolve_ai_connection,
 )
 from ..schemas.claim_support import SUPPORT_VALUES, FitScores
@@ -37,7 +40,9 @@ class HttpClaimSupportRater:
     def __init__(self, *, shape: str, endpoint: str, model: str,
                  api_key: Optional[str] = None, poster: Optional[HttpPoster] = None,
                  timeout: float = 60.0,
-                 max_tokens: int = LOCAL_MAX_REPLY_TOKENS) -> None:
+                 max_tokens: int = LOCAL_MAX_REPLY_TOKENS,
+                 retry_attempts: int = AI_RETRY_ATTEMPTS,
+                 retry_backoff_s: float = AI_RETRY_BACKOFF_S) -> None:
         if shape not in ("openai", "anthropic"):
             raise ValueError(f"unknown AI shape: {shape!r}")
         self.shape = shape
@@ -47,13 +52,20 @@ class HttpClaimSupportRater:
         self.poster = poster
         self.timeout = timeout
         self.max_tokens = max_tokens
+        self.retry_attempts = retry_attempts
+        self.retry_backoff_s = retry_backoff_s
 
     def rate(self, *, claim, candidate, task_type: str) -> SupportAiOutput:
         prompt = self._build_prompt(claim, candidate)
-        reply = chat_reply(shape=self.shape, endpoint=self.endpoint, model=self.model,
-                           api_key=self.api_key, prompt=prompt, poster=self.poster,
-                           timeout=self.timeout, max_tokens=self.max_tokens)
-        return self._parse(reply)
+
+        def once() -> SupportAiOutput:
+            reply = chat_reply(shape=self.shape, endpoint=self.endpoint, model=self.model,
+                               api_key=self.api_key, prompt=prompt, poster=self.poster,
+                               timeout=self.timeout, max_tokens=self.max_tokens)
+            return self._parse(reply)
+
+        return rate_with_retry(once, attempts=self.retry_attempts,
+                               backoff_s=self.retry_backoff_s)
 
     # blinded: only the claim + the paper's own title/abstract are available here
     @staticmethod
@@ -128,4 +140,5 @@ def build_support_ai_rater(config, *, poster: Optional[HttpPoster] = None, resol
     return HttpClaimSupportRater(shape=c["shape"], endpoint=c["endpoint"],
                                  model=config.ai_provenance.model_id, api_key=c["api_key"],
                                  poster=poster, timeout=config.ai_connection.request_timeout_s,
-                                 max_tokens=c["max_tokens"])
+                                 max_tokens=c["max_tokens"],
+                                 retry_attempts=c["retry_attempts"])

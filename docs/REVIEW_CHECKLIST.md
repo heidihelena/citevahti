@@ -61,6 +61,8 @@ SMOKE=$(mktemp -d); citevahti --root "$SMOKE" init; citevahti --root "$SMOKE" ve
       ledger. Cross-check against the PRISMA table's "pairs assessed" count.
 - [ ] Claim-support and study-quality ratings are **never pooled** into one κ, and
       ordinal weighted κ is refused for `claim_support` (`no_ordinal_scale`).
+- [ ] Retries cover only transient failures and repeat the identical prompt; no abstention,
+      off-scale answer or truncated reply is ever re-asked.
 - [ ] Abstentions and failed AI calls are counted **separately**, and the failure kinds
       are named — a broken adapter must never be reported as the model abstaining.
 

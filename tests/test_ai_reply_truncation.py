@@ -77,6 +77,9 @@ GENUINE_ABSTENTION = {
 
 
 def _support_rater(poster, **kw):
+    # retry_backoff_s=0: these tests are about how a reply is CLASSIFIED; the retry
+    # cadence has its own suite (tests/test_ai_retry.py) and need not be slept through.
+    kw.setdefault("retry_backoff_s", 0.0)
     return HttpClaimSupportRater(shape="openai", model="qwen3:14b", poster=poster,
                                  endpoint="http://localhost:11434/v1/chat/completions", **kw)
 
