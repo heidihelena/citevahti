@@ -69,12 +69,16 @@ Every step appends an audit event.
   tail that ends (4096) and does not pretend to clear the tail that does not.
 - A **transient** failure (`provider_error` / `unparseable_reply`, including a raised
   transport error) is **retried** before anything is recorded — up to
-  `ai_connection.retry_attempts` (default 3) identical calls. These failures are flaky
-  rather than deterministic, so the rating is usually recoverable. A failure that survives
-  its retries says so in its recorded reason, which separates one unlucky call from a
-  consistently broken adapter. Worst case for one item is
-  `retry_attempts × request_timeout_s`, because a timeout spends its full budget before it
-  can be retried; set `retry_attempts: 1` to disable.
+  `ai_connection.retry_attempts` (default 3) identical calls. These failures can be flaky
+  rather than deterministic, so a retried call sometimes lands where the first did not; how
+  often is not established, and on the one corpus measured so far retrying recovered
+  nothing. A deterministic HTTP 4xx (bad key, unknown model, wrong path) is **not**
+  retried — it fails identically every time. A failure that survives its retries says so in
+  its recorded reason, which separates one unlucky call from a consistently broken adapter.
+  Worst case for one item is
+  `retry_attempts × request_timeout_s + (retry_attempts − 1) × retry_backoff_s`, because a
+  timeout spends its full budget before it can be retried; set `retry_attempts: 1` to
+  disable.
 - **A judgement is never re-asked.** A rating, an abstention, an off-scale answer and a
   reply cut off at the token ceiling all return on the first attempt. Re-asking until the
   model says something different would select on the outcome; re-asking a token ceiling

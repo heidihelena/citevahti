@@ -30,8 +30,13 @@ previous one.
   never re-asked.** Following #302, which stopped a failed call being recorded as the model
   abstaining, a no-answer that is merely *flaky* is now retried (up to
   `ai_connection.retry_attempts`, default 3, identical prompt each time) instead of
-  discarding a recoverable rating: `provider_error`, `unparseable_reply`, and a raised
-  transport error, which previously escaped the rater entirely so nothing could recover it.
+  discarding a recoverable rating: `provider_error`, `unparseable_reply`, and a transient
+  raised error (timeout / connection / 429 / 5xx), which previously escaped the rater
+  entirely so nothing could recover it. A deterministic HTTP **4xx** — bad key, unknown
+  model, wrong path — is *not* retried: it fails identically every time, and in `api` mode
+  retrying would triple the billed requests for every item in a batch. If any attempt
+  classified a failure, that failure is recorded even when a later attempt raises: a typed
+  failure in the ledger is better provenance than an exception that records nothing.
   The other half of the policy matters more: **a rating, an abstention, an off-scale answer
   and a reply cut off at the token ceiling all return on the first attempt.** Re-asking a
   judgement until it changes would select on the outcome and could manufacture a rating the
@@ -43,16 +48,21 @@ previous one.
   15 lost ratings on the 2026-07-26 prescreen corpus, 13 were the 300-token ceiling cutting
   a reasoning model off mid-thought (reported as "unparseable AI reply" before truncation
   had its own label); the 2048-token headroom in #298 already fixed those. The same 44 pairs
-  were re-run 2026-07-27 with and without this retry, at temperature 0 so the runs are
-  comparable (44/44 identical values): **42/44 rated, 0 abstentions and 2 failures in both
-  runs**, and both residual failures are `truncated_reply` — the token ceiling, which retry
-  deliberately does not touch. **Retry fired zero times.** It is therefore insurance against
-  a failure class that corpus did not exhibit, not a measured recovery; the remaining loss
-  there is the reply-token ceiling, which needs its own fix. The insurance is cheap: a
+  were re-run 2026-07-27 with and without this retry, at temperature 0 (every item that
+  produced a value produced the same value in both runs): **42/44 rated and 0 abstentions
+  in both runs, 2 failures in both**. In the with-retry run both failures were
+  `truncated_reply` — the token ceiling, which retry deliberately does not touch — so
+  **retry fired zero times and recovered nothing**. (The baseline's two were one
+  `truncated_reply` and one raised read-timeout; that timeout was the *same* item, which
+  under retry reached the token ceiling instead, so it was never a recoverable transient.)
+  This is therefore insurance against a failure class that corpus did not exhibit, not a
+  measured recovery; the remaining loss there is the reply-token ceiling, which needs its
+  own fix. The insurance is cheap: a
   successful rating still costs exactly one call and mean latency was unchanged
   (24.6s → 24.0s). Cost is stated where an operator meets it — a timeout has already spent
   its full budget before it can be retried, so the worst case for one item is
-  `retry_attempts × request_timeout_s`; `retry_attempts: 1` disables retrying. The
+  `retry_attempts × request_timeout_s + (retry_attempts − 1) × retry_backoff_s`. Both are
+  operator-settable on `ai_connection`; `retry_attempts: 1` disables retrying. The
   never-re-ask-a-judgement guarantee stands on its own regardless. Locked by
   `tests/test_ai_retry.py`.
 - **The agreement report and methods statement now see the claim-support ledger.**

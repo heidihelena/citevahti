@@ -1,10 +1,13 @@
 """A transient AI-call failure is retried; a judgement is never re-asked.
 
-Measured 2026-07-26 on the 44-pair prescreen corpus: qwen3:14b lost 15 of 44 ratings to
-what the ledger called abstentions — 13 unreadable replies and 2 timeouts, none of them
-the model declining. The failures were **flaky, not deterministic**: item D01 returned an
-unreadable reply during the run and parsed cleanly on retry with identical input. So the
-ratings were recoverable, and were being thrown away.
+Sizing, stated up front so this file does not preserve a premise the work disproved: the
+15 ratings qwen3:14b lost on the 2026-07-26 prescreen corpus were mostly NOT retryable —
+13 were the 300-token ceiling, already fixed by the 2048-token headroom. Re-run 2026-07-27
+with and without this retry, it fired zero times and recovered nothing: both residual
+failures were the token ceiling, which is deliberately not retried. So retry is insurance
+against a class that corpus did not exhibit (one item did return an unreadable reply and
+parse cleanly on an identical retry, and a timeout is transient by definition), and the
+tests below inject those faults deterministically rather than leaning on that corpus.
 
 The policy has two halves and both are load-bearing:
   * a TRANSIENT no-answer (``provider_error`` / ``unparseable_reply``, including a raised
@@ -14,7 +17,9 @@ The policy has two halves and both are load-bearing:
     judgement until it changes would be selecting on the outcome, and re-asking a
     misconfiguration just reproduces it.
 
-Offline throughout (scripted poster); no model is contacted and nothing sleeps.
+Offline throughout (scripted poster); no model is contacted, and every rater here sets
+``retry_backoff_s=0.0`` so the suite never waits (the backoff itself is asserted through
+the injected ``sleep`` seam, below).
 """
 
 from __future__ import annotations
@@ -64,7 +69,7 @@ class ScriptedPoster:
 
 
 def _rater(poster, **kw):
-    kw.setdefault("retry_backoff_s", 0.0)          # nothing sleeps in the suite
+    kw.setdefault("retry_backoff_s", 0.0)          # sleep(0.0): the suite never waits
     return HttpClaimSupportRater(shape="openai", endpoint="http://localhost:11434/v1/x",
                                  model="qwen3:14b", poster=poster, **kw)
 
@@ -76,7 +81,8 @@ def _rate(poster, **kw):
 # --- what gets recovered -----------------------------------------------------
 
 def test_a_flaky_unreadable_reply_is_retried_and_the_rating_recovered():
-    """The measured D01 case: unreadable once, clean on the very next identical call."""
+    """The D01 shape: unreadable once, clean on the very next identical call. The fault is
+    injected here — this asserts the mechanism, not a corpus measurement."""
     poster = ScriptedPoster(GARBLED, GOOD)
     out = _rate(poster)
     assert out.value == "contradicts" and out.failure is None
@@ -158,7 +164,9 @@ def test_a_persistent_failure_is_recorded_and_says_it_persisted():
     out = _rate(poster)
     assert out.failure == "unparseable_reply" and out.value is None
     assert poster.calls == 3                       # AI_RETRY_ATTEMPTS
-    assert "retried 3x" in out.domain_reasoning
+    # Counts ATTEMPTS, not retries: "3 attempts" is unambiguous where "retried 3x" would
+    # tell an operator who set retry_attempts=3 that four calls were made.
+    assert "still failing after 3 attempts" in out.domain_reasoning
     assert "unlikely to be a transient glitch" in out.domain_reasoning
 
 
@@ -235,3 +243,128 @@ def test_retry_budget_comes_from_config(tmp_path):
 
     cfg.ai_connection.retry_attempts = 5
     assert build_support_ai_rater(cfg).retry_attempts == 5
+
+
+# --- a recorded failure beats a raise ----------------------------------------
+
+def test_a_classified_failure_survives_a_later_raise():
+    """Regression: retrying must never LOSE a ledger record. An earlier attempt that
+    classified the failure is returned even if a later attempt raises — a typed failure in
+    the ledger is strictly better provenance than an exception that records nothing, and
+    without retry this exact sequence recorded `unparseable_reply`."""
+    poster = ScriptedPoster(GARBLED, TimeoutError("read timed out"))
+    out = _rate(poster, retry_attempts=2)
+    assert out.failure == "unparseable_reply" and out.value is None
+    assert poster.calls == 2
+
+
+def test_a_raise_then_a_classified_failure_returns_the_failure():
+    poster = ScriptedPoster(TimeoutError("read timed out"), GARBLED)
+    out = _rate(poster, retry_attempts=2)
+    assert out.failure == "unparseable_reply"
+
+
+def test_only_an_all_raise_sequence_propagates():
+    """The complement: the exception stands only when NOTHING was ever classified."""
+    poster = ScriptedPoster(TimeoutError("read timed out"))
+    with pytest.raises(TimeoutError):
+        _rate(poster, retry_attempts=2)
+
+
+# --- a deterministic HTTP error is not transient -----------------------------
+
+class _Resp:
+    def __init__(self, status):
+        self.status_code = status
+
+
+class _HttpError(Exception):
+    def __init__(self, status):
+        super().__init__(f"HTTP {status}")
+        self.response = _Resp(status)
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404])
+def test_a_4xx_is_not_retried(status):
+    """A bad key, an unknown model or a wrong path fails identically on every attempt.
+    Retrying only burns wall-clock and, in api mode, triples the billed requests for every
+    item in a batch — the same reasoning that keeps a truncated reply out of the retry set."""
+    poster = ScriptedPoster(_HttpError(status), GOOD)
+    with pytest.raises(_HttpError):
+        _rate(poster)
+    assert poster.calls == 1
+
+
+@pytest.mark.parametrize("status", [429, 500, 503])
+def test_a_rate_limit_or_server_error_is_retried(status):
+    """These do clear on their own, so they are worth asking again."""
+    poster = ScriptedPoster(_HttpError(status), GOOD)
+    assert _rate(poster).value == "contradicts"
+    assert poster.calls == 2
+
+
+# --- the backoff actually backs off ------------------------------------------
+
+def test_it_waits_between_attempts_but_not_after_the_last():
+    """Asserted through the injected sleep seam: a trailing sleep would be pure wall-clock
+    for a result already decided."""
+    from citevahti.rating.ai import rate_with_retry
+    from citevahti.claims.support import SupportAiOutput
+
+    waits = []
+    calls = []
+
+    def always_failing():
+        calls.append(1)
+        return SupportAiOutput(failure="unparseable_reply", domain_reasoning="x")
+
+    rate_with_retry(always_failing, attempts=3, backoff_s=2.5, sleep=waits.append)
+    assert len(calls) == 3
+    assert waits == [2.5, 2.5]            # between attempts only — never a 3rd
+
+
+def test_no_wait_when_the_first_attempt_settles_it():
+    from citevahti.rating.ai import rate_with_retry
+    from citevahti.claims.support import SupportAiOutput
+
+    waits = []
+    rate_with_retry(lambda: SupportAiOutput(value="contradicts"), attempts=3,
+                    backoff_s=2.5, sleep=waits.append)
+    assert waits == []
+
+
+# --- guard rails -------------------------------------------------------------
+
+@pytest.mark.parametrize("attempts", [0, -1])
+def test_a_nonsense_attempt_budget_is_rejected_not_silently_none(attempts):
+    """`attempts=0` used to return None, which the engines dereference — an AttributeError
+    with no diagnostic instead of a clear configuration error."""
+    from citevahti.rating.ai import rate_with_retry
+    with pytest.raises(ValueError, match="at least 1"):
+        rate_with_retry(lambda: None, attempts=attempts)
+
+
+def test_config_defaults_match_the_rater_defaults():
+    """The config field and the module constant are separate literals (schemas must not
+    import rating); this holds them in step so they cannot drift apart silently."""
+    from citevahti.rating.ai import AI_RETRY_ATTEMPTS, AI_RETRY_BACKOFF_S
+    from citevahti.schemas.config import AIConnectionConfig
+
+    conn = AIConnectionConfig()
+    assert conn.retry_attempts == AI_RETRY_ATTEMPTS
+    assert conn.retry_backoff_s == AI_RETRY_BACKOFF_S
+
+
+def test_backoff_is_operator_configurable_end_to_end():
+    """It was reachable on the rater but pinned at the default through the builders, so an
+    operator could not tune away the part of the wait the cost formula names."""
+    from citevahti.claims.ai import build_support_ai_rater
+    from citevahti.rating.ai import build_ai_rater
+    from citevahti.schemas.config import Config
+
+    cfg = Config.default()
+    cfg.ai_connection.mode = "local"
+    cfg.ai_connection.retry_backoff_s = 0.25
+    cfg.ai_provenance.model_id = "qwen3:14b"
+    assert build_support_ai_rater(cfg).retry_backoff_s == 0.25
+    assert build_ai_rater(cfg).retry_backoff_s == 0.25

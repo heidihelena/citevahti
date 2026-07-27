@@ -141,4 +141,5 @@ def build_support_ai_rater(config, *, poster: Optional[HttpPoster] = None, resol
                                  model=config.ai_provenance.model_id, api_key=c["api_key"],
                                  poster=poster, timeout=config.ai_connection.request_timeout_s,
                                  max_tokens=c["max_tokens"],
-                                 retry_attempts=c["retry_attempts"])
+                                 retry_attempts=c["retry_attempts"],
+                                 retry_backoff_s=c["retry_backoff_s"])
