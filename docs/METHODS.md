@@ -57,6 +57,16 @@ Every step appends an audit event.
   model exercised judgement, so an adapter or transport fault reported in those words
   overstates what the model did while hiding a defect in the pipeline. Neither value is
   ever fabricated in either case.
+- A `truncated_reply` also records **the reply-token budget that was in force**, and what
+  the provider says the reply spent, so the setting to change is named in the record. Read
+  those two numbers for what they are: a reply cut off at the ceiling spent *exactly* the
+  ceiling, so they are never a measured shortfall. How much the item would have needed is
+  not knowable from a cut-off reply — and sometimes there is no such number. Measured
+  2026-07-27, qwen3:14b over the 44-pair prescreen corpus with the ceiling set
+  deliberately non-binding: median 269 completion tokens, the largest **answered** reply
+  2396 — and one item that spent 8192 tokens over 489 s and returned nothing, exactly as
+  it had spent all 2048 at the shipped ceiling. The local default therefore clears the
+  tail that ends (4096) and does not pretend to clear the tail that does not.
 - Both are recorded with full provenance, and both are **excluded from the human–AI
   agreement denominator** — but they are **counted and described apart from each other**
   in the agreement report and the auto-filled methods statement.

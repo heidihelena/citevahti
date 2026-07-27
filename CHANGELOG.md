@@ -7,6 +7,25 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **The local reply-token ceiling is now sized from the whole corpus, and a truncation says
+  which ceiling it hit.** PR #298 set the local budget to 2048 from the 12 items that had
+  truncated at 300 — a sample of the items that had *already* proved slow, so the tail was
+  measured from the wrong end. Re-measured 2026-07-27 by instrumenting the provider's own
+  `usage.completion_tokens` over all 44 prescreen pairs with the ceiling set deliberately
+  non-binding (8192), qwen3:14b: median 269, p90 393, one answered reply at **2396** — above
+  the shipped ceiling — and one item, C09, that **never stopped at all**: it spent all 8192
+  tokens over 489 s and returned zero characters, exactly as it had spent all 2048 before.
+  So the local default rises to **4096**, sized to clear the largest reply that actually
+  reached an answer, and explicitly *not* sized as a fix for a model that will not stop —
+  no ceiling is. Headroom is not free either: it is also the time a stuck item burns before
+  failing, and at the ~17 tok/s measured here the default 60 s `request_timeout_s` runs out
+  near 1000 tokens, so a bigger ceiling does nothing unless the operator also allows the
+  time. `ai_connection.max_reply_tokens` still overrides. A `truncated_reply` now records
+  the budget in force and what the reply spent, so the operator is not left hunting for the
+  setting — worded to state that a cut-off reply spent *exactly* the ceiling and therefore
+  shows no shortfall, because two numbers that look like a measured gap get read as one.
+  Truncation is still deliberately **not** retried: the ceiling is a setting, so the same
+  call is cut off again. Locked by `tests/test_ai_reply_truncation.py`.
 - **The agreement report and methods statement now see the claim-support ledger.**
   `AgreementReportService` loaded `store.list_ratings()` only — the study-quality (GRADE /
   RoB) records — so a ledger of compared claim–candidate support pairs, which is CiteVahti's
