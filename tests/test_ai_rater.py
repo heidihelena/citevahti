@@ -83,7 +83,10 @@ def test_rater_unparseable_reply_fails_and_does_not_abstain(frame):
     broken adapter in the ledger wearing the model's epistemic humility."""
     scheme = frame.get_scheme("grade_certainty")
     poster = FakePoster(_openai("sorry, I cannot help with that"))
-    r = HttpAiRater(shape="openai", endpoint="https://x", model="m", poster=poster)
+    # retry_backoff_s=0: this test is about how the reply is CLASSIFIED, not about the
+    # retry cadence (that is tests/test_ai_retry.py) — no reason to sleep for it.
+    r = HttpAiRater(shape="openai", endpoint="https://x", model="m", poster=poster,
+                    retry_backoff_s=0.0)
     out = r.rate(frame=frame, scheme=scheme, subject=SUBJECT, task_type="assess")
     assert out.failure == "unparseable_reply" and not out.abstained and out.value is None
 

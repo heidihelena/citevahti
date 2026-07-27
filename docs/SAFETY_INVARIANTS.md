@@ -36,6 +36,14 @@ guarantees of the system; a reviewer should treat any violation as a defect.
   agreement report and methods statement count and describe them apart — so a transport or
   parse fault can never read, in the audit trail or in a published methods section, as the
   model exercising epistemic humility. Guarded by `test_ai_failure_vs_abstention.py`.
+- **A model's judgement is never re-asked.** Only a transient no-answer (an unreachable
+  endpoint, an unreadable reply, a timed-out / 429 / 5xx request) is retried, with the
+  identical prompt; a rating, an abstention, an out-of-vocabulary answer, a truncated reply
+  and a deterministic 4xx are all returned or raised on the first attempt. Retrying until
+  the answer changes would select on the outcome and could manufacture a rating the model
+  never gave
+  (`rating/ai.py::rate_with_retry`, `RETRYABLE_FAILURE_KINDS`). Guarded by
+  `test_ai_retry.py`.
 - **Two rated instruments are counted, never pooled.** The agreement report covers both
   study-quality ratings and claim-support ratings (the latter under the reserved scheme id
   `claim_support`), but refuses a single κ across them — agreement on two instruments

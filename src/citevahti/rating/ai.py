@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from dataclasses import dataclass, field
 from typing import Optional, Protocol, Union, runtime_checkable
 from urllib.parse import urlparse
@@ -190,6 +191,120 @@ def parse_verdict_json(reply: "ChatReply") -> Union[dict, str]:
     return verdict
 
 
+# Retry policy for a call that returned no verdict.
+#
+# Sizing note, because the record should not flatter this change. qwen3:14b's 15 lost
+# ratings on the 2026-07-26 prescreen corpus were NOT mostly retryable: 13 of the 15 were
+# the 300-token ceiling cutting a reasoning model off mid-thought, reported as "unparseable
+# AI reply" before truncation had its own label, and the 2048-token headroom already fixed
+# them. Re-measured 2026-07-27 on the same 44 pairs, with and without this retry, at
+# temperature 0 (every item that produced a value produced the same value in both runs):
+#
+#     rated 42/44 both runs; 0 abstentions both runs; 2 failures both runs.
+#     WITH retry, both failures were `truncated_reply` — the token ceiling, correctly NOT
+#     retried — so **retry fired zero times and recovered nothing on this corpus**.
+#     (The baseline's two were one `truncated_reply` and one raised read-timeout. That
+#     timeout was the SAME item, which under retry reached the token ceiling instead, so
+#     it was never a recoverable transient either.)
+#
+# So this is insurance against a failure class that corpus did not exhibit, not a measured
+# recovery. It is cheap insurance: a successful rating still costs exactly one call, and
+# mean latency was unchanged (24.6s -> 24.0s). The residual loss on that corpus is the
+# reply-token ceiling, which is a separate fix.
+#
+# Only the TRANSIENT kinds are retried, and the distinction is the whole point:
+#   * ``provider_error`` / ``unparseable_reply`` — can be flaky rather than deterministic.
+#     One item did return an unreadable reply and parse cleanly on an identical retry; how
+#     often that happens is not established, so treat this as a cheap hedge, not a known
+#     recovery rate.
+#   * ``truncated_reply`` — NOT retried. The reply-token ceiling is a setting; the same
+#     call under the same ceiling is cut off again. Retrying burns time and tokens to
+#     reproduce a misconfiguration the operator has to fix.
+#   * ``out_of_vocab_value`` — NOT retried. The model *answered*; the answer was off the
+#     scale. Repeating an identical call until it lands in vocabulary is selecting on the
+#     outcome, and it would hide a prompt-compliance defect that ought to stay visible.
+AI_RETRY_ATTEMPTS = 3
+AI_RETRY_BACKOFF_S = 1.0
+RETRYABLE_FAILURE_KINDS = ("provider_error", "unparseable_reply")
+
+
+def is_transient_exception(exc: BaseException) -> bool:
+    """True when a raised call is worth attempting again.
+
+    An HTTP **4xx** says the request itself is wrong — a bad or expired key (401), the
+    wrong endpoint path (404), an unknown model id (400). The identical call fails
+    identically, so retrying only burns wall-clock and, in ``api`` mode, triples the
+    billed requests for every item in a batch. That is the same reasoning that keeps
+    ``truncated_reply`` out of ``RETRYABLE_FAILURE_KINDS``. 408 (timeout) and 429 (rate
+    limit) are the 4xx that genuinely do clear on their own.
+
+    Anything with no HTTP status — a connection error, a read timeout — is transient.
+    Read structurally so this needs no httpx import and works for any poster's exception.
+    """
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if not isinstance(status, int):
+        return True
+    return status in (408, 429) or status >= 500
+
+
+def rate_with_retry(call, *, attempts: int = AI_RETRY_ATTEMPTS,
+                    backoff_s: float = AI_RETRY_BACKOFF_S, sleep=time.sleep):
+    """Run a rater's own ``call()`` up to ``attempts`` times, retrying **only** a transient
+    no-answer outcome (see ``RETRYABLE_FAILURE_KINDS``). Returns the rater output.
+
+    A rating, an abstention, and a non-transient failure all return on the first attempt —
+    the model's judgement is never re-asked, so this can never turn a recorded "I decline"
+    or an off-scale answer into a different verdict by asking again.
+
+    A transient raised error (see ``is_transient_exception``) is caught so it can be
+    retried; a non-transient one propagates immediately. **A recorded failure always beats
+    a raise**: if any attempt produced a classified failure output, that output is returned
+    even when a later attempt raised, because a typed failure in the ledger is strictly
+    better provenance than an exception that leaves no record at all. Only when NO attempt
+    ever produced an output does the last exception propagate — so an unreachable endpoint
+    still fails loudly, exactly as it did before retrying existed.
+
+    When a failure survives every attempt, the recorded reason says how many were made,
+    which is what separates one flaky miss from a consistently broken adapter.
+
+    Cost, stated plainly because it is paid by a waiting human: a *timeout* has already
+    spent the full request budget before it can be retried, so the worst case for one item
+    is ``attempts x request_timeout_s + (attempts - 1) x backoff_s`` — about 3 minutes at
+    the defaults. Lower ``ai_connection.retry_attempts`` (1 disables retrying),
+    ``request_timeout_s`` or ``retry_backoff_s`` if that matters more than recovering the
+    rating; the trade is the operator's.
+    """
+    if attempts < 1:
+        raise ValueError(f"attempts must be at least 1, got {attempts!r}")
+    out = None
+    last_exc: Optional[BaseException] = None
+    used = 0
+    for attempt in range(attempts):
+        used = attempt + 1
+        try:
+            result = call()
+        except Exception as exc:  # noqa: BLE001 — re-raised below unless an output exists
+            if not is_transient_exception(exc):
+                raise
+            last_exc = exc
+        else:
+            out = result
+            if getattr(out, "failure", None) not in RETRYABLE_FAILURE_KINDS:
+                return out
+        if used < attempts:
+            sleep(backoff_s)
+    if out is None:                    # nothing was ever classified — the raise stands
+        # attempts >= 1 is enforced above, so a loop that produced no output raised every
+        # time and last_exc is set; the fallback exists only to keep that provable.
+        raise last_exc if last_exc is not None else RuntimeError(
+            "rate_with_retry produced neither an output nor an error")
+    if getattr(out, "failure", None) and used > 1:
+        out.domain_reasoning = (
+            f"{out.domain_reasoning} (still failing after {used} attempts, so this is "
+            "unlikely to be a transient glitch)")
+    return out
+
+
 def is_truncation_reason(reason: Optional[str]) -> bool:
     """True when a recorded reason marks a truncated reply (a misconfiguration) rather
     than a genuine 'cannot judge'.
@@ -331,7 +446,9 @@ class HttpAiRater:
     def __init__(self, *, shape: str, endpoint: str, model: str,
                  api_key: Optional[str] = None, poster: Optional[HttpPoster] = None,
                  timeout: float = 60.0,
-                 max_tokens: int = LOCAL_MAX_REPLY_TOKENS) -> None:
+                 max_tokens: int = LOCAL_MAX_REPLY_TOKENS,
+                 retry_attempts: int = AI_RETRY_ATTEMPTS,
+                 retry_backoff_s: float = AI_RETRY_BACKOFF_S) -> None:
         if shape not in ("openai", "anthropic"):
             raise ValueError(f"unknown AI shape: {shape!r}")
         self.shape = shape
@@ -341,13 +458,20 @@ class HttpAiRater:
         self.poster = poster or HttpxPoster()
         self.timeout = timeout
         self.max_tokens = max_tokens
+        self.retry_attempts = retry_attempts
+        self.retry_backoff_s = retry_backoff_s
 
     def rate(self, *, frame, scheme, subject, task_type: str) -> AiRatingOutput:
         prompt = self._build_prompt(frame, scheme, subject, task_type)
-        reply = chat_reply(shape=self.shape, endpoint=self.endpoint, model=self.model,
-                           api_key=self.api_key, prompt=prompt, poster=self.poster,
-                           timeout=self.timeout, max_tokens=self.max_tokens)
-        return self._parse(reply, scheme)
+
+        def once() -> AiRatingOutput:
+            reply = chat_reply(shape=self.shape, endpoint=self.endpoint, model=self.model,
+                               api_key=self.api_key, prompt=prompt, poster=self.poster,
+                               timeout=self.timeout, max_tokens=self.max_tokens)
+            return self._parse(reply, scheme)
+
+        return rate_with_retry(once, attempts=self.retry_attempts,
+                               backoff_s=self.retry_backoff_s)
 
     # blinded: only the frame/scheme/subject context is available here
     @staticmethod
@@ -412,6 +536,7 @@ def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
 
     ``max_tokens`` is the operator's ``max_reply_tokens`` when set, else the per-mode
     default (local gets headroom for a reasoning model; api stays frugal).
+    ``retry_attempts`` / ``retry_backoff_s`` carry the operator's retry budget through.
     """
     conn = config.ai_connection
     if not conn.is_enabled():
@@ -422,7 +547,9 @@ def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
         if not _safe_endpoint(endpoint, allow_local=True):
             raise ValueError("local AI endpoint must be http://localhost or an https URL")
         return {"shape": "openai", "endpoint": endpoint, "api_key": None,
-                "max_tokens": conn.max_reply_tokens or LOCAL_MAX_REPLY_TOKENS}
+                "max_tokens": conn.max_reply_tokens or LOCAL_MAX_REPLY_TOKENS,
+                "retry_attempts": conn.retry_attempts,
+                "retry_backoff_s": conn.retry_backoff_s}
     # api mode
     shape = "anthropic" if prov.provider == "anthropic" else "openai"
     endpoint = conn.endpoint or (_ANTHROPIC_DEFAULT if shape == "anthropic" else _OPENAI_DEFAULT)
@@ -442,7 +569,9 @@ def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
     if not api_key:
         raise ValueError("api mode needs an AI key (set CITEVAHTI_AI_API_KEY or store it)")
     return {"shape": shape, "endpoint": endpoint, "api_key": api_key,
-            "max_tokens": conn.max_reply_tokens or API_MAX_REPLY_TOKENS}
+            "max_tokens": conn.max_reply_tokens or API_MAX_REPLY_TOKENS,
+            "retry_attempts": conn.retry_attempts,
+            "retry_backoff_s": conn.retry_backoff_s}
 
 
 def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secret=None):
@@ -453,7 +582,8 @@ def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secre
     return HttpAiRater(shape=c["shape"], endpoint=c["endpoint"],
                        model=config.ai_provenance.model_id, api_key=c["api_key"],
                        poster=poster, timeout=config.ai_connection.request_timeout_s,
-                       max_tokens=c["max_tokens"])
+                       max_tokens=c["max_tokens"], retry_attempts=c["retry_attempts"],
+                       retry_backoff_s=c["retry_backoff_s"])
 
 
 # --- local model discovery (Ollama) ------------------------------------------

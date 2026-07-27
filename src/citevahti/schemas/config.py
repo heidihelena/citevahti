@@ -135,6 +135,18 @@ class AIConnectionConfig(BaseModel):
     # reasoning/"thinking" model spends reply tokens on its chain of thought; api stays
     # frugal because it is billed). Raise this if a local model reports truncated replies.
     max_reply_tokens: Optional[int] = Field(default=None, ge=1)
+    # Total attempts for one rating when the call returns no verdict. Only TRANSIENT
+    # failures are retried (an unreachable endpoint, an unreadable reply, a timed-out or
+    # 5xx request) — a rating, an abstention, an off-scale answer, a truncated reply and a
+    # 4xx (bad key / wrong model / wrong path) are never re-asked. Set to 1 to disable.
+    # Worst case for one item is
+    #     retry_attempts x request_timeout_s + (retry_attempts - 1) x retry_backoff_s
+    # because a timeout spends its full budget before it can be retried.
+    # Literals rather than an import of rating.ai's constants, which would make schemas
+    # depend on rating; test_ai_retry.py::test_config_defaults_match_the_rater_defaults
+    # holds the two in step so they cannot drift.
+    retry_attempts: int = Field(default=3, ge=1, le=10)
+    retry_backoff_s: float = Field(default=1.0, ge=0.0, le=60.0)
 
     def is_enabled(self) -> bool:
         return self.mode in ("local", "api")
