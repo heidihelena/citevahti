@@ -46,8 +46,11 @@ class DecisionService:
         # first (avoids a misleading "discordance" error when no AI ever rated).
         if hv is not None and rating.ai_rating is None:
             return hv, "human_only", True
-        # no disagreement to resolve: the human value stands
-        if status in ("concordant", "human_only", "ai_abstained") and hv is not None:
+        # No disagreement to resolve: the human value stands. ``ai_failed`` belongs here
+        # with ``ai_abstained`` — neither produced an AI value to disagree with — but the
+        # two stay distinct in the record so the decision shows WHY there was no second
+        # opinion (the model declined, or the call never delivered one).
+        if status in ("concordant", "human_only", "ai_abstained", "ai_failed") and hv is not None:
             return hv, status, True
         # discordant + unadjudicated (or no human yet): not resolved
         return None, status, False

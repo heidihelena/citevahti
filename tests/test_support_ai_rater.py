@@ -57,11 +57,15 @@ def test_rater_returns_support_value_and_is_blinded():
     assert "authorization" not in poster.calls[0]["headers"]                   # local: no key
 
 
-def test_rater_abstains_on_out_of_vocabulary():
+def test_rater_fails_rather_than_abstains_on_out_of_vocabulary():
+    """The model answered — off-vocabulary. That is a prompt-compliance defect, and it is
+    recorded as one: never a fabricated in-vocabulary value, and never an abstention."""
     poster = FakePoster(_openai({"value": "super_supports", "abstained": False}))
     r = HttpClaimSupportRater(shape="openai", endpoint="https://x", model="m", poster=poster)
     out = r.rate(claim=CLAIM, candidate=CAND, task_type="assess")
-    assert out.abstained and out.value is None
+    assert out.value is None
+    assert out.failure == "out_of_vocab_value" and not out.abstained
+    assert "super_supports" in out.domain_reasoning     # what it actually returned
 
 
 def test_rater_accepts_overstated_value():

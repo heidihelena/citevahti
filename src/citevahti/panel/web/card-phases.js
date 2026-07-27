@@ -26,44 +26,66 @@ function rateBlock(cand) {
 }
 
 /* What to show in the "AI (2nd)" column when there is no AI value, and why it matters.
- * Three different events currently look identical (a blank column):
- *   - no AI run at all                     -> nothing to say
- *   - the AI ran and abstained             -> a rating outcome: it would not judge
- *   - the AI reply was cut off mid-answer  -> a SETUP problem: it never judged
- * The third is the one an operator has to act on, so it gets its own wording plus the
- * fix. The server derives `ai_config_issue` behind the blinding rule (panel/server.py);
- * this only renders it. */
+ * Three different events would otherwise look identical (a blank column):
+ *   - no AI run at all              -> nothing to say
+ *   - the AI ran and abstained      -> a rating outcome: it read this and would not judge
+ *   - the AI call produced no reply -> a SETUP problem: it never judged
+ * The third is the one an operator has to act on, so it gets its own wording plus the fix.
+ * The server derives `ai_failure` (one of AI_FAILURE_KINDS) behind the blinding rule
+ * (panel/server.py); this only renders it. */
+const AI_FAILURE_CELL = {
+  provider_error: "no reply from the model",
+  truncated_reply: "cut off before answering",
+  unparseable_reply: "unreadable reply",
+  out_of_vocab_value: "answered off-scale",
+};
+
+/* Each failure kind names what actually broke and what to do about it. Deliberately
+ * separated from the abstention wording: an abstention is the model's judgement, these
+ * are the model never reaching one — so none of them says anything about the evidence. */
+const AI_FAILURE_WARN = {
+  provider_error: `<b>The model could not be reached, so it never judged this item.</b>
+    Check that your local model is running and that the endpoint and model name under
+    <b>✦ AI</b> are right, then get the second opinion again.`,
+  truncated_reply: `<b>The model was cut off, so it never judged this item.</b>
+    It hit its reply-token ceiling mid-answer. A reasoning (“thinking”) model spends reply
+    tokens before it answers, so it needs more headroom. Either pick a model that answers
+    directly (<b>✦ AI</b> → Local model), or raise
+    <span class="mono">ai_connection.max_reply_tokens</span> in this review's
+    <span class="mono">.citevahti/config.json</span>, then get the second opinion again.`,
+  unparseable_reply: `<b>The model's reply could not be read, so nothing was judged.</b>
+    It answered, but not in the expected format. This is often intermittent — getting the
+    second opinion again usually works; a model that keeps doing it is a poor fit for this task.`,
+  out_of_vocab_value: `<b>The model answered outside the rating scale, so nothing was recorded.</b>
+    Its answer is deliberately not mapped onto the nearest allowed rating. Try the second
+    opinion again, or pick a model that follows the scale (<b>✦ AI</b> → Local model).`,
+};
+
 function aiSecondCell(r) {
   if (r.ai) return esc(SUP_LABEL[r.ai] || r.ai);
-  if (r.ai_config_issue === "truncated_reply")
-    return `<span class="aicut">cut off before answering</span>`;
+  if (r.ai_failure)
+    return `<span class="aicut">${esc(AI_FAILURE_CELL[r.ai_failure] || "no rating returned")}</span>`;
   if (r.ai_abstained) return `<span class="dim">abstained — no rating given</span>`;
   return `<span class="dim">not recorded yet</span>`;
 }
 
-/* The actionable row for a cut-off reply. Deliberately separated from the abstention
- * wording: an abstention is the model's judgement, this is the model never reaching one. */
 function aiConfigWarn(r) {
-  if (r.ai_config_issue !== "truncated_reply") return "";
-  return `<div class="configwarn" role="status">⚠ <b>The model was cut off, so it never judged this item.</b>
-    It hit its reply-token ceiling mid-answer — a setup problem, not a rating, and not a
-    signal about the evidence. A reasoning (“thinking”) model spends reply tokens before it
-    answers, so it needs more headroom. Either pick a model that answers directly
-    (<b>✦ AI</b> → Local model), or raise <span class="mono">ai_connection.max_reply_tokens</span>
-    in this review's <span class="mono">.citevahti/config.json</span> — then get the second
-    opinion again. Your own rating stands; nothing here was assessed by the AI.</div>`;
+  if (!r.ai_failure) return "";
+  const body = AI_FAILURE_WARN[r.ai_failure]
+    || `<b>The AI call produced no rating, so this item was never judged.</b>`;
+  return `<div class="configwarn" role="status">⚠ ${body} This is a setup problem, not a
+    rating, and not a signal about the evidence. Your own rating stands; nothing here was
+    assessed by the AI.</div>`;
 }
 
-/* The comparison status is a ledger code; the card shows a reader's label for it. A
- * cut-off reply also lands as `ai_abstained` (the rater must abstain rather than invent
- * a value), so the label is overridden here — the code stays the code, the operator is
- * told which of the two happened. */
+/* The comparison status is a ledger code; the card shows a reader's label for it. */
 const CMP_LABEL = { concordant: "concordant", discordant: "discordant",
-  ai_abstained: "AI abstained — nothing to compare", human_only: "your rating only" };
+  ai_abstained: "AI abstained — nothing to compare",
+  ai_failed: "no AI rating — the call failed", human_only: "your rating only" };
 
 function cmpTag(r, cmp) {
   if (!cmp) return "";
-  const label = r.ai_config_issue === "truncated_reply"
+  const label = r.ai_failure
     ? "no AI rating — check AI settings" : (CMP_LABEL[cmp] || cmp);
   return `<span class="verdict-tag ${esc(cmp)}">${esc(label)}</span>`;
 }
@@ -76,13 +98,23 @@ function cmpTag(r, cmp) {
  * either declined or never reached an answer. The offer stays (the operator may switch
  * model or attach full text) but it names the prior run, so a re-run is a deliberate
  * second ask rather than a first one that appears never to have happened. */
+/* What a re-run is worth, per failure kind — a failed call is the one case where asking
+ * the same model the same question genuinely may land differently, so unlike an
+ * abstention the re-run is worth encouraging. Each note points at that kind's own fix. */
+const AI_FAILURE_RETRY_NOTE = {
+  provider_error: `Nothing reached the model. Once it is reachable again, re-running should work.`,
+  truncated_reply: `The run above was cut off before the model answered. Change the setting named above, then re-run.`,
+  unparseable_reply: `The reply could not be read. This is often intermittent — re-running usually works.`,
+  out_of_vocab_value: `The answer was off the rating scale. Re-running may land in scale; a model that keeps
+    missing it is the wrong model for this task.`,
+};
+
 function getAiBlock(r) {
   if (r.ai) return "";                                  // a value landed; nothing to offer
-  const ran = r.ai_present && (r.ai_abstained || r.ai_config_issue);
-  const [label, note] = r.ai_config_issue === "truncated_reply"
+  const [label, note] = r.ai_failure
     ? ["✦ Get the second opinion again",
-       `The run above was cut off before the model answered. Change the setting named above, then re-run.`]
-    : ran
+       AI_FAILURE_RETRY_NOTE[r.ai_failure] || `The run above produced no rating. Re-running may work.`]
+    : (r.ai_present && r.ai_abstained)
       ? ["✦ Ask the AI again",
          `The AI already ran on this paper and declined to rate it. Asking the same model the
           same question is likely to land the same way — switch model in ✦ AI, or give it the
@@ -102,7 +134,7 @@ function decideBlock(cand) {
     ? `<div class="note">You and the AI disagree — your decision adjudicates; the reason is audited.</div>` : "";
   const getAi = getAiBlock(r);
   const why = r.ai ? "Your blind rating is in. Here is the AI second opinion."
-    : r.ai_config_issue === "truncated_reply"
+    : r.ai_failure
       ? "Your blind rating is in. The AI run did not produce a second opinion — check the setup note below."
       : r.ai_abstained
         ? "Your blind rating is in. The AI ran and abstained, so there is no second opinion to compare — decide on yours."
@@ -111,14 +143,14 @@ function decideBlock(cand) {
   // nothing is not an AI that was never asked, so only the never-asked case may offer
   // "get an AI second opinion" as the thing left to do.
   const ask = r.ai ? "Reveal &amp; decide"
-    : r.ai_config_issue === "truncated_reply" ? "Decide — the AI run produced nothing"
+    : r.ai_failure ? "Decide — the AI run produced nothing"
       : r.ai_abstained ? "Decide — the AI declined to rate this"
         : "Decide now, or get an AI second opinion";
   return `<div class="next"><div class="ask">${ask}</div>
     <div class="why">${why}</div>
     <div class="compare">
       <div class="col you"><div class="who">You</div><div class="val">${esc(SUP_LABEL[r.human] || r.human)}</div></div>
-      <div class="col${r.ai_config_issue === "truncated_reply" ? " cut" : ""}"><div class="who">AI (2nd)</div><div class="val">${aiSecondCell(r)}</div></div>
+      <div class="col${r.ai_failure ? " cut" : ""}"><div class="who">AI (2nd)</div><div class="val">${aiSecondCell(r)}</div></div>
     </div>
     ${aiConfigWarn(r)}
     ${cmpTag(r, cmp)}

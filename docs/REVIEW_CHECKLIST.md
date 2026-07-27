@@ -54,8 +54,10 @@ SMOKE=$(mktemp -d); citevahti --root "$SMOKE" init; citevahti --root "$SMOKE" ve
       handling, comparison rule, adjudication rule, human/panel final authority,
       model provenance, agreement metrics, and limitations.
 - [ ] It explicitly **disclaims** any compliance/endorsement claim.
-- [ ] `human_only` / `ai_abstained` are excluded from the agreement denominator;
-      adjudicated records counted by their original comparison.
+- [ ] `human_only` / `ai_abstained` / `ai_failed` are excluded from the agreement
+      denominator; adjudicated records counted by their original comparison.
+- [ ] Abstentions and failed AI calls are counted **separately**, and the failure kinds
+      are named — a broken adapter must never be reported as the model abstaining.
 
 ## 8. Inspect the evidence-export output
 - [ ] Neutral tables only (no GRADEpro/RevMan/MAGICapp shape, no recommendations).

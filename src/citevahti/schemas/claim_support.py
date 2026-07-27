@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .. import SCHEMA_VERSION
 from .common import PassageRef
-from .rating import AIProvenance, Adjudication, Blinding, Comparison
+from .rating import AIFailureKind, AIProvenance, Adjudication, Blinding, Comparison
 
 # The controlled support vocabulary (manifesto). 'unclear' is an honest value, not
 # an abstain: a human may decide the support is genuinely unclear.
@@ -78,8 +78,11 @@ class SupportAIRating(BaseModel):
     """Blind, independent advisory rating. Can NEVER become final automatically."""
 
     model_config = ConfigDict(extra="forbid")
-    value: Optional[Literal[SUPPORT_VALUES]] = None  # type: ignore[valid-type]  # None when abstained
-    abstained: bool = False
+    value: Optional[Literal[SUPPORT_VALUES]] = None  # type: ignore[valid-type]  # None when abstained/failed
+    abstained: bool = False      # the model READ the pair and DECLINED to rate it
+    # No judgement was ever delivered — an adapter/transport event, not a rating.
+    # Mutually exclusive with ``abstained``; see schemas/rating.py::AI_FAILURE_KINDS.
+    failure: Optional[AIFailureKind] = None
     confidence: Optional[float] = None
     fit: FitScores = Field(default_factory=FitScores)
     supporting_passages: list[PassageRef] = Field(default_factory=list)

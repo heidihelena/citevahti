@@ -60,7 +60,8 @@ def select_support_rating(store, claim_id: str, candidate_id: str):
 @dataclass
 class SupportAiOutput:
     value: Optional[str] = None
-    abstained: bool = False
+    abstained: bool = False              # the model read the pair and DECLINED
+    failure: Optional[str] = None        # one of AI_FAILURE_KINDS — it never judged
     confidence: Optional[float] = None
     fit: Optional[FitScores] = None
     domain_reasoning: Optional[str] = None
@@ -153,6 +154,12 @@ class ClaimSupportEngine:
         out = self.rater.rate(claim=claim, candidate=candidate, task_type=task_type)
         if not out.abstained and out.value is not None:
             self._check_value(out.value)
+        # A rater that reports a failure must not also carry a value: a failure means no
+        # judgement was delivered, so there is nothing to record but the failure itself.
+        failure = getattr(out, "failure", None)
+        if failure and (out.value is not None or out.abstained):
+            raise ClaimSupportError(
+                "a failed AI rating cannot also carry a value or an abstention")
         prompt_hash = sha256_hex(canonical_json({
             "claim_id": record.claim_id, "candidate_id": record.candidate_id,
             "task_type": task_type, "prompt_template_version": ai_cfg.prompt_template_version}))
@@ -162,8 +169,8 @@ class ClaimSupportEngine:
             prompt_template_version=ai_cfg.prompt_template_version, prompt_hash=prompt_hash,
             config_hash=config_hash(ai_cfg.model_dump()), rated_at=utc_now_iso())
         record.ai_rating = SupportAIRating(
-            value=None if out.abstained else out.value, abstained=out.abstained,
-            confidence=out.confidence, fit=out.fit or FitScores(),
+            value=None if (out.abstained or failure) else out.value, abstained=out.abstained,
+            failure=failure, confidence=out.confidence, fit=out.fit or FitScores(),
             supporting_passages=out.supporting_passages, domain_reasoning=out.domain_reasoning,
             task_type=task_type, provenance=provenance)
         record.blinding.access_log.append(
@@ -212,6 +219,12 @@ class ClaimSupportEngine:
         av = record.ai_rating.value if record.ai_rating else None
         if record.ai_rating is None:
             status = "human_only"
+        elif record.ai_rating.failure is not None:
+            # The AI call produced no judgement (see AI_FAILURE_KINDS). Checked BEFORE
+            # abstention and before value comparison: with av=None a failed rating would
+            # otherwise fall through to `hv != av` and be recorded as a DISCORDANCE — a
+            # broken adapter manufacturing disagreement with the human.
+            status = "ai_failed"
         elif record.ai_rating.abstained:
             status = "ai_abstained"
         elif hv == av:

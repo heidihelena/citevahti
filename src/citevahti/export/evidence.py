@@ -180,7 +180,10 @@ class EvidenceExportService:
 
         extracted, claims, assessments = [], [], []
         prov_cols = ["prov_tool", "prov_ran_at", "prov_config_hash"] if inc_prov else []
-        ai_cols = ["ai_value", "ai_abstained", "ai_confidence", "ai_model_id",
+        # ai_failure is exported alongside ai_abstained, never folded into it: a blank
+        # ai_value with abstained=false and a failure kind means the call produced no
+        # judgement, which a downstream analysis must not read as the model declining.
+        ai_cols = ["ai_value", "ai_abstained", "ai_failure", "ai_confidence", "ai_model_id",
                    "ai_model_snapshot"] if inc_ai else []
         for a in sel_atts:
             prov = {}
@@ -212,6 +215,7 @@ class EvidenceExportService:
                     if inc_ai and rec.ai_rating is not None:
                         row.update({"ai_value": rec.ai_rating.value,
                                     "ai_abstained": rec.ai_rating.abstained,
+                                    "ai_failure": rec.ai_rating.failure,
                                     "ai_confidence": rec.ai_rating.confidence,
                                     "ai_model_id": rec.ai_rating.provenance.model_id,
                                     "ai_model_snapshot": rec.ai_rating.provenance.model_snapshot})

@@ -34,7 +34,10 @@ class AgreementCounts(BaseModel):
     agreements: int = 0
     disagreements: int = 0
     human_only: int = 0
-    ai_abstained: int = 0
+    ai_abstained: int = 0     # the AI read the item and declined to rate it
+    ai_failed: int = 0        # the AI call produced no rating (adapter/transport event)
+    ai_failure_kinds: dict = Field(default_factory=dict)   # kind -> n, so a broken
+    # adapter is legible in the export rather than hidden inside one aggregate count
     adjudicated: int = 0
     pending_adjudication: int = 0
     final_value_categories: dict = Field(default_factory=dict)
@@ -65,7 +68,8 @@ class ModelScore(BaseModel):
     catches: int = 0          # discordant AND resolved final == the AI value
     overruled: int = 0        # discordant, resolved, final != the AI value
     pending: int = 0          # discordant, not yet adjudicated
-    abstained: int = 0
+    abstained: int = 0        # the model declined to rate — its judgement
+    failed: int = 0           # the call produced no rating — not its judgement
     catch_rate: Optional[float] = None   # catches / (catches + overruled), None if no resolved discordances
 
 
