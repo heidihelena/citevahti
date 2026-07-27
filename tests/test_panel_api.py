@@ -161,11 +161,10 @@ def test_blinding_is_consistent_across_surfaces(tmp_path):
     assert panel == prov_ai == rep_ai == "does_not_support"
 
 
-# ---- abstention vs. a cut-off reply are different events -------------------
-# A truncated reply is a misconfiguration, not a judgement: the model never got to
-# rate the item (rating/ai.py::TRUNCATED_REPLY_REASON). Both land as an abstention in
-# the ledger, so the panel view has to tell them apart or the operator reads a setup
-# problem as an honest "cannot judge".
+# ---- abstention vs. a failed AI call are different events -------------------
+# A failed call is not a judgement: the model never got to rate the item (see
+# schemas/rating.py::AI_FAILURE_KINDS). Both leave the AI column blank, so the panel view
+# has to tell them apart or the operator reads a setup problem as an honest "cannot judge".
 def _abstained_rating(tmp_path, reason, human="directly_supports"):
     store, claim_id, cand_id = _setup(tmp_path)
     eng = ClaimSupportEngine(store)
@@ -176,42 +175,85 @@ def _abstained_rating(tmp_path, reason, human="directly_supports"):
     return eng, rec
 
 
-def test_truncated_ai_reply_is_flagged_as_a_config_issue(tmp_path):
-    from citevahti.rating.ai import TRUNCATED_REPLY_REASON
-    _, rec = _abstained_rating(tmp_path, TRUNCATED_REPLY_REASON)
+class _FailingRater:
+    """A rater whose call produced no verdict — exactly what HttpClaimSupportRater._parse
+    returns when the endpoint, the token ceiling, or the reply format lets it down."""
+
+    name = "failing_rater"
+
+    def __init__(self, kind):
+        self.kind = kind
+
+    def rate(self, *, claim, candidate, task_type):
+        from citevahti.claims.support import SupportAiOutput
+        from citevahti.rating.ai import failure_reason
+        return SupportAiOutput(failure=self.kind, domain_reasoning=failure_reason(self.kind))
+
+
+def _failed_rating(tmp_path, kind, human="directly_supports"):
+    """A failed AI rating written through the real engine path, so this asserts on what
+    ``support_run_ai`` actually records rather than a hand-built record."""
+    store, claim_id, cand_id = _setup(tmp_path)
+    eng = ClaimSupportEngine(store, rater=_FailingRater(kind))
+    rec = eng.support_start(claim_id, cand_id)
+    rec = eng.support_run_ai(rec.rating_id)
+    if human:
+        rec = eng.support_commit_human(rec.rating_id, human)
+    return eng, rec
+
+
+def test_failed_ai_call_is_flagged_as_a_failure_not_an_abstention(tmp_path):
+    _, rec = _failed_rating(tmp_path, "truncated_reply")
     view = blinded_rating_view(rec)
     assert view["ai"] is None                       # still no value — it never judged
     assert view["ai_present"] is True
-    assert view["ai_abstained"] is True
-    assert view["ai_config_issue"] == "truncated_reply"
+    assert view["ai_failure"] == "truncated_reply"
+    assert view["ai_abstained"] is False            # the model did not decline; it never spoke
 
 
-def test_genuine_abstention_is_not_flagged_as_a_config_issue(tmp_path):
+def test_every_failure_kind_reaches_the_panel_as_itself(tmp_path):
+    """Each kind sends the operator to a different fix, so they must not be flattened."""
+    from citevahti.schemas.rating import AI_FAILURE_KINDS
+    for kind in AI_FAILURE_KINDS:
+        _, rec = _failed_rating(tmp_path / kind, kind)
+        assert blinded_rating_view(rec)["ai_failure"] == kind
+
+
+def test_genuine_abstention_is_not_flagged_as_a_failure(tmp_path):
     _, rec = _abstained_rating(tmp_path, "abstract lacks the outcome")
     view = blinded_rating_view(rec)
     assert view["ai_abstained"] is True
-    assert view["ai_config_issue"] is None          # the model judged it could not judge
+    assert view["ai_failure"] is None               # the model judged it could not judge
 
 
-def test_ai_rating_with_a_value_carries_no_config_issue(tmp_path):
+def test_legacy_truncation_reason_still_classifies_as_a_failure(tmp_path):
+    """Records written before ``failure`` existed carry only the prefixed reason string.
+    They must not read as clean abstentions now that abstention means something narrower."""
+    from citevahti.rating.ai import TRUNCATED_REPLY_REASON
+    _, rec = _abstained_rating(tmp_path, TRUNCATED_REPLY_REASON)
+    assert rec.ai_rating.failure is None            # nothing is rewritten on disk
+    view = blinded_rating_view(rec)
+    assert view["ai_failure"] == "truncated_reply" and view["ai_abstained"] is False
+
+
+def test_ai_rating_with_a_value_carries_no_failure(tmp_path):
     store, claim_id, cand_id = _setup(tmp_path)
     eng = ClaimSupportEngine(store)
     rec = eng.support_start(claim_id, cand_id)
     rec = eng.submit_ai_rating(rec.rating_id, "does_not_support", reasoning="the trial reports no effect")
     rec = eng.support_commit_human(rec.rating_id, "directly_supports")
     view = blinded_rating_view(rec)
-    assert view["ai_abstained"] is False and view["ai_config_issue"] is None
+    assert view["ai_abstained"] is False and view["ai_failure"] is None
 
 
 @pytest.mark.security   # the new flags must not become a second, unblinded surface
 def test_abstention_flags_stay_blinded_until_the_human_rates(tmp_path):
     """The flags are derived behind the one reveal rule, like the value itself — and the
     reason text (which for a real rating carries the AI's rationale) never crosses the wire."""
-    from citevahti.rating.ai import TRUNCATED_REPLY_REASON
-    _, rec = _abstained_rating(tmp_path, TRUNCATED_REPLY_REASON, human=None)
+    _, rec = _failed_rating(tmp_path, "truncated_reply", human=None)
     view = blinded_rating_view(rec)
     assert view["human"] is None
-    assert view["ai_abstained"] is False and view["ai_config_issue"] is None
+    assert view["ai_abstained"] is False and view["ai_failure"] is None
     assert "domain_reasoning" not in view
     assert "reply-token" not in json.dumps(view)    # the raw reason is not shipped
 

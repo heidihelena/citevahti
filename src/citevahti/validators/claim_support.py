@@ -31,10 +31,21 @@ def _validate_ai(record: ClaimSupportRating) -> None:
     # never an unpinned/placeholder model in a persisted rating
     if "PENDING" in (ai.provenance.model_id or "") or "PENDING" in (ai.provenance.model_snapshot or ""):
         raise ClaimSupportError("AI support rating carries an unpinned (PENDING) model")
+    # An abstention and a failure are DIFFERENT events and may never merge: an abstention
+    # is the model's judgement ("I read this and will not rate it"), a failure means no
+    # judgement was ever delivered. A record claiming both describes nothing.
+    if ai.abstained and ai.failure is not None:
+        raise ClaimSupportError(
+            "an AI rating cannot be both an abstention and a failure — an abstention is a "
+            "judgement, a failure means no judgement was delivered")
     if ai.abstained and ai.value is not None:
         raise ClaimSupportError("an abstained AI rating must have value=None")
-    if not ai.abstained and ai.value is None:
-        raise ClaimSupportError("a non-abstained AI rating must carry a value")
+    if ai.failure is not None and ai.value is not None:
+        raise ClaimSupportError("a failed AI rating must have value=None")
+    if not ai.abstained and ai.failure is None and ai.value is None:
+        raise ClaimSupportError(
+            "an AI rating with no value must say why: abstained (the model declined) or "
+            "failure (no judgement was delivered)")
     if ai.value is not None and ai.value not in SUPPORT_VALUES:
         raise ClaimSupportError(f"AI support value {ai.value!r} not in the controlled vocabulary")
     _validate_fit(ai.fit, "ai")

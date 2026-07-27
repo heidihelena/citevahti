@@ -92,6 +92,12 @@ class RatingEngine:
                                  task_type=task_type)
         if not out.abstained and out.value is not None:
             validate_value_in_scheme(scheme, out.value)
+        # A rater that reports a failure must not also carry a value: a failure means no
+        # judgement was delivered, so there is nothing to record but the failure itself.
+        failure = getattr(out, "failure", None)
+        if failure and (out.value is not None or out.abstained):
+            raise RatingValidityError(
+                "a failed AI rating cannot also carry a value or an abstention")
 
         prompt_hash = sha256_hex(canonical_json({
             "scheme_id": record.scheme_id, "subject": record.subject.model_dump(),
@@ -102,8 +108,9 @@ class RatingEngine:
             prompt_template_version=ai_cfg.prompt_template_version, prompt_hash=prompt_hash,
             config_hash=config_hash(ai_cfg.model_dump()), rated_at=utc_now_iso())
         record.ai_rating = AIRating(
-            value=None if out.abstained else out.value, abstained=out.abstained,
-            confidence=out.confidence, supporting_passages=out.supporting_passages,
+            value=None if (out.abstained or failure) else out.value, abstained=out.abstained,
+            failure=failure, confidence=out.confidence,
+            supporting_passages=out.supporting_passages,
             domain_reasoning=out.domain_reasoning, task_type=task_type, provenance=provenance)
         record.blinding.access_log.append(
             AccessLogEntry(ts=utc_now_iso(), actor=ai_cfg.model_id, event="commit", target="ai"))
@@ -120,6 +127,11 @@ class RatingEngine:
 
         if record.ai_rating is None:
             status, outcome = "human_only", "human_only"
+        elif record.ai_rating.failure is not None:
+            # No judgement was delivered (see AI_FAILURE_KINDS). Checked BEFORE abstention
+            # and before value comparison: with av=None a failed rating would otherwise
+            # fall through to `hv != av` and be recorded as a DISCORDANCE.
+            status, outcome = "ai_failed", "ai_failed"
         elif record.ai_rating.abstained:
             status, outcome = "ai_abstained", "ai_abstained"
         elif hv == av:

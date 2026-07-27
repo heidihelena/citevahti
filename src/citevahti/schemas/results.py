@@ -9,7 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from .common import Provenance
 
 # ---- dual-rating -----------------------------------------------------------
-ComparisonOutcome = Literal["accepted", "needs_adjudication", "ai_abstained", "human_only"]
+ComparisonOutcome = Literal["accepted", "needs_adjudication", "ai_abstained", "ai_failed",
+                            "human_only"]
 
 
 class RatingComparison(BaseModel):

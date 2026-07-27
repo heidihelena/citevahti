@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Optional, Protocol, runtime_checkable
+from typing import Optional, Protocol, Union, runtime_checkable
 from urllib.parse import urlparse
 
 from ..schemas.common import PassageRef
@@ -21,7 +21,8 @@ from ..schemas.common import PassageRef
 @dataclass
 class AiRatingOutput:
     value: Optional[str] = None
-    abstained: bool = False
+    abstained: bool = False              # the model read the subject and DECLINED
+    failure: Optional[str] = None        # one of AI_FAILURE_KINDS — it never judged
     confidence: Optional[float] = None
     supporting_passages: list[PassageRef] = field(default_factory=list)
     domain_reasoning: Optional[str] = None
@@ -78,10 +79,12 @@ CHAT_MAX_REPLY_TOKENS = 1024
 # because a bare call has no way to know it is talking to a free local model. Every
 # production path passes an explicit budget from ``resolve_ai_connection``.
 
-# A truncated reply is NOT a judgement. The rater still abstains (it must never
-# invent a value), but the recorded reason has to say "misconfigured", not
-# "cannot judge" — an operator reading the panel otherwise sees an honest-looking
-# abstention where the real event is that the model never got to answer.
+# A reply that never delivered a verdict is NOT a judgement. The rater still refuses
+# to invent a value, but it records a **failure**, not an abstention: an abstention is
+# the model declining, and a failure is the model never speaking. Collapsing the two
+# writes a broken adapter into the audit trail — and into a published methods section —
+# as the model exercising epistemic humility. The kinds live in schemas/rating.py
+# (AI_FAILURE_KINDS); the operator-facing prose for each lives here.
 TRUNCATED_REPLY_PREFIX = "configuration: "
 TRUNCATED_REPLY_REASON = (
     TRUNCATED_REPLY_PREFIX
@@ -91,25 +94,86 @@ TRUNCATED_REPLY_REASON = (
       "model that answers directly."
 )
 
+_FAILURE_REASONS = {
+    "provider_error":
+        "the model endpoint returned no readable reply, so it never judged this item. "
+        "This is a connection/endpoint problem, not a rating — check that the model is "
+        "running and that ai_connection.endpoint and the model id are correct.",
+    "truncated_reply": TRUNCATED_REPLY_REASON,
+    "unparseable_reply":
+        "the model replied but the reply contained no readable JSON verdict, so nothing "
+        "was judged. This is an adapter/prompt-compliance problem, not a rating. Such "
+        "replies are often transient — re-running the item usually recovers it.",
+    "out_of_vocab_value":
+        "the model answered with a value outside the controlled vocabulary, so there is "
+        "no rating to record. This is a prompt-compliance problem, not a judgement about "
+        "the evidence, and it is never mapped onto a nearby in-vocabulary value.",
+}
+
+
+def failure_reason(kind: str, detail: Optional[str] = None) -> str:
+    """The recorded, operator-readable reason for an AI-rating ``failure`` kind.
+
+    One place, so the panel, the ledger and the report describe the same event the same
+    way. ``detail`` appends what the model actually returned (e.g. the out-of-vocabulary
+    value) — evidence for the reader, never a value the system acts on.
+    """
+    base = _FAILURE_REASONS.get(kind, f"the AI call failed ({kind}), so nothing was judged.")
+    return f"{base} Model returned: {detail}" if detail else base
+
+
+def parse_verdict_json(reply: "ChatReply") -> Union[dict, str]:
+    """The model's JSON verdict (a ``dict``), or the **failure kind** (a ``str``) when no
+    verdict came back — callers branch on ``isinstance(result, str)``.
+
+    Shared by both raters so the claim-support and GRADE paths classify a missing answer
+    identically. Note what is deliberately NOT here: the three no-answer routes below are
+    kept apart, because each is a different real event (the endpoint failed / the reply was
+    cut off / the model wrote something unreadable) and only the last is about the model's
+    behaviour at all. None of them is the model declining to rate.
+    """
+    if reply.provider_error:
+        return "provider_error"
+    cut_off_or_garbled = "truncated_reply" if reply.truncated else "unparseable_reply"
+    m = re.search(r"\{.*\}", reply.text or "", re.DOTALL)
+    if not m:
+        return cut_off_or_garbled
+    try:
+        verdict = json.loads(m.group(0))
+    except json.JSONDecodeError:
+        return cut_off_or_garbled
+    if not isinstance(verdict, dict):
+        return "unparseable_reply"
+    return verdict
+
 
 def is_truncation_reason(reason: Optional[str]) -> bool:
-    """True when an abstention's reason marks a truncated reply (a misconfiguration)
-    rather than a genuine 'cannot judge'. One predicate so every surface — panel,
-    report, agreement stats — classifies the two apart the same way."""
+    """True when a recorded reason marks a truncated reply (a misconfiguration) rather
+    than a genuine 'cannot judge'.
+
+    Superseded for new records by the typed ``ai_rating.failure`` field: this remains the
+    classifier for records written **before** that field existed, where the prefixed
+    reason string is the only evidence of what happened. New code should read ``failure``.
+    """
     return bool(reason) and str(reason).startswith(TRUNCATED_REPLY_PREFIX)
 
 
 @dataclass
 class ChatReply:
-    """One model reply plus whether it was cut off at the token ceiling.
+    """One model reply, plus why it may not contain an answer.
 
     ``truncated`` comes from the provider's own stop signal (OpenAI-compatible
     ``finish_reason == "length"``, Anthropic ``stop_reason == "max_tokens"``) —
     not from a latency or length heuristic, which would misfire on a slow machine.
+
+    ``provider_error`` is set when the response carried no readable model content at
+    all (an error payload, or an unexpected shape). That is a transport-level event,
+    not something the model said, and it must not reach the ledger looking like one.
     """
 
     text: str = ""
     truncated: bool = False
+    provider_error: Optional[str] = None
 
 
 def _safe_endpoint(url: str, *, allow_local: bool) -> bool:
@@ -172,8 +236,12 @@ def chat_reply(*, shape: str, endpoint: str, model: str, prompt: str,
         choice = data["choices"][0]                        # openai-compatible
         return ChatReply(text=choice["message"]["content"],
                          truncated=choice.get("finish_reason") == "length")
-    except (KeyError, IndexError, AttributeError, TypeError):
-        return ChatReply()
+    except (KeyError, IndexError, AttributeError, TypeError) as exc:
+        # The endpoint answered, but with nothing the model said — an error payload or
+        # an unexpected shape. Flag it as a TRANSPORT event: an empty reply would
+        # otherwise reach the rater indistinguishable from a model that replied with
+        # unreadable text, and end up recorded as if the model had spoken.
+        return ChatReply(provider_error=f"{type(exc).__name__}: {str(exc)[:120]}")
 
 
 def chat_completion(*, shape: str, endpoint: str, model: str, prompt: str,
@@ -247,26 +315,23 @@ class HttpAiRater:
     def _parse(self, reply, scheme) -> AiRatingOutput:
         if isinstance(reply, str):                 # tolerate a bare string (older callers)
             reply = ChatReply(text=reply)
-        # A cut-off reply means the model never answered; say so instead of letting a
-        # misconfiguration masquerade as an honest "cannot judge".
-        no_answer = (TRUNCATED_REPLY_REASON if reply.truncated else "unparseable AI reply")
-        m = re.search(r"\{.*\}", reply.text or "", re.DOTALL)
-        if not m:
-            return AiRatingOutput(abstained=True, domain_reasoning=no_answer)
-        try:
-            pj = json.loads(m.group(0))
-        except json.JSONDecodeError:
-            return AiRatingOutput(abstained=True, domain_reasoning=no_answer)
+        pj = parse_verdict_json(reply)
+        if isinstance(pj, str):                    # a failure kind, not a verdict
+            return AiRatingOutput(failure=pj, domain_reasoning=failure_reason(pj))
         rationale = (str(pj.get("rationale") or "")[:200]) or None
         conf = pj.get("confidence")
         conf = float(conf) if isinstance(conf, (int, float)) else None
         if pj.get("abstained") or pj.get("value") in (None, "", "null"):
+            # The model read the subject and declined. THIS is an abstention.
             return AiRatingOutput(abstained=True, confidence=conf, domain_reasoning=rationale)
         value = str(pj["value"])
         if value not in scheme.level_values():
-            # never fabricate an out-of-scheme value -> abstain honestly
-            return AiRatingOutput(abstained=True, confidence=conf,
-                                  domain_reasoning=f"AI returned out-of-scheme value {value!r}")
+            # Never fabricate an out-of-scheme value, and never file it as an abstention
+            # either: the model did answer, its answer just is not in the scheme. That is a
+            # prompt-compliance defect, and it has to stay visible as one in the ledger.
+            return AiRatingOutput(failure="out_of_vocab_value", confidence=conf,
+                                  domain_reasoning=failure_reason("out_of_vocab_value",
+                                                                  repr(value)))
         return AiRatingOutput(value=value, abstained=False, confidence=conf,
                               domain_reasoning=rationale)
 

@@ -52,26 +52,40 @@ test("isDecided treats any non-pending state as decided", () => {
   assert.equal(t.isDecided(undefined), false);
 });
 
-/* The Reveal & decide panel has to tell three different "no AI value" events apart. Two of
- * them are honest outcomes; a reply cut off at the token ceiling is a SETUP problem the
- * operator has to act on, and used to render identically to "no AI run yet". */
+/* The Reveal & decide panel has to tell three different "no AI value" events apart: no AI
+ * run yet, the model reading the pair and declining, and the call never delivering a
+ * verdict at all. Only the last is a SETUP problem the operator has to act on, and each
+ * failure kind points at a different fix. */
 const rated = (extra) => ({ rating: { human: "directly_supports", ai: null, ...extra } });
 
 test("a cut-off AI reply reads as a setup problem, with the fix", () => {
-  const html = t.decideBlock(rated({ ai_present: true, ai_abstained: true,
-    ai_config_issue: "truncated_reply", comparison_status: "ai_abstained" }));
+  const html = t.decideBlock(rated({ ai_present: true, ai_abstained: false,
+    ai_failure: "truncated_reply", comparison_status: "ai_failed" }));
   assert.match(html, /cut off before answering/);
   assert.match(html, /never judged this item/);
   assert.match(html, /ai_connection\.max_reply_tokens/);        // the actionable fix, named
   assert.match(html, /class="configwarn"/);                     // visually separated row
   assert.match(html, /class="col cut"/);                        // and marked in the AI column
   assert.doesNotMatch(html, /not recorded yet/);                // no longer reads as "none yet"
+  assert.doesNotMatch(html, /abstained/);                       // and never as the model declining
   assert.match(html, /no AI rating — check AI settings/);       // the raw ledger code is not shown
+});
+
+test("each failure kind names its own cause, not the token ceiling", () => {
+  const unreachable = t.decideBlock(rated({ ai_present: true, ai_abstained: false,
+    ai_failure: "provider_error", comparison_status: "ai_failed" }));
+  assert.match(unreachable, /could not be reached/);
+  assert.doesNotMatch(unreachable, /max_reply_tokens/);         // wrong fix for this failure
+
+  const offScale = t.decideBlock(rated({ ai_present: true, ai_abstained: false,
+    ai_failure: "out_of_vocab_value", comparison_status: "ai_failed" }));
+  assert.match(offScale, /outside the rating scale/);
+  assert.match(offScale, /not mapped onto the nearest allowed rating/);
 });
 
 test("a genuine abstention stays an abstention — no setup warning", () => {
   const html = t.decideBlock(rated({ ai_present: true, ai_abstained: true,
-    ai_config_issue: null, comparison_status: "ai_abstained" }));
+    ai_failure: null, comparison_status: "ai_abstained" }));
   assert.match(html, /abstained — no rating given/);
   assert.doesNotMatch(html, /configwarn/);
   assert.doesNotMatch(html, /max_reply_tokens/);
@@ -83,7 +97,7 @@ test("a genuine abstention stays an abstention — no setup warning", () => {
  * card cannot read as "the AI was never asked". */
 test("an abstention re-offers the run as a second ask, not a first", () => {
   const html = t.decideBlock(rated({ ai_present: true, ai_abstained: true,
-    ai_config_issue: null, comparison_status: "ai_abstained" }));
+    ai_failure: null, comparison_status: "ai_abstained" }));
   assert.match(html, /data-act="run-ai"/);                      // still reachable
   assert.match(html, /Ask the AI again/);
   assert.match(html, /already ran on this paper and declined/);
@@ -93,8 +107,8 @@ test("an abstention re-offers the run as a second ask, not a first", () => {
 });
 
 test("a cut-off run is re-offered as a re-run after the setting is fixed", () => {
-  const html = t.decideBlock(rated({ ai_present: true, ai_abstained: true,
-    ai_config_issue: "truncated_reply", comparison_status: "ai_abstained" }));
+  const html = t.decideBlock(rated({ ai_present: true, ai_abstained: false,
+    ai_failure: "truncated_reply", comparison_status: "ai_failed" }));
   assert.match(html, /data-act="run-ai"/);
   assert.match(html, /Get the second opinion again/);
   assert.match(html, /Decide — the AI run produced nothing/);
@@ -102,8 +116,23 @@ test("a cut-off run is re-offered as a re-run after the setting is fixed", () =>
   assert.doesNotMatch(html, /already ran on this paper and declined/);   // it never judged
 });
 
+/* A failed call is the one case where the SAME model on the SAME question may land
+ * differently, so its re-run note must not borrow the abstention's discouragement. */
+test("each failure kind is re-offered with its own reason to expect a different result", () => {
+  const flaky = t.decideBlock(rated({ ai_present: true, ai_abstained: false,
+    ai_failure: "unparseable_reply", comparison_status: "ai_failed" }));
+  assert.match(flaky, /Get the second opinion again/);
+  assert.match(flaky, /often intermittent/);
+  assert.doesNotMatch(flaky, /likely to land the same way/);    // that is abstention advice
+  assert.doesNotMatch(flaky, /max_reply_tokens/);               // and that is truncation's fix
+
+  const unreachable = t.decideBlock(rated({ ai_present: true, ai_abstained: false,
+    ai_failure: "provider_error", comparison_status: "ai_failed" }));
+  assert.match(unreachable, /Nothing reached the model/);
+});
+
 test("no AI run yet still offers the second opinion, unchanged", () => {
-  const html = t.decideBlock(rated({ ai_present: false, ai_abstained: false, ai_config_issue: null }));
+  const html = t.decideBlock(rated({ ai_present: false, ai_abstained: false, ai_failure: null }));
   assert.match(html, /not recorded yet/);
   assert.match(html, /data-act="run-ai"/);
   assert.match(html, /✦ Get AI second opinion</);
@@ -113,7 +142,7 @@ test("no AI run yet still offers the second opinion, unchanged", () => {
 
 test("an AI value that landed is compared as before", () => {
   const html = t.decideBlock({ rating: { human: "directly_supports", ai: "does_not_support",
-    ai_present: true, ai_abstained: false, ai_config_issue: null, comparison_status: "discordant" } });
+    ai_present: true, ai_abstained: false, ai_failure: null, comparison_status: "discordant" } });
   assert.match(html, /verdict-tag discordant/);
   assert.doesNotMatch(html, /configwarn/);
   assert.doesNotMatch(html, /data-act="run-ai"/);               // no re-run offered once rated

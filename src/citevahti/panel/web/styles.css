@@ -379,7 +379,7 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .verdict-tag.concordant { color: var(--zs-partial-text); border-color: var(--zs-partial-border); background: var(--zs-partial-bg); }
 .verdict-tag.discordant { color: var(--zs-delete-text); border-color: var(--zs-delete-border); background: var(--zs-delete-bg); }
 /* no AI value to compare — a neutral outcome, not a disagreement */
-.verdict-tag.ai_abstained, .verdict-tag.human_only { color: var(--zs-muted); border-color: var(--zs-line); }
+.verdict-tag.ai_abstained, .verdict-tag.ai_failed, .verdict-tag.human_only { color: var(--zs-muted); border-color: var(--zs-line); }
 
 /* A cut-off AI reply: the model never judged this item, so it is a SETUP problem rather
  * than a rating. Amber (the panel's "attention / your setup" hue) keeps it apart from a

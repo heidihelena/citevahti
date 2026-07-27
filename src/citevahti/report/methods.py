@@ -31,12 +31,41 @@ _TEMPLATE = (
     "rated the same pair without access to the human value. Rating order ({blinding_mode}) "
     "and timestamps were recorded in a hash-chained audit log. Of {n_pairs} comparable "
     "human–AI pairs, {n_agree} were concordant and {n_disagree} discordant (raw "
-    "agreement {raw_agreement}; Cohen's κ {kappa}). AI abstentions ({n_abstain}) were "
-    "excluded from the agreement denominator. Every discordance was resolved by human "
+    "agreement {raw_agreement}; Cohen's κ {kappa}). AI abstentions ({n_abstain}) — pairs the "
+    "AI rater read and declined to rate — were excluded from the agreement "
+    "denominator.{failure_clause} Every discordance was resolved by human "
     "adjudication with a recorded rationale; AI values were advisory only and never set "
     "the recorded final value. CiteVahti checks citation support, not the truth of the "
     "underlying claims."
 )
+
+def _failure_kinds_str(counts) -> str:
+    """``truncated_reply: 1, unparseable_reply: 2`` — readable prose, not a repr'd dict."""
+    kinds = getattr(counts, "ai_failure_kinds", None) or {}
+    return ", ".join(f"{k}: {v}" for k, v in sorted(kinds.items()))
+
+
+def _failure_clause(counts) -> str:
+    """The sentence disclosing AI calls that returned no rating — omitted when there were
+    none, and never folded into the abstention count.
+
+    A reader takes "the AI abstained" to mean the model exercised judgement and declined.
+    A call that timed out, was cut off, or returned an unreadable reply is a different
+    event entirely, and reporting it as an abstention overstates the model's behaviour
+    while hiding a defect in the pipeline. Measured 2026-07-26 on a 44-pair corpus:
+    qwen3:14b's 15 recorded "abstentions" contained zero actual abstentions.
+    """
+    n = getattr(counts, "ai_failed", 0)
+    if not n:
+        return ""
+    kinds = _failure_kinds_str(counts)
+    detail = f" ({kinds})" if kinds else ""
+    was_were = "was" if n == 1 else "were"
+    return (f" A further {n} pair(s) produced no AI rating because the model call itself "
+            f"failed{detail}; these {was_were} recorded as failed AI calls rather than "
+            "abstentions — no judgement was made — and are likewise excluded from the "
+            "denominator.")
+
 
 def _shown(value: str, *, unset_hint: str) -> str:
     """The value, or an explicit ``(unset — …)`` marker — never a blank or a sentinel."""
@@ -224,9 +253,17 @@ def build_methods_markdown(store) -> str:
         prompt_version=_shown(prov.prompt_template_version, unset_hint="set ai_provenance.prompt_template_version"),
         blinding_mode=cfg.rating.order,
         n_pairs=c.comparable_pairs, n_agree=c.agreements, n_disagree=c.disagreements,
-        n_abstain=c.ai_abstained, raw_agreement=raw, kappa=_kappa_str(rep))
+        n_abstain=c.ai_abstained, failure_clause=_failure_clause(c),
+        raw_agreement=raw, kappa=_kappa_str(rep))
 
     notes = []
+    if c.ai_failed:
+        notes.append(
+            f"- {c.ai_failed} AI call(s) failed rather than abstained "
+            f"({_failure_kinds_str(c) or 'kind unrecorded'}) — the model never judged those "
+            "pairs. That is a setup problem, not evidence about the claims: fix the AI "
+            "connection (endpoint, model, `ai_connection.max_reply_tokens`) and re-run the "
+            "AI leg, so the reported denominator reflects judgements rather than dropped calls.")
     if not prov.is_model_pinned():
         notes.append("- The model provenance is not fully pinned — fill `ai_provenance` "
                      "in `.citevahti/config.json` before submission.")

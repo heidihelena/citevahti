@@ -22,7 +22,10 @@ from .frame import validate_subject_for_scheme, validate_value_in_scheme
 
 
 def is_agreement_countable(record: RatingRecord) -> bool:
-    """True only for concordant/discordant; abstention/human-only never count."""
+    """True only for concordant/discordant; abstention, AI failure and human-only never
+    count. Note that ai_abstained and ai_failed are both excluded but for opposite
+    reasons — one is a judgement the metric cannot use, the other is not a judgement at
+    all — so the report states them separately rather than as one number."""
     return record.comparison.status in ("concordant", "discordant")
 
 
@@ -45,10 +48,21 @@ def _validate_ai_provenance(record: RatingRecord) -> None:
         raise RatingValidityError(f"AI rating missing provenance fields: {missing}")
     if p.model_id == PENDING_MODEL_ID or p.model_snapshot == PENDING_MODEL_SNAPSHOT:
         raise RatingValidityError("AI rating carries an unpinned (PENDING) model")
+    # An abstention and a failure are DIFFERENT events and may never merge: an abstention
+    # is the model's judgement ("I read this and will not rate it"), a failure means no
+    # judgement was ever delivered. A record claiming both describes nothing.
+    if ai.abstained and ai.failure is not None:
+        raise RatingValidityError(
+            "an AI rating cannot be both an abstention and a failure — an abstention is a "
+            "judgement, a failure means no judgement was delivered")
     if ai.abstained and ai.value is not None:
         raise RatingValidityError("an abstained AI rating must have value=None")
-    if not ai.abstained and ai.value is None:
-        raise RatingValidityError("a non-abstained AI rating must carry a value")
+    if ai.failure is not None and ai.value is not None:
+        raise RatingValidityError("a failed AI rating must have value=None")
+    if not ai.abstained and ai.failure is None and ai.value is None:
+        raise RatingValidityError(
+            "an AI rating with no value must say why: abstained (the model declined) or "
+            "failure (no judgement was delivered)")
 
 
 def validate_final_value(record: RatingRecord) -> None:

@@ -7,22 +7,23 @@ there is no assistant — the standalone / high-volume screener's path. It reuse
 the shared transport + connection rules from ``rating.ai``, so off/local/api,
 key handling, and endpoint safety behave identically.
 
-Blind by construction (``rate`` never receives the human value) and it ABSTAINS
-rather than fabricate an out-of-vocabulary value.
+Blind by construction (``rate`` never receives the human value) and it never fabricates
+an out-of-vocabulary value. When no usable verdict comes back it records a typed
+**failure** (see schemas/rating.py::AI_FAILURE_KINDS) — never an abstention, which is
+reserved for the model reading the pair and declining to rate it.
 """
 
 from __future__ import annotations
 
-import json
-import re
 from typing import Optional
 
 from ..rating.ai import (
     LOCAL_MAX_REPLY_TOKENS,
-    TRUNCATED_REPLY_REASON,
     ChatReply,
     HttpPoster,
     chat_reply,
+    failure_reason,
+    parse_verdict_json,
     resolve_ai_connection,
 )
 from ..schemas.claim_support import SUPPORT_VALUES, FitScores
@@ -91,29 +92,28 @@ class HttpClaimSupportRater:
     def _parse(reply) -> SupportAiOutput:
         if isinstance(reply, str):                 # tolerate a bare string (older callers)
             reply = ChatReply(text=reply)
-        # A cut-off reply means the model never answered; say so instead of letting a
-        # misconfiguration masquerade as an honest "cannot judge".
-        no_answer = (TRUNCATED_REPLY_REASON if reply.truncated else "unparseable AI reply")
-        m = re.search(r"\{.*\}", reply.text or "", re.DOTALL)
-        if not m:
-            return SupportAiOutput(abstained=True, fit=FitScores(),
-                                   domain_reasoning=no_answer)
-        try:
-            pj = json.loads(m.group(0))
-        except json.JSONDecodeError:
-            return SupportAiOutput(abstained=True, fit=FitScores(),
-                                   domain_reasoning=no_answer)
+        pj = parse_verdict_json(reply)
+        if isinstance(pj, str):                    # a failure kind, not a verdict
+            # No verdict came back. This is a FAILURE, not an abstention: the model never
+            # judged the pair, so the ledger must not record it as the model declining.
+            return SupportAiOutput(failure=pj, fit=FitScores(),
+                                   domain_reasoning=failure_reason(pj))
         rationale = (str(pj.get("rationale") or "")[:200]) or None
         conf = pj.get("confidence")
         conf = float(conf) if isinstance(conf, (int, float)) else None
         if pj.get("abstained") or pj.get("value") in (None, "", "null"):
+            # The model read the pair and declined. THIS is an abstention.
             return SupportAiOutput(abstained=True, confidence=conf, fit=FitScores(),
                                    domain_reasoning=rationale)
         value = str(pj["value"])
         if value not in SUPPORT_VALUES:
-            # never fabricate an out-of-vocabulary value -> abstain honestly
-            return SupportAiOutput(abstained=True, confidence=conf, fit=FitScores(),
-                                   domain_reasoning=f"AI returned out-of-vocab value {value!r}")
+            # Never fabricate an out-of-vocabulary value — and never file it as an
+            # abstention either. The model DID answer; the answer is off-vocabulary, which
+            # is a prompt-compliance defect that has to stay visible as one in the ledger.
+            return SupportAiOutput(failure="out_of_vocab_value", confidence=conf,
+                                   fit=FitScores(),
+                                   domain_reasoning=failure_reason("out_of_vocab_value",
+                                                                   repr(value)))
         return SupportAiOutput(value=value, abstained=False, confidence=conf,
                                fit=FitScores(), domain_reasoning=rationale)
 

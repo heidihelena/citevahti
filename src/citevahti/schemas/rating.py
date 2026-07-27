@@ -20,9 +20,28 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .common import PassageRef
 
-ComparisonStatus = Literal["concordant", "discordant", "ai_abstained", "human_only"]
+ComparisonStatus = Literal["concordant", "discordant", "ai_abstained", "ai_failed",
+                           "human_only"]
 AdjudicationEvent = Literal["accepted", "adjudicated"]
 AccessEvent = Literal["seal", "reveal", "view", "commit"]
+
+# Why an AI rating carries no value, when the reason is NOT the model's judgement.
+#
+# An abstention and an adapter failure are different events and must never share a
+# label: an abstention is a rating outcome (the model read the item and declined),
+# a failure means no judgement was ever delivered. Collapsing them writes a broken
+# adapter into the audit trail — and into a published methods section — as the model
+# exercising epistemic humility. Measured 2026-07-26 on a 44-pair corpus: qwen3:14b
+# recorded 15 "abstentions", of which **zero** were the model declining.
+#
+# ``abstained`` and ``failure`` are mutually exclusive (enforced in the validators).
+AI_FAILURE_KINDS = (
+    "provider_error",      # the HTTP call returned no readable model reply at all
+    "truncated_reply",     # cut off at the reply-token ceiling before answering
+    "unparseable_reply",   # the model replied, but with no readable JSON verdict
+    "out_of_vocab_value",  # it answered with a value outside the controlled vocabulary
+)
+AIFailureKind = Literal[AI_FAILURE_KINDS]  # type: ignore[valid-type]
 
 
 class HumanRating(BaseModel):
@@ -56,8 +75,13 @@ class AIRating(BaseModel):
     """Blind, independent second rating. Can NEVER become final automatically."""
 
     model_config = ConfigDict(extra="forbid")
-    value: Optional[str] = None  # None when abstained
-    abstained: bool = False
+    value: Optional[str] = None  # None when abstained or failed
+    abstained: bool = False      # the model READ the item and DECLINED to rate it
+    # Set instead of ``abstained`` when no judgement was ever delivered (see
+    # AI_FAILURE_KINDS). A record written before this field existed has None here:
+    # it reads as 'unknown provenance for the absent value', and such records are
+    # NOT retroactively reclassified — the distinction starts where it was recorded.
+    failure: Optional[AIFailureKind] = None
     confidence: Optional[float] = None  # calibrated 0..1
     supporting_passages: list[PassageRef] = Field(default_factory=list)
     domain_reasoning: Optional[str] = None

@@ -7,7 +7,7 @@ with, or endorsement by, any reporting guideline.
 
 The **AI second rating is an optional, blinded second opinion — not mandatory.**
 The human always decides (Invariant 1). A decision resolves and may be written when
-it is *concordant*, *adjudicated*, *ai_abstained*, **or** *human_only* (a human rating
+it is *concordant*, *adjudicated*, *ai_abstained*, *ai_failed*, **or** *human_only* (a human rating
 with no AI rating). "human → AI → adjudication" names the full dual-rating path; the
 AI leg can be skipped, and a human-only accept is by design, not a gap.
 
@@ -38,13 +38,30 @@ Every step appends an audit event.
 - Human↔human independence (multi-rater) is supported by per-rater records and a
   sealed commit-then-reveal discipline recorded in the access log.
 
-## AI abstention handling
+## AI abstention handling — and why a failed call is not an abstention
 
-- The AI may return `abstained = true` with no value.
-- Abstentions are recorded with full provenance.
-- In agreement reporting, `ai_abstained` records are **excluded from the
-  human–AI agreement denominator** and **reported separately** (never counted as
-  agreement or disagreement).
+- The AI may return `abstained = true` with no value. An **abstention is a rating
+  outcome**: the model read the item and declined to rate it.
+- A call that produced no judgement at all is recorded as a **failure**, never as an
+  abstention. `ai_rating.failure` carries the kind, and the two fields are mutually
+  exclusive:
+
+  | `ai_rating.failure` | what happened |
+  |---|---|
+  | `provider_error` | the endpoint returned no readable reply — the model never spoke |
+  | `truncated_reply` | the reply hit the token ceiling before an answer |
+  | `unparseable_reply` | the model replied, with no readable JSON verdict |
+  | `out_of_vocab_value` | it answered outside the controlled vocabulary |
+
+  The distinction is load-bearing for reporting: "the AI abstained" tells a reader the
+  model exercised judgement, so an adapter or transport fault reported in those words
+  overstates what the model did while hiding a defect in the pipeline. Neither value is
+  ever fabricated in either case.
+- Both are recorded with full provenance, and both are **excluded from the human–AI
+  agreement denominator** — but they are **counted and described apart from each other**
+  in the agreement report and the auto-filled methods statement.
+- Records written before `ai_rating.failure` existed carry `None` there and are **not**
+  reclassified retroactively; the distinction begins where it was recorded.
 
 ## Comparison statuses
 
@@ -52,7 +69,8 @@ Every step appends an audit event.
 |---|---|---|
 | `concordant` | human value == AI value | `accepted` (human value locked in) |
 | `discordant` | human value != AI value | `needs_adjudication` |
-| `ai_abstained` | AI ran but abstained | excluded from agreement |
+| `ai_abstained` | AI ran, read the item, and declined to rate | excluded from agreement |
+| `ai_failed` | the AI call returned no rating — not a judgement | excluded from agreement |
 | `human_only` | no AI rating present | excluded from agreement |
 
 `concordant` auto-accepts the **human** value via an `accepted` event — the AI

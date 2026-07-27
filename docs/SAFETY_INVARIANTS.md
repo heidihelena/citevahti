@@ -27,8 +27,15 @@ guarantees of the system; a reviewer should treat any violation as a defect.
 - **AI provenance is always present and the model is pinned** for any AI rating
   (`validators/rating.py`); `rating_run_ai` refuses without an explicit model pin
   and refuses assist-only tasks such as `claim_check`.
-- **`ai_abstained` / `human_only` never count as human–AI agreement**
+- **`ai_abstained` / `ai_failed` / `human_only` never count as human–AI agreement**
   (`validators/rating.py::is_agreement_countable`, `export/agreement.py`).
+- **An AI abstention is a judgement; a failed AI call is not, and the two never merge.**
+  `abstained` means the model read the item and declined; a call that returned no usable
+  verdict records a typed `ai_rating.failure` instead (`schemas/rating.py::AI_FAILURE_KINDS`)
+  and compares as `ai_failed`. The validators refuse a record that claims both, and the
+  agreement report and methods statement count and describe them apart — so a transport or
+  parse fault can never read, in the audit trail or in a published methods section, as the
+  model exercising epistemic humility. Guarded by `test_ai_failure_vs_abstention.py`.
 - **Probe-not-proof, version separation**: capabilities are reported only after a
   successful probe; Zotero app version, schema version, and BBT version are kept
   distinct and never confused; the BBT version is read live, never hardcoded

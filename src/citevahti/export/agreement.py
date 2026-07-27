@@ -1,9 +1,11 @@
 """AgreementReportService: human-AI agreement metrics + method transparency.
 
 Read-only over rating records. Changes nothing, adjudicates nothing, infers no
-final values. human_only and ai_abstained are excluded from the agreement
-denominator and reported separately. Adjudicated records are counted by their
-ORIGINAL human-AI comparison, not the final adjudicated value.
+final values. human_only, ai_abstained and ai_failed are excluded from the agreement
+denominator and reported separately — and ai_abstained and ai_failed are reported
+apart from EACH OTHER, because an abstention is the model's judgement and a failed
+call is not a judgement at all. Adjudicated records are counted by their ORIGINAL
+human-AI comparison, not the final adjudicated value.
 """
 
 from __future__ import annotations
@@ -143,6 +145,7 @@ class AgreementReportService:
     def _counts(self, records) -> AgreementCounts:
         c = AgreementCounts()
         finals: Counter[str] = Counter()
+        failure_kinds: Counter[str] = Counter()
         for rec in records:
             s = rec.comparison.status
             if s == "concordant":
@@ -153,6 +156,13 @@ class AgreementReportService:
                 c.disagreements += 1
             elif s == "ai_abstained":
                 c.ai_abstained += 1
+            elif s == "ai_failed":
+                # Excluded from agreement like an abstention, but counted apart: an
+                # abstention is a model judgement, an AI failure is a broken call. Rolling
+                # them together would report an adapter defect as epistemic humility.
+                c.ai_failed += 1
+                kind = rec.ai_rating.failure if rec.ai_rating else None
+                failure_kinds[kind or "unknown"] += 1
             elif s == "human_only":
                 c.human_only += 1
             if rec.adjudication.event == "adjudicated":
@@ -162,6 +172,7 @@ class AgreementReportService:
             if s == "discordant" and rec.adjudication.event != "adjudicated":
                 c.pending_adjudication += 1
         c.final_value_categories = dict(finals)
+        c.ai_failure_kinds = dict(failure_kinds)
         return c
 
     def _group_metrics(self, key, recs, metrics, report) -> AgreementGroup:
@@ -249,6 +260,10 @@ class AgreementReportService:
                     ms.overruled += 1
             elif status == "ai_abstained":
                 ms.abstained += 1
+            elif status == "ai_failed":
+                # Kept off the abstention tally: a model that cannot be reached or parsed
+                # is an integration problem to fix, not a cautious rater to be praised.
+                ms.failed += 1
         for ms in by_model.values():
             resolved = ms.catches + ms.overruled
             ms.catch_rate = round(ms.catches / resolved, 3) if resolved else None
@@ -346,7 +361,12 @@ class AgreementReportService:
             "config_hash_count": len({a.provenance.config_hash for a in ai}),
             "rating_dates": {"min": min(dates), "max": max(dates)} if dates else {},
             "blinding_modes": sorted({r.blinding.mode for r in records}),
+            # Two counts, never one: the model declining is a rating outcome, the call
+            # failing is not. A single "no value recorded" number would report a broken
+            # adapter as the model exercising judgement.
             "abstention_count": sum(1 for a in ai if a.abstained),
+            "failure_count": sum(1 for a in ai if a.failure),
+            "failure_kinds": dict(Counter(a.failure for a in ai if a.failure)),
             "task_types": sorted({a.task_type for a in ai if a.task_type}),
         }
 
@@ -365,9 +385,17 @@ class AgreementReportService:
             f"- **Blinding mode**: {cfg.rating.order} (modes observed: {s.get('blinding_modes', [])}); "
             "the AI never receives the human value.",
             f"- **Abstention handling**: AI may abstain; abstentions ({s.get('abstention_count', 0)}) "
-            "are excluded from the human-AI agreement denominator and reported separately.",
+            "— items the model read and declined to rate — are excluded from the human-AI "
+            "agreement denominator and reported separately.",
+            f"- **Failed AI calls**: {s.get('failure_count', 0)} "
+            f"{s.get('failure_kinds', {}) or ''}".rstrip() + " — calls that returned no "
+            "usable rating (no readable reply, a reply cut off at the token ceiling, or a "
+            "value outside the vocabulary). These are **not** abstentions: no judgement was "
+            "made. They are excluded from the denominator and reported apart from "
+            "abstentions so an integration fault is never read as model caution.",
             "- **Comparison rule**: concordant -> accepted (human value); discordant -> "
-            "needs adjudication; human_only and ai_abstained are not human-AI agreement.",
+            "needs adjudication; human_only, ai_abstained and ai_failed are not human-AI "
+            "agreement.",
             "- **Adjudication rule**: a discordance is resolved only by a human or panel, with a "
             "rationale; the AI value is never copied to the final value automatically.",
             "- **Human/panel final authority**: the recorded final value is always human/panel-sourced.",
@@ -420,13 +448,16 @@ class AgreementReportService:
         buf = io.StringIO()
         w = csv.writer(buf)
         w.writerow(["group", "scheme_id", "comparable_pairs", "agreements", "disagreements",
-                    "human_only", "ai_abstained", "raw_agreement", "cohen_kappa", "weighted_kappa"])
+                    "human_only", "ai_abstained", "ai_failed", "ai_failure_kinds",
+                    "raw_agreement", "cohen_kappa", "weighted_kappa"])
         for g in report.groups:
             ck = (g.metrics.get("cohen_kappa") or {}).get("value")
             wk = (g.metrics.get("weighted_kappa") or {}).get("value")
             w.writerow([json.dumps(g.key), g.scheme_id, g.counts.comparable_pairs,
                         g.counts.agreements, g.counts.disagreements, g.counts.human_only,
-                        g.counts.ai_abstained, g.metrics.get("raw_agreement"), ck, wk])
+                        g.counts.ai_abstained, g.counts.ai_failed,
+                        json.dumps(g.counts.ai_failure_kinds),
+                        g.metrics.get("raw_agreement"), ck, wk])
         return buf.getvalue()
 
     def _markdown(self, report) -> str:
@@ -438,7 +469,11 @@ class AgreementReportService:
                  f"- agreements: {report.overall.agreements}",
                  f"- disagreements: {report.overall.disagreements}",
                  f"- human_only (excluded from agreement): {report.overall.human_only}",
-                 f"- ai_abstained (excluded from agreement): {report.overall.ai_abstained}",
+                 f"- ai_abstained — model read it and declined (excluded from agreement): "
+                 f"{report.overall.ai_abstained}",
+                 f"- ai_failed — call returned no rating, NOT a judgement (excluded from "
+                 f"agreement): {report.overall.ai_failed}"
+                 + (f" {report.overall.ai_failure_kinds}" if report.overall.ai_failed else ""),
                  f"- pending adjudication: {report.overall.pending_adjudication}", ""]
         for g in report.groups:
             lines += [f"## Group {g.key or '(all)'}", "",

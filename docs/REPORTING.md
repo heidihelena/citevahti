@@ -34,7 +34,8 @@ ledger's config).
 > in a hash-chained audit log. Of __N_PAIRS__ comparable human–AI pairs,
 > __N_AGREE__ were concordant and __N_DISAGREE__ discordant
 > (raw agreement __RAW_AGREEMENT__; Cohen's κ __KAPPA__). AI abstentions
-> (__N_ABSTAIN__) were excluded from the agreement denominator. Every
+> (__N_ABSTAIN__) — pairs the AI rater read and declined to rate — were
+> excluded from the agreement denominator. __FAILURE_CLAUSE__ Every
 > discordance was resolved by human adjudication with a recorded rationale;
 > AI values were advisory only and never set the recorded final value.
 > CiteVahti checks citation support, not the truth of the underlying claims.
@@ -49,6 +50,12 @@ Where each number comes from:
   plus the modes actually observed in the ledger).
 - `__N_PAIRS__ / __N_AGREE__ / __N_DISAGREE__ / __N_ABSTAIN__` — the
   **Agreement metrics** and **Abstention handling** lines.
+- `__FAILURE_CLAUSE__` — the **Failed AI calls** line. Omit the sentence entirely
+  when that count is zero. A failed call (no readable reply, a reply cut off at
+  the token ceiling, or an off-vocabulary answer) is **not** an abstention: no
+  judgement was made, so reporting it as one tells the reader the model exercised
+  caution it never exercised. Fix the AI connection and re-run the AI leg rather
+  than publishing a denominator shaped by dropped calls.
 - `__RAW_AGREEMENT__ / __KAPPA__` — the per-group `metrics` block
   (group by `scheme_id` if you rated under more than one scheme; κ is refused
   across mixed schemes rather than computed wrongly).

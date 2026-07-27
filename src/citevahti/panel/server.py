@@ -87,21 +87,25 @@ def blinded_rating_view(record) -> dict:
     # the one canonical blinding rule (see rating/blinding.py) — never re-derive it here
     ai_shown = blinded_ai_value(human, ai_value, hidden="hidden (blinded until human rates)")
     # Why the AI has no value, told apart into two very different events. A genuine
-    # abstention is a rating outcome ("cannot judge on this evidence"); a reply cut off
-    # at the token ceiling is a *setup* problem — the model never got to judge at all
-    # (see rating/ai.py::TRUNCATED_REPLY_REASON). Both currently render as a blank AI
-    # column, which reads as "no second opinion yet" and hides the misconfiguration.
+    # abstention is a rating outcome ("cannot judge on this evidence"); a call that never
+    # delivered a verdict is a *setup* problem — the model never got to judge at all (see
+    # schemas/rating.py::AI_FAILURE_KINDS). Rendering both as a blank AI column reads as
+    # "no second opinion yet" and hides the misconfiguration.
     #
     # Gated on the same reveal predicate as the value itself, so this is not a second
     # blinding surface that could drift from the first. ``domain_reasoning`` is never
     # sent raw — for a rating that did land it carries the AI's rationale, which is
     # exactly what blinding withholds; only these derived flags cross the wire.
     ai_abstained = False
-    ai_config_issue = None                       # None | "truncated_reply"
+    ai_failure = None                            # None | one of AI_FAILURE_KINDS
     if record.ai_rating is not None and reveal_ai(human):
         ai_abstained = bool(record.ai_rating.abstained)
-        if is_truncation_reason(record.ai_rating.domain_reasoning):
-            ai_config_issue = "truncated_reply"
+        ai_failure = record.ai_rating.failure
+        if ai_failure is None and is_truncation_reason(record.ai_rating.domain_reasoning):
+            # A record written before ``failure`` existed: the prefixed reason string is
+            # the only evidence of what happened, so classify it the legacy way rather
+            # than let an old truncation read as a clean abstention.
+            ai_failure, ai_abstained = "truncated_reply", False
     human_fit = (record.human_rating.fit.model_dump()
                  if record.human_rating and record.human_rating.fit else None)
     return {
@@ -113,7 +117,7 @@ def blinded_rating_view(record) -> dict:
         "ai": ai_shown,
         "ai_present": ai_present,
         "ai_abstained": ai_abstained,
-        "ai_config_issue": ai_config_issue,
+        "ai_failure": ai_failure,
         "comparison_status": record.comparison.status,
         "final_value": record.adjudication.final_value,
         "adjudication_event": record.adjudication.event,

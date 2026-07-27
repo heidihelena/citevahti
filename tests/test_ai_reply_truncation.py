@@ -2,14 +2,14 @@
 
 Regression guard for the 2026-07-26 finding: a reasoning ("thinking") model such as
 qwen3:14b spends its reply budget on chain of thought, so on the old 300-token
-ceiling it was cut off before answering. The rater abstained honestly — but the
-recorded reason ("unparseable AI reply") was indistinguishable from a genuine
-"cannot judge", so an operator saw abstentions where the real event was a setup
-problem. Measured cost: 12 of 44 items (27%) on the claim-support path.
+ceiling it was cut off before answering. The rater then recorded an abstention —
+indistinguishable from a genuine "cannot judge", so an operator saw abstentions where
+the real event was a setup problem. Measured cost: 12 of 44 items (27%) on the
+claim-support path.
 
-These tests lock the distinction in both directions: a cut-off reply is reported as
-a configuration problem, and a real abstention is NOT. Offline throughout (fake
-poster); no model is contacted.
+These tests lock the distinction in both directions: a cut-off reply is recorded as a
+typed ``failure`` (never an abstention), and a real abstention carries no failure.
+Offline throughout (fake poster); no model is contacted.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ from citevahti.rating.ai import (
     API_MAX_REPLY_TOKENS,
     LOCAL_MAX_REPLY_TOKENS,
     TRUNCATED_REPLY_REASON,
-    ChatReply,
     HttpAiRater,
     chat_reply,
     is_truncation_reason,
@@ -87,16 +86,16 @@ def _support_rater(poster, **kw):
 def test_truncated_thinking_reply_is_reported_as_configuration_not_judgement():
     out = _support_rater(FakePoster(THINKING_TRUNCATED)).rate(
         claim=CLAIM, candidate=CAND, task_type="claim_support")
-    assert out.abstained and out.value is None          # still never fabricates a value
+    assert out.value is None                            # still never fabricates a value
+    assert out.failure == "truncated_reply" and not out.abstained
     assert is_truncation_reason(out.domain_reasoning)
     assert out.domain_reasoning == TRUNCATED_REPLY_REASON
-    assert "unparseable" not in out.domain_reasoning
 
 
 def test_genuine_abstention_is_not_flagged_as_configuration():
     out = _support_rater(FakePoster(GENUINE_ABSTENTION)).rate(
         claim=CLAIM, candidate=CAND, task_type="claim_support")
-    assert out.abstained and out.value is None
+    assert out.abstained and out.value is None and out.failure is None
     assert not is_truncation_reason(out.domain_reasoning)
     assert out.domain_reasoning == "abstract lacks the outcome"
 
@@ -107,17 +106,20 @@ def test_truncated_and_genuine_abstentions_are_distinguishable():
         claim=CLAIM, candidate=CAND, task_type="claim_support")
     real = _support_rater(FakePoster(GENUINE_ABSTENTION)).rate(
         claim=CLAIM, candidate=CAND, task_type="claim_support")
-    assert trunc.abstained and real.abstained                     # both abstain...
-    assert is_truncation_reason(trunc.domain_reasoning)            # ...but only one
-    assert not is_truncation_reason(real.domain_reasoning)         # is a setup problem
+    assert trunc.value is None and real.value is None              # neither has a value...
+    assert trunc.failure == "truncated_reply" and not trunc.abstained
+    assert real.abstained and real.failure is None                 # ...for opposite reasons
+    assert is_truncation_reason(trunc.domain_reasoning)
+    assert not is_truncation_reason(real.domain_reasoning)
 
 
-def test_unparseable_but_complete_reply_is_still_a_plain_abstention():
-    """Garbage that was NOT cut off is a rating failure, not a token-budget problem."""
+def test_unparseable_but_complete_reply_is_its_own_failure_kind():
+    """Garbage that was NOT cut off is still a failed call, but a different one: the token
+    budget is fine, so the recorded kind must not send the operator to the wrong fix."""
     poster = FakePoster({"choices": [{"message": {"content": "I think maybe yes?"},
                                       "finish_reason": "stop"}]})
     out = _support_rater(poster).rate(claim=CLAIM, candidate=CAND, task_type="claim_support")
-    assert out.abstained and out.domain_reasoning == "unparseable AI reply"
+    assert out.failure == "unparseable_reply" and not out.abstained
     assert not is_truncation_reason(out.domain_reasoning)
 
 
@@ -147,7 +149,8 @@ def test_grade_rater_reports_truncation_as_configuration():
     r = HttpAiRater(shape="openai", endpoint="https://x", model="qwen3:14b",
                     poster=FakePoster(THINKING_TRUNCATED))
     out = r.rate(frame=_Frame(), scheme=_Scheme(), subject=_Subject(), task_type="grade")
-    assert out.abstained and out.value is None
+    assert out.value is None
+    assert out.failure == "truncated_reply" and not out.abstained
     assert is_truncation_reason(out.domain_reasoning)
 
 
@@ -155,7 +158,8 @@ def test_grade_rater_genuine_abstention_not_flagged():
     r = HttpAiRater(shape="openai", endpoint="https://x", model="m",
                     poster=FakePoster(GENUINE_ABSTENTION))
     out = r.rate(frame=_Frame(), scheme=_Scheme(), subject=_Subject(), task_type="grade")
-    assert out.abstained and not is_truncation_reason(out.domain_reasoning)
+    assert out.abstained and out.failure is None
+    assert not is_truncation_reason(out.domain_reasoning)
 
 
 # --- the truncation signal comes from the provider, not a heuristic -----------
@@ -174,10 +178,14 @@ def test_normal_stop_is_not_truncation():
     assert not reply.truncated
 
 
-def test_unexpected_shape_is_empty_and_not_truncated():
+def test_unexpected_shape_is_a_provider_error_not_a_silent_empty_reply():
+    """The endpoint answered with nothing the model said. Left as a bare empty reply this
+    reaches the rater looking exactly like a model that wrote something unreadable — a
+    transport fault wearing the model's behaviour."""
     reply = chat_reply(shape="openai", endpoint="https://x", model="m", prompt="p",
                        poster=FakePoster({"unexpected": True}))
-    assert reply == ChatReply(text="", truncated=False)
+    assert reply.text == "" and not reply.truncated
+    assert reply.provider_error
 
 
 def test_slow_but_complete_reply_is_never_called_truncated():
@@ -238,4 +246,4 @@ def test_truncation_never_produces_a_value():
         out = HttpClaimSupportRater(shape=shape, endpoint="https://x", model="m",
                                     poster=FakePoster(resp)).rate(
             claim=CLAIM, candidate=CAND, task_type="claim_support")
-        assert out.value is None and out.abstained
+        assert out.value is None and out.failure == "truncated_reply"

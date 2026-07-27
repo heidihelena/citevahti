@@ -61,9 +61,9 @@ function phaseOf(cand) {
 function stepper(active, hasAi) {
   // Conditional: the "AI second opinion" step only appears when there is an AI *value*
   // to reveal, so the stepper never shows a "Reveal" step as done when nothing was
-  // revealed. An abstention — genuine, or a reply cut off before the model answered —
-  // records a rating with no value, so it must not tick this step; the decide panel
-  // says what happened instead (see card-phases.js::aiConfigWarn).
+  // revealed. Both an abstention and a failed AI call record a rating with no value, so
+  // neither ticks this step; the decide panel says which of the two happened instead
+  // (see card-phases.js::aiSecondCell / aiConfigWarn).
   const steps = hasAi
     ? [["rate", "Rate"], ["reveal", "AI second opinion"], ["decide", "Decide"], ["write", "Write"]]
     : [["rate", "Rate"], ["decide", "Decide"], ["write", "Write"]];

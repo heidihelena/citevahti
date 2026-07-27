@@ -1150,8 +1150,11 @@ def _cmd_rating_run_ai(args) -> int:
     rec, rc = _safe(lambda: tools.rating_run_ai(args.rating_id, args.task_type, root=args.root))
     if rec:
         ai = rec.ai_rating
-        print(f"ai rating: {'abstained' if ai.abstained else ai.value} "
-              f"(model={ai.provenance.model_id})")
+        # 'failed: <kind>' is never printed as 'abstained': the model did not decline,
+        # the call never delivered a judgement.
+        outcome = (f"failed ({ai.failure})" if ai.failure
+                   else "abstained" if ai.abstained else ai.value)
+        print(f"ai rating: {outcome} (model={ai.provenance.model_id})")
     return rc
 
 
@@ -1268,7 +1271,11 @@ def _cmd_agreement_report(args) -> int:
     print(f"  comparable pairs: {rep.overall.comparable_pairs}  "
           f"agreements: {rep.overall.agreements}  disagreements: {rep.overall.disagreements}")
     print(f"  human_only: {rep.overall.human_only}  ai_abstained: {rep.overall.ai_abstained}  "
+          f"ai_failed: {rep.overall.ai_failed}  "
           f"pending_adjudication: {rep.overall.pending_adjudication}")
+    if rep.overall.ai_failed:
+        print(f"  ! {rep.overall.ai_failed} AI call(s) returned no rating "
+              f"{rep.overall.ai_failure_kinds} — a setup problem, not model abstention")
     print(f"  groups: {len(rep.groups)}  formats: {rep.formats_written}")
     for f in rep.output_files:
         print(f"  wrote: {f}")

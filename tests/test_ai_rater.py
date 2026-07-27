@@ -59,13 +59,15 @@ def test_rater_returns_scheme_value_and_is_blinded(frame):
     assert "authorization" not in poster.calls[0]["headers"]  # local => no key sent
 
 
-def test_rater_abstains_on_out_of_scheme_value(frame):
+def test_rater_fails_rather_than_abstains_on_out_of_scheme_value(frame):
+    """An off-scheme answer is a prompt-compliance defect, not the model declining."""
     scheme = frame.get_scheme("grade_certainty")
     poster = FakePoster(_openai({"value": "Excellent", "abstained": False}))
     r = HttpAiRater(shape="openai", endpoint="https://x/v1/chat/completions",
                     model="m", poster=poster)
     out = r.rate(frame=frame, scheme=scheme, subject=SUBJECT, task_type="assess")
-    assert out.abstained and out.value is None             # never fabricate out-of-scheme
+    assert out.value is None                               # never fabricate out-of-scheme
+    assert out.failure == "out_of_vocab_value" and not out.abstained
 
 
 def test_rater_honors_explicit_abstain(frame):
@@ -76,12 +78,14 @@ def test_rater_honors_explicit_abstain(frame):
     assert out.abstained and out.value is None
 
 
-def test_rater_unparseable_reply_abstains(frame):
+def test_rater_unparseable_reply_fails_and_does_not_abstain(frame):
+    """An unreadable reply is a failed call. Recording it as an abstention would put a
+    broken adapter in the ledger wearing the model's epistemic humility."""
     scheme = frame.get_scheme("grade_certainty")
     poster = FakePoster(_openai("sorry, I cannot help with that"))
     r = HttpAiRater(shape="openai", endpoint="https://x", model="m", poster=poster)
     out = r.rate(frame=frame, scheme=scheme, subject=SUBJECT, task_type="assess")
-    assert out.abstained
+    assert out.failure == "unparseable_reply" and not out.abstained and out.value is None
 
 
 def test_rater_anthropic_shape_sends_key_header(frame):

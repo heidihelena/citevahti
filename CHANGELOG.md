@@ -7,6 +7,33 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **A broken AI adapter no longer reads as the model exercising judgement.** The raters
+  collapsed *transport and parse failures* into *epistemic abstention*: a reply the endpoint
+  never delivered, a reply with no readable JSON, and a value outside the controlled
+  vocabulary all recorded `abstained = true`, landed as `ai_abstained` in the ledger, and
+  reached a journal reader through the auto-filled methods paragraph as "AI abstentions (n)
+  were excluded from the agreement denominator" — a sentence a reader takes to mean the model
+  read the item and declined. Measured 2026-07-26 on the 44-pair prescreen corpus: qwen3:14b
+  recorded **15 abstentions of which zero were semantic** (13 unparseable replies, 2 timeouts);
+  on the 5 items where the adapter worked it scored 5/5. The events are now separate:
+  `ai_rating.failure` carries a typed kind (`provider_error` / `truncated_reply` /
+  `unparseable_reply` / `out_of_vocab_value`), `abstained` is reserved for the model reading
+  the item and declining, the two are mutually exclusive (validators refuse a record claiming
+  both), and the comparison status `ai_failed` sits beside `ai_abstained`. An off-vocabulary
+  answer is its own recorded event rather than a silent abstention — it is a prompt-compliance
+  defect, and it is still never mapped onto a nearby in-vocabulary value. Downstream, both are
+  excluded from the agreement denominator exactly as before, but they are **counted and
+  described apart**: the agreement report breaks failures out by kind, the model scoreboard
+  tallies `failed` separately from `abstained` (a model whose calls keep failing no longer
+  accrues a record that reads as caution), the methods statement names abstentions as "pairs
+  the AI rater read and declined to rate" and discloses failed calls in their own sentence —
+  omitted entirely when there are none — plus a *Before you submit* note, and the panel's
+  Reveal & decide card names each failure kind with the fix it actually calls for. Records
+  written before `failure` existed are **not** reclassified retroactively; the panel still
+  reads the legacy `configuration:` reason prefix so an old truncation does not now read as a
+  clean abstention. Locked by `tests/test_ai_failure_vs_abstention.py`. A retry policy for the
+  transient kinds (the 2026-07-26 evidence shows most recover on a second attempt) is a
+  separate follow-up.
 - **An AI that ran and declined is no longer re-offered as an AI that was never asked.**
   The rest of the card had learned to say "abstained — no rating given", but the heading and
   the button under it had not: they still read "Decide now, or get an AI second opinion" and
