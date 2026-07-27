@@ -259,6 +259,10 @@ def _row_claim(r) -> dict:
             "manuscript_location": r.manuscript_location}
 
 
+# the states workflow._next_action counts as "still on your desk" — kept in step with it
+_PENDING_STATES = ("needs_support", "review_needed")
+
+
 def _claim_state(r) -> dict:
     out = {"state": r.state, "code": r.code.strip(),
            "candidate_count": r.candidate_count, "accepted_count": r.accepted_count,
@@ -375,7 +379,27 @@ def _get_context(root, body):
 
 
 def _get_next(root, body):
-    return 200, workflow.project_status(root)
+    status = workflow.project_status(root)
+    archived = set(prefs.archived_manuscripts(root))
+    nxt = status.get("next") or {}
+    if not archived or nxt.get("kind") != "rate":
+        return 200, status
+    # project_status is ledger-wide (the CLI shares it), so it still counts claims
+    # from a manuscript you have put away. Left alone, archiving would silence the
+    # switcher and the triage list while this banner kept saying "12 claims still
+    # need your rating" — the exact nagging archiving is meant to end.
+    live = [(mid, r) for mid, rows in _manuscript_groups(root).items()
+            if mid not in archived for r in rows]
+    pending = [r for _mid, r in live if _claim_state(r)["state"] in _PENDING_STATES]
+    if not pending:
+        status["next"] = {"kind": "report",
+                          "label": "Everything outside your archived manuscripts is decided."}
+        return 200, status
+    nxt["claim_id"] = pending[0].claim_id
+    nxt["label"] = (f"{len(pending)} claim(s) still need your rating or a decision "
+                    f"— open them in the panel.")
+    status["next"] = nxt
+    return 200, status
 
     # the citation-integrity report as Markdown, so the wizard's final step can hand
     # the never-touched-a-terminal user a file without `citevahti report`. It carries a
@@ -397,7 +421,21 @@ def _get_report(root, body):
 
 
 def _get_triage(root, body):
-    return 200, engine.triage(root=root).model_dump()
+    report = engine.triage(root=root).model_dump()
+    archived = set(prefs.archived_manuscripts(root))
+    if not archived:
+        return 200, report
+    # An archived manuscript must stop nagging, or archiving solves nothing: the
+    # document would vanish from the switcher while its claims kept driving "N
+    # claims still need your rating". Say how many were withheld rather than
+    # quietly shrinking the number — a hidden count is still a real count.
+    by_claim = {r.claim_id: mid for mid, rows in _manuscript_groups(root).items()
+                for r in rows}
+    items = report.get("items") or []
+    kept = [i for i in items if by_claim.get(i.get("claim_id")) not in archived]
+    report["items"] = kept
+    report["archived_hidden"] = len(items) - len(kept)
+    return 200, report
 
     # local claim<->evidence graph for the Atlas map + figure export (read-only).
 
@@ -520,12 +558,27 @@ def _get_manuscripts(root, body):
         if name not in seen:
             out.append({"manuscript_id": name, "claim_count": 0, "resolved": True})
             seen.add(name)
+    # archived documents stay in the payload, flagged, so the surface can offer
+    # "restore" — they are simply not offered as somewhere to work
+    archived = set(prefs.archived_manuscripts(root))
+    for row in out:
+        row["archived"] = row["manuscript_id"] in archived
     # the manuscript last worked on, so the client reopens it on reload instead
     # of snapping to the first entry (only honoured if still in the list)
     active = prefs.recall_manuscript(root)
-    if active not in seen:
+    if active not in seen or active in archived:
         active = None
     return 200, {"manuscripts_dir": mdir, "manuscripts": out, "active": active}
+
+
+def _post_manuscripts_archive(root, body):
+    """Put a manuscript away, or bring it back. Never deletes: the claims, ratings
+    and audit entries stay exactly as they were, so the review remains
+    reconstructable. Archiving only decides what the panel offers you."""
+    mid = _req(body, "manuscript_id")
+    archived = bool(body.get("archived", True))
+    prefs.set_manuscript_archived(root, mid, archived)
+    return _get_manuscripts(root, body)
 
 
 def _get_pandoc_status(root, body):
@@ -891,6 +944,7 @@ _POST_ROUTES = {
     "/api/atlas/revoke": _post_atlas_revoke,
     "/api/setup": _post_setup,
     "/api/manuscripts/bind": _post_manuscripts_bind,
+    "/api/manuscripts/archive": _post_manuscripts_archive,
     "/api/reveal": _post_reveal,
     "/api/manuscripts/cite-export": _post_manuscripts_cite_export,
     "/api/fs/browse": _post_fs_browse,

@@ -343,6 +343,77 @@ def test_active_manuscript_is_remembered_across_reloads(tmp_path):
     assert gone["active"] is None                          # absent → not surfaced
 
 
+def test_archiving_a_manuscript_keeps_every_claim_and_stops_the_nagging(tmp_path):
+    # "I do not want that paper in CiteVahti" — but deleting a manuscript would
+    # destroy 24 claims and their audit trail. Archive is the reversible answer:
+    # the document stops being offered and stops counting, the record is untouched.
+    _store, claim_id, _cand_id = _setup(tmp_path)
+    msdir = tmp_path / "papers"
+    msdir.mkdir()
+    (msdir / "done.md").write_text("A finished paper.\n", encoding="utf-8")
+    from citevahti.panel import prefs
+    prefs.set_manuscripts_dir(str(tmp_path), str(msdir))
+    dispatch(str(tmp_path), "GET", "/api/manuscript/done.md", None)      # open it
+
+    _, before = dispatch(str(tmp_path), "GET", "/api/manuscripts", None)
+    assert before["active"] == "done.md"
+    assert all(m["archived"] is False for m in before["manuscripts"])
+
+    status, after = dispatch(str(tmp_path), "POST", "/api/manuscripts/archive",
+                             {"manuscript_id": "done.md", "archived": True})
+    assert status == 200
+    row = next(m for m in after["manuscripts"] if m["manuscript_id"] == "done.md")
+    assert row["archived"] is True          # still listed, so it can be restored
+    assert after["active"] is None          # no longer where you are working
+
+    # the claims themselves are untouched — this is archive, not delete
+    _, claims = dispatch(str(tmp_path), "GET", "/api/claims", None)
+    assert any(c["claim_id"] == claim_id for c in claims["claims"])
+
+    _, back = dispatch(str(tmp_path), "POST", "/api/manuscripts/archive",
+                       {"manuscript_id": "done.md", "archived": False})
+    assert next(m for m in back["manuscripts"]
+                if m["manuscript_id"] == "done.md")["archived"] is False
+
+
+def test_archived_claims_drop_out_of_triage_and_the_hidden_count_is_stated(tmp_path):
+    # If an archived paper's claims kept driving "N claims still need your rating",
+    # archiving would have solved nothing. The withheld count is reported rather
+    # than silently shrinking the number.
+    _setup(tmp_path)
+    from citevahti.panel import prefs
+    _, full = dispatch(str(tmp_path), "GET", "/api/triage", None)
+    seeded = len(full.get("items") or [])
+    assert seeded, "fixture should leave at least one claim needing attention"
+
+    from citevahti.panel.server import _manuscript_groups
+    groups = _manuscript_groups(str(tmp_path))
+    mid = next(iter(groups))                      # the manuscript the fixture claims belong to
+    prefs.set_manuscript_archived(str(tmp_path), mid, True)
+
+    _, quiet = dispatch(str(tmp_path), "GET", "/api/triage", None)
+    assert quiet["items"] == []
+    assert quiet["archived_hidden"] == seeded     # withheld, and said so
+
+
+def test_the_next_step_banner_stops_counting_archived_claims(tmp_path):
+    # The banner is fed by workflow.project_status, which is ledger-wide and shared
+    # with the CLI. Without this, archiving hid the paper from the switcher and the
+    # triage list while the banner kept announcing its claims.
+    _setup(tmp_path)
+    from citevahti.panel import prefs
+    from citevahti.panel.server import _manuscript_groups
+    _, before = dispatch(str(tmp_path), "GET", "/api/next", None)
+    assert before["next"]["kind"] == "rate"
+
+    mid = next(iter(_manuscript_groups(str(tmp_path))))
+    prefs.set_manuscript_archived(str(tmp_path), mid, True)
+
+    _, after = dispatch(str(tmp_path), "GET", "/api/next", None)
+    assert after["next"]["kind"] != "rate"
+    assert "archived" in after["next"]["label"]
+
+
 def test_a_manuscript_whose_name_has_a_space_opens(tmp_path):
     # The filename travels as a URL path segment, so the client percent-encodes it.
     # Before the decode, "Math paper.md" arrived as "Math%20paper.md", matched no file

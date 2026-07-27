@@ -72,6 +72,28 @@ def recall_manuscript(root: str) -> Optional[str]:
     return load_panel(root).get("active_manuscript")
 
 
+def archived_manuscripts(root: str) -> list:
+    """Manuscripts the researcher has put away. Panel visibility only — the claims,
+    ratings and audit trail are untouched, which is why this is archive and not
+    delete: a decision history must stay reconstructable."""
+    got = load_panel(root).get("archived_manuscripts")
+    return list(got) if isinstance(got, list) else []
+
+
+def set_manuscript_archived(root: str, manuscript_id: str, archived: bool) -> list:
+    """Archive or restore one manuscript; returns the new archived list."""
+    data = load_panel(root)
+    current = [m for m in archived_manuscripts(root) if m != manuscript_id]
+    if archived:
+        current.append(manuscript_id)
+        # putting away the document you were in shouldn't leave the panel pointing at it
+        if data.get("active_manuscript") == manuscript_id:
+            data["active_manuscript"] = None
+    data["archived_manuscripts"] = sorted(current)
+    save_panel(root, data)
+    return data["archived_manuscripts"]
+
+
 # ---- remembered root + the shared resolver ---------------------------------
 # The last-used root and the resolver now live in `rootcfg` so every surface — the
 # CLI, the MCP server, and this panel — answers "what am I working on" the same way.
