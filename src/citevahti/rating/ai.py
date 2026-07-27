@@ -285,9 +285,11 @@ def chat_reply(*, shape: str, endpoint: str, model: str, prompt: str,
         payload = {"model": model, "max_tokens": max_tokens, "temperature": 0,
                    "messages": [{"role": "user", "content": prompt}]}
     data = poster.post_json(endpoint, headers, payload, timeout)
-    raw_usage = data.get("usage")
-    usage: dict = raw_usage if isinstance(raw_usage, dict) else {}
     try:
+        # Inside the guard on purpose: reading usage must not become a second way for an
+        # out-of-contract payload to escape as a raw exception instead of a provider_error.
+        raw_usage = data.get("usage")
+        usage: dict = raw_usage if isinstance(raw_usage, dict) else {}
         if isinstance(data.get("content"), list):          # anthropic
             return ChatReply(text=data["content"][0].get("text", ""),
                              truncated=data.get("stop_reason") == "max_tokens",

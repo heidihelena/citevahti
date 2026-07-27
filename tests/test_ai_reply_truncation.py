@@ -293,6 +293,19 @@ def test_chat_reply_carries_the_spend_for_both_provider_shapes():
     assert anthropic.completion_tokens == 17 and anthropic.max_tokens == 300
 
 
+def test_reading_usage_is_not_a_second_way_for_a_bad_payload_to_escape():
+    """Reading the spend must not widen the crack it was added to describe: a payload that
+    is not a mapping at all still has to come back as a provider_error, not as a raw
+    exception thrown past the rater and out of the run."""
+    class _ListPoster:
+        def post_json(self, url, headers, payload, timeout):
+            return ["not", "a", "mapping"]
+
+    reply = chat_reply(shape="openai", endpoint="https://x", model="m", prompt="p",
+                       poster=_ListPoster())
+    assert reply.provider_error and reply.text == "" and not reply.truncated
+
+
 def test_missing_or_malformed_usage_is_left_unknown_not_guessed():
     for usage in ({}, {"completion_tokens": None}, {"completion_tokens": "42"}):
         reply = chat_reply(shape="openai", endpoint="https://x", model="m", prompt="p",
