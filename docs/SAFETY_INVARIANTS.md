@@ -36,6 +36,15 @@ guarantees of the system; a reviewer should treat any violation as a defect.
   agreement report and methods statement count and describe them apart — so a transport or
   parse fault can never read, in the audit trail or in a published methods section, as the
   model exercising epistemic humility. Guarded by `test_ai_failure_vs_abstention.py`.
+- **Two rated instruments are counted, never pooled.** The agreement report covers both
+  study-quality ratings and claim-support ratings (the latter under the reserved scheme id
+  `claim_support`), but refuses a single κ across them — agreement on two instruments
+  measuring two different units is not one number — and refuses ordinal weighted κ for
+  `claim_support`, whose vocabulary has no defined ordinal ranking, rather than inventing
+  an order. The auto-filled methods paragraph is scoped to claim support because that is
+  what its prose describes, and names any study-quality ratings rather than dropping them
+  (`export/agreement.py`, `report/methods.py`). Guarded by
+  `test_agreement_sees_claim_support.py`.
 - **Probe-not-proof, version separation**: capabilities are reported only after a
   successful probe; Zotero app version, schema version, and BBT version are kept
   distinct and never confused; the BBT version is read live, never hardcoded

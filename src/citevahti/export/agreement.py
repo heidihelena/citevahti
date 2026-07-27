@@ -32,6 +32,38 @@ from .kappa import cohen_kappa, raw_agreement, weighted_kappa
 
 _COMPARABLE = {"concordant", "discordant"}
 
+# Claim-support ratings are a SECOND rated instrument in the same ledger, keyed to a
+# (claim, candidate) pair rather than a (subject x scheme) judgement. They carry the same
+# dual-rating value blocks, so they belong in this report — but they have no frame or
+# scheme record, so they are projected onto one reserved scheme id. That keeps them a
+# distinct group under the existing grouping rules: counted here, never POOLED into one
+# kappa with a study-quality scheme, because agreement on two different instruments is
+# not one number.
+CLAIM_SUPPORT_SCHEME_ID = "claim_support"
+_CLAIM_SUPPORT_FRAME_VERSION = "n/a (not frame-versioned)"
+
+
+class _SupportRatingView:
+    """A claim-support rating projected onto the fields this report reads.
+
+    Everything the report needs — ``human_rating`` / ``ai_rating`` / ``comparison`` /
+    ``adjudication`` / ``blinding`` — is already shaped identically on both records, so
+    only the three frame/scheme keys are supplied here and the rest is delegated. A
+    projection rather than a copy: the report stays read-only over the real record, and
+    a field added to one rating type cannot silently go missing from this one.
+    """
+
+    __slots__ = ("_rec",)
+    scheme_id = CLAIM_SUPPORT_SCHEME_ID
+    frame_id = None
+    frame_version = _CLAIM_SUPPORT_FRAME_VERSION
+
+    def __init__(self, rec) -> None:
+        self._rec = rec
+
+    def __getattr__(self, name):          # only reached for names not defined above
+        return getattr(self._rec, name)
+
 # model-advisor thresholds (ADR-0009 §3b). A model needs this many *resolved*
 # discordances (catches + overruled) before the advisor will rank or judge it —
 # below the floor there is not enough signal, so it stays silent. At/below the
@@ -99,14 +131,35 @@ class AgreementReportService:
         return report
 
     # ---- loading / filtering --------------------------------------------
-    def _load_filtered(self, filters, report) -> list:
+    def _all_records(self, report=None) -> list:
+        """Every dual-rated record in the ledger: study-quality ratings AND claim-support
+        ratings (projected, see ``_SupportRatingView``). Unreadable records are skipped,
+        and noted on ``report`` when one is supplied.
+
+        Both are blinded human-AI dual ratings and both belong in a report that claims to
+        describe this ledger's agreement. Reading only ``list_ratings()`` reported an
+        all-zero agreement report and an empty model scoreboard for a ledger full of
+        compared claim-support pairs — while the evidence-basis line and PRISMA table in
+        the SAME generated document counted those very pairs.
+        """
         out = []
         for rid in self.store.list_ratings():
             try:
-                rec = self.store.load_rating(rid)
+                out.append(self.store.load_rating(rid))
             except Exception:  # noqa: BLE001
-                report.warnings.append(f"skipped invalid rating {rid!r}")
-                continue
+                if report is not None:
+                    report.warnings.append(f"skipped invalid rating {rid!r}")
+        for rid in self.store.list_support_ratings():
+            try:
+                out.append(_SupportRatingView(self.store.load_support_rating(rid)))
+            except Exception:  # noqa: BLE001
+                if report is not None:
+                    report.warnings.append(f"skipped invalid claim-support rating {rid!r}")
+        return out
+
+    def _load_filtered(self, filters, report) -> list:
+        out = []
+        for rec in self._all_records(report):
             if filters.get("scheme_id") and rec.scheme_id != filters["scheme_id"]:
                 continue
             if filters.get("task_type"):
@@ -200,7 +253,18 @@ class AgreementReportService:
             val, err = cohen_kappa(pairs)
             grp.metrics["cohen_kappa"] = {**val, "error": err} if err else val
 
-        if "weighted_kappa" in metrics and single_scheme is not None and len(frame_versions) == 1:
+        if "weighted_kappa" in metrics and single_scheme == CLAIM_SUPPORT_SCHEME_ID:
+            # Ordinal weighting needs a distance between levels, and the support
+            # vocabulary has none: 'overstated' and 'unclear' are not points on a
+            # strength continuum, so any ordering would be invented here rather than
+            # derived from the scheme. Refuse and say why — Cohen's kappa (nominal) is
+            # reported instead and is the defensible statistic for this instrument.
+            grp.metrics["weighted_kappa"] = {"value": None, "error": "no_ordinal_scale"}
+            grp.warnings.append(
+                "weighted kappa refused for claim_support: the support vocabulary has no "
+                "defined ordinal ranking, and ordering it here would invent a scale. "
+                "Cohen's kappa (nominal) is reported for this group.")
+        elif "weighted_kappa" in metrics and single_scheme is not None and len(frame_versions) == 1:
             scheme = self._scheme(recs[0].frame_id, single_scheme)
             if scheme is None:
                 grp.metrics["weighted_kappa"] = {"value": None, "error": "scheme_not_found"}
@@ -280,13 +344,11 @@ class AgreementReportService:
         silent on any model without enough resolved divergences to judge (the
         evidence floor), and when a named model rates low it names a better-evidenced
         alternative — the maintainer's "if a model has a low rating, suggest another"."""
-        records = []
-        for rid in self.store.list_ratings():
-            try:
-                records.append(self.store.load_rating(rid))
-            except Exception:  # noqa: BLE001
-                continue
-        board = self._model_scoreboard(records)
+        # Both instruments: a model's second-opinion track record is built from every pair
+        # it rated, and claim-support IS the pair type CiteVahti mostly rates. Ranking a
+        # model on the study-quality ledger alone left the advisor silent for exactly the
+        # work that produced the evidence.
+        board = self._model_scoreboard(self._all_records())
 
         def _label(m: ModelScore) -> str:
             return f"{m.model_id} ({m.model_snapshot})"

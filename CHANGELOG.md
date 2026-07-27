@@ -7,6 +7,29 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **The agreement report and methods statement now see the claim-support ledger.**
+  `AgreementReportService` loaded `store.list_ratings()` only — the study-quality (GRADE /
+  RoB) records — so a ledger of compared claim–candidate support pairs, which is CiteVahti's
+  core asset and the path the prescreen work runs, produced an **all-zero agreement report
+  and an empty model scoreboard**. Built on the same service, the auto-filled methods
+  paragraph then said "Of 0 comparable human–AI pairs, 0 were concordant and 0 discordant"
+  and carried a *Before you submit* note reading "No comparable human–AI pairs yet" — in a
+  document whose own evidence-basis line said "Of 6 rated claim–candidate pair(s)" and whose
+  PRISMA table counted the same 6. One generated document, two contradictory answers, and
+  the paragraph's every sentence is about claim support. Claim-support ratings are now
+  loaded and reported under the reserved scheme id `claim_support`, so counts, raw
+  agreement, Cohen's κ and the per-model complementary-catch scoreboard (which feeds the
+  model advisor) describe the work that was actually done. Two guards keep that honest:
+  the two instruments are **never pooled** into one κ — agreement on claim support and
+  agreement on study quality measure different things on different units, and the existing
+  mixed-scheme refusal now covers this — and **ordinal weighted κ is refused for
+  `claim_support`** (`error: no_ordinal_scale`) because the support vocabulary has no
+  defined ordinal ranking (`overstated` and `unclear` are not points on a strength
+  continuum); ordering it to satisfy the statistic would invent a scale the instrument does
+  not have, so Cohen's κ (nominal) is reported instead. The methods statement is scoped to
+  claim support to match its prose, and a ledger that also holds study-quality ratings is
+  told so with a pointer to `agreement_report` — neither pooled nor silently dropped.
+  Locked by `tests/test_agreement_sees_claim_support.py`.
 - **A broken AI adapter no longer reads as the model exercising judgement.** The raters
   collapsed *transport and parse failures* into *epistemic abstention*: a reply the endpoint
   never delivered, a reply with no readable JSON, and a value outside the controlled

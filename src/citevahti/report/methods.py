@@ -235,13 +235,24 @@ def build_methods_markdown(store) -> str:
     """Return the filled methods paragraph (Markdown) for this ledger."""
     from ..export import AgreementReportService
 
+    from ..export.agreement import CLAIM_SUPPORT_SCHEME_ID
+
     cfg = store.load_config()
     prov = cfg.ai_provenance
+    # Scoped to the CLAIM-SUPPORT ratings, because that is what this paragraph describes:
+    # every sentence in it is about claim–candidate support on the support vocabulary. An
+    # unscoped report pools in study-quality (GRADE / RoB) ratings, a different instrument
+    # on a different unit, and reports their agreement under claim-support prose. Those
+    # ratings are reported in their own group by `agreement_report` — see the note below.
+    #
     # persist=False: the methods statement only needs the numbers — it must not write an
     # agreement export or an audit event (the `methods` surface is read-only).
-    rep = AgreementReportService(store).report(
-        metrics=["raw_agreement", "cohen_kappa", "adjudication_rate"], persist=False)
+    svc = AgreementReportService(store)
+    rep = svc.report(filters={"scheme_id": CLAIM_SUPPORT_SCHEME_ID},
+                     metrics=["raw_agreement", "cohen_kappa", "adjudication_rate"],
+                     persist=False)
     c = rep.overall
+    n_other = len(store.list_ratings())
     raw = f"{c.agreements / c.comparable_pairs:.2f}" if c.comparable_pairs else "n/a (no comparable pairs yet)"
 
     para = _TEMPLATE.format(
@@ -268,8 +279,17 @@ def build_methods_markdown(store) -> str:
         notes.append("- The model provenance is not fully pinned — fill `ai_provenance` "
                      "in `.citevahti/config.json` before submission.")
     if not c.comparable_pairs:
-        notes.append("- No comparable human–AI pairs yet — agreement and κ populate as "
-                     "you record dual ratings.")
+        notes.append("- No comparable human–AI **claim-support** pairs yet — agreement and κ "
+                     "populate as you record dual ratings on claim–candidate pairs.")
+    if n_other:
+        # Naming them keeps the scoping honest in both directions: the reader is told the
+        # numbers above are claim-support only, AND that other rated work exists rather
+        # than being quietly dropped from the packet.
+        notes.append(
+            f"- This ledger also holds {n_other} study-quality rating(s) (GRADE / RoB). The "
+            "numbers above are claim-support only — a different instrument on a different "
+            "unit, so the two are never pooled into one agreement figure. Run "
+            "`agreement_report` for those, and report them as a separate assessment.")
     note_block = ("\n\n**Before you submit:**\n" + "\n".join(notes)) if notes else ""
 
     basis = _basis_line(store)

@@ -99,18 +99,37 @@ assist tasks (`claim_check`), which `rating_run_ai` refuses.
 
 ## Agreement & adjudication reporting
 
-`agreement_report` reads rating records only and changes nothing:
+`agreement_report` reads rating records only and changes nothing.
+
+**Both rated instruments are covered**: study-quality ratings (GRADE / RoB, keyed to
+subject × scheme) *and* claim-support ratings (keyed to a claim–candidate pair). The
+latter carry no frame or scheme record, so they are reported under the reserved scheme id
+**`claim_support`**. They are counted, but **never pooled** with a study-quality scheme
+into a single agreement figure — two instruments on two units are not one number. Group
+by `scheme_id` to get an honest κ for each.
 
 - **raw agreement**, **Cohen κ** (nominal; guarded for insufficient variation),
   **ordinal weighted κ** (quadratic; ROBINS-I *No information* is missing-like
   and is excluded + reported), **adjudication rate** with pending counts.
 - Refuses κ across mixed schemes unless grouped by scheme; warns on mixed frame
   versions.
+- **Refuses ordinal weighted κ for `claim_support`** (`error: no_ordinal_scale`). The
+  support vocabulary has no defined ordinal ranking — `overstated` and `unclear` are not
+  points on a strength continuum — so weighting it would require inventing a scale the
+  instrument does not have. Cohen's κ (nominal) is the reported statistic there.
 - Adjudicated records are counted by their **original** human–AI comparison, not
   the final adjudicated value.
 - An AI-provenance summary (model ids, snapshots, prompt-template versions,
   prompt/config hash counts, dates, blinding modes, abstention counts, task
   types) is included.
+
+### Which numbers the methods statement reports
+
+Every sentence of the auto-filled methods paragraph is about claim–candidate support on
+the support vocabulary, so its counts, raw agreement and κ are **scoped to the
+claim-support ratings**. A ledger that also holds study-quality ratings is told so in a
+*Before you submit* note, with a pointer to `agreement_report` for those — they are
+neither pooled into the paragraph nor silently dropped from the packet.
 
 ## PRISMA-trAIce / RAISE-style transparency
 
