@@ -28,17 +28,7 @@ from citevahti.pubmed import ProviderHit, ProviderSearchResult
 from citevahti.rating.ai import failure_reason
 from citevahti.report.methods import build_methods_markdown
 from citevahti.schemas.claim_support import SupportAIRating
-from citevahti.schemas.frame import Frame, Level, Outcome, Scheme
-from citevahti.schemas.rating import (
-    AI_FAILURE_KINDS,
-    Adjudication,
-    AIProvenance,
-    AIRating,
-    Comparison,
-    HumanRating,
-    RatingRecord,
-    Subject,
-)
+from citevahti.schemas.rating import AI_FAILURE_KINDS, AIProvenance
 from citevahti.state import CiteVahtiStore
 from citevahti.validators.claim_support import ClaimSupportError, validate_claim_support_record
 
@@ -175,48 +165,15 @@ def _support_record(*, abstained=False, failure=None, value=None):
 
 # --- the report tells a reader which event it is counting --------------------
 
-GRADE_LEVELS = [Level(value="High", ordinal=4), Level(value="Moderate", ordinal=3),
-                Level(value="Low", ordinal=2), Level(value="Very Low", ordinal=1)]
-
-
-def _add_rating(store, frame, rid, outcome, *, human, ai=None, abstained=False, failure=None):
-    """A rating record as ``rating_run_ai`` + ``rating_compare`` would leave it."""
-    ai_rating = AIRating(value=ai, abstained=abstained, failure=failure,
-                         provenance=_prov(), task_type="assess")
-    if failure is not None:
-        status = "ai_failed"
-    elif abstained:
-        status = "ai_abstained"
-    else:
-        status = "concordant" if ai == human else "discordant"
-    adj = (Adjudication(final_value=human, event="accepted", decided_at="2026-07-26T01:00:00+00:00")
-           if status == "concordant" else Adjudication())
-    rec = RatingRecord(
-        rating_id=rid, frame_id=frame.frame_id, frame_version=frame.frame_version,
-        scheme_id="grade", subject=Subject(outcome_id=outcome),
-        human_rating=HumanRating(value=human, committed_at="2026-07-26T00:30:00+00:00",
-                                 committed_by="rater_a", locked=True),
-        ai_rating=ai_rating, comparison=Comparison(status=status), adjudication=adj)
-    store.save_rating(rec, frame=frame)
-
-
 def _mixed_ledger(tmp_path, *, with_failures=True):
-    """One of each: a comparable pair, a genuine abstention, and two failed calls.
-
-    The agreement report reads scheme rating records, so the mix is built there — the
-    claim-support path is covered by the ledger tests above.
-    """
+    """A claim-support ledger with one of each: a comparable pair, a genuine abstention,
+    and (unless suppressed) two failed calls."""
     store = _store(tmp_path)
-    frame = Frame(frame_id="F", frame_version="1.0.0", created_at="2026-07-26T00:00:00+00:00",
-                  outcomes=[Outcome(outcome_id=f"o{i}", label=f"O{i}") for i in range(1, 5)],
-                  schemes=[Scheme(scheme_id="grade", kind="GRADE", unit="outcome",
-                                  levels=GRADE_LEVELS)])
-    store.save_frame(frame)
-    _add_rating(store, frame, "r1", "o1", human="Moderate", ai="Moderate")
-    _add_rating(store, frame, "r2", "o2", human="Low", abstained=True)
+    _rated(store, SupportAiOutput(value="directly_supports"), n=1)
+    _rated(store, SupportAiOutput(abstained=True, domain_reasoning="cannot judge"), n=2)
     if with_failures:
-        _add_rating(store, frame, "r3", "o3", human="Low", failure="unparseable_reply")
-        _add_rating(store, frame, "r4", "o4", human="High", failure="truncated_reply")
+        _rated(store, SupportAiOutput(failure="unparseable_reply"), n=3)
+        _rated(store, SupportAiOutput(failure="truncated_reply"), n=4)
     return store
 
 

@@ -56,6 +56,11 @@ SMOKE=$(mktemp -d); citevahti --root "$SMOKE" init; citevahti --root "$SMOKE" ve
 - [ ] It explicitly **disclaims** any compliance/endorsement claim.
 - [ ] `human_only` / `ai_abstained` / `ai_failed` are excluded from the agreement
       denominator; adjudicated records counted by their original comparison.
+- [ ] **Claim-support ratings are counted** (scheme id `claim_support`) — an all-zero
+      report on a ledger with compared claim–candidate pairs is a defect, not an empty
+      ledger. Cross-check against the PRISMA table's "pairs assessed" count.
+- [ ] Claim-support and study-quality ratings are **never pooled** into one κ, and
+      ordinal weighted κ is refused for `claim_support` (`no_ordinal_scale`).
 - [ ] Abstentions and failed AI calls are counted **separately**, and the failure kinds
       are named — a broken adapter must never be reported as the model abstaining.
 

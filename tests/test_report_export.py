@@ -78,7 +78,7 @@ def test_methods_statement_is_honest_about_missing_data(tmp_path):
     md = build_methods_markdown(s)
     assert "Of 0 comparable human–AI pairs" in md
     assert "n/a" in md                                          # raw agreement / κ not fabricated
-    assert "No comparable human–AI pairs yet" in md            # the before-you-submit note
+    assert "No comparable human–AI **claim-support** pairs yet" in md   # before-you-submit
     # PRISMA identification disclosure: human-found claims + staged candidate refs,
     # explicitly stating NO LLM claim proposal was used (honest by default).
     assert "for PRISMA / systematic reviews" in md

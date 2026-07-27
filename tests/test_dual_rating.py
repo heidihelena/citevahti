@@ -155,6 +155,34 @@ def test_ai_abstained_outcome(tmp_path):
     assert cmp.status == "ai_abstained" and cmp.agreement_countable is False
 
 
+class _FailingRater:
+    """A rater whose call produced no verdict — what HttpAiRater._parse returns when the
+    endpoint, the token ceiling, or the reply format lets it down."""
+
+    def __init__(self, kind="unparseable_reply"):
+        self.kind = kind
+
+    def rate(self, *, frame, scheme, subject, task_type):
+        from citevahti.rating.ai import AiRatingOutput, failure_reason
+        return AiRatingOutput(failure=self.kind, domain_reasoning=failure_reason(self.kind))
+
+
+def test_ai_failed_outcome_is_not_an_abstention(tmp_path):
+    """The study-quality engine persists the typed failure and compares it as ai_failed —
+    the model never judged, so this is neither an abstention nor a disagreement."""
+    eng, store = engine(tmp_path, rater=_FailingRater())
+    rid = started(eng).rating_id
+    eng.rating_commit_human(rid, "Moderate")
+    eng.rating_run_ai(rid, "assess")
+    rec = store.load_rating(rid)
+    assert rec.ai_rating.failure == "unparseable_reply"
+    assert rec.ai_rating.abstained is False and rec.ai_rating.value is None
+    cmp = eng.rating_compare(rid)
+    assert cmp.status == "ai_failed" and cmp.outcome == "ai_failed"
+    assert cmp.agreement_countable is False
+    assert cmp.needs_adjudication is False      # never a discordance with a silent model
+
+
 def test_human_only_outcome(tmp_path):
     eng, _ = engine(tmp_path)
     rid = started(eng).rating_id
