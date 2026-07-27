@@ -53,8 +53,11 @@
       <main class="split" id="split" data-surface="workspace">
         <section class="editor" aria-label="Manuscript">
           <div class="nextstep" id="nextstep" role="status" aria-live="polite" hidden></div>
-          <div class="triagebar" id="triagebar" role="region" aria-label="Claims worth your attention" hidden></div>
+          <!-- The switcher sits ABOVE the attention list on purpose: with a dozen
+               claims needing work the list is tall, and below it the switcher fell
+               under the fold — so the panel looked permanently stuck on one paper. -->
           <div class="msbar" id="msbar"></div>
+          <div class="triagebar" id="triagebar" role="region" aria-label="Claims worth your attention" hidden></div>
           <div class="legend" id="legend" role="region" aria-label="Legend" hidden>
             <div class="lbl">Manuscript marks — a claim's status</div>
             <div class="legrow"><span class="legchip oo">[oo]</span> <b>Accepted</b> — has an accepted, supporting citation.</div>

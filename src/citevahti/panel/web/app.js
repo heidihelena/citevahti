@@ -227,13 +227,15 @@ function renderConns() {
 }
 
 function renderMsBar() {
-  const picks = state.manuscripts.map((m) =>
+  // archived documents are put away, not deleted — they stay in state.manuscripts
+  // (so the Manuscripts surface can restore them) but are not offered here
+  const picks = state.manuscripts.filter((m) => !m.archived).map((m) =>
     `<button class="mspick${m.manuscript_id === state.activeMs ? " active" : ""}" data-ms="${esc(m.manuscript_id)}"
        title="${esc(m.manuscript_id)} — ${m.claim_count} claim(s) saved${m.resolved ? "" : "; original document not open yet"}">
       ${esc(m.manuscript_id)} <span class="n">${m.claim_count}</span>${m.resolved ? "" : ' <span class="needsdoc">⚠ document not open</span>'}</button>`).join("");
   // empty state: no claims yet AND no documents in the bound folder — say so and point
   // at the action, instead of rendering a blank label.
-  const switcher = state.manuscripts.length
+  const switcher = picks
     ? `<span class="msswitch"><span class="lbl">Manuscript</span>${picks}</span>`
     : `<span class="msswitch empty"><span class="lbl">No manuscript yet</span>
         <span class="mshint">Open your document folder, or add a claim to begin.</span></span>`;

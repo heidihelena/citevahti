@@ -4,6 +4,32 @@
 /* ---------- Manuscripts surface (intake / ledgers / sources) ----------
  * Formerly the first-run takeover that overwrote #split; now it renders into its own
  * surface container so it's reachable any time via the header nav (renderSurface). */
+/* Open a document straight from the Manuscripts surface, and land on it. */
+async function openManuscriptFromSurface(id) {
+  await loadManuscript(id);
+  renderSurface("workspace");
+}
+
+/* Archive / restore. Panel visibility only — nothing is deleted, so this is safe
+ * to undo and the review record stays whole. */
+async function setManuscriptArchived(id, archived) {
+  try {
+    const data = await api("POST", "/api/manuscripts/archive",
+                           { manuscript_id: id, archived: !!archived });
+    state.manuscripts = data.manuscripts || [];
+    const live = state.manuscripts.filter((m) => !m.archived);
+    if (archived && id === state.activeMs) {
+      state.activeMs = null;
+      if (live.length) await loadManuscript(live[0].manuscript_id);
+    }
+    renderMsBar();
+    await renderManuscripts();
+    loadTriage();     // archived claims stop counting towards "needs your attention"
+    notify(archived ? `Archived ${id} — claims and audit record kept` : `Restored ${id}`,
+           { kind: "ok" });
+  } catch (e) { notify(e.message); }
+}
+
 async function renderManuscripts() {
   let ledgers = [], active = state.ctx ? state.ctx.root : "";
   try { const lg = await api("GET", "/api/ledgers"); ledgers = lg.ledgers || []; active = lg.active || active; } catch {}
@@ -25,8 +51,35 @@ async function renderManuscripts() {
       ${here ? `<span class="note">open now</span>`
              : `<button class="btn ghost" data-open-recent="${esc(r.root)}" data-recent-id="${esc(r.id)}">Open</button>`}</div>`;
   }).join("");
+  // Documents in the bound folder. This surface is where the nav sends you to
+  // "switch" — so it has to list what there is to switch to, not only offer to add
+  // another. Archiving lives here too: putting a finished paper away is managing
+  // your manuscripts, and it was previously impossible at all.
+  const here = (state.manuscripts || []).filter((m) => !m.archived);
+  const away = (state.manuscripts || []).filter((m) => m.archived);
+  const docRow = (m) => {
+    const open = m.manuscript_id === state.activeMs;
+    const meta = `${m.claim_count} claim${m.claim_count === 1 ? "" : "s"}` +
+      (m.resolved ? "" : " · document not open yet");
+    return `<div class="ledrow"><span class="path"><b>${esc(m.manuscript_id)}</b>
+      <span class="note">· ${esc(meta)}</span></span>
+      ${open ? `<span class="note">open now</span>`
+             : `<button class="btn ghost" data-open-ms="${esc(m.manuscript_id)}">Open</button>`}
+      <button class="btn ghost" data-archive-ms="${esc(m.manuscript_id)}"
+        title="Put it away — claims, ratings and the audit record are kept">Archive</button></div>`;
+  };
+  const awayRow = (m) => `<div class="ledrow"><span class="path"><b>${esc(m.manuscript_id)}</b>
+      <span class="note">· ${m.claim_count} claim${m.claim_count === 1 ? "" : "s"} kept</span></span>
+      <button class="btn ghost" data-restore-ms="${esc(m.manuscript_id)}">Restore</button></div>`;
+
   $("#manuscripts").innerHTML = `<div class="firstrun">
     <h2>${projects.length || recents.length ? "Your reviews" : "Start your review"}</h2>
+    ${here.length ? `<div class="cv-card"><div class="lbl">Documents in this folder</div>
+      ${here.map(docRow).join("")}</div>` : ""}
+    ${away.length ? `<div class="cv-card"><div class="lbl">Archived</div>
+      <p class="note">Put away, not deleted — every claim, rating and audit entry is kept,
+        and these stop counting towards what needs your attention.</p>
+      ${away.map(awayRow).join("")}</div>` : ""}
     ${recents.length ? `<div class="cv-card"><div class="lbl">Recent manuscripts</div>${recentRows}</div>` : ""}
     ${projects.length ? `<div class="cv-card"><div class="lbl">Reviews on this Mac</div>${rows}</div>` : ""}
     <div class="cv-card">
