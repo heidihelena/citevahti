@@ -7,6 +7,29 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **`import-results` now reads the abstract, and says when a record arrived without one.**
+  The RIS parser handled TY/TI/AU/JO/DO/PY/AN/ER and had no branch for `AB` (or `N2`, the
+  other common abstract tag); the CSV aliases had no `abstract` column; BibTeX read no
+  `abstract` field. Everything downstream was ready for it — `IntakeHit.abstract`,
+  `ClaimPaperCandidate.abstract`, and `IntakeService._build_hits` passing it through — so
+  the field was dropped at the one place it entered, and the command reported `status: ok /
+  hits staged: 41` either way. Measured 2026-07-27 on a real 41-record export
+  (`intelligence-decomposition/sources.ris`): **26 records carried an `AB` abstract and 0
+  reached the ledger.** That is not a cosmetic loss. `claims/ai.py::_build_prompt` builds
+  the blinded rating prompt from the paper's title *and* abstract and falls back to "(no
+  abstract available)" rather than refusing, so on a manual-intake project the AI rater was
+  judging support from titles alone, the human panel was shown no abstract either, and the
+  resulting ratings — the ones the agreement report and κ are computed from — looked exactly
+  like ratings made on the full text of an abstract. Now all three parsers read it (RIS `AB`
+  and `N2`, including the untagged continuation lines a wrapped abstract spills onto, and
+  without doubling an abstract an exporter emits under both tags; CSV `abstract` /
+  Zotero's `Abstract Note` / EndNote's `summary`; BibTeX `abstract = {...}`), and the same
+  file now stages 26 of 41 with an abstract. Because coverage is a property of the source
+  that the reviewer needs before rating and not an error, the import always reports it: a
+  batch where any staged record lacks an abstract carries the warning "26 of 41 staged
+  records carry an abstract; 15 have a title only and will be rated from the title alone",
+  which `import-results` prints. Silence that reads as a complete import was the actual
+  defect; the parser gap was how it happened. Locked by `tests/test_import_results.py`.
 - **A claim that cites several sources is no longer decided by one accept.** Support is a
   property of a (claim, source) pair, but the report read the *first* accepting decision as
   the whole claim's verdict: the claim turned green, dropped out of the pending queue and

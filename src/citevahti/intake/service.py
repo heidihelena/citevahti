@@ -14,6 +14,29 @@ from .dedupe import LibraryDedupeIndex, make_record_id, normalize_doi, normalize
 from .manual import ManualParseError, parse_manual
 
 
+def _abstract_coverage_warnings(hits: list[IntakeHit]) -> list[str]:
+    """Say how many staged records arrived without an abstract.
+
+    A staged hit is all the blinded rater and the panel ever see of a paper, and
+    the rating prompt falls back to "(no abstract available)" rather than
+    refusing — so a title-only import produces ratings that look ordinary and
+    were made on a title. That is a fact about the evidence base, not an error,
+    so it is reported on every manual import instead of being inferred later from
+    an empty field.
+    """
+    total = len(hits)
+    if not total:
+        return []
+    with_abstract = sum(1 for h in hits if (h.abstract or "").strip())
+    if with_abstract == total:
+        return []
+    missing = total - with_abstract
+    return [f"{with_abstract} of {total} staged records carry an abstract; {missing} have a "
+            f"title only and will be rated from the title alone. If the source file has "
+            f"abstracts, re-export with them included (RIS AB/N2, a CSV 'abstract' column, "
+            f"or BibTeX abstract = {{...}})."]
+
+
 class IntakeService:
     def __init__(self, store, provider=None, library_index: Optional[LibraryDedupeIndex] = None) -> None:
         self.store = store
@@ -221,5 +244,6 @@ class IntakeService:
             question_id=question_id, source_label=source_label, source_format=fmt,
             source_hash=source_hash, imported_at=utc_now_iso(), last_run_at=None,
             dedupe_against=dedupe_against, library_dedupe_status=lib_status,
-            seen_set_digest=digest, result_count=len(raw), hits=hits, provenance=prov, status="ok")
+            seen_set_digest=digest, result_count=len(raw), hits=hits,
+            warnings=_abstract_coverage_warnings(hits), provenance=prov, status="ok")
         return self.store.save_intake(record)
