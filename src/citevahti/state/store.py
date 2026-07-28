@@ -267,6 +267,15 @@ class CiteVahtiStore:
         return self._commit_candidates(cc, "candidate.link",
                                        {"claim_id": cc.claim_id, "candidates": len(cc.candidates)})
 
+    def correct_candidates(self, cc, payload: dict):
+        """Write a candidate-metadata correction as its own audited event.
+
+        Distinct from `candidate.link` so a correction is legible as a correction in the
+        chain, and the payload carries each field's old and new value: the record a rater
+        read stays recoverable rather than being replaced without trace. Same single write
+        path, so the audit invariants cannot drift apart."""
+        return self._commit_candidates(cc, "candidate.correct", payload)
+
     def load_candidates(self, claim_id: str):
         from ..schemas.candidate import ClaimCandidates, ClaimPaperCandidate
 

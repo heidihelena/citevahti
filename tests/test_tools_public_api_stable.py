@@ -19,7 +19,7 @@ import inspect
 
 from citevahti import tools
 
-# Every public tool callable importable as `from citevahti.tools import X` today (101).
+# Every public tool callable importable as `from citevahti.tools import X` today (102).
 # Do NOT edit to make a refactor pass — a diff here means the public surface changed.
 FROZEN_TOOLS = {
     "zot_search", "zot_item", "zot_collections", "zot_attachments", "cite", "bib_sync",
@@ -35,6 +35,7 @@ FROZEN_TOOLS = {
     "claim_mark_untestable", "zotero_new_key_url", "connect_zotero", "zotero_oauth_start",
     "zotero_oauth_finish", "propose_revision", "accept_revision", "reject_revision",
     "claim_bond_status", "link_candidates", "list_candidates", "unlink_candidate",
+    "refresh_candidate",
     "support_start", "support_commit_human", "support_panel", "support_run_ai",
     "support_compare", "support_adjudicate", "get_support_rating", "decide", "warehouse_status",
     "warehouse_emit", "warehouse_export", "methods_statement", "export_review_packet",
