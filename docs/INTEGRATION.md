@@ -1,6 +1,6 @@
-# Integrating CiteVahti as a citation verifier
+# Integrating CiteVahti as a citation checker
 
-CiteVahti's claim-support engine can act as the citation-verification backend for another
+CiteVahti's claim-support engine can act as the citation-check backend for another
 tool — e.g. a safety/citation reviewer that asks "does the cited source actually support this
 claim?" This documents the **stable seams** for that, and the semantics you must preserve.
 
@@ -115,7 +115,7 @@ Define a verifier seam in your code and keep CiteVahti behind an adapter — exa
   gated (`X-CiteVahti-Token`, `GET /api/session`), bound to `127.0.0.1`, and its contract
   shifts with the panel. It is **not** an integration API.
 - **FullVahti** is the planned Zotero plugin for fetching open-access PDFs and writing citekeys
-  back — it is **not** a verification surface. Verification lives in the claim-check engine.
+  back — it is **not** a claim-checking surface. The check lives in the claim-check engine.
 
 The `claim-check --json` and `claim-verify --json` schemas are the intended integration
 surfaces. If you need them *frozen and versioned* (a guarantee they won't change across

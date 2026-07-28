@@ -20,7 +20,7 @@ purgeable — see the warehouse governance in
 
 ## Principles that don't change
 
-- **We never paywall a capability a lone researcher needs to verify their own
+- **We never paywall a capability a lone researcher needs to check their own
   manuscript.**
 - The human is always the decider; the AI is a blinded, advisory second rater.
 - No silent writes; everything is previewed, confirmed, undoable, and audited.

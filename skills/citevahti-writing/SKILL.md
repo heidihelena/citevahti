@@ -56,7 +56,7 @@ to bypass the human decision step.
 | MatchVahti (app) | `.citevahti/` ledger has MatchResult | Claim is `[oo]` or `[o]` |
 | Neither | — | Run `citevahti-dev` first, return here |
 
-Never draft from `[r]` review, `[d]` rejected, or unverified claims.
+Never draft from `[r]` review, `[d]` rejected, or unchecked claims.
 
 **Map citation slots → check ledger → draft → human review → insert citekeys.**
 
@@ -83,7 +83,7 @@ If `cite:closer-look` is also present: remind researcher to run
 - **NEVER fill citation slot without a corresponding ledger entry**
 - **NEVER present AI-drafted text as final without researcher review**
 
-Unfilled slot with no verified claim: say so explicitly.
+Unfilled slot with no accepted claim: say so explicitly.
 Offer `citevahti-dev` first, not a guess.
 
 ## Session handoff (always at end)

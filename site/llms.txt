@@ -1,6 +1,6 @@
 # CiteVahti
 
-> CiteVahti tests every claim in a manuscript against its candidate papers through a blinded human → AI → adjudication workflow, then writes verified references to Zotero in a decision-gated, undoable step with a hash-chained audit trail. It is free, local-first, and single-user for researchers; Vahtian sells paid infrastructure to organizations that need auditable citation integrity at publication scale. A product of Vahtian.
+> CiteVahti tests every claim in a manuscript against its candidate papers through a blinded human → AI → adjudication workflow, then writes accepted references to Zotero in a decision-gated, undoable step with a hash-chained audit trail. It is free, local-first, and single-user for researchers; Vahtian sells paid infrastructure to organizations that need auditable citation integrity at publication scale. A product of Vahtian.
 
 ## What it is
 
@@ -19,7 +19,7 @@
 
 ## Licensing
 
-- Open core is Apache-2.0 and never paywalls a researcher's ability to verify their own manuscript.
+- Open core is Apache-2.0 and never paywalls a researcher's ability to check their own manuscript.
 
 ## Links
 

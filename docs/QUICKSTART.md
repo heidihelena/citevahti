@@ -22,7 +22,7 @@ every command is something you **copy and paste** — nothing to memorise.
 | **Just see it work** (3 min, nothing real) | [See it work in 3 minutes](#see-it-work-in-3-minutes) |
 | **Check my manuscript, no terminal** (Mac) | [The easiest path (the desktop app)](#the-easiest-path-the-desktop-app-macos) |
 | **Work inside Claude Desktop** — also the Windows / Linux path | [Use it inside Claude Desktop](#or-use-it-inside-claude-desktop) |
-| **Use Zotero** for verified write-back | any path — click **Connect Zotero** in the panel ([§3](#3-connect-your-sources-in-the-panel)) |
+| **Use Zotero** for audited write-back | any path — click **Connect Zotero** in the panel ([§3](#3-connect-your-sources-in-the-panel)) |
 | **Use a local / private AI** second opinion | any path — the panel's **Settings → AI second opinion** |
 | **Audit / export / report** for a supervisor or journal | [REPORTING.md](REPORTING.md) |
 

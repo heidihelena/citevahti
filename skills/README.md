@@ -8,8 +8,8 @@ This repo ships as a Claude Code plugin (`.claude-plugin/plugin.json`) with thes
 
 | Skill | Use it when |
 |---|---|
-| [`citevahti-dev`](citevahti-dev/SKILL.md) | Verifying manuscript claims against evidence — claim → PubMed search → blinded rating → human decision → audited Zotero write. |
-| [`citevahti-writing`](citevahti-writing/SKILL.md) | Drafting manuscript text from already-verified claims (the MatchVahti → CiteVahti → writing chain). Never invents citations. |
+| [`citevahti-dev`](citevahti-dev/SKILL.md) | Checking manuscript claims against evidence — claim → PubMed search → blinded rating → human decision → audited Zotero write. |
+| [`citevahti-writing`](citevahti-writing/SKILL.md) | Drafting manuscript text from already-accepted claims (the MatchVahti → CiteVahti → writing chain). Never invents citations. |
 | [`citevahti-screen`](citevahti-screen/SKILL.md) | Sweeping an existing reference list for retractions and claim–source mismatches before submission. |
 | [`citevahti-review`](citevahti-review/SKILL.md) | A read-only peer-review/editor pass over someone else's manuscript. |
 | [`citevahti-report`](citevahti-report/SKILL.md) | Packaging a finished audit: methods paragraph, integrity summary, evidence appendix. |
