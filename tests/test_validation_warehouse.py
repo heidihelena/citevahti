@@ -150,19 +150,22 @@ def test_no_auto_emit_when_warehouse_disabled(tmp_path):
 
 # ---- one pair, several ratings on disk --------------------------------------
 def test_export_keeps_the_rated_record_not_a_blank_duplicate(tmp_path):
-    """`support_start` mints a new id per call, so a pair can carry several ratings —
-    a real prescreen ledger held 118 records for 61 pairs. The warehouse used to keep
-    whichever sorted last, exporting a blank record and dropping the human's rating to
-    null. A dropped rating reads as "nobody rated this pair", which is a lie about the
-    corpus, so the export must select the rated record however many blanks sit beside it.
+    """A pair can carry several ratings — one per concurrent panel rater by design, and in
+    ledgers written before opening became idempotent, a real prescreen store held 118
+    records for 61 pairs. The warehouse used to keep whichever sorted last, exporting a
+    blank record and dropping the human's rating to null. A dropped rating reads as "nobody
+    rated this pair", which is a lie about the corpus, so the export must select the rated
+    record however many blanks sit beside it.
     """
     store, claim_id, cand_id = _setup(tmp_path, enabled=True)
     rated_id = store.list_support_ratings()[0]
     eng = ClaimSupportEngine(store)
     # mint blanks until one sorts AFTER the rated record — that is exactly the case the
     # old "keep last in listing order" rule got wrong, so pin it down deterministically.
+    # force_new because a plain start is idempotent now; these stand in for the open slots
+    # a concurrent panel leaves, and for every pre-existing ledger's duplicates.
     for _ in range(50):
-        eng.support_start(claim_id, cand_id)
+        eng.support_start(claim_id, cand_id, force_new=True)
         if store.list_support_ratings()[-1] != rated_id:
             break
     assert store.list_support_ratings()[-1] != rated_id, "no blank sorted last"
