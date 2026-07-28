@@ -6,6 +6,20 @@ previous one.
 
 ## [Unreleased]
 
+### Added
+- **`ai_connection.think` — an operator-visible chain-of-thought switch for a local
+  Ollama model.** The OpenAI-compatible `/v1` shape carries no such switch, so setting
+  it routes the rating call over Ollama's native `/api/chat` (same host, same ceiling
+  via `options.num_predict`); `done_reason: length` still reads as a truncation and a
+  shapeless answer is still a transport failure, never a rating. This is a **latency
+  control, not a correctness fix**, and it is a measured trade (2026-07-27, qwen3:14b,
+  44-pair prescreen corpus): `think: false` never truncates and ran ~4.4x faster — and
+  lost agreement with the anchor exactly on items whose anchor is `unclear` (40/44 vs
+  35/44; exact McNemar on the 11 discordant pairs p = 0.227, **not resolvable at
+  n = 44**). The default (`null`) therefore leaves a thinking model thinking; `api`
+  mode rejects the option at connection-resolve time rather than silently ignoring it.
+  Locked by `tests/test_think_control.py`.
+
 ### Fixed
 - **A fresh `pip install "citevahti[mcp]"` no longer gets an MCP server that cannot
   start.** The extra pinned `mcp>=1.27.2` with no upper bound; mcp 2.0.0 removed
