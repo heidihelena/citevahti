@@ -45,15 +45,47 @@ def rating_preference_key(rating) -> tuple:
 
 def select_support_rating(store, claim_id: str, candidate_id: str):
     """The representative rating for a (claim, candidate) pair: the most advanced and
-    recent one by ``rating_preference_key``. A pair can have several ratings on disk
-    (``support_start`` mints a new id each call); selecting deterministically HERE keeps
-    the panel, the report, and agent provenance consistent — none picks an arbitrary one."""
+    recent one by ``rating_preference_key``. A pair can have several ratings on disk —
+    legitimately, one per panel rater, and historically because ``support_start`` minted a
+    new id on every call — so selecting deterministically HERE keeps the panel, the report,
+    and agent provenance consistent: none picks an arbitrary one."""
     best = None
     for rid in store.list_support_ratings():
         rec = store.load_support_rating(rid)
         if rec.claim_id == claim_id and rec.candidate_id == candidate_id:
             if best is None or rating_preference_key(rec) > rating_preference_key(best):
                 best = rec
+    return best
+
+
+def open_support_rating(store, claim_id: str, candidate_id: str,
+                        rating_set_id: Optional[str] = None):
+    """The *open* rating for a pair — one that no human has rated yet — or ``None``.
+
+    "Open" means no human value is committed: the rating slot is still waiting for its
+    rater, whatever the AI has already recorded (an AI rating never closes a slot, and
+    reading one here never reveals it — blinding is applied at display time).
+
+    This is what makes ``support_start`` idempotent. A rating that already carries a human
+    value belongs to *that* rater and is never handed out again, which is exactly what keeps
+    the panel workflow intact: reviewer 2 starting after reviewer 1 committed finds no open
+    slot and gets a record of their own.
+
+    Ratings are matched within one ``rating_set_id`` so separate panels never share a slot.
+    Several open ratings can exist from before this rule (or from ``force_new``); the most
+    advanced/recent one wins, by the same key the read surfaces use.
+    """
+    best = None
+    for rid in store.list_support_ratings():
+        rec = store.load_support_rating(rid)
+        if rec.claim_id != claim_id or rec.candidate_id != candidate_id:
+            continue
+        if rec.rating_set_id != rating_set_id:
+            continue
+        if rec.human_rating is not None:      # taken: it holds a rater's judgement
+            continue
+        if best is None or rating_preference_key(rec) > rating_preference_key(best):
+            best = rec
     return best
 
 
@@ -113,8 +145,31 @@ class ClaimSupportEngine:
 
     # ---- start -----------------------------------------------------------
     def support_start(self, claim_id: str, candidate_id: str,
-                      rating_set_id: Optional[str] = None) -> ClaimSupportRating:
+                      rating_set_id: Optional[str] = None, *,
+                      force_new: bool = False) -> ClaimSupportRating:
+        """Open (or re-open) the blinded support rating for a (claim, candidate) pair.
+
+        **Idempotent**: if the pair already has an open rating — one no human has rated —
+        that rating is returned unchanged rather than a second one minted. Starting is a
+        request for a rating slot, not an event, so a repeat start writes nothing at all:
+        no new record, no audit entry, no access-log line.
+
+        This is a data-integrity guard, not a convenience. Two open ratings for one pair are
+        two records of a judgement that was only ever made once: whichever the rater happens
+        to commit, the other lingers unrated, and any later comparison, panel count, or
+        agreement report has to guess which one represents the pair. An agent loader that
+        retries a step must not be able to fork the ledger that way.
+
+        ``force_new=True`` deliberately opens an additional independent rating for the pair
+        — the panel case where several reviewers must hold open slots at the same time
+        (they are told apart by ``committed_by``; see ``claims/panel.py``). Sequential panel
+        raters need nothing special: a committed slot is never handed out again.
+        """
         self._get_candidate(claim_id, candidate_id)
+        if not force_new:
+            existing = open_support_rating(self.store, claim_id, candidate_id, rating_set_id)
+            if existing is not None:
+                return existing
         record = ClaimSupportRating(
             rating_id=f"cs-{uuid.uuid4().hex[:10]}", rating_set_id=rating_set_id,
             claim_id=claim_id, candidate_id=candidate_id)

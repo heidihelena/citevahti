@@ -54,6 +54,19 @@ guarantees of the system; a reviewer should treat any violation as a defect.
   in (`DecisionService._derive` returns one only from a real, locked human rating or an
   adjudication resting on one): the missing judgement is reported, not manufactured.
   Guarded by `test_multi_candidate_claim_decision.py`.
+- **One open rating per (claim, source, rater slot).** Opening a support rating is
+  idempotent: a pair that already has an *open* rating — one holding no human value — gets
+  that same rating back, and the repeat writes nothing (no record, no audit entry, no
+  access-log line). Two open ratings for one pair are two records of a judgement made once;
+  whichever the rater commits, the other lingers unrated and every later comparison, panel
+  count, and agreement report has to guess which one represents the pair, so a retried agent
+  loader must not be able to fork the ledger that way. A rating that holds a human value is
+  never handed out again — that is what keeps the panel honest: reviewer 2 gets a record of
+  their own, and `force_new` opens an extra slot for reviewers rating concurrently, so N is
+  never deflated (`claims/support.py::support_start`, `open_support_rating`). Because the
+  rating handed back may already carry a blinded AI value, `claim-support-start --json`
+  emits identity only, never the record. Guarded by `test_support_start_idempotent.py`.
+
 - **Two rated instruments are counted, never pooled.** The agreement report covers both
   study-quality ratings and claim-support ratings (the latter under the reserved scheme id
   `claim_support`), but refuses a single κ across them — agreement on two instruments

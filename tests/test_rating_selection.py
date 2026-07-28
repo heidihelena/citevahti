@@ -1,9 +1,10 @@
 """Regression: with more than one support rating per (claim, candidate), the report and
 the panel must select the *most advanced/recent* one — not an arbitrary uuid-sorted match.
 
-`support_start` mints a fresh rating id each call, so a pair can accumulate several
-ratings on disk. The old `setdefault(...)  # last wins` actually kept the first in uuid
-order, which could surface a stale or blank rating in the report/panel.
+A pair can hold several ratings on disk — one per panel reviewer, plus any left by the
+period when `support_start` minted a fresh id on every call (see
+test_support_start_idempotent.py). The old `setdefault(...)  # last wins` actually kept the
+first in uuid order, which could surface a stale or blank rating in the report/panel.
 """
 
 from citevahti.claims import CandidateService, ClaimService, ClaimSupportEngine
@@ -58,7 +59,10 @@ def test_preference_key_orders_advanced_over_blank(tmp_path):
     store, claim_id, cand_id = _seed(tmp_path)
     eng = ClaimSupportEngine(store)
     blank = eng.support_start(claim_id, cand_id)
-    committed = eng.support_start(claim_id, cand_id)
+    # a genuinely separate second slot (the concurrent-panel case) -- starting again
+    # without force_new would hand back `blank` itself and prove nothing
+    committed = eng.support_start(claim_id, cand_id, force_new=True)
+    assert committed.rating_id != blank.rating_id
     eng.support_commit_human(committed.rating_id, value="partially_supports")
     committed = store.load_support_rating(committed.rating_id)
     assert rating_preference_key(committed) > rating_preference_key(blank)
