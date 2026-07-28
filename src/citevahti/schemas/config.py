@@ -147,6 +147,19 @@ class AIConnectionConfig(BaseModel):
     # holds the two in step so they cannot drift.
     retry_attempts: int = Field(default=3, ge=1, le=10)
     retry_backoff_s: float = Field(default=1.0, ge=0.0, le=60.0)
+    # Chain-of-thought control for a LOCAL Ollama model. None (the default) leaves the
+    # model's own behaviour alone: a reasoning ("thinking") model thinks. ``false`` asks
+    # Ollama to turn thinking off, which routes the call over Ollama's native /api/chat
+    # (the OpenAI-compatible /v1 shape carries no such switch).
+    #
+    # This is a LATENCY control, not a correctness fix, and it is a measured trade
+    # (2026-07-27, qwen3:14b, 44-pair prescreen corpus): think=false never truncates and
+    # ran ~4.4x faster — and lost agreement with the anchor exactly on the items whose
+    # anchor is 'unclear' (40/44 vs 35/44; exact McNemar on the 11 discordant pairs
+    # p = 0.227 — not resolvable at n = 44, so neither arm is *proven* better). The
+    # default therefore stays thinking-on; turn it off deliberately, knowing the trade.
+    # Only valid in ``local`` mode — ``api`` mode rejects it at connection-resolve time.
+    think: Optional[bool] = None
 
     def is_enabled(self) -> bool:
         return self.mode in ("local", "api")
