@@ -29,7 +29,7 @@ FROZEN_COMMANDS = {
     "claim-support-adjudicate", "claim-support-commit-human", "claim-support-compare",
     "claim-support-panel", "claim-support-run-ai", "claim-support-show", "claim-support-start",
     "claim-untestable", "claim-verify", "collection-add-item", "connect-zotero",
-    "corpus-diff", "candidate-refresh",
+    "corpus-diff", "candidate-refresh", "claims-import",
     "decision-list", "demo", "doctor", "evidence-export", "extract", "import-results", "init",
     "intake-push", "license-scan", "literature-search", "map-bootstrap", "mcp-serve", "methods",
     "note-add", "onboard", "preflight", "prisma-ledger", "probe", "rating-adjudicate",

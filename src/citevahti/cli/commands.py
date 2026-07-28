@@ -559,6 +559,62 @@ def _cmd_claim_link_candidates(args) -> int:
     return 0
 
 
+def _cmd_claims_import(args) -> int:
+    import json as _json
+    from .. import tools
+    from ..claims.bulk import ClaimsImportError
+
+    path = Path(args.jsonl).expanduser()
+    rows = []
+    try:
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            line = line.strip()
+            if not line or line.startswith("//"):
+                continue
+            try:
+                rows.append(_json.loads(line))
+            except ValueError as exc:
+                # Name the line. A 60-row file with one bad line is a typo to fix, not a
+                # file to re-derive, and nothing has been written yet.
+                print(f"line {n}: not valid JSON — {exc}", file=sys.stderr)
+                return 2
+    except OSError as exc:
+        print(f"cannot read {path}: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        rep = tools.claims_import(rows, question_id=args.question_id,
+                                  source_label=args.source_label or path.name,
+                                  dry_run=args.dry_run, root=args.root)
+    except ClaimsImportError as exc:
+        print(f"import refused: {exc}", file=sys.stderr)
+        return 2
+
+    if getattr(args, "json", False):
+        _emit_json(rep)
+        return 0
+    head = "would import (dry run)" if rep.dry_run else "imported"
+    print(f"{head} {rep.rows} row(s) from {path.name}")
+    print(f"  claims        : {rep.claims_created} new, {rep.claims_matched} already present")
+    if not rep.dry_run:
+        print(f"  candidates    : {rep.candidates_linked} linked, "
+              f"{rep.candidates_already_linked} already linked")
+        print(f"  rating slots  : {rep.ratings_opened} open (no judgement recorded)")
+        print(f"  intake batch  : {rep.intake_batch_id}")
+    for c in rep.claims:
+        print(f"  row {c.row}: [{c.status}] {c.claim_id or ''} "
+              f"{c.claim_text[:56]}{'…' if len(c.claim_text) > 56 else ''}")
+        for s in c.sources:
+            print(f"      {s.identifier or s.record_id}  cand={s.candidate_id or '-'}")
+        for w in c.warnings:
+            print(f"      ⚠ {w}")
+    for w in rep.warnings:
+        print(f"  ⚠ {w}")
+    if not rep.dry_run and rep.ratings_opened:
+        print("\nNext: rate each pair — the slots are open, nothing is judged.")
+    return 0
+
+
 def _cmd_candidate_refresh(args) -> int:
     from .. import tools
     rep, rc = _safe(lambda: tools.refresh_candidate(

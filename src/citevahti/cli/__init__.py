@@ -45,6 +45,7 @@ from .commands import (  # noqa: F401
     _cmd_claim_link_candidates,
     _cmd_candidate_list,
     _cmd_candidate_refresh,
+    _cmd_claims_import,
     _cmd_support_start,
     _cmd_support_commit_human,
     _cmd_support_run_ai,
@@ -256,6 +257,19 @@ def main(argv: list[str] | None = None) -> int:
                      help="limit to specific intake record_ids (repeatable)")
     clc.add_argument("--json", action="store_true", help="emit the link result as JSON (for tooling)")
     clc.set_defaults(func=_cmd_claim_link_candidates)
+
+    cim = sub.add_parser("claims-import",
+                         help="bulk-load a JSONL corpus: claims + linked candidates + open "
+                              "rating slots in one command (resumable; decides nothing)")
+    cim.add_argument("--jsonl", required=True,
+                     help='file of one JSON object per line: {"claim_text":…, "location":…, '
+                          '"claim_type":…, "sources":[{"doi":…}|{"pmid":…}|{"title":…}]}')
+    cim.add_argument("--question-id", default=None, help="label the staged intake batch")
+    cim.add_argument("--source-label", default=None, help="defaults to the file name")
+    cim.add_argument("--dry-run", action="store_true",
+                     help="report what would be imported and write nothing")
+    cim.add_argument("--json", action="store_true", help="emit the report as JSON (for tooling)")
+    cim.set_defaults(func=_cmd_claims_import)
 
     cdr = sub.add_parser("candidate-refresh",
                          help="correct a candidate's metadata from a re-imported record "
