@@ -47,6 +47,16 @@ def _classify(row: ClaimReportRow) -> Optional[tuple[str, str]]:
         return ("The claim was reworded after its citation was accepted.",
                 "Re-rate the evidence against the new wording.")
     if row.state == "needs_support":
+        # Partly judged: some of the claim's cited sources were rated and decided, the
+        # rest never were. Say that, rather than "no citation yet" — the reviewer HAS
+        # done work here and needs to know which sources are still unjudged, not to be
+        # told their accepted source doesn't exist.
+        left = row.candidate_count - row.decided_count
+        if row.decided_count and left > 0:
+            return (f"{left} of this claim's {row.candidate_count} cited sources have no "
+                    "judgement yet.",
+                    "Rate and decide each remaining source — support is judged per source, "
+                    "not per claim.")
         return ("No accepted supporting citation yet.",
                 "Find supporting evidence, or revise the claim to what you can support.")
     if row.state == "decision_recorded":

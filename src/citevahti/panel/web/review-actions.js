@@ -152,6 +152,15 @@ function goToNextClaim() {
   if (span) span.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+/* Move to the next cited source on this claim that still has no decision. A claim citing
+ * several papers needs a rating and a decision for EACH pair — this is the affordance that
+ * makes the remaining ones reachable in one keystroke instead of leaving them behind. */
+function nextSource() {
+  const i = nextUndecidedIdx();
+  if (i < 0) { const n = nextPending(); if (n) selectClaim(n); return; }
+  selectCand(i);
+}
+
 function primary() {
   const cand = activeCand(); if (!cand) return null;
   const ph = phaseOf(cand), code = cand.evidence && cand.evidence.final_decision;
@@ -160,7 +169,13 @@ function primary() {
     if (code === "needs_second_review") return state.pendingDocToken ? docCommit : () => docPreview("revise");
     if (code === "reject") return state.pendingDocToken ? docCommit : () => docPreview("strike");
   }
-  if (ph === "done") { const n = nextPending(); return n ? () => selectClaim(n) : null; }
+  // Finished with this source: hand over the claim's next unjudged source before leaving
+  // the claim. Jumping straight to the next claim is what silently retired the co-cited
+  // sources — the reviewer never saw that they existed, let alone rated them.
+  if (ph === "done") {
+    if (nextUndecidedIdx() >= 0) return nextSource;
+    const n = nextPending(); return n ? () => selectClaim(n) : null;
+  }
   return null;
 }
 

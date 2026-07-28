@@ -122,7 +122,15 @@ class ClaimReportService:
                 retracted=c.retracted, stale=stale))
 
         untestable = getattr(claim, "untestable_reason", None)
-        if has_accept:
+        # A claim that cites several sources is accepted only when EVERY linked candidate
+        # has been judged. Support is a property of a (claim, candidate) pair, so one
+        # accepted pair says nothing about its co-cited siblings: reading the first accept
+        # as the claim's verdict turned the claim green, retired it from the queue, and
+        # left the other cited sources with no human rating and no decision at all — while
+        # the reviewer believed they had accepted them together (field ledger, 2026-07-28:
+        # 30 claims / 61 candidates, 31 of them silently never judged). The remaining pairs
+        # keep the claim in `needs_support`, which is literally true — they still need one.
+        if has_accept and decided == len(cands):
             state = "accepted"
         elif has_review:
             state = "review_needed"
@@ -138,7 +146,7 @@ class ClaimReportService:
         return ClaimReportRow(
             claim_id=claim.claim_id, claim_text=claim.claim_text, claim_type=claim.claim_type,
             manuscript_location=claim.manuscript_location, state=state, code=STATE_CODE[state],
-            candidate_count=len(cands),
+            candidate_count=len(cands), decided_count=decided,
             accepted_count=sum(1 for e in evidence if e.final_decision in _ACCEPTING),
             evidence=evidence,
             has_stale_bonds=any(e.stale for e in evidence),

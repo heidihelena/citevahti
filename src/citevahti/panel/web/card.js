@@ -34,6 +34,41 @@ async function selectClaim(id) {
   renderQueue();   // keep the queue's active-row highlight in sync (cheap; no refetch)
 }
 function activeCand() { return (state.claim && state.claim.candidates || [])[state.candIdx] || null; }
+/* Support is judged per (claim, source) pair, so "this claim is done" is only true when
+ * every cited source carries its own decision. These three helpers are the client side of
+ * that rule — the server states it once in ClaimReportService._row. */
+function candDecided(c) { return !!(c && c.evidence && c.evidence.final_decision); }
+function undecidedCands() { return (state.claim && state.claim.candidates || []).filter((c) => !candDecided(c)); }
+/* Index of the next source still awaiting a decision, starting after the active one and
+ * wrapping — so finishing one source hands you the next instead of the next claim. */
+function nextUndecidedIdx() {
+  const cands = (state.claim && state.claim.candidates) || [];
+  for (let k = 1; k <= cands.length; k++) {
+    const i = (state.candIdx + k) % cands.length;
+    if (!candDecided(cands[i])) return i;
+  }
+  return -1;
+}
+function selectCand(i) { state.candIdx = i; resetWrite(); state.lastTxn = null; state.docTxn = null; renderCard(); }
+
+/* The cited-source picker. A claim citing several papers showed only an unlabelled row of
+ * buttons, so a reviewer who accepted the source in front of them had no way to see that
+ * the co-cited ones were still unjudged — and the claim went green anyway. Name the count,
+ * and mark each source judged (✓) or not (○). */
+function candidatePicker(cands) {
+  const done = cands.filter(candDecided).length;
+  const left = cands.length - done;
+  const tally = left
+    ? `<span class="pickleft">${done} of ${cands.length} judged — ${left} still need your decision</span>`
+    : `<span class="pickdone">all ${cands.length} judged</span>`;
+  return `<div class="lbl">Cited sources (${cands.length}) ${tally}</div><div class="candpick">` +
+    cands.map((c, i) => {
+      const ok = candDecided(c);
+      const cls = `pick${i === state.candIdx ? " active" : ""}${ok ? " judged" : " unjudged"}`;
+      const title = ok ? `Decision recorded: ${c.evidence.final_decision}` : "No decision recorded yet";
+      return `<button class="${cls}" data-cand="${i}" title="${esc(title)}"><span class="pickmark" aria-hidden="true">${ok ? "✓" : "○"}</span>${esc(c.pmid || c.title || ("#" + (i + 1)))}</button>`;
+    }).join("") + `</div>`;
+}
 /* The committed, not-yet-undone Zotero write recorded for this candidate in the
  * claim's audit trail (per-claim, durable). Unlike state.lastTxn it survives
  * navigating away and back, so the write step — and its undo — can be recognised
@@ -83,9 +118,7 @@ function renderCard() {
   const claim = state.claim.claim;
   const cands = state.claim.candidates || [];
   const cand = activeCand();
-  const picker = cands.length > 1
-    ? `<div class="lbl">Candidate (${cands.length})</div><div class="candpick">` +
-      cands.map((c, i) => `<button class="pick${i === state.candIdx ? " active" : ""}" data-cand="${i}">${esc(c.pmid || c.title || ("#" + (i + 1)))}</button>`).join("") + `</div>` : "";
+  const picker = cands.length > 1 ? candidatePicker(cands) : "";
   if (!cand) {
     card.innerHTML = claimLineBlock(claim) +
       `<div class="note">No candidate evidence linked yet — find and link one below.</div>

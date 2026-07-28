@@ -350,6 +350,15 @@ kbd { font: 600 11px/1 ui-monospace, Menlo, monospace; background: var(--zs-surf
 .candpick .pick { font: 600 11px/1 ui-monospace, Menlo, monospace; padding: 4px 7px; border-radius: var(--zs-radius-sm);
   border: 1px solid var(--zs-line); background: var(--zs-surface); cursor: pointer; color: var(--zs-ink); }
 .candpick .pick.active { border-color: var(--zs-brand); background: var(--zs-brand-bg); }
+/* judged vs unjudged cited sources: a claim citing several papers needs a decision on
+   each, so the ones still waiting must be visible at a glance. */
+.candpick .pick .pickmark { margin-right: 5px; }
+.candpick .pick.judged .pickmark { color: var(--zs-partial-border); }
+.candpick .pick.unjudged { border-style: dashed; }
+.candpick .pick.unjudged .pickmark { color: var(--zs-muted); }
+.lbl .pickleft { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--zs-ink); }
+.lbl .pickdone { text-transform: none; letter-spacing: 0; color: var(--zs-muted); }
+.next .ask .dim { font-weight: 400; font-size: var(--zs-text-sm); color: var(--zs-muted); }
 
 .next { border: 1px solid var(--zs-brand); border-radius: var(--zs-radius-lg); padding: 14px; background: var(--zs-brand-bg); }
 .next .ask { font-size: var(--zs-text-lg); font-weight: 700; margin-bottom: 4px; }

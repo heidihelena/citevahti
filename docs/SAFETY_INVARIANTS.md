@@ -44,6 +44,16 @@ guarantees of the system; a reviewer should treat any violation as a defect.
   never gave
   (`rating/ai.py::rate_with_retry`, `RETRYABLE_FAILURE_KINDS`). Guarded by
   `test_ai_retry.py`.
+- **Support is judged per (claim, source) pair, and a claim is finished only when every
+  cited source has been.** One accepting decision is a verdict on one pair; it says nothing
+  about the papers cited alongside it, which hold no human rating until their own is
+  committed. So `ClaimReportService._row` reaches `accepted` only when every linked
+  candidate carries a trusted decision — otherwise the claim stays `needs_support` and keeps
+  its place in the queue and in triage, and the panel names the sources still unjudged. The
+  spine never fans an accept out over unrated pairs and never fills a missing support status
+  in (`DecisionService._derive` returns one only from a real, locked human rating or an
+  adjudication resting on one): the missing judgement is reported, not manufactured.
+  Guarded by `test_multi_candidate_claim_decision.py`.
 - **Two rated instruments are counted, never pooled.** The agreement report covers both
   study-quality ratings and claim-support ratings (the latter under the reserved scheme id
   `claim_support`), but refuses a single κ across them — agreement on two instruments

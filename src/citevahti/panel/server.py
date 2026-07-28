@@ -270,6 +270,9 @@ _PENDING_STATES = ("needs_support", "review_needed")
 def _claim_state(r) -> dict:
     out = {"state": r.state, "code": r.code.strip(),
            "candidate_count": r.candidate_count, "accepted_count": r.accepted_count,
+           # how many of the claim's cited sources are judged — the panel says
+           # "2 of 6 sources decided" instead of implying one accept finished the claim
+           "decided_count": r.decided_count,
            "has_stale_bonds": r.has_stale_bonds}
     cite = _accepted_cite(r)
     if cite:
