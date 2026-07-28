@@ -68,4 +68,10 @@ class CandidateLinkReport(BaseModel):
     linked: int = 0
     skipped_duplicates: int = 0
     total_candidates: int = 0
+    # The candidates this link request is ABOUT: for every intake hit considered, the
+    # candidate that now represents it — freshly linked or already present. Named and
+    # shaped like ``ClaimCandidates.candidates`` so one reader handles both results, and
+    # reported for matches too so a re-run answers "which candidates are these sources?"
+    # rather than an unhelpful `linked: 0`.
+    candidates: list[ClaimPaperCandidate] = Field(default_factory=list)
     audit_event_id: Optional[str] = None

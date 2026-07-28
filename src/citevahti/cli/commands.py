@@ -535,10 +535,10 @@ def _cmd_claim_link_candidates(args) -> int:
     rep = tools.link_candidates(args.claim_id, args.intake_batch_id,
                                 record_ids=args.record_id or None, root=args.root)
     if getattr(args, "json", False):
-        import json as _json
-        print(_json.dumps({"claim_id": rep.claim_id, "intake_batch_id": rep.intake_batch_id,
-                           "linked": rep.linked, "skipped_duplicates": rep.skipped_duplicates,
-                           "total_candidates": rep.total_candidates}))
+        # The whole report model, so `candidates` here means what it means in
+        # `candidate-list --json`: the same key, the same objects, one reader for both.
+        # The counts are still there — nothing that read them stopped working.
+        _emit_json(rep)
         return 0
     print(f"claim         : {rep.claim_id}")
     print(f"intake batch  : {rep.intake_batch_id}")
@@ -546,6 +546,8 @@ def _cmd_claim_link_candidates(args) -> int:
     print(f"  skipped dup : {rep.skipped_duplicates}")
     print(f"  total cands : {rep.total_candidates}")
     print(f"  audit event : {(rep.audit_event_id or '')[:16]}...")
+    for c in rep.candidates:
+        print(f"    cand={c.candidate_id}  {(c.title or '')[:52]}")
     return 0
 
 

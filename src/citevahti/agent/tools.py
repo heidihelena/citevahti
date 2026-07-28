@@ -236,8 +236,14 @@ def propose_revision(claim_id: str, new_text: str, *, root: Optional[str] = None
 def link_candidates(claim_id: str, intake_batch_id: str, *,
                     record_ids: Optional[list] = None, root: Optional[str] = None) -> dict:
     rep = _t.link_candidates(claim_id, intake_batch_id, record_ids=record_ids, root=root)
+    # Hand back the candidates, not just how many: the next step is start_support_rating,
+    # which needs a candidate_id. Identity fields only — the agent can read the full record
+    # (abstract included) with list_candidates when it actually needs the text.
     return {"claim_id": rep.claim_id, "linked": rep.linked,
-            "skipped_duplicates": rep.skipped_duplicates, "total_candidates": rep.total_candidates}
+            "skipped_duplicates": rep.skipped_duplicates, "total_candidates": rep.total_candidates,
+            "candidates": [{"candidate_id": c.candidate_id, "record_id": c.record_id,
+                            "pmid": c.pmid, "doi": c.doi, "title": c.title, "year": c.year}
+                           for c in rep.candidates]}
 
 
 # ---- blinded support rating (agent rates; value never echoed back) ---------

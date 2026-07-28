@@ -37,24 +37,37 @@ class CandidateService:
 
     def link_from_intake(self, claim_id: str, batch_id: str,
                          record_ids: Optional[list[str]] = None) -> CandidateLinkReport:
+        """Link a batch's intake hits to a claim as candidates.
+
+        The report carries the candidates themselves, not just how many were added: a
+        command that links objects should hand back those objects, so the caller can go
+        straight on to rate them instead of re-listing the claim to find their ids. Matches
+        are reported alongside new links, which makes the report idempotent — running this
+        twice describes the same set both times rather than reducing to `linked: 0`.
+        """
         # claim must exist (raises StateError otherwise) -- never link to a phantom claim
         self.store.load_claim(claim_id)
         rec = self.store.load_intake(batch_id)
 
         cc = self._existing(claim_id)
-        seen = {_paper_key(c.pmid, c.doi, c.record_id) for c in cc.candidates}
+        by_key = {_paper_key(c.pmid, c.doi, c.record_id): c for c in cc.candidates}
         want = set(record_ids) if record_ids else None
 
         linked = skipped = 0
+        resolved: list[ClaimPaperCandidate] = []
         for rank, hit in enumerate(rec.hits):
             if want is not None and hit.record_id not in want:
                 continue
             key = _paper_key(hit.pmid, hit.doi, hit.record_id)
-            if key in seen:
+            already = by_key.get(key)
+            if already is not None:
+                # Already a candidate for this claim. Report WHICH one: the caller asked
+                # about this source, and a bare count leaves them without the id they need
+                # to rate it -- the reason a re-run used to look like it did nothing.
                 skipped += 1
+                resolved.append(already)
                 continue
-            seen.add(key)
-            cc.candidates.append(ClaimPaperCandidate(
+            cand = ClaimPaperCandidate(
                 candidate_id=f"cand-{sha256_hex(claim_id + '|' + key)[:12]}",
                 claim_id=claim_id, record_id=hit.record_id, intake_batch_id=batch_id,
                 retrieval_query=rec.exact_query, retrieval_source=rec.provider,
@@ -64,7 +77,10 @@ class CandidateService:
                 pmid=hit.pmid, doi=hit.doi, title=hit.title, journal=hit.journal,
                 year=hit.year, publication_date=hit.publication_date,
                 abstract=getattr(hit, "abstract", None),
-                created_at=utc_now_iso()))
+                created_at=utc_now_iso())
+            by_key[key] = cand
+            cc.candidates.append(cand)
+            resolved.append(cand)
             linked += 1
 
         cc.updated_at = utc_now_iso()
@@ -76,7 +92,7 @@ class CandidateService:
         return CandidateLinkReport(
             claim_id=claim_id, intake_batch_id=batch_id, linked=linked,
             skipped_duplicates=skipped, total_candidates=len(cc.candidates),
-            audit_event_id=cc.audit_event_id)
+            candidates=resolved, audit_event_id=cc.audit_event_id)
 
     def list_for_claim(self, claim_id: str) -> ClaimCandidates:
         return self._existing(claim_id)
