@@ -37,7 +37,7 @@ MUTED = (165, 156, 190)    # legible "muted" on navy
 
 # four claim-state chips: (label, fill, border, text) — same colours as the site
 CHIPS = [
-    ("[oo] verified",        (255, 242, 216), (201, 138, 0),  (90, 67, 0)),
+    ("[oo] accepted",        (255, 242, 216), (201, 138, 0),  (90, 67, 0)),
     ("[o] needs support",    (216, 244, 237), (30, 158, 138), (8, 84, 74)),
     ("[r] review needed",    (236, 227, 255), (139, 111, 201), (67, 44, 122)),
     ("[d] decision recorded", (251, 224, 234), (194, 77, 126), (122, 31, 69)),

@@ -98,7 +98,7 @@
           {
             "@type": "Question",
             "name": "What is CiteVahti?",
-            "acceptedAnswer": { "@type": "Answer", "text": "CiteVahti is a citation-integrity tool that tests every claim in a manuscript against its candidate papers through a blinded human → AI → adjudication workflow, then writes verified references to Zotero in a decision-gated, undoable step with a hash-chained audit trail." }
+            "acceptedAnswer": { "@type": "Answer", "text": "CiteVahti is a citation-integrity tool that tests every claim in a manuscript against its candidate papers through a blinded human → AI → adjudication workflow, then writes accepted references to Zotero in a decision-gated, undoable step with a hash-chained audit trail." }
           },
           {
             "@type": "Question",
@@ -108,7 +108,7 @@
           {
             "@type": "Question",
             "name": "How is CiteVahti different from a reference manager like Zotero?",
-            "acceptedAnswer": { "@type": "Answer", "text": "A reference manager stores and formats citations. CiteVahti verifies them: it checks whether each manuscript claim is actually supported by the paper cited for it, keeps the AI's rating blinded until the human rates, and writes to Zotero only after a previewed, undoable human decision." }
+            "acceptedAnswer": { "@type": "Answer", "text": "A reference manager stores and formats citations. CiteVahti tests them: it checks whether each manuscript claim is actually supported by the paper cited for it, keeps the AI's rating blinded until the human rates, and writes to Zotero only after a previewed, undoable human decision." }
           },
           {
             "@type": "Question",
@@ -149,7 +149,7 @@
       <a class="btn ghost" href="https://github.com/heidihelena/citevahti#readme">How it works</a>
     </div>
     <div class="chips" aria-label="The four claim states">
-      <span class="chip v">[oo] verified</span>
+      <span class="chip v">[oo] accepted</span>
       <span class="chip n">[o] needs support</span>
       <span class="chip r">[r] review needed</span>
       <span class="chip d">[d] decision recorded</span>
@@ -182,7 +182,7 @@
       </div>
     </div>
     <p style="margin-top:18px;color:var(--muted);font-size:14px">
-      The open core is Apache-2.0 and never paywalls a researcher’s ability to verify
+      The open core is Apache-2.0 and never paywalls a researcher’s ability to check
       their own manuscript.</p>
   </section>
 
@@ -200,12 +200,12 @@
     <ul class="feat">
       <li><b>What is CiteVahti?</b> A citation-integrity tool that tests every claim in a
         manuscript against its candidate papers through a blinded human&nbsp;→&nbsp;AI&nbsp;→&nbsp;adjudication
-        workflow, then writes verified references to Zotero in a decision-gated, undoable step.</li>
+        workflow, then writes accepted references to Zotero in a decision-gated, undoable step.</li>
       <li><b>Is it free?</b> Yes — the open core is Apache-2.0, free, and local-first for
         researchers. Vahtian sells paid infrastructure to organizations that need auditable
         citation integrity at publication scale.</li>
       <li><b>How is it different from a reference manager?</b> A reference manager stores and
-        formats citations; CiteVahti <em>verifies</em> them — checking whether each claim is
+        formats citations; CiteVahti <em>tests</em> them — checking whether each claim is
         actually supported by the paper cited for it before anything is written.</li>
       <li><b>Does it send my manuscript to the cloud?</b> No. Local-first, single-user, no
         telemetry. The only outbound calls are literature lookups (PubMed, OpenAlex, Semantic

@@ -40,7 +40,7 @@ Actions:  Revise claim · Change reference · Delete candidate · Send to human 
 ```
 
 For `[oo]` the card shows the PICO checks (Population/Outcome/Direction/Study-type
-match) and a single action: **Add verified citation to Zotero** — which runs the
+match) and a single action: **Add accepted citation to Zotero** — which runs the
 decision-gated, undoable write transaction (ADR-0001 step 5).
 
 ## The user flow
