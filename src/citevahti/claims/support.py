@@ -22,6 +22,7 @@ from ..schemas.claim_support import (
 )
 from ..schemas.common import PassageRef, Provenance
 from ..schemas.rating import AccessLogEntry, Adjudication, AIProvenance
+from ..state.store import StateError
 from ..util import canonical_json, config_hash, sha256_hex, utc_now_iso
 from ..validators.claim_support import ClaimSupportError
 from ..validators.config import authorize_rating_task, require_model_pinned
@@ -87,6 +88,50 @@ def open_support_rating(store, claim_id: str, candidate_id: str,
         if best is None or rating_preference_key(rec) > rating_preference_key(best):
             best = rec
     return best
+
+
+def support_ratings_by_pair(store) -> dict:
+    """Every (claim_id, candidate_id) with a rating on disk, mapped to the ONE record that
+    represents it (``rating_preference_key``).
+
+    A pair can hold several records — one per panel rater by design, and historically
+    because ``support_start`` minted a new id on every call — so any surface that counts
+    *pairs* must collapse them here. Counting rating FILES instead conflates records with
+    pairs: a real prescreen ledger held 118 records for 61 pairs, and the PRISMA table read
+    "118 pairs assessed" against 61 ever staged. Idempotent opening stops new churn, but a
+    six-reviewer panel still leaves six records on one pair, and old ledgers keep theirs.
+    (``ClaimReportService._ratings_index`` builds the same index for its own rows.)"""
+    idx: dict = {}
+    for rid in store.list_support_ratings():
+        try:
+            rec = store.load_support_rating(rid)
+        except StateError:
+            continue
+        key = (rec.claim_id, rec.candidate_id)
+        if key not in idx or rating_preference_key(rec) > rating_preference_key(idx[key]):
+            idx[key] = rec
+    return idx
+
+
+def is_judged(rating) -> bool:
+    """Has this pair actually been assessed? A committed human value, or an AI rating that
+    delivered a judgement (a value, or an explicit abstention — "I read it and decline").
+
+    A started-but-unrated record is NOT an assessment: ``support_start`` seals an empty
+    record, and counting those as rated overstates how much of a ledger was ever judged. A
+    failed AI call is not a judgement either — no verdict was given (see SAFETY_INVARIANTS:
+    an abstention is a judgement; a failed call is not, and the two never merge)."""
+    human = rating.human_rating
+    if human is not None and human.value is not None:
+        return True
+    ai = rating.ai_rating
+    return ai is not None and ai.failure is None and (ai.value is not None or ai.abstained)
+
+
+def is_human_rated(rating) -> bool:
+    """Does this pair carry a committed HUMAN support value? The PRISMA 'assessed' box counts
+    human-rated pairs, so an AI-only or unrated pair must never fall into it."""
+    return rating.human_rating is not None and rating.human_rating.value is not None
 
 
 @dataclass

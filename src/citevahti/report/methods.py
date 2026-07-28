@@ -113,14 +113,17 @@ def _basis_stats(store) -> dict:
     """How was support actually assessed — against a located full-text passage, or the
     abstract the rater saw? A rating that carries a quoted passage (attachment + char
     offsets) is full-text-anchored; one with no passages was assessed against the
-    candidate abstract. Derived from existing data — no schema change."""
-    from ..state import StateError
+    candidate abstract. Derived from existing data — no schema change.
+
+    Counts PAIRS that were actually judged, not rating files: a pair can hold several
+    records (``support_start`` mints a new id per call) and a started-but-unrated record is
+    not an assessment. The sentence says "rated claim–candidate pair(s)", so it must count
+    exactly that."""
+    from ..claims.support import is_judged, support_ratings_by_pair
 
     rated = anchored = 0
-    for rid in store.list_support_ratings():
-        try:
-            r = store.load_support_rating(rid)
-        except StateError:
+    for r in support_ratings_by_pair(store).values():
+        if not is_judged(r):
             continue
         rated += 1
         human = r.human_rating.source_passages if r.human_rating else []
@@ -183,6 +186,7 @@ def _prisma_flow(store) -> dict:
     assessed (claim–evidence pairs human-rated) → included (claims with accepted
     supporting evidence). Claim-level — each claim is a separate question — aggregated
     across the manuscript. No schema change; counts come from the existing ledger."""
+    from ..claims.support import is_human_rated, support_ratings_by_pair
     from ..state import StateError
     from .claim_report import ClaimReportService
 
@@ -205,8 +209,13 @@ def _prisma_flow(store) -> dict:
 
     rep = ClaimReportService(store).report()
     included = sum(1 for r in rep.rows if r.state == "accepted")
+    # The 'assessed' box counts PAIRS carrying a human rating — not rating files, and not
+    # pairs that were merely opened. Counting files let this box exceed 'staged' (118
+    # assessed against 61 ever staged on a real ledger), which is an impossible flow in a
+    # published PRISMA figure; counting opened records would have said 61 where 30 were rated.
+    assessed = sum(1 for r in support_ratings_by_pair(store).values() if is_human_rated(r))
     return {"searches": len(batches), "identified": identified, "staged": staged,
-            "assessed": len(store.list_support_ratings()), "included": included,
+            "assessed": assessed, "included": included,
             "claims": len(claims)}
 
 
