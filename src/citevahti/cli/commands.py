@@ -571,12 +571,20 @@ def _cmd_candidate_list(args) -> int:
 
 def _cmd_support_start(args) -> int:
     from .. import tools
-    rec, rc = _safe(lambda: tools.support_start(args.claim_id, args.candidate_id, root=args.root))
+    rec, rc = _safe(lambda: tools.support_start(
+        args.claim_id, args.candidate_id, rating_set_id=getattr(args, "rating_set_id", None),
+        force_new=getattr(args, "new", False), root=args.root))
     if rec:
         if getattr(args, "json", False):
-            _emit_json(rec)
+            # Identity only — never the raw record. Starting is idempotent, so the rating
+            # handed back may already carry an AI value; dumping the model would leak it
+            # before the human rates (rating/blinding.py). Existence is disclosed, as on
+            # every other surface; the value is not.
+            _emit_json({"rating_id": rec.rating_id, "claim_id": rec.claim_id,
+                        "candidate_id": rec.candidate_id, "rating_set_id": rec.rating_set_id,
+                        "ai_recorded": rec.ai_rating is not None, "blinded": True})
         else:
-            print(f"claim-support rating started: {rec.rating_id}")
+            print(f"claim-support rating open: {rec.rating_id}")
     return rc
 
 

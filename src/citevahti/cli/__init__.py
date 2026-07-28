@@ -264,9 +264,15 @@ def main(argv: list[str] | None = None) -> int:
 
     from ..schemas.claim_support import SUPPORT_VALUES
     css = sub.add_parser("claim-support-start",
-                         help="start a blinded claim-support rating for a (claim, candidate)")
+                         help="open the blinded claim-support rating for a (claim, candidate); "
+                              "repeating it returns the same rating, never a second one")
     css.add_argument("--claim-id", required=True)
     css.add_argument("--candidate-id", required=True)
+    css.add_argument("--rating-set-id", default=None,
+                     help="link this rating to a panel/rating set")
+    css.add_argument("--new", action="store_true",
+                     help="open an ADDITIONAL independent rating for the pair (concurrent "
+                          "panel reviewers); by default an existing unrated one is reused")
     css.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
     css.set_defaults(func=_cmd_support_start)
 

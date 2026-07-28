@@ -27,9 +27,16 @@ def _support_engine(root, rater=None):
     return ClaimSupportEngine(_open_store(root), rater=rater)
 
 
-def support_start(claim_id: str, candidate_id: str, *, root: Optional[str] = None):
-    """Start a blinded claim-support rating for a (claim, candidate) pair."""
-    return _support_engine(root).support_start(claim_id, candidate_id)
+def support_start(claim_id: str, candidate_id: str, *, rating_set_id: Optional[str] = None,
+                  force_new: bool = False, root: Optional[str] = None):
+    """Open the blinded claim-support rating for a (claim, candidate) pair.
+
+    Idempotent: a pair that already has an open (human-unrated) rating gets that same
+    rating back, not a second one. ``force_new=True`` opens an additional independent
+    rating — the concurrent-panel case. See ``ClaimSupportEngine.support_start``.
+    """
+    return _support_engine(root).support_start(
+        claim_id, candidate_id, rating_set_id, force_new=force_new)
 
 
 def support_commit_human(rating_id: str, value: str, *, fit=None, rationale: Optional[str] = None,

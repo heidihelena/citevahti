@@ -245,8 +245,11 @@ def start_support_rating(claim_id: str, candidate_id: str, *, root: Optional[str
     from ..claims import ClaimSupportEngine
     from ..state import CiteVahtiStore
     rec = ClaimSupportEngine(CiteVahtiStore(root or ".")).support_start(claim_id, candidate_id)
+    # Idempotent: a pair with an open (human-unrated) rating gets that same rating back, so
+    # a retried step cannot fork the pair into two records. Hence "open", not "started" —
+    # calling this twice is not two starts. The AI value is never echoed (blinding).
     return {"rating_id": rec.rating_id, "claim_id": claim_id, "candidate_id": candidate_id,
-            "status": "started", "blinded": True}
+            "status": "open", "ai_recorded": rec.ai_rating is not None, "blinded": True}
 
 
 def submit_ai_support_rating(rating_id: str, value: str, *, confidence: Optional[float] = None,
