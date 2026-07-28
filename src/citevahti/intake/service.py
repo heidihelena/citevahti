@@ -247,3 +247,28 @@ class IntakeService:
             seen_set_digest=digest, result_count=len(raw), hits=hits,
             warnings=_abstract_coverage_warnings(hits), provenance=prov, status="ok")
         return self.store.save_intake(record)
+
+    # ---- import_records --------------------------------------------------
+    def import_records(self, records: list[dict], question_id: Optional[str] = None,
+                       source_label: Optional[str] = None) -> IntakeRecord:
+        """Stage already-structured records as a manual intake batch — no file to parse.
+
+        The seam bulk claim import needs: its rows already carry identifiers and titles, so
+        there is nothing to parse out of a citation format. Everything else is
+        ``import_results``: same dedupe, same provenance, same pre-decision staging, and no
+        decision of any kind. Staging is not screening.
+        """
+        prov = self._provenance("import_records", {"records": len(records),
+                                                   "label": source_label})
+        source_hash = sha256_hex(config_hash(
+            {"records": [{k: r.get(k) for k in ("pmid", "doi", "title")} for r in records]}))
+        hits, lib_status, dedupe_against, digest = self._build_hits(records,
+                                                                    include_abstracts=True)
+        record = IntakeRecord(
+            batch_id=self._batch_id("manual", question_id, source_hash), provider="manual",
+            question_id=question_id, source_label=source_label, source_format="records",
+            source_hash=source_hash, imported_at=utc_now_iso(), last_run_at=None,
+            dedupe_against=dedupe_against, library_dedupe_status=lib_status,
+            seen_set_digest=digest, result_count=len(records), hits=hits,
+            warnings=_abstract_coverage_warnings(hits), provenance=prov, status="ok")
+        return self.store.save_intake(record)

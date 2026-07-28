@@ -101,6 +101,21 @@ def refresh_candidate(claim_id: str, candidate_id: str, intake_batch_id: str, *,
         claim_id, candidate_id, intake_batch_id)
 
 
+def claims_import(rows: list, *, question_id: Optional[str] = None,
+                  source_label: Optional[str] = None, dry_run: bool = False,
+                  root: Optional[str] = None):
+    """Bulk-load a corpus: rows of {claim_text, location, claim_type, sources[]} become
+    claims, linked candidates, and OPEN support rating slots, in one command.
+
+    Resumable rather than atomic — CiteVahti has no general ledger transaction, so instead
+    every step is idempotent: re-running the same rows matches existing claims (normalized
+    text + location), dedupes candidates by identifier, and reuses each pair's open rating
+    slot. Rows are validated before anything is written. Decides nothing and runs no AI."""
+    from ..claims.bulk import ClaimsImportService
+    return ClaimsImportService(_open_store(root)).import_rows(
+        rows, question_id=question_id, source_label=source_label, dry_run=dry_run)
+
+
 def list_candidates(claim_id: str, *, root: Optional[str] = None):
     """List a claim's candidate papers (read-only)."""
     from ..claims import CandidateService

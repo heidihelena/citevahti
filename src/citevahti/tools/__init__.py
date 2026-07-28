@@ -2,7 +2,7 @@
 
 Every tool is implemented in a group module under ``tools/`` and re-exported here so
 ``from citevahti.tools import X`` (and ``engine.X`` attribute access from the CLI, panel,
-and agent surface) keeps working unchanged — the 102-name public surface is frozen by
+and agent surface) keeps working unchanged — the 103-name public surface is frozen by
 tests/test_tools_public_api_stable.py.
 
 Group map (read-only -> ledger-write -> write-privileged):
@@ -109,6 +109,7 @@ from .claims import (  # noqa: F401
     add_claim,
     claim_bond_status,
     claim_mark_untestable,
+    claims_import,
     link_candidates,
     list_candidates,
     refresh_candidate,
