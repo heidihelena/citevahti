@@ -378,15 +378,42 @@ class HttpxPoster:
 def chat_reply(*, shape: str, endpoint: str, model: str, prompt: str,
                api_key: Optional[str] = None, poster: Optional[HttpPoster] = None,
                timeout: float = 60.0,
-               max_tokens: int = API_MAX_REPLY_TOKENS) -> ChatReply:
+               max_tokens: int = API_MAX_REPLY_TOKENS,
+               think: Optional[bool] = None) -> ChatReply:
     """One blinded chat turn over an OpenAI-compatible or Anthropic endpoint.
 
     Shared by every CiteVahti rater. A key (when present) rides the provider's header;
     local servers (Ollama / LM Studio) need none. Returns an empty reply on an
     unexpected shape, and flags a reply the provider says it cut off at ``max_tokens``
     so a caller can tell "never answered" from "answered, but abstained".
+
+    ``think`` (None by default) is the operator's chain-of-thought switch for a local
+    Ollama model. The OpenAI-compatible /v1 shape has no such field, so when it is set
+    the call rides Ollama's NATIVE ``/api/chat`` on the same host instead — the only
+    place the switch exists. A non-Ollama local server (LM Studio) has no /api/chat;
+    that surfaces as a transport failure naming the endpoint, never as a rating.
     """
     poster = poster or HttpxPoster()
+    if think is not None:
+        if shape != "openai":
+            raise ValueError("ai_connection.think is an Ollama control; it needs an "
+                             "OpenAI-compatible local endpoint, not shape "
+                             f"{shape!r}")
+        url = _ollama_base(endpoint) + "/api/chat"
+        payload = {"model": model, "stream": False, "think": think,
+                   "messages": [{"role": "user", "content": prompt}],
+                   "options": {"num_predict": max_tokens, "temperature": 0}}
+        data = poster.post_json(url, {"content-type": "application/json"}, payload, timeout)
+        try:
+            return ChatReply(text=data["message"]["content"],
+                             truncated=data.get("done_reason") == "length",
+                             completion_tokens=_int_or_none(data.get("eval_count")),
+                             max_tokens=max_tokens)
+        except (KeyError, IndexError, AttributeError, TypeError) as exc:
+            # Same contract as the /v1 shapes below: an answer with nothing the model
+            # said is a TRANSPORT event, not something the model said.
+            return ChatReply(provider_error=f"{type(exc).__name__}: {str(exc)[:120]}",
+                             max_tokens=max_tokens)
     if shape == "anthropic":
         headers = {"content-type": "application/json", "anthropic-version": "2023-06-01"}
         if api_key:
@@ -448,9 +475,12 @@ class HttpAiRater:
                  timeout: float = 60.0,
                  max_tokens: int = LOCAL_MAX_REPLY_TOKENS,
                  retry_attempts: int = AI_RETRY_ATTEMPTS,
-                 retry_backoff_s: float = AI_RETRY_BACKOFF_S) -> None:
+                 retry_backoff_s: float = AI_RETRY_BACKOFF_S,
+                 think: Optional[bool] = None) -> None:
         if shape not in ("openai", "anthropic"):
             raise ValueError(f"unknown AI shape: {shape!r}")
+        if think is not None and shape != "openai":
+            raise ValueError("think control needs an OpenAI-compatible (Ollama) endpoint")
         self.shape = shape
         self.endpoint = endpoint
         self.model = model
@@ -460,6 +490,7 @@ class HttpAiRater:
         self.max_tokens = max_tokens
         self.retry_attempts = retry_attempts
         self.retry_backoff_s = retry_backoff_s
+        self.think = think
 
     def rate(self, *, frame, scheme, subject, task_type: str) -> AiRatingOutput:
         prompt = self._build_prompt(frame, scheme, subject, task_type)
@@ -467,7 +498,8 @@ class HttpAiRater:
         def once() -> AiRatingOutput:
             reply = chat_reply(shape=self.shape, endpoint=self.endpoint, model=self.model,
                                api_key=self.api_key, prompt=prompt, poster=self.poster,
-                               timeout=self.timeout, max_tokens=self.max_tokens)
+                               timeout=self.timeout, max_tokens=self.max_tokens,
+                               think=self.think)
             return self._parse(reply, scheme)
 
         return rate_with_retry(once, attempts=self.retry_attempts,
@@ -537,11 +569,15 @@ def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
     ``max_tokens`` is the operator's ``max_reply_tokens`` when set, else the per-mode
     default (local gets headroom for a reasoning model; api stays frugal).
     ``retry_attempts`` / ``retry_backoff_s`` carry the operator's retry budget through.
+    ``think`` (local mode only) is the operator's chain-of-thought switch — see
+    ``AIConnectionConfig.think`` for the measured trade; ``api`` mode rejects it here
+    rather than silently ignoring it.
     """
     conn = config.ai_connection
     if not conn.is_enabled():
         return None
     prov = config.ai_provenance
+    think = getattr(conn, "think", None)
     if conn.mode == "local":
         endpoint = conn.endpoint or _OLLAMA_DEFAULT
         if not _safe_endpoint(endpoint, allow_local=True):
@@ -549,8 +585,12 @@ def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
         return {"shape": "openai", "endpoint": endpoint, "api_key": None,
                 "max_tokens": conn.max_reply_tokens or LOCAL_MAX_REPLY_TOKENS,
                 "retry_attempts": conn.retry_attempts,
-                "retry_backoff_s": conn.retry_backoff_s}
+                "retry_backoff_s": conn.retry_backoff_s,
+                "think": think}
     # api mode
+    if think is not None:
+        raise ValueError("ai_connection.think is a local (Ollama) control; api mode has "
+                         "no such switch — unset it, or use mode: local")
     shape = "anthropic" if prov.provider == "anthropic" else "openai"
     endpoint = conn.endpoint or (_ANTHROPIC_DEFAULT if shape == "anthropic" else _OPENAI_DEFAULT)
     if not _safe_endpoint(endpoint, allow_local=False):
@@ -571,7 +611,8 @@ def resolve_ai_connection(config, *, resolve_secret=None) -> Optional[dict]:
     return {"shape": shape, "endpoint": endpoint, "api_key": api_key,
             "max_tokens": conn.max_reply_tokens or API_MAX_REPLY_TOKENS,
             "retry_attempts": conn.retry_attempts,
-            "retry_backoff_s": conn.retry_backoff_s}
+            "retry_backoff_s": conn.retry_backoff_s,
+            "think": None}
 
 
 def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secret=None):
@@ -583,7 +624,7 @@ def build_ai_rater(config, *, poster: Optional[HttpPoster] = None, resolve_secre
                        model=config.ai_provenance.model_id, api_key=c["api_key"],
                        poster=poster, timeout=config.ai_connection.request_timeout_s,
                        max_tokens=c["max_tokens"], retry_attempts=c["retry_attempts"],
-                       retry_backoff_s=c["retry_backoff_s"])
+                       retry_backoff_s=c["retry_backoff_s"], think=c["think"])
 
 
 # --- local model discovery (Ollama) ------------------------------------------
