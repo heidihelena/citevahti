@@ -366,6 +366,7 @@ registerActions({
   "app-update-check": checkAppUpdate, "app-update-apply": applyAppUpdate, "app-update-later": dismissAppUpdate,
   "toggle-theme": (el) => { const d = toggleTheme(); el.textContent = d ? "◑ Light theme" : "◑ Dark theme"; },
   next: () => { const n = nextPending(); if (n) selectClaim(n); },
+  "next-source": nextSource,
 });
 // User-initiated update check: the ONLY moment the panel talks to PyPI, and only on this
 // click — never on load — so it doesn't weaken the no-silent-egress posture. Read-only.

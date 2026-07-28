@@ -176,7 +176,14 @@ function writeTargetLine() {
 function writeBlock(claim, cand) {
   const code = (cand.evidence && cand.evidence.final_decision) || "";
   const canWrite = (state.health && state.health.can_write || []).length > 0;
-  const head = `<div class="ask">Decision: ${esc((cand.evidence && cand.evidence.final_decision) || "recorded")}</div>`;
+  // The decision just recorded covers THIS source only. Say so while the reviewer is
+  // still on the claim — a decision on one co-cited paper says nothing about the others,
+  // and this is the moment they would otherwise move on believing the claim is settled.
+  const left = undecidedCands().length;
+  const head = `<div class="ask">Decision: ${esc((cand.evidence && cand.evidence.final_decision) || "recorded")}
+      <span class="dim">— for this source</span></div>` + (left
+    ? `<div class="note">${left} more cited source${left > 1 ? "s" : ""} on this claim ${left > 1 ? "have" : "has"} no rating or decision yet.
+        <button class="linklike" data-act="next-source">Judge the next one →</button></div>` : "");
   // Accept / caution → Zotero write gate (or connect prompt if no write backend)
   if (code === "accept" || code === "accepted_with_caution") {
     if (!canWrite) {
@@ -237,6 +244,17 @@ function doneBlock(cand) {
     needs_second_review: "Manuscript revised", reject: "Claim struck in document" }[code] || "Recorded";
   const undo = recoverableTxn() ? `<button class="btn ghost" data-act="zundo">Undo Zotero write</button>`
     : state.docTxn ? `<button class="btn ghost" data-act="docundo">Undo document edit</button>` : "";
-  return `<div class="next"><div class="done-banner">✓ ${what} — recorded with an undo path.</div>
-    <div class="actions">${undo}<button class="btn primary" data-act="next">Next claim <span class="hk">↵</span></button></div></div>`;
+  // This source is finished — the CLAIM is not, if it cites others you haven't judged.
+  // Offer the next unjudged source as the primary action and say how many are left, so
+  // "done" can never be read as "this claim is done" when it isn't.
+  const left = undecidedCands().length;
+  const onward = left
+    ? `<button class="btn primary" data-act="next-source">Next source (${left} left on this claim) <span class="hk">↵</span></button>
+       <button class="btn ghost" data-act="next">Skip to next claim</button>`
+    : `<button class="btn primary" data-act="next">Next claim <span class="hk">↵</span></button>`;
+  const note = left
+    ? `<div class="note">This claim cites ${left} more source${left > 1 ? "s" : ""} with no rating or decision yet.
+        Support is judged per source — the claim isn't settled until each one is.</div>` : "";
+  return `<div class="next"><div class="done-banner">✓ ${what} — recorded with an undo path.</div>${note}
+    <div class="actions">${undo}${onward}</div></div>`;
 }

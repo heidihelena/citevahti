@@ -54,7 +54,7 @@ const sandbox = {
 sandbox.window = sandbox;
 
 // expose the otherwise-closure-scoped helpers + state for assertions
-const exposed = src + "\n;globalThis.__cv = { claimOrder, nextPending, phaseOf, recoverableTxn, committedZoteroTxn, citeOf, get state(){ return state; } };";
+const exposed = src + "\n;globalThis.__cv = { claimOrder, nextPending, phaseOf, recoverableTxn, committedZoteroTxn, citeOf, candDecided, undecidedCands, nextUndecidedIdx, nextSource, primary, get state(){ return state; } };";
 vm.createContext(sandbox);
 vm.runInContext(exposed, sandbox, { filename: "app.js" });
 const cv = sandbox.__cv;
@@ -139,7 +139,29 @@ cv.state.lastTxn = "txn-session";
 eq("recoverableTxn prefers the in-session lastTxn", cv.recoverableTxn(), "txn-session");
 cv.state.lastTxn = null;
 
-// 6. citation-on-copy: citeOf() formats a one-line reference from whatever a candidate
+// 6. co-cited sources: a claim citing several papers needs a decision on EACH pair.
+// Finishing one source must hand over the next unjudged one, not the next claim — the
+// jump-to-next-claim behaviour is what left co-cited sources silently unrated.
+cv.state.claim = { claim: { claim_id: "d2" }, candidates: [
+  { candidate_id: "c1", step: { phase: "done" }, evidence: { final_decision: "accept" } },
+  { candidate_id: "c2", step: { phase: "rate" }, evidence: { final_decision: null } },
+  { candidate_id: "c3", step: { phase: "rate" }, evidence: null },
+] };
+cv.state.candIdx = 0;
+eq("candDecided reads the recorded decision, not the claim",
+   [0, 1, 2].map((i) => cv.candDecided(cv.state.claim.candidates[i])), [true, false, false]);
+eq("undecidedCands lists every co-cited source still unjudged",
+   cv.undecidedCands().map((c) => c.candidate_id), ["c2", "c3"]);
+eq("nextUndecidedIdx points past the finished source", cv.nextUndecidedIdx(), 1);
+eq("primary offers the next source, not the next claim", cv.primary(), cv.nextSource);
+// only once every source is judged does the claim hand over to the next claim
+for (const c of cv.state.claim.candidates) c.evidence = { final_decision: "accept" };
+eq("nextUndecidedIdx is -1 when every source is judged", cv.nextUndecidedIdx(), -1);
+eq("primary leaves the claim only when nothing is left", cv.primary() === cv.nextSource, false);
+cv.state.claim = null;
+cv.state.candIdx = 0;
+
+// 7. citation-on-copy: citeOf() formats a one-line reference from whatever a candidate
 // carries, preferring DOI over PMID and degrading honestly with partial metadata.
 eq("citeOf prefers DOI and trims trailing period",
    cv.citeOf({ title: "Telephone follow-up after surgery.", journal: "BMJ", year: 2021, doi: "10.1/x" }),

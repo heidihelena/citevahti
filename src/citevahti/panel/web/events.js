@@ -46,7 +46,7 @@ document.addEventListener("click", (e) => {
   if (e.target.id === "screenTopicBtn") return void copyScreenTopicPrompt();
   if (e.target.id === "addClaim") return void toggleAddClaim();
   const sp = e.target.closest("[data-claim]"); if (sp) return void selectClaim(sp.dataset.claim);
-  const cp = e.target.closest("[data-cand]"); if (cp) { state.candIdx = +cp.dataset.cand; resetWrite(); return renderCard(); }
+  const cp = e.target.closest("[data-cand]"); if (cp) return selectCand(+cp.dataset.cand);
   const rb = e.target.closest("[data-rate]"); if (rb) return void rate(rb.dataset.rate);
   const dc = e.target.closest("[data-decide]"); if (dc) return void recordDecision(dc.dataset.decide);
   const lk = e.target.closest("[data-link]"); if (lk) return void linkRecord(lk.dataset.link);

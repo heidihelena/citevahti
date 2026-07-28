@@ -76,7 +76,12 @@ def _claim_report_text(rep, show_text: bool) -> str:
     for row in rep.rows:
         loc = f"  [{row.manuscript_location}]" if row.manuscript_location else ""
         text = row.claim_text if show_text else (row.claim_text[:64] + ("…" if len(row.claim_text) > 64 else ""))
-        lines.append(f"  [{row.code}] {row.state:<18} {row.accepted_count}/{row.candidate_count} accepted{loc}")
+        # both counts: a claim citing several sources needs a decision on each pair, so
+        # "1/3 accepted" alone hides that two of them were never judged at all.
+        judged = f" · {row.decided_count}/{row.candidate_count} judged" \
+            if row.decided_count < row.candidate_count else ""
+        lines.append(f"  [{row.code}] {row.state:<18} "
+                     f"{row.accepted_count}/{row.candidate_count} accepted{judged}{loc}")
         lines.append(f"        {text}")
     return "\n".join(lines)
 

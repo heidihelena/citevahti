@@ -142,7 +142,15 @@ def _evaluate_claim_tests(row, online: bool) -> dict:
         return result("skip")
     # SKIP: not yet reviewed (no evidence linked, or linked but not rated/decided).
     if row.state == "needs_support":
-        detail = "no reference linked yet" if row.candidate_count == 0 else "evidence linked but not yet rated/decided"
+        if row.candidate_count == 0:
+            detail = "no reference linked yet"
+        elif row.decided_count:
+            # partly judged: some cited sources decided, the rest never rated. Naming the
+            # remainder is the whole point — the reviewer believes this claim is finished.
+            detail = (f"{row.candidate_count - row.decided_count} of {row.candidate_count} "
+                      "cited sources still unrated/undecided")
+        else:
+            detail = "evidence linked but not yet rated/decided"
         add("reviewed", "skip", detail)
         return result("skip")
 

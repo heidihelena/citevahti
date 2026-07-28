@@ -72,6 +72,11 @@ class ClaimReportRow(BaseModel):
     code: str                                 # oo / o / r / d
     candidate_count: int = 0
     accepted_count: int = 0
+    # How many of the claim's linked candidates carry a trusted final decision. A claim
+    # citing several sources is only finished when every one of them has been judged, so
+    # surfaces render "decided_count of candidate_count" rather than treating the first
+    # accept as the whole claim (see ClaimReportService._row).
+    decided_count: int = 0
     evidence: list[ClaimEvidence] = Field(default_factory=list)
     proposed_revision: Optional[str] = None        # pending rewrite, shown as a diff
     proposed_revision_by: Optional[str] = None      # "ai" | "human" | "imported"

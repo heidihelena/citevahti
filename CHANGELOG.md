@@ -7,6 +7,30 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **A claim that cites several sources is no longer decided by one accept.** Support is a
+  property of a (claim, source) pair, but the report read the *first* accepting decision as
+  the whole claim's verdict: the claim turned green, dropped out of the pending queue and
+  out of triage, and the papers cited alongside it were left with no human support rating
+  and no decision at all. Measured in a real session ledger (2026-07-28,
+  `intelligence-decomposition`): 30 claims, 61 linked candidates, 30 decisions — **31
+  candidates never judged**, while the reviewer's own account was "I accepted all the
+  claims, few had several citations that got accepted at the same time". They were not
+  accepted together; they were skipped, and the human's blind per-pair rating — the anchor
+  everything else is compared against (ADR-0007) — was quietly never collected for half the
+  corpus. Nothing invented a value on their behalf (the untouched pairs hold `null`, and
+  `DecisionService._derive` still refuses to synthesise a support status), but silence that
+  reads as completion is the same loss. Now a claim reaches `accepted` only once **every**
+  linked candidate carries a trusted decision; until then it stays `needs_support`, which is
+  literally true. The row carries `decided_count`, so the panel's cited-source picker marks
+  each source judged (✓) or not (○) and names how many are left, the write/done steps say
+  the decision covers *this source* and offer the next unjudged one as the primary action
+  (↵), triage says "2 of this claim's 3 cited sources have no judgement yet" instead of "no
+  accepted supporting citation yet", and `claim-report` prints `n/N judged`. This also
+  reconciles the panel with the CLI, which was already per-pair
+  (`claim-support-commit-human`, `decide`) — the two disagreed only about what finishing a
+  claim means. Switching sources in the panel now also clears the in-session write/undo
+  state, so `u` can no longer undo the *previous* source's Zotero write. Locked by
+  `tests/test_multi_candidate_claim_decision.py` and the panel navigation tests.
 - **The local reply-token ceiling is now sized from the whole corpus, and a truncation says
   which ceiling it hit.** PR #298 set the local budget to 2048 from the 12 items that had
   truncated at 300 — a sample of the items that had *already* proved slow, so the tail was
