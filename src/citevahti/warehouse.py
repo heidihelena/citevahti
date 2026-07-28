@@ -53,12 +53,16 @@ class ValidationWarehouseService:
 
     # ---- emit ------------------------------------------------------------
     def _support_rating_for(self, claim_id: str, candidate_id: str):
-        match = None
-        for rid in self.store.list_support_ratings():
-            r = self.store.load_support_rating(rid)
-            if r.claim_id == claim_id and r.candidate_id == candidate_id:
-                match = r       # keep last (most recently listed)
-        return match
+        # A pair can hold several ratings on disk (``support_start`` mints a new id each
+        # call), so this MUST use the one shared selector. It used to keep whichever record
+        # came last in listing order — an arbitrary, uuid-sorted pick that on a real ledger
+        # chose a blank started record over the rated one for 13 of 61 pairs, exporting
+        # ``human_support_rating: null`` and silently dropping the human's judgement out of
+        # the de-identified corpus. A dropped rating is worse than no record: it reads as
+        # "no human rated this pair" when one did.
+        from .claims.support import select_support_rating
+
+        return select_support_rating(self.store, claim_id, candidate_id)
 
     def emit_for_decision(self, claim_id: str, candidate_id: str) -> WarehouseReport:
         if not self.cfg.enabled:
