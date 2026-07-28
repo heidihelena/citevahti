@@ -87,6 +87,20 @@ def link_candidates(claim_id: str, intake_batch_id: str, record_ids: Optional[li
         claim_id, intake_batch_id, record_ids=record_ids)
 
 
+def refresh_candidate(claim_id: str, candidate_id: str, intake_batch_id: str, *,
+                      root: Optional[str] = None):
+    """Correct a candidate's metadata from a re-imported record of the SAME paper.
+
+    The repair dedupe leaves undone: a corrected re-import matches the candidate already
+    on file and stops, so its stale title stands. This applies the correction as an audited
+    `candidate.correct` event carrying every field's old and new value, and reports how
+    many human support ratings were made before it. Descriptive fields only — how the paper
+    entered consideration is provenance and is never rewritten."""
+    from ..claims import CandidateService
+    return CandidateService(_open_store(root)).refresh_from_intake(
+        claim_id, candidate_id, intake_batch_id)
+
+
 def list_candidates(claim_id: str, *, root: Optional[str] = None):
     """List a claim's candidate papers (read-only)."""
     from ..claims import CandidateService

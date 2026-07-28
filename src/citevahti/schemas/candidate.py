@@ -61,6 +61,23 @@ class ClaimCandidates(BaseModel):
     audit_event_id: Optional[str] = None
 
 
+class CandidateMetadataDivergence(BaseModel):
+    """One field where a linked candidate and a re-imported record disagree.
+
+    Reported, never applied: dedupe matches on identifier, so a corrected record links to
+    the candidate already on file and its stale metadata stands. Refreshing it silently
+    would rewrite what a rater saw, so the divergence is surfaced and the correction is an
+    explicit, audited act (``CandidateService.refresh_from_intake``).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    candidate_id: str
+    record_id: Optional[str] = None
+    field: str
+    current: Optional[str] = None      # what the candidate holds (None = the batch fills a gap)
+    incoming: Optional[str] = None     # what the re-imported record says
+
+
 class CandidateLinkReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
     claim_id: str
@@ -68,10 +85,29 @@ class CandidateLinkReport(BaseModel):
     linked: int = 0
     skipped_duplicates: int = 0
     total_candidates: int = 0
+    # Fields where a matched candidate disagrees with the incoming record. Nothing was
+    # changed on the strength of these -- they say a repair may be warranted.
+    divergences: list[CandidateMetadataDivergence] = Field(default_factory=list)
     # The candidates this link request is ABOUT: for every intake hit considered, the
     # candidate that now represents it — freshly linked or already present. Named and
     # shaped like ``ClaimCandidates.candidates`` so one reader handles both results, and
     # reported for matches too so a re-run answers "which candidates are these sources?"
     # rather than an unhelpful `linked: 0`.
     candidates: list[ClaimPaperCandidate] = Field(default_factory=list)
+    audit_event_id: Optional[str] = None
+
+
+class CandidateRepairReport(BaseModel):
+    """The result of an explicit metadata correction: what changed, and what had already
+    been judged against the old values."""
+
+    model_config = ConfigDict(extra="forbid")
+    claim_id: str
+    candidate_id: str
+    intake_batch_id: str
+    corrected: list[CandidateMetadataDivergence] = Field(default_factory=list)
+    # Support ratings for this pair that already carry a human judgement. A correction is
+    # still the right thing to do -- but the judgement was made against what the record
+    # used to say, so it is named here and in the audit payload, never quietly absorbed.
+    human_rated_before: int = 0
     audit_event_id: Optional[str] = None

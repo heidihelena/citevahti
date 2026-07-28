@@ -44,6 +44,7 @@ from .commands import (  # noqa: F401
     _cmd_claim_list,
     _cmd_claim_link_candidates,
     _cmd_candidate_list,
+    _cmd_candidate_refresh,
     _cmd_support_start,
     _cmd_support_commit_human,
     _cmd_support_run_ai,
@@ -255,6 +256,16 @@ def main(argv: list[str] | None = None) -> int:
                      help="limit to specific intake record_ids (repeatable)")
     clc.add_argument("--json", action="store_true", help="emit the link result as JSON (for tooling)")
     clc.set_defaults(func=_cmd_claim_link_candidates)
+
+    cdr = sub.add_parser("candidate-refresh",
+                         help="correct a candidate's metadata from a re-imported record "
+                              "(audited correction; dedupe alone never refreshes it)")
+    cdr.add_argument("--claim-id", required=True)
+    cdr.add_argument("--candidate-id", required=True)
+    cdr.add_argument("--intake-batch-id", required=True,
+                     help="the batch holding the corrected record for the SAME paper")
+    cdr.add_argument("--json", action="store_true", help="emit JSON (for scripting/CI)")
+    cdr.set_defaults(func=_cmd_candidate_refresh)
 
     cdl = sub.add_parser("candidate-list", help="list a claim's candidate papers (read-only)")
     cdl.add_argument("--claim-id", required=True)

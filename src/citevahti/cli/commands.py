@@ -548,7 +548,38 @@ def _cmd_claim_link_candidates(args) -> int:
     print(f"  audit event : {(rep.audit_event_id or '')[:16]}...")
     for c in rep.candidates:
         print(f"    cand={c.candidate_id}  {(c.title or '')[:52]}")
+    if rep.divergences:
+        print(f"\n  ⚠ {len(rep.divergences)} field(s) differ from the record already on file "
+              f"— nothing was changed:")
+        for d in rep.divergences:
+            print(f"      {d.candidate_id} {d.field}: {(d.current or '(none)')[:40]!r} "
+                  f"→ {(d.incoming or '')[:40]!r}")
+        print("    correct one with: citevahti candidate-refresh --claim-id <id> "
+              "--candidate-id <id> --intake-batch-id <id>")
     return 0
+
+
+def _cmd_candidate_refresh(args) -> int:
+    from .. import tools
+    rep, rc = _safe(lambda: tools.refresh_candidate(
+        args.claim_id, args.candidate_id, args.intake_batch_id, root=args.root))
+    if rep is None:
+        return rc
+    if getattr(args, "json", False):
+        _emit_json(rep)
+        return rc
+    if not rep.corrected:
+        print(f"{rep.candidate_id}: already matches batch {rep.intake_batch_id} — nothing to correct")
+        return rc
+    print(f"corrected {rep.candidate_id} from batch {rep.intake_batch_id}:")
+    for d in rep.corrected:
+        print(f"  {d.field}: {(d.current or '(none)')!r} → {(d.incoming or '')!r}")
+    print(f"  audit event : {(rep.audit_event_id or '')[:16]}...")
+    if rep.human_rated_before:
+        print(f"\n  ⚠ {rep.human_rated_before} human support rating(s) for this pair were made "
+              f"before this correction — they judged the paper as the record then described it. "
+              f"Re-check them; the old values are in the audit chain.")
+    return rc
 
 
 def _cmd_candidate_list(args) -> int:
