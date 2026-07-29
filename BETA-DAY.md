@@ -13,7 +13,9 @@ unrelated dirty state).
 All four prep PRs (#321, #319, #318, #320) were reviewed and merged on
 2026-07-29, in order, each on green CI, with rebases between them. The table
 below is kept as the record. On Saturday, start at step 1 — but first run the
-full suite once on fresh `main` and check it reports **1432 passed**; if it
+full suite once on fresh `main` and check it reports **1420 collected, 0 failed**
+(measured on main 2026-07-29 after all prep merges; the earlier 1432 was
+arithmetic, not a measurement); if it
 does not, stop and look before anything else.
 
 ### The order that was used (record)
@@ -35,7 +37,7 @@ checks, merge, then move to the next.
 later one **will** need its rebase — that is expected, not a problem. #320 touches
 only README and merges clean in any order.
 
-Expected suite size after all four: **1432** (1410 on main + 10 think tests + 2
+Expected suite size after all four, as measured, not summed: **1420 collected** (the earlier 1432 figure summed 1410 + 10 think tests + 2
 mcp-pin tests) passed, 2 skipped.
 
 ## 1. Cut the release branch and bump
