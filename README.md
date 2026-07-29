@@ -19,6 +19,12 @@ tamper-evident record on your own computer.
 
 > **Free while in beta.** CiteVahti is local-first: your manuscript stays on your device
 > unless *you* choose to turn on an external AI model. No account. Nothing uploaded.
+>
+> **What beta means here:** the review workflow and your data format are stable, but the
+> tool is young and your feedback still shapes it. The app does **not update itself yet** —
+> when a new version ships you replace it yourself (steps under *Updating*, below; the
+> panel can check for a newer version, but only if you turn that on). If something is
+> confusing or judged wrong, [say so](#feedback--support) — beta reports are how it improves.
 
 ## Who it's for
 
