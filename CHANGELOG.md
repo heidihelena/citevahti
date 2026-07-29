@@ -7,6 +7,15 @@ previous one.
 ## [Unreleased]
 
 ### Fixed
+- **A fresh `pip install "citevahti[mcp]"` no longer gets an MCP server that cannot
+  start.** The extra pinned `mcp>=1.27.2` with no upper bound; mcp 2.0.0 removed
+  `mcp.server.fastmcp`, so a clean install picked it up and `citevahti demo` / `run`
+  reported "the 'mcp' package is required to serve" — telling the user to install the
+  extra they had just installed. The pin is now `mcp>=1.27.2,<2`, and the serve-time
+  error distinguishes a missing package (install the extra) from an incompatible one
+  (pin the version), so a future API break says the truth. Found by running the
+  fresh-user path in a clean venv. Locked by two contract tests in
+  `tests/test_mcp_server_transport.py`.
 - **`import-results` now reads the abstract, and says when a record arrived without one.**
   The RIS parser handled TY/TI/AU/JO/DO/PY/AN/ER and had no branch for `AB` (or `N2`, the
   other common abstract tag); the CSV aliases had no `abstract` column; BibTeX read no

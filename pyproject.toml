@@ -35,7 +35,7 @@ Repository = "https://github.com/heidihelena/citevahti"
 Issues = "https://github.com/heidihelena/citevahti/issues"
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.27.2"]
+mcp = ["mcp>=1.27.2,<2"]   # <2: mcp 2.0.0 removed mcp.server.fastmcp; a fresh unbounded install got a server that cannot start
 app = ["pywebview>=5.0"]   # native desktop window (OS webview) for the panel — `citevahti-app`
 update = ["tufup>=0.9"]   # signed auto-updates for the frozen desktop app (TUF); see docs/AUTO_UPDATE.md
 dev = ["pytest>=9.1.0", "pytest-cov>=5", "ruff>=0.15", "mypy>=1.18", "types-defusedxml>=0.7"]   # stubs: defusedxml ships no py.typed

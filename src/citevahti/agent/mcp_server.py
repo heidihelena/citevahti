@@ -41,9 +41,20 @@ def build_server(name: str = "citevahti", *, root: str = ".", host: str = "127.0
     """
     try:
         from mcp.server.fastmcp import FastMCP
-    except Exception as exc:  # noqa: BLE001
+    except ModuleNotFoundError as exc:
+        if exc.name == "mcp":
+            raise RuntimeError(
+                "the 'mcp' package is required to serve (pip install 'citevahti[mcp]')"
+            ) from exc
+        # 'mcp' is installed but does not provide what we import — an incompatible
+        # version (mcp 2.0.0 removed mcp.server.fastmcp), not a missing extra.
+        # Telling the user to install the extra they already installed hides the fix.
         raise RuntimeError(
-            "the 'mcp' package is required to serve (pip install 'citevahti[mcp]')") from exc
+            "the installed 'mcp' package is incompatible with CiteVahti "
+            f"(cannot import {exc.name}): pip install 'mcp>=1.27.2,<2'"
+        ) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"the 'mcp' package failed to import: {exc}") from exc
 
     assert_safe_surface(TOOLS.keys())          # defense in depth at serve time
     server = FastMCP(name, host=host, port=port)
