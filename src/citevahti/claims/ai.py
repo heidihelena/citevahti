@@ -42,9 +42,12 @@ class HttpClaimSupportRater:
                  timeout: float = 60.0,
                  max_tokens: int = LOCAL_MAX_REPLY_TOKENS,
                  retry_attempts: int = AI_RETRY_ATTEMPTS,
-                 retry_backoff_s: float = AI_RETRY_BACKOFF_S) -> None:
+                 retry_backoff_s: float = AI_RETRY_BACKOFF_S,
+                 think: Optional[bool] = None) -> None:
         if shape not in ("openai", "anthropic"):
             raise ValueError(f"unknown AI shape: {shape!r}")
+        if think is not None and shape != "openai":
+            raise ValueError("think control needs an OpenAI-compatible (Ollama) endpoint")
         self.shape = shape
         self.endpoint = endpoint
         self.model = model
@@ -54,6 +57,7 @@ class HttpClaimSupportRater:
         self.max_tokens = max_tokens
         self.retry_attempts = retry_attempts
         self.retry_backoff_s = retry_backoff_s
+        self.think = think
 
     def rate(self, *, claim, candidate, task_type: str) -> SupportAiOutput:
         prompt = self._build_prompt(claim, candidate)
@@ -61,7 +65,8 @@ class HttpClaimSupportRater:
         def once() -> SupportAiOutput:
             reply = chat_reply(shape=self.shape, endpoint=self.endpoint, model=self.model,
                                api_key=self.api_key, prompt=prompt, poster=self.poster,
-                               timeout=self.timeout, max_tokens=self.max_tokens)
+                               timeout=self.timeout, max_tokens=self.max_tokens,
+                               think=self.think)
             return self._parse(reply)
 
         return rate_with_retry(once, attempts=self.retry_attempts,
@@ -142,4 +147,5 @@ def build_support_ai_rater(config, *, poster: Optional[HttpPoster] = None, resol
                                  poster=poster, timeout=config.ai_connection.request_timeout_s,
                                  max_tokens=c["max_tokens"],
                                  retry_attempts=c["retry_attempts"],
-                                 retry_backoff_s=c["retry_backoff_s"])
+                                 retry_backoff_s=c["retry_backoff_s"],
+                                 think=c["think"])
