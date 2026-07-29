@@ -115,3 +115,35 @@ def test_serve_streamable_http_writes_and_clears_runtime_file(monkeypatch, tmp_p
     with pytest.raises(KeyboardInterrupt):
         mcp_server._serve_streamable_http(str(tmp_path), 8766)
     assert runtime_state.read_runtime_file("mcp") is None
+
+
+# ---------------------------------------------------------------------------
+# The serve-time import error must name the actual problem. A fresh install
+# under mcp 2.0.0 (which removed mcp.server.fastmcp) used to be told to
+# install the extra it had already installed.
+# ---------------------------------------------------------------------------
+
+def test_build_server_missing_mcp_says_install_the_extra(monkeypatch):
+    import sys
+
+    class _NoMcpInstalled:
+        """Meta-path finder simulating an environment with no mcp package at all."""
+
+        def find_spec(self, name, path=None, target=None):
+            if name == "mcp" or name.startswith("mcp."):
+                raise ModuleNotFoundError("No module named 'mcp'", name="mcp")
+            return None
+
+    for key in [k for k in sys.modules if k == "mcp" or k.startswith("mcp.")]:
+        monkeypatch.delitem(sys.modules, key)
+    monkeypatch.setattr(sys, "meta_path", [_NoMcpInstalled()] + sys.meta_path)
+    with pytest.raises(RuntimeError, match=r"pip install 'citevahti\[mcp\]'"):
+        mcp_server.build_server(root=".")
+
+
+def test_build_server_incompatible_mcp_names_the_version_fix(monkeypatch):
+    import sys
+    # mcp itself imports, but the submodule we need is gone — mcp 2.0.0's shape.
+    monkeypatch.setitem(sys.modules, "mcp.server.fastmcp", None)
+    with pytest.raises(RuntimeError, match=r"incompatible.*mcp>=1\.27\.2,<2"):
+        mcp_server.build_server(root=".")
