@@ -8,7 +8,15 @@ release itself.
 Work from a **clean checkout of fresh `main`** — not `~/Zotsynth` (stale branch,
 unrelated dirty state).
 
-## 0. Merge the open prep PRs — in this order, one at a time
+## 0. Merge the open prep PRs — DONE 2026-07-29
+
+All four prep PRs (#321, #319, #318, #320) were reviewed and merged on
+2026-07-29, in order, each on green CI, with rebases between them. The table
+below is kept as the record. On Saturday, start at step 1 — but first run the
+full suite once on fresh `main` and check it reports **1432 passed**; if it
+does not, stop and look before anything else.
+
+### The order that was used (record)
 
 Branch protection has `strict=false`: a PR that was green can still break `main`
 after another merge (it happened 2026-07-28). So for **each** PR, in order:
