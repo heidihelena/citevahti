@@ -16,6 +16,68 @@ previous one.
   (pin the version), so a future API break says the truth. Found by running the
   fresh-user path in a clean venv. Locked by two contract tests in
   `tests/test_mcp_server_transport.py`.
+- **Product copy says check, not verify.** House trust doctrine: CiteVahti records
+  claim↔source *support*, never truth, so public copy says check / test / assess. The
+  README's FullVahti section claimed it "writes CiteVahti's verified results back as
+  tags"; the same word had spread to the site copy, `llms.txt`, ROADMAP, INTEGRATION,
+  QUICKSTART, a design note, and skills. The site and OG-image generator also still
+  labelled the `[oo]` chip "verified" — that state was renamed to `accepted` in 0.16.0
+  and is frozen in `schemas/report.py`, so the public site contradicted the shipped
+  vocabulary. Left alone on purpose: the hash-chain internals (`verify-audit`,
+  `verifyChain`/`verifyAudit` — they check the log, not the evidence), CLI/tool
+  identifiers, and doctrine-affirming negations ("not a guarantee").
+- **The published pair counts count judged pairs, not rating files.** A (claim,
+  candidate) pair can carry several claim-support records — one per panel rater by
+  design, plus duplicates from ledgers written before opening became idempotent (below).
+  Two published surfaces counted the files instead of the pairs they name: the
+  evidence-basis sentence read "Of 118 rated claim-candidate pair(s)" on a real ledger
+  holding 61 pairs of which 30 were rated, and the PRISMA flow's `assessed` box reported
+  118 against 61 staged — more pairs assessed than staged, an impossible funnel in a
+  figure meant for publication, with 88 of those records holding no rating at all. Both
+  now collapse to pairs through one shared selector and count only pairs carrying a
+  committed human value, matching their own labels. Locked by
+  `tests/test_methods_counts_pairs.py`.
+- **A stale candidate record on re-import is reported, and repaired only under audit.**
+  Dedupe matches on identifier, so re-importing a corrected record found the candidate
+  already on file, reported `already_in_prior_intake`, and stopped — the stale metadata
+  stood however many times it was re-imported (a real ledger carried Platt 1964's DOI
+  under a different paper's title, with no way out short of `txn-undo`). Two halves,
+  deliberately separate: linking now *reports* the divergence per field and changes
+  nothing — a candidate's title is what a rater read, so refreshing it silently would
+  rewrite the record of what was judged — and a new `candidate-refresh` applies the
+  correction explicitly as an audited `candidate.correct` event carrying every field's
+  old and new value. Descriptive fields only; how the paper entered consideration is not
+  rewritable by a later import. Locked by `tests/test_candidate_metadata_repair.py`.
+- **Linking candidates hands back the candidates, not a count.** `claim-link-candidates
+  --json` returned `{"linked": <int>}` while `candidate-list --json` returned the
+  candidate objects — the same concept shaped two ways across two commands, so a loader
+  reading `.get("candidates")` from the link result crashed. The link report now carries
+  the candidates themselves, keyed and shaped as in `candidate-list`, and reports matches
+  as well as new links so a re-run describes the same set instead of collapsing to
+  `linked: 0`. Additive: the existing count fields are unchanged. The agent's
+  `link_candidates` gains the same list in compact identity-only form, since its next
+  step (`start_support_rating`) needs a `candidate_id`. Locked by
+  `tests/test_link_candidates_returns_objects.py`.
+- **The de-identified corpus export keeps the rated record, not a blank duplicate.** On
+  a ledger where pairs carried several claim-support records, `_support_rating_for`
+  picked whichever record sorted last in listing order — on a real ledger it disagreed
+  with the shared selector on 24 of 61 pairs and chose a blank started record over the
+  rated one on 13, exporting `human_support_rating: null` where a human had rated. Worse
+  than exporting nothing: a dropped rating reads downstream as "no human rated this
+  pair", so the corpus understated its own human coverage. The export now uses
+  `select_support_rating`, the one deterministic picker the panel, claim report, and
+  agent provenance already share. Locked by `tests/test_validation_warehouse.py`.
+- **Opening a rating twice no longer forks the pair in two.** `claim-support-start`
+  minted a fresh rating on every call, so an agent loader that retried a step opened a
+  second record for the same pair — a real corpus load left 118 support records for 61
+  pairs, and every duplicate was a second, unrated record of a judgement made once.
+  Opening is now idempotent: a pair with an open human-unrated rating gets that same
+  rating back, and the repeat writes nothing — no record, no audit entry. The panel's
+  guarantees hold: a rating holding a human value is never handed out again (reviewer 2
+  still gets a record of their own; N is never deflated), and `force_new` (CLI `--new`)
+  still opens an extra slot for concurrent raters. Blinding: the returned rating may
+  already carry an AI value, so `claim-support-start --json` emits identity fields only.
+  Locked by `tests/test_support_start_idempotent.py` and `tests/test_rating_selection.py`.
 - **`import-results` now reads the abstract, and says when a record arrived without one.**
   The RIS parser handled TY/TI/AU/JO/DO/PY/AN/ER and had no branch for `AB` (or `N2`, the
   other common abstract tag); the CSV aliases had no `abstract` column; BibTeX read no
@@ -237,6 +299,17 @@ previous one.
   no-cache/no-store). Locked by `tests/test_panel_api.py::test_every_response_kind_forbids_caching`.
 
 ### Added
+- **`claims-import` — bulk-load a corpus from one JSONL file.** Loading a real corpus
+  (30 claims / 61 candidate pairs) took ~90 lines of scripting across `import-results`,
+  `claim-add`, `claim-link-candidates` and `claim-support-start`, plumbing ids between
+  every step — and agents are how most corpora will be loaded, so every id hop was
+  somewhere to drop one. `citevahti claims-import --jsonl corpus.jsonl [--dry-run]`
+  stages each row's sources as one intake batch, creates the claim, links its sources as
+  candidates, and opens a support-rating slot per pair; every id comes back in the
+  report. Resumable, not atomic — CiteVahti has no general ledger transaction, so this
+  does not claim all-or-nothing; every step is idempotent instead, and re-running the
+  same file converges (checked on a real ledger: two full runs leave the same claims and
+  ratings, and the audit chain checks out). Locked by `tests/test_claims_import.py`.
 - **Recent manuscripts — reopen the paper you were on, in one click.** Pilot feedback
   ("impossible to change manuscript") + `docs/design/working-file-selection.md` idea 3:
   the researcher's unit of work is a *manuscript*, not a folder+ledger. Opening a
