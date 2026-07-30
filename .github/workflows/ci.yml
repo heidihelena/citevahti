@@ -58,13 +58,52 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,mcp,keyring,timestamp,docx]"
       - name: Run the offline test suite (with coverage)
-        run: python -m pytest -q --cov=citevahti --cov-report=term-missing:skip-covered --cov-fail-under=75
+        # tests/test_frontend.py is excluded here and REQUIRED in the dedicated
+        # `frontend` job below (this job installs no node deps; in CI that file
+        # fails loud instead of skipping silently).
+        run: python -m pytest -q --ignore=tests/test_frontend.py --cov=citevahti --cov-report=term-missing:skip-covered --cov-fail-under=75
       - name: Security-control regression suite (local trust boundary)
         run: python -m pytest -m security   # loopback CSRF, agent surface, tamper/integrity — see SECURITY.md
       - name: Probe + audit-chain smoke (no writes, no network)
         run: |
           python -m citevahti.cli --root "$RUNNER_TEMP/cv-smoke" init
           python -m citevahti.cli --root "$RUNNER_TEMP/cv-smoke" verify-audit
+
+  frontend:
+    # Panel behaviour gate. Runs tests/test_frontend.py with the node deps actually
+    # installed — in CI that file FAILS (never skips) when the toolchain is missing,
+    # so this job cannot go green while executing nothing. The Playwright e2e suite
+    # (7 tests, real Chromium against the real panel + synthetic demo ledger) is
+    # included via CITEVAHTI_E2E=1 rather than left opt-in: it is the only
+    # real-browser coverage of the panel and costs ~2-3 min on this runner.
+    name: panel frontend (node:test + jsdom · Playwright e2e)
+    runs-on: ubuntu-latest
+    env:
+      CITEVAHTI_E2E: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-tests/package-lock.json
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+      - name: Install the engine (the e2e web server serves the real panel)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Install frontend test deps (exact lockfile)
+        working-directory: frontend-tests
+        run: npm ci
+      - name: Install Playwright Chromium (with OS deps)
+        working-directory: frontend-tests
+        run: npx playwright install --with-deps chromium
+      - name: Build the synthetic demo ledger the e2e suite serves
+        run: python docs/demo/build_demo_ledger.py
+      - name: Panel JS behaviour suite + Playwright e2e (via the pytest gate)
+        run: python -m pytest -q tests/test_frontend.py
 
   vscode:
     name: VS Code extension compiles
