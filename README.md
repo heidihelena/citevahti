@@ -231,10 +231,13 @@ CiteVahti is local-first. Full policy: **<https://vahtian.com/citevahti/privacy>
 - AI is optional and blinded; local and bring-your-own-key modes are supported.
 - Changes to Zotero or your manuscript always require a preview and your confirmation, and can
   be undone.
-- **The only outbound calls** are the literature services you choose to search (PubMed,
-  OpenAlex, Semantic Scholar, Crossref), your Zotero if you connect it, and — *only when you
-  ask* — a single check to PyPI for a newer version (no data about you is sent, and nothing is
-  installed automatically).
+- **Outbound calls are enumerated, not hidden.** The main ones: the literature services you
+  choose to search (PubMed, OpenAlex, Semantic Scholar, Crossref), your Zotero if you connect
+  it, the optional AI second opinion (off by default; API mode sends the claim plus the paper's
+  title and abstract to the provider *you* configure), a user-initiated check to PyPI for a
+  newer version, a one-time Pandoc download if you ask for a Word export without Pandoc
+  installed, and opt-in RFC 3161 timestamping (audit-head hash only). The complete table —
+  destination, payload, trigger, default — is in [`docs/PRIVACY.md`](docs/PRIVACY.md).
 
 ## What CiteVahti writes
 
