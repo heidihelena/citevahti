@@ -16,8 +16,12 @@ separate least-privilege job (`publish-pypi.yml` → `sbom`).
 ## 0. Pre-flight
 - [ ] `pytest -p no:cacheprovider -q` green (offline).
 - [ ] `cd vscode-extension && npm run compile` clean.
-- [ ] Versions in lockstep: `pyproject.toml`, `src/citevahti/__init__.py` `__version__`,
-      `vscode-extension/package.json`, and the git tag.
+- [ ] Versions in lockstep across all nine tracked version-bearing files (seven
+      hand-edited: `pyproject.toml`, `src/citevahti/__init__.py` `__version__`,
+      `vscode-extension/package.json`, `desktop-extension/manifest.json`,
+      `desktop-extension/manifest.binary.json`, `.claude-plugin/plugin.json`,
+      `server.json` — two slots; two regenerated:
+      `vscode-extension/package-lock.json`, `uv.lock`) and the git tag.
 - [ ] `CHANGELOG.md` has the release section; README status/test-count current.
 
 ## 1. Python package → PyPI
@@ -77,6 +81,20 @@ npm install && npm run package                  # → citevahti-X.Y.Z.vsix
 export VSCE_PAT='<token>'; npm run publish
 # Open VSX (for VSCodium/Cursor/Gitpod):
 npx ovsx publish citevahti-*.vsix -p '<open-vsx-token>'
+```
+
+## 2b. MCP Registry (manual — publishing a GitHub Release does NOT do this)
+
+The registry at registry.modelcontextprotocol.io never reads `server.json` from
+the repo on its own; every version must be pushed with the `mcp-publisher` CLI
+(the README `mcp-name` marker is the ownership anchor it checks, not a trigger):
+
+```bash
+brew install mcp-publisher                       # one-time
+mcp-publisher login github                      # interactive — maintainer only
+mcp-publisher publish                           # from the repo root; reads server.json
+# check it landed:
+curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=citevahti"
 ```
 
 ## 3. Tag + push

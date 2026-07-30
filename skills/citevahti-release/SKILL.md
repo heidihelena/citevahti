@@ -42,12 +42,19 @@ These are `secure-release` §1–§3, unchanged and in order:
 1. **Safety gate** — did the change weaken an invariant? (`docs/SAFETY_INVARIANTS.md`)
 2. **Build & test gate** — full offline suite, `pytest -m security`, VS Code compile,
    artifact-contents checks, smoke-run of frozen artifacts.
-3. **Release & update gate** — six-file version lockstep (`pyproject.toml`,
+3. **Release & update gate** — version lockstep across all nine tracked
+   version-bearing files: seven hand-edited (`pyproject.toml`,
    `src/citevahti/__init__.py`, `vscode-extension/package.json`,
    `desktop-extension/manifest.json`, `desktop-extension/manifest.binary.json`,
-   `.claude-plugin/plugin.json`), `CHANGELOG.md` section + `docs/STATUS.md` header,
-   PR off a branch with explicit staged paths, three required checks, squash-merge,
-   `gh release create vX.Y.Z` → Trusted Publishing + desktop builds, then confirm the
+   `.claude-plugin/plugin.json`, `server.json` — two slots) plus two regenerated
+   lockfiles (`vscode-extension/package-lock.json`, `uv.lock`), `CHANGELOG.md`
+   section + `docs/STATUS.md` header,
+   PR off a branch with explicit staged paths, the five required checks (pytest
+   py3.10 / py3.12, VS Code compile, ruff, mypy — read the live list from branch
+   protection, not from memory), squash-merge,
+   `gh release create vX.Y.Z` → Trusted Publishing + desktop builds (the only
+   two release-triggered workflows — MCP registry, Marketplace, and Open VSX are
+   separate manual publishes), then confirm the
    published version actually reports itself.
 
 ### Gate 4 — surface parity (production-push addition)
@@ -72,7 +79,9 @@ silently exists on one surface only is how the "abandoned adapter" impression st
 
 - **Zenodo DOI per release.** `CITATION.cff` is committed (entity author; **no `version`
   field on purpose** — Zenodo derives the version and date from the release tag, so it is
-  *not* a seventh lockstep file). One one-time step remains: enable the repo at
+  *not* a lockstep file). One one-time step remains — and it is **still outstanding as of
+  2026-07-30** (checked: the Zenodo API has no CiteVahti record; v0.45.0 minted no DOI):
+  the maintainer enables the repo at
   zenodo.org/account/settings/github. After that each GitHub Release auto-mints a
   versioned DOI under a stable concept DOI. Until that toggle is flipped this step is a
   no-op — note it in the release PR so it doesn't silently drop off. Once live: check that
@@ -93,7 +102,8 @@ silently exists on one surface only is how the "abandoned adapter" impression st
 - **NEVER skip or reorder the secure-release gates** — signing and publishing make
   mistakes progressively harder to take back.
 - **NEVER `git add -A`** on a release commit; stage explicit paths.
-- **NEVER hand-edit a version in fewer than all six lockstep files.**
+- **NEVER hand-edit a version in fewer than all seven lockstep files** (eight slots —
+  `server.json` carries two), and regenerate both lockfiles with it.
 - **NEVER promise auto-update.** The desktop app has no auto-updater yet, and a private
   `.mcpb` needs manual remove-and-reinstall — the honest UX is a version nudge
   (see secure-release §3).
