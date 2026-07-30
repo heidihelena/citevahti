@@ -135,9 +135,10 @@ missing package data; an unsignable sidecar layout; a mangled `Python.framework`
 
 The release loop is **token-free**: no PyPI secret is stored anywhere. Publishing happens via
 PyPI Trusted Publishing (OIDC) when you publish a GitHub Release. `main` is branch-protected
-and needs three CI checks green. Read `docs/RELEASING.md` for the full runbook; the steps:
+and needs five CI checks green. Read `docs/RELEASING.md` for the full runbook; the steps:
 
-1. **Bump the version in lockstep across all six files** (a mismatch ships a wrong-versioned
+1. **Bump the version in lockstep across all seven hand-edited files** (a mismatch ships a
+   wrong-versioned
    artifact, and the user can't tell what's running — which is exactly the bug 0.34.3 fixed by
    surfacing the version):
    - `pyproject.toml`
@@ -147,20 +148,33 @@ and needs three CI checks green. Read `docs/RELEASING.md` for the full runbook; 
    - `desktop-extension/manifest.binary.json`
    - `.claude-plugin/plugin.json` (the Claude plugin manifest — it silently drifted to a
      stale 0.1.0 while the product was at 0.45.0, which reads as abandoned; keep it in step)
+   - `server.json` (**two** slots: top-level `version` and `packages[0].version` — the MCP
+     registry entry reads them)
+
+   Then regenerate the two tracked lockfiles that also carry the version:
+   `vscode-extension/package-lock.json` (`npm install --package-lock-only` in
+   `vscode-extension/`) and `uv.lock` (`uv lock`; check the diff touches only the
+   citevahti version line).
 2. **Add the `CHANGELOG.md` `## X.Y.Z` section** and bump the `docs/STATUS.md` header line.
 3. **Open a PR off a branch** (never push release commits straight to `main` — it's protected).
    Stage explicit paths; do **not** `git add -A` — this repo carries untracked local/foreign
    files (e.g. `.claude/`, stray `.bib` files) that have been swept into commits before.
-4. **Wait for the three required checks**, then squash-merge:
+4. **Wait for the five required checks** (read from branch protection 2026-07-30),
+   then squash-merge:
    - `pytest (offline) · py3.10`
    - `pytest (offline) · py3.12`
    - `VS Code extension compiles`
+   - `ruff (static analysis · incl. security S-rules)`
+   - `mypy (type check)`
 5. **Create the GitHub Release** with tag `vX.Y.Z` targeting main:
    ```bash
    gh release create vX.Y.Z --target main --title "..." --notes "..."
    ```
    This fires `publish-pypi.yml` (builds, `twine check`s, publishes via Trusted Publishing in
-   the `pypi` environment) **and** `desktop-extension-build.yml` (builds the signed bundles).
+   the `pypi` environment) **and** `desktop-extension-build.yml` (builds the signed bundles) —
+   and nothing else. MCP registry (`mcp-publisher publish`), VS Code Marketplace, and Open VSX
+   are separate manual publishes; Zenodo mints a DOI only once its one-time GitHub toggle is
+   enabled (see `docs/RELEASING.md` and the citevahti-release skill).
 6. **Confirm it actually published** — trust the workflow logs first (the PyPI JSON API lags
    minutes). Then confirm the running version is the new one (the `status` MCP tool reports it).
 
