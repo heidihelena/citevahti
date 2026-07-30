@@ -80,6 +80,10 @@ isn't available yet.)*
 > appears: **right-click the file → Open**, or go to **System Settings → Privacy & Security →
 > "Open Anyway"**. After that it installs and runs normally.
 
+> **First time on Windows** you may see a SmartScreen warning ("Windows protected your PC")
+> — the Windows build is unsigned, so Windows can't check who published it. If it appears:
+> click **More info**, then **Run anyway**. After that it installs and runs normally.
+
 <details>
 <summary><b>Updating</b> — your review data is never touched; only the program is replaced</summary>
 
