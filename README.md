@@ -5,7 +5,7 @@ manuscript — before a reviewer does.**
 
 <p align="center">
   <img
-      src="assets/hero-workflow.svg"
+      src="https://raw.githubusercontent.com/heidihelena/citevahti/main/assets/hero-workflow.svg"
       alt="CiteVahti workflow: claim, source evidence, human rating first, blinded AI second opinion, agreement or adjudication, and an audited decision — with local manuscript, previewed writes, Zotero, undo and a hash-chained record as the supporting rail"
       width="1200">
 </p>
@@ -15,7 +15,7 @@ cited source really backs the sentence; an optional AI gives a *blinded* second 
 (you rate first, it can never overrule you); and every decision is saved as a timestamped,
 tamper-evident record on your own computer.
 
-![The CiteVahti review panel — your manuscript on the left, the evidence-and-decision card on the right.](docs/screenshots/01-review-surface.png)
+![The CiteVahti review panel — your manuscript on the left, the evidence-and-decision card on the right.](https://raw.githubusercontent.com/heidihelena/citevahti/main/docs/screenshots/01-review-surface.png)
 
 > **Free while in beta.** CiteVahti is local-first: your manuscript stays on your device
 > unless *you* choose to turn on an external AI model. No account. Nothing uploaded.
@@ -137,10 +137,10 @@ The agent server is off until you enable it and can be stopped anytime from the 
 
 **Deeper reading:**
 
-- [Architecture](docs/ARCHITECTURE.md) · [CLI reference](docs/CLI.md)
-- [Safety invariants](docs/SAFETY_INVARIANTS.md) · [Security policy](SECURITY.md)
-- [Building the desktop app / extension](desktop-extension/BUILD.md)
-- [Status & capabilities](docs/STATUS.md) · [Dependencies / SBOM](docs/SBOM.md)
+- [Architecture](https://github.com/heidihelena/citevahti/blob/main/docs/ARCHITECTURE.md) · [CLI reference](https://github.com/heidihelena/citevahti/blob/main/docs/CLI.md)
+- [Safety invariants](https://github.com/heidihelena/citevahti/blob/main/docs/SAFETY_INVARIANTS.md) · [Security policy](https://github.com/heidihelena/citevahti/blob/main/SECURITY.md)
+- [Building the desktop app / extension](https://github.com/heidihelena/citevahti/blob/main/desktop-extension/BUILD.md)
+- [Status & capabilities](https://github.com/heidihelena/citevahti/blob/main/docs/STATUS.md) · [Dependencies / SBOM](https://github.com/heidihelena/citevahti/blob/main/docs/SBOM.md)
 
 </details>
 
@@ -149,12 +149,12 @@ The agent server is off until you enable it and can be stopped anytime from the 
 CiteVahti always tells you the **one next thing** to do — there's no command to remember and
 nothing to set up.
 
-![A "what's next" banner above the manuscript names the next action and takes you to it.](docs/screenshots/00-next-step.png)
+![A "what's next" banner above the manuscript names the next action and takes you to it.](https://raw.githubusercontent.com/heidihelena/citevahti/main/docs/screenshots/00-next-step.png)
 
 You start by adding your manuscript — choose a Word or Markdown file, drag it onto the window,
 or paste the text. Nothing is uploaded.
 
-![Start your review: choose a file, or paste the text instead.](docs/screenshots/03-first-run.png)
+![Start your review: choose a file, or paste the text instead.](https://raw.githubusercontent.com/heidihelena/citevahti/main/docs/screenshots/03-first-run.png)
 
 Then you work through each claim on a simple card that walks a visible
 **Rate → Reveal → Decide → Write** path, so you always know where you are:
@@ -164,7 +164,7 @@ Then you work through each claim on a simple card that walks a visible
 3. **Decide** — accept, caution, review, or reject. The decision is yours.
 4. **Write** — optionally update your manuscript or Zotero, always after a preview.
 
-![The review card showing the Rate → Reveal → Decide → Write steps.](docs/screenshots/04-rate-reveal-decide-write.png)
+![The review card showing the Rate → Reveal → Decide → Write steps.](https://raw.githubusercontent.com/heidihelena/citevahti/main/docs/screenshots/04-rate-reveal-decide-write.png)
 
 ## A record you can hand to anyone
 
@@ -173,7 +173,7 @@ log of what you reviewed and in what order. Export it as a Word document, a prin
 or a review-packet `.zip` (which even includes an auto-filled methods paragraph with your
 review's real numbers) for a methods section, a co-author, a supervisor, or a journal.
 
-![The Output section: export your review record as a .zip, Word, PDF, or Markdown.](docs/screenshots/07-report-export.png)
+![The Output section: export your review record as a .zip, Word, PDF, or Markdown.](https://raw.githubusercontent.com/heidihelena/citevahti/main/docs/screenshots/07-report-export.png)
 
 ## Build an evidence map you can reuse
 
@@ -187,7 +187,7 @@ It stays **on your machine**. Sharing into the wider, **de-identified** communit
 is a separate, opt-in step, and you preview the exact payload before anything is sent — never
 your manuscript, search history, patient data, registry data, or private project identifiers.
 
-[How your data is handled →](docs/CONTRIBUTOR_PRIVACY.md)
+[How your data is handled →](https://github.com/heidihelena/citevahti/blob/main/docs/CONTRIBUTOR_PRIVACY.md)
 
 ## The AI is a second opinion — never the judge
 
@@ -195,7 +195,7 @@ You always rate first. CiteVahti can then show a second rating from an AI, and c
 — but the AI value stays hidden until your rating is in, and the final decision is always
 yours. There's no hidden AI subscription: pick the mode you want, or leave AI off entirely.
 
-![AI second opinion settings: Off, local AI, or your own API key.](docs/screenshots/06-ai-settings.png)
+![AI second opinion settings: Off, local AI, or your own API key.](https://raw.githubusercontent.com/heidihelena/citevahti/main/docs/screenshots/06-ai-settings.png)
 
 You can get the second opinion from:
 
@@ -222,7 +222,7 @@ To update later, re-pull the same name (`ollama pull qwen2.5`).
 ## Privacy Policy
 
 CiteVahti is local-first. Full policy: **<https://vahtian.com/citevahti/privacy>**
-(source: [`docs/PRIVACY.md`](docs/PRIVACY.md)). In short:
+(source: [`docs/PRIVACY.md`](https://github.com/heidihelena/citevahti/blob/main/docs/PRIVACY.md)). In short:
 
 - **No telemetry, no analytics, no account** — CiteVahti collects nothing about you and
   nothing for us, and never phones home.
@@ -263,19 +263,19 @@ an audit trail; **final responsibility remains with the human author, reviewer, 
 institution.** CiteVahti is developed by the author — any publication, review, teaching, or
 evaluation that uses it should **disclose the tool use and the developer relationship where
 relevant.** Ready-to-adapt disclosure text and the full statement are in
-[docs/DISCLOSURE.md](docs/DISCLOSURE.md).
+[docs/DISCLOSURE.md](https://github.com/heidihelena/citevahti/blob/main/docs/DISCLOSURE.md).
 
 ## Learn more
 
-- [Quickstart — your first citation check, step by step](docs/QUICKSTART.md)
-- [Writing good (atomic) claims](docs/WRITING_GOOD_CLAIMS.md)
-- [Reporting in your methods section](docs/REPORTING.md)
-- [Known limitations](docs/KNOWN_LIMITATIONS.md)
-- [Responsibility, disclosure & conflict of interest](docs/DISCLOSURE.md)
-- [Contributor privacy](docs/CONTRIBUTOR_PRIVACY.md)
+- [Quickstart — your first citation check, step by step](https://github.com/heidihelena/citevahti/blob/main/docs/QUICKSTART.md)
+- [Writing good (atomic) claims](https://github.com/heidihelena/citevahti/blob/main/docs/WRITING_GOOD_CLAIMS.md)
+- [Reporting in your methods section](https://github.com/heidihelena/citevahti/blob/main/docs/REPORTING.md)
+- [Known limitations](https://github.com/heidihelena/citevahti/blob/main/docs/KNOWN_LIMITATIONS.md)
+- [Responsibility, disclosure & conflict of interest](https://github.com/heidihelena/citevahti/blob/main/docs/DISCLOSURE.md)
+- [Contributor privacy](https://github.com/heidihelena/citevahti/blob/main/docs/CONTRIBUTOR_PRIVACY.md)
 
 *Technical documentation (architecture, CLI, safety invariants, SBOM) lives under the
-"For developers" toggle above and in [docs/](docs/).*
+"For developers" toggle above and in [docs/](https://github.com/heidihelena/citevahti/tree/main/docs).*
 
 ## Feedback & support
 
@@ -289,7 +289,7 @@ CiteVahti is a free beta and your feedback shapes it.
   public issue.
 
 New here? Open the app and drag a manuscript in — or follow the
-[Quickstart](docs/QUICKSTART.md) step by step.
+[Quickstart](https://github.com/heidihelena/citevahti/blob/main/docs/QUICKSTART.md) step by step.
 
 ## Companion: FullVahti
 
@@ -301,6 +301,6 @@ plugin, no terminal).
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Apache License 2.0 — see [LICENSE](https://github.com/heidihelena/citevahti/blob/main/LICENSE) and [NOTICE](https://github.com/heidihelena/citevahti/blob/main/NOTICE).
 
 <!-- mcp-name: io.github.heidihelena/citevahti -->
