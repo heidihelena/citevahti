@@ -6,6 +6,10 @@ previous one.
 
 ## [Unreleased]
 
+(nothing yet)
+
+## 0.46.0 — 2026-08-03
+
 ### Added
 - **`ai_connection.think` — an operator-visible chain-of-thought switch for a local
   Ollama model.** The OpenAI-compatible `/v1` shape carries no such switch, so setting

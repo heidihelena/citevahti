@@ -378,7 +378,7 @@ wheels = [
 
 [[package]]
 name = "citevahti"
-version = "0.45.0"
+version = "0.46.0"
 source = { editable = "." }
 dependencies = [
     { name = "defusedxml" },
@@ -418,7 +418,7 @@ requires-dist = [
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "keyring", marker = "extra == 'keyring'", specifier = ">=25.7.0" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.27.2" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.27.2,<2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.18" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "pypandoc", specifier = ">=1.13" },
