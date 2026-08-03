@@ -5,7 +5,7 @@ short version; this is the depth behind it.*
 
 > *A product of **Vahtian**.*
 
-## Status: v0.45.0 — the Atlas tab now shows the real local evidence map (claim↔evidence graph, decision-coloured links, retraction flags, blinded AI view, publication-grade SVG figure export), and the app became self-healing: the supervisor no longer kills healthy engines under momentary load (cheap /api/ping liveness probe, tolerant threshold), and the panel page detects a dead or replaced backend and reloads itself instead of silently ignoring input. Engine, safety, and write-path behaviour unchanged.
+## Status: v0.46.0 — public-beta hardening release: a claim citing several sources is decided per source (no more one-accept green), opening a rating is idempotent (no duplicate pair records), imports read the abstract and say when one is missing, the corpus export and published pair counts use the one shared rating selector, a failed AI call is retried but a judgement is never re-asked, the local reply ceiling is sized from the whole corpus, `ai_connection.think` is an opt-in latency control, the `mcp` dependency is capped `<2`, and public copy says check — not verify — throughout.
 
 The ADR-0001 evidence-decision ledger is complete end to end (claim → candidate →
 blinded support rating → final decision → decision-gated, undoable Zotero write →
