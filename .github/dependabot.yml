@@ -30,6 +30,13 @@ updates:
     groups:
       npm-minor-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # @types/vscode declares the OLDEST VS Code API the extension supports, so it
+      # tracks engines.vscode (^1.85.0) — not the newest release. `vsce package` hard-
+      # fails when it runs ahead ("@types/vscode X greater than engines.vscode Y"), so
+      # every automated bump lands red. Raising it means deliberately dropping support
+      # for older VS Code versions: edit engines.vscode first, then this pin, together.
+      - dependency-name: "@types/vscode"
 
   # GitHub Actions — activates once you add workflows under .github/workflows/
   - package-ecosystem: "github-actions"

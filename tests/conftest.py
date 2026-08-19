@@ -149,3 +149,15 @@ def make_grade_rating(
         comparison=Comparison(status=status),
         adjudication=Adjudication(final_value=final_value, event=event, decided_by=decided_by),
     )
+
+
+def mcp_wire(model) -> dict:
+    """A protocol object as the camelCase JSON a client actually receives.
+
+    mcp 2.x renamed the Python attributes on its protocol models to snake_case
+    (``inputSchema`` -> ``input_schema``, ``isError`` -> ``is_error``, the tool hints
+    likewise) while keeping the wire aliases. Asserting on the serialized shape tests
+    what the client sees and holds across both SDK generations, instead of pinning the
+    tests to one release's attribute spelling.
+    """
+    return model.model_dump(by_alias=True)

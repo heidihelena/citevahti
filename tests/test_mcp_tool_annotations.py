@@ -8,6 +8,7 @@ Offline: builds the stdio server and reads back what the protocol would advertis
 from __future__ import annotations
 
 import pytest
+from conftest import mcp_wire
 
 from citevahti import agent
 from citevahti.agent.annotations import TOOL_META, assert_annotations_complete
@@ -52,12 +53,13 @@ def test_annotations_surface_over_the_protocol():
     import citevahti.agent.mcp_server as mcp_server
 
     server = mcp_server.build_server(root=".")
-    by_name = {t.name: t for t in server._tool_manager.list_tools()}
+    # the wire shape, so this holds across both mcp SDK generations (see conftest.mcp_wire)
+    by_name = {t.name: mcp_wire(t) for t in server._tool_manager.list_tools()}
     assert set(by_name) == set(agent.TOOLS)
     for name, t in by_name.items():
-        ann = t.annotations
-        assert ann is not None and ann.title, f"{name} has no title/annotations"
-        assert ann.readOnlyHint is TOOL_META[name].read_only
+        ann = t["annotations"]
+        assert ann is not None and ann["title"], f"{name} has no title/annotations"
+        assert ann["readOnlyHint"] is TOOL_META[name].read_only
     # the one external write is advertised destructive; a read tool is advertised read-only
-    assert by_name["commit_write"].annotations.destructiveHint is True
-    assert by_name["status"].annotations.readOnlyHint is True
+    assert by_name["commit_write"]["annotations"]["destructiveHint"] is True
+    assert by_name["status"]["annotations"]["readOnlyHint"] is True

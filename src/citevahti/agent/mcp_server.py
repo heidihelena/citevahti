@@ -8,6 +8,8 @@ this module is cheap; the SDK is only needed to actually serve.
 
 from __future__ import annotations
 
+from typing import Any
+
 from . import TOOLS, assert_safe_surface
 from .annotations import annotations_kwargs, assert_annotations_complete
 from .prompts import (
@@ -28,9 +30,52 @@ from .prompts import (
 )
 
 
+def _load_server_class() -> Any:
+    """The batteries-included server class of whichever mcp SDK generation is installed.
+
+    mcp >= 2.0 renamed it: ``mcp.server.fastmcp.FastMCP`` became
+    ``mcp.server.mcpserver.MCPServer``. The decorators CiteVahti uses (``tool`` /
+    ``prompt`` / ``custom_route``) are unchanged; the bind moved to run time (see
+    ``_serve``). Returns ``Any`` deliberately — the two classes have different
+    constructor signatures, and ``build_server`` reads the one it got by reflection.
+
+    Raises a ``RuntimeError`` naming the actual fix: a missing extra and an
+    incompatible version need different answers, and the older message told people
+    to install the extra they had already installed.
+    """
+    try:
+        try:
+            from mcp.server.mcpserver import MCPServer
+
+            return MCPServer
+        except ModuleNotFoundError as exc:
+            if exc.name != "mcp.server.mcpserver":
+                raise                          # no mcp at all, or a deeper breakage
+            from mcp.server.fastmcp import FastMCP   # mcp 1.x
+
+            return FastMCP
+    except ModuleNotFoundError as exc:
+        if exc.name == "mcp":
+            raise RuntimeError(
+                "the 'mcp' package is required to serve (pip install 'citevahti[mcp]')"
+            ) from exc
+        # 'mcp' is installed but provides neither server class — an incompatible
+        # version, not a missing extra.
+        raise RuntimeError(
+            "the installed 'mcp' package is incompatible with CiteVahti "
+            f"(cannot import {exc.name}): pip install 'mcp>=1.27.2,<3'"
+        ) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"the 'mcp' package failed to import: {exc}") from exc
+
+
 def build_server(name: str = "citevahti", *, root: str = ".", host: str = "127.0.0.1",
                   port: int = 8766):
-    """Build a FastMCP server with the constrained tools bound to ``root``.
+    """Build an MCP server with the constrained tools bound to ``root``.
+
+    Works against either generation of the SDK — ``mcp.server.fastmcp.FastMCP`` (mcp 1.x)
+    or ``mcp.server.mcpserver.MCPServer`` (mcp 2.x) — so a pinned desktop build and a
+    fresh ``pip install`` both get a server that starts.
 
     ``host``/``port`` only matter for the ``streamable-http`` transport (the ``stdio``
     transport used by the Claude Desktop ``.mcpb`` ignores them) — ``host`` is never
@@ -39,25 +84,14 @@ def build_server(name: str = "citevahti", *, root: str = ".", host: str = "127.0
 
     Raises a clear error if the ``mcp`` package isn't installed.
     """
-    try:
-        from mcp.server.fastmcp import FastMCP
-    except ModuleNotFoundError as exc:
-        if exc.name == "mcp":
-            raise RuntimeError(
-                "the 'mcp' package is required to serve (pip install 'citevahti[mcp]')"
-            ) from exc
-        # 'mcp' is installed but does not provide what we import — an incompatible
-        # version (mcp 2.0.0 removed mcp.server.fastmcp), not a missing extra.
-        # Telling the user to install the extra they already installed hides the fix.
-        raise RuntimeError(
-            "the installed 'mcp' package is incompatible with CiteVahti "
-            f"(cannot import {exc.name}): pip install 'mcp>=1.27.2,<2'"
-        ) from exc
-    except Exception as exc:  # noqa: BLE001
-        raise RuntimeError(f"the 'mcp' package failed to import: {exc}") from exc
+    import inspect
 
+    server_class = _load_server_class()
     assert_safe_surface(TOOLS.keys())          # defense in depth at serve time
-    server = FastMCP(name, host=host, port=port)
+    # mcp 1.x captures the bind in Settings at construction; mcp 2.x dropped host/port
+    # from Settings and takes them at run time instead (_serve passes them there).
+    accepts_bind = "host" in inspect.signature(server_class).parameters
+    server = server_class(name, **({"host": host, "port": port} if accepts_bind else {}))
 
     # A plain identity/liveness check for the desktop app's supervisor (SidecarSupervisor)
     # to confirm — over streamable-http only — that a given port really is *this* project's
@@ -118,7 +152,7 @@ def build_server(name: str = "citevahti", *, root: str = ".", host: str = "127.0
         def tool(**kwargs):
             return fn(root=root, **kwargs)
 
-        # FastMCP builds JSON schemas from the callable signature. The wrapper
+        # The SDK builds JSON schemas from the callable signature. The wrapper
         # itself is **kwargs, but the MCP client must see the real tool inputs
         # with the server-bound project root hidden.
         tool.__signature__ = inspect.Signature(  # type: ignore[attr-defined]
@@ -131,6 +165,25 @@ def build_server(name: str = "citevahti", *, root: str = ".", host: str = "127.0
     for tool_name, fn in TOOLS.items():
         server.tool(name=tool_name, **annotations_kwargs(tool_name))(_bind(fn))
     return server
+
+
+def _serve(server, transport: str, *, host: str = "127.0.0.1", port: "int | None" = None) -> None:
+    """Start ``server``, keeping the loopback bind explicit under either SDK generation.
+
+    mcp 1.x reads host/port off the Settings captured in ``build_server``; its ``run()``
+    takes no such keywords. mcp 2.x takes them at run time and would otherwise fall back
+    to its own ``127.0.0.1:8000`` default — same loopback-only invariant, but silently
+    ignoring the port we picked. Detected from ``run()``'s signature (mcp 2.x forwards
+    ``**kwargs`` to the transport) rather than from a version string.
+    """
+    import inspect
+
+    takes_bind = any(p.kind is inspect.Parameter.VAR_KEYWORD or p.name == "host"
+                     for p in inspect.signature(server.run).parameters.values())
+    if takes_bind and port is not None:
+        server.run(transport=transport, host=host, port=port)
+    else:
+        server.run(transport=transport)
 
 
 def _pick_loopback_port(preferred: int) -> int:
@@ -160,7 +213,7 @@ def _serve_streamable_http(root: str, preferred_port: int,
     """The desktop app's agent-server sidecar path: loopback ``streamable-http``, with the
     same runtime-file handshake + rotating log the ``citevahti-engine`` sidecar uses.
 
-    FastMCP's ``run(transport="streamable-http")`` doesn't hand back the internal uvicorn
+    The SDK's ``run(transport="streamable-http")`` doesn't hand back the internal uvicorn
     server, so there's no handle to ask for a graceful in-flight-request drain on
     ``SIGTERM``/``SIGINT`` — this does a clean-enough shutdown instead (clear the runtime
     handshake file, then exit immediately), which is the guarantee that actually matters
@@ -201,7 +254,8 @@ def _serve_streamable_http(root: str, preferred_port: int,
 
         watch_parent(parent_pid)
     try:
-        build_server(root=root, host="127.0.0.1", port=port).run(transport="streamable-http")
+        _serve(build_server(root=root, host="127.0.0.1", port=port),
+               "streamable-http", host="127.0.0.1", port=port)
     finally:
         runtime_state.clear_runtime_file("mcp")
     return 0
@@ -243,7 +297,7 @@ def main(argv=None) -> int:
     print(f"citevahti-mcp v{__version__}: ledger root = {root} "
           f"({root}/.citevahti/config.json) — run the 'init' tool first if it doesn't exist yet.",
           file=sys.stderr)
-    build_server(root=root).run()
+    _serve(build_server(root=root), "stdio")
     return 0
 
 

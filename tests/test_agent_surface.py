@@ -11,6 +11,7 @@ import sys
 from types import SimpleNamespace
 
 import pytest
+from conftest import mcp_wire
 
 from citevahti import agent
 from citevahti.agent import policy
@@ -208,14 +209,14 @@ def test_mcp_stdio_exposes_real_tool_schemas_and_calls_status(tmp_path):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 listed = await session.list_tools()
-                by_name = {t.name: t for t in listed.tools}
+                by_name = {t.name: mcp_wire(t) for t in listed.tools}
                 assert set(by_name) == set(policy.ALLOWED_AGENT_TOOLS)
-                assert by_name["status"].inputSchema["properties"] == {}
-                assert "query" in by_name["pubmed_search"].inputSchema["properties"]
-                assert "decision_id" in by_name["preview_write"].inputSchema["properties"]
-                assert "approval_token" in by_name["commit_write"].inputSchema["properties"]
-                out = await session.call_tool("status", {})
-                assert out.isError is False
-                assert "write_backend" in out.content[0].text
+                assert by_name["status"]["inputSchema"]["properties"] == {}
+                assert "query" in by_name["pubmed_search"]["inputSchema"]["properties"]
+                assert "decision_id" in by_name["preview_write"]["inputSchema"]["properties"]
+                assert "approval_token" in by_name["commit_write"]["inputSchema"]["properties"]
+                out = mcp_wire(await session.call_tool("status", {}))
+                assert out["isError"] is False
+                assert "write_backend" in out["content"][0]["text"]
 
     anyio.run(run)
