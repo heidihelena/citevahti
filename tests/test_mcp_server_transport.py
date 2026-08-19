@@ -30,8 +30,27 @@ def test_build_server_registers_health_route_with_expected_shape():
 
 
 def test_build_server_default_host_is_loopback():
+    """The bind is loopback-only under either SDK generation.
+
+    mcp 1.x captures host in the server's Settings at construction; mcp 2.x dropped it
+    from Settings and takes it at run time, so there the invariant lives in what
+    ``_serve`` passes to ``run()``. Assert whichever one this install actually uses —
+    skipping the check on mcp 2.x would silently stop testing the invariant.
+    """
     server = mcp_server.build_server(root=".")
-    assert server.settings.host == "127.0.0.1"
+    host = getattr(getattr(server, "settings", None), "host", None)
+    if host is not None:                       # mcp 1.x
+        assert host == "127.0.0.1"
+        return
+
+    seen = {}                                  # mcp 2.x
+
+    class _Recorder:
+        def run(self, transport, **kwargs):
+            seen.update(kwargs, transport=transport)
+
+    mcp_server._serve(_Recorder(), "streamable-http", host="127.0.0.1", port=8766)
+    assert seen == {"transport": "streamable-http", "host": "127.0.0.1", "port": 8766}
 
 
 def test_main_has_no_host_flag_loopback_is_hardcoded():
@@ -119,8 +138,8 @@ def test_serve_streamable_http_writes_and_clears_runtime_file(monkeypatch, tmp_p
 
 # ---------------------------------------------------------------------------
 # The serve-time import error must name the actual problem. A fresh install
-# under mcp 2.0.0 (which removed mcp.server.fastmcp) used to be told to
-# install the extra it had already installed.
+# under mcp 2.0.0 (which renamed mcp.server.fastmcp to mcp.server.mcpserver)
+# used to be told to install the extra it had already installed.
 # ---------------------------------------------------------------------------
 
 def test_build_server_missing_mcp_says_install_the_extra(monkeypatch):
@@ -143,7 +162,10 @@ def test_build_server_missing_mcp_says_install_the_extra(monkeypatch):
 
 def test_build_server_incompatible_mcp_names_the_version_fix(monkeypatch):
     import sys
-    # mcp itself imports, but the submodule we need is gone — mcp 2.0.0's shape.
+    # mcp itself imports, but neither server class is there — the shape a future
+    # rename would leave behind. Either one alone is fine (that's the 1.x/2.x split
+    # build_server exists to absorb), so both must be blocked to reach "incompatible".
     monkeypatch.setitem(sys.modules, "mcp.server.fastmcp", None)
-    with pytest.raises(RuntimeError, match=r"incompatible.*mcp>=1\.27\.2,<2"):
+    monkeypatch.setitem(sys.modules, "mcp.server.mcpserver", None)
+    with pytest.raises(RuntimeError, match=r"incompatible.*mcp>=1\.27\.2,<3"):
         mcp_server.build_server(root=".")
